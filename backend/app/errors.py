@@ -15,8 +15,22 @@ class ErrorBody(BaseModel):
     type: Literal["domain", "http", "validation"] = "domain"
 
 
-def register_exception_handlers(app):
+def register_exception_handlers(app) -> None:
     from fastapi.exceptions import RequestValidationError
+
+    from app.exceptions import AppError
+
+    @app.exception_handler(AppError)
+    async def app_error_handler(_request: Request, exc: AppError) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=ErrorBody(
+                code=exc.code,
+                message=exc.message,
+                type="domain",
+                details=None,
+            ).model_dump(mode="json"),
+        )
 
     @app.exception_handler(RequestValidationError)
     async def validation_handler(request: Request, exc: RequestValidationError):
