@@ -1,4 +1,19 @@
-const base = import.meta.env.VITE_API_BASE_URL ?? ''
+/**
+ * 未设置 VITE_API_BASE_URL 时，生产构建用同源相对路径；
+ * 开发环境默认连本机 FastAPI，避免把 /auth 等误发到 Vite（5173）而 404。
+ */
+function resolveApiBaseUrl(): string {
+  const v = import.meta.env.VITE_API_BASE_URL
+  if (v != null && String(v).trim() !== '') {
+    return String(v).replace(/\/$/, '')
+  }
+  if (import.meta.env.DEV) {
+    return 'http://127.0.0.1:8000'
+  }
+  return ''
+}
+
+const base = resolveApiBaseUrl()
 
 export class ApiError extends Error {
   constructor(
@@ -24,7 +39,15 @@ export async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
     if (!path.startsWith('/auth/')) {
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
-      if (!window.location.pathname.startsWith('/login')) {
+      const p = window.location.pathname
+      const onAuthUi =
+        p === '/login' ||
+        p === '/auth/login' ||
+        p.startsWith('/auth/login/') ||
+        p === '/register' ||
+        p === '/auth/register' ||
+        p.startsWith('/auth/register/')
+      if (!onAuthUi) {
         window.location.assign('/login')
       }
     }

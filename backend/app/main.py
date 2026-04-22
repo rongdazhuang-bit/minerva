@@ -10,11 +10,13 @@ from slowapi.errors import RateLimitExceeded
 from app.api.router import api
 from app.config import settings
 from app.errors import register_exception_handlers
+from app.infrastructure.db.bootstrap import create_missing_tables
 from app.limits import limiter
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await create_missing_tables()
     app.state.arq_pool = None
     try:
         app.state.arq_pool = await create_pool(RedisSettings.from_dsn(settings.redis_url))

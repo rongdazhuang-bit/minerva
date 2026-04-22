@@ -4,6 +4,7 @@ import { useAuth } from '@/app/AuthContext'
 import {
   addEdge,
   Background,
+  BackgroundVariant,
   Controls,
   type Connection,
   type Edge,
@@ -11,46 +12,55 @@ import {
   type NodeTypes,
   Handle,
   MiniMap,
+  type NodeProps,
   Position,
   ReactFlow,
   useEdgesState,
   useNodesState,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { Breadcrumb, Button, Select, Space, message } from 'antd'
-import { useCallback, useEffect, useState } from 'react'
+import { Breadcrumb, Button, Select, message } from 'antd'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router-dom'
 
-function MinervaNode(p: { data: { nodeType: string; label: string } }) {
+import './RuleEditorPage.css'
+
+function accentClass(nodeType: string): string {
+  if (['start', 'end', 'branch', 'noop'].includes(nodeType)) {
+    return `rule-node__accent--${nodeType}`
+  }
+  return 'rule-node__accent--default'
+}
+
+function MinervaNode(p: NodeProps) {
+  const { t } = useTranslation()
+  const data = p.data as { nodeType: string; label: string }
+  const nodeType = data.nodeType
+  const typeKey = `designer.nodeType.${nodeType}` as const
+  const typeLabel = t(typeKey) !== typeKey ? t(typeKey) : nodeType
   return (
-    <div
-      style={{
-        minWidth: 100,
-        padding: '8px 12px',
-        borderRadius: 6,
-        background: 'linear-gradient(180deg, #1e2630, #12161c)',
-        border: '1px solid #c9a227',
-        color: '#e8e4dc',
-        fontSize: 13,
-      }}
-    >
+    <div className="rule-node">
+      <div className={`rule-node__accent ${accentClass(nodeType)}`} />
+      <div className="rule-node__head">
+        <span className="rule-node__type">{typeLabel}</span>
+      </div>
+      <div className="rule-node__body">{data.label || typeLabel}</div>
       <Handle
+        className="rule-node__handle rule-node__handle--target"
         type="target"
         position={Position.Top}
-        style={{ background: '#c9a227' }}
       />
-      <div style={{ textAlign: 'center' }}>{p.data.label || p.data.nodeType}</div>
       <Handle
+        className="rule-node__handle rule-node__handle--source"
         type="source"
         position={Position.Bottom}
-        style={{ background: '#c9a227' }}
       />
     </div>
   )
 }
 
-const MINERVA: NodeTypes = { minerva: MinervaNode }
+const defaultEdgeOptions = { type: 'smoothstep' as const }
 
 function flowToNodesEdges(flow: Record<string, unknown> | null | undefined): {
   nodes: Node[]
@@ -62,7 +72,9 @@ function flowToNodesEdges(flow: Record<string, unknown> | null | undefined): {
         { id: 'a', type: 'minerva', position: { x: 0, y: 0 }, data: { nodeType: 'start', label: 'start' } },
         { id: 'b', type: 'minerva', position: { x: 200, y: 0 }, data: { nodeType: 'end', label: 'end' } },
       ],
-      edges: [{ id: 'e1', source: 'a', target: 'b' }],
+      edges: [
+        { id: 'e1', source: 'a', target: 'b', type: 'smoothstep' },
+      ],
     }
   }
   const rawNodes = (flow.nodes as { id: string; type: string; data?: Record<string, unknown> }[]) ?? []
@@ -77,6 +89,7 @@ function flowToNodesEdges(flow: Record<string, unknown> | null | undefined): {
     id: e.id,
     source: e.source,
     target: e.target,
+    type: 'smoothstep',
   }))
   return { nodes, edges }
 }
@@ -96,13 +109,6 @@ function buildFlowJson(nodes: Node[], edges: Edge[]): Record<string, unknown> {
   }
 }
 
-const ADD_TYPES = [
-  { value: 'start', label: 'start' },
-  { value: 'end', label: 'end' },
-  { value: 'branch', label: 'branch' },
-  { value: 'noop', label: 'noop' },
-]
-
 export function RuleEditorPage() {
   const { ruleId = '' } = useParams()
   const { t } = useTranslation()
@@ -111,6 +117,23 @@ export function RuleEditorPage() {
   const [latest, setLatest] = useState<{ id: string; state: string } | null>(null)
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
+
+  const addTypeOptions = useMemo(
+    () => [
+      { value: 'start', label: t('designer.nodeType.start') },
+      { value: 'end', label: t('designer.nodeType.end') },
+      { value: 'branch', label: t('designer.nodeType.branch') },
+      { value: 'noop', label: t('designer.nodeType.noop') },
+    ],
+    [t],
+  )
+
+  const nodeTypes: NodeTypes = useMemo(
+    () => ({
+      minerva: MinervaNode,
+    }),
+    [],
+  )
 
   const load = useCallback(async () => {
     if (!workspaceId || !ruleId) return
@@ -138,7 +161,8 @@ export function RuleEditorPage() {
   }, [load])
 
   const onConnect = useCallback(
-    (c: Connection) => setEdges((e) => addEdge({ id: `e-${crypto.randomUUID()}`, ...c }, e)),
+    (c: Connection) =>
+      setEdges((e) => addEdge({ id: `e-${crypto.randomUUID()}`, type: 'smoothstep', ...c }, e)),
     [setEdges],
   )
 
@@ -162,7 +186,7 @@ export function RuleEditorPage() {
       try {
         const v = await addRuleVersion(workspaceId, ruleId, flow)
         setLatest({ id: v.id, state: v.state })
-        void message.success('已保存为新版本')
+        void message.success(t('designer.savedAsDraft'))
         void load()
       } catch (e) {
         if (e instanceof ApiError) void message.error(e.message)
@@ -173,13 +197,13 @@ export function RuleEditorPage() {
   const doPublish = () => {
     if (!workspaceId || !latest) return
     if (latest.state === 'published') {
-      void message.info('当前版本已发布')
+      void message.info(t('designer.alreadyPublished'))
       return
     }
     void (async () => {
       try {
         await publishVersion(workspaceId, ruleId, latest.id)
-        void message.success('已发布')
+        void message.success(t('designer.publishedOk'))
         void load()
       } catch (e) {
         if (e instanceof ApiError) void message.error(e.message)
@@ -190,45 +214,75 @@ export function RuleEditorPage() {
   if (!workspaceId) return null
 
   return (
-    <div>
+    <div className="rule-editor">
       <Breadcrumb
-        style={{ marginBottom: 12 }}
+        className="rule-editor__crumb"
         items={[
           { title: <Link to="/app/rules">{t('nav.rules')}</Link> },
           { title: title || '…' },
         ]}
       />
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-        <h2 style={{ margin: 0, fontFamily: "'Fraunces', Georgia, serif" }}>{title || '—'}</h2>
-        <Space>
+      <div className="rule-editor__title-row">
+        <h2 className="rule-editor__title">{title || '—'}</h2>
+      </div>
+      <div className="rule-editor__toolbar">
+        <div className="rule-editor__toolbar-left" />
+        <div className="rule-editor__toolbar-right">
           <Select
-            placeholder="添加节点"
-            options={ADD_TYPES}
-            onChange={addNode}
-            style={{ width: 120 }}
+            placeholder={t('designer.addNode')}
+            options={addTypeOptions}
+            onChange={(v) => v && addNode(String(v))}
+            style={{ width: 160 }}
             allowClear
           />
           <Button onClick={save}>{t('designer.save')}</Button>
           <Button type="primary" onClick={doPublish}>
             {t('designer.publish')}
           </Button>
-        </Space>
+        </div>
       </div>
-      <p style={{ color: '#8a919b', fontSize: 12, margin: '0 0 8px' }}>{t('designer.hint')}</p>
-      <div style={{ width: '100%', height: 520, border: '1px solid #1e2630', borderRadius: 8, overflow: 'hidden' }}>
-        <ReactFlow
-          nodeTypes={MINERVA}
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          fitView
-        >
-          <Background color="#1e2630" />
-          <Controls />
-          <MiniMap />
-        </ReactFlow>
+      <p className="rule-editor__hint">{t('designer.hint')}</p>
+      <div className="rule-editor__body">
+        <div className="rule-editor__main">
+          <div className="rule-editor__canvas">
+            <ReactFlow
+              className="rule-editor__flow"
+              nodeTypes={nodeTypes}
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              defaultEdgeOptions={defaultEdgeOptions}
+              fitView
+              proOptions={{ hideAttribution: true }}
+            >
+              <Background
+                id="minerva-dots"
+                variant={BackgroundVariant.Dots}
+                gap={20}
+                size={1.2}
+                color="#b8c3cd"
+              />
+              <Controls position="bottom-left" showInteractive={false} />
+              <MiniMap
+                pannable
+                zoomable
+                nodeStrokeWidth={2}
+                maskColor="rgba(241, 245, 249, 0.78)"
+                style={{ background: '#ffffff' }}
+                nodeColor={(n) => {
+                  const t = (n.data as { nodeType?: string } | undefined)?.nodeType
+                  if (t === 'start') return '#10b981'
+                  if (t === 'end') return '#f87171'
+                  if (t === 'branch') return '#f59e0b'
+                  if (t === 'noop') return '#94a3b8'
+                  return '#3b82f6'
+                }}
+              />
+            </ReactFlow>
+          </div>
+        </div>
       </div>
     </div>
   )

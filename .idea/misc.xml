@@ -3,9 +3,6 @@
   <component name="CodeInsightWorkspaceSettings">
     <option name="optimizeImportsOnTheFly" value="true" />
   </component>
-  <component name="KotlinCodeInsightWorkspaceSettings">
-    <option name="optimizeImportsOnTheFly" value="true" />
-  </component>
   <component name="ProjectInspectionProfilesVisibleTreeState">
     <entry key="Project Default">
       <profile-state>
@@ -17,7 +14,7 @@
       </profile-state>
     </entry>
   </component>
-  <component name="ProjectRootManager" version="2" languageLevel="JDK_21" default="true" project-jdk-name="Python 3.12 (gedi-vibro-predict)" project-jdk-type="Python SDK">
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_21" default="true" project-jdk-name="Python 3.13 (minerva)" project-jdk-type="Python SDK">
     <output url="file://$PROJECT_DIR$/out" />
   </component>
 </project>

@@ -1,16 +1,21 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;1,9..40,400&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&display=swap');
 
 :root {
+  --minerva-ink: #0f172a;
+  --minerva-bg: #f1f5f9;
+  --minerva-link: #2563eb;
   --minerva-amber: #c9a227;
-  --minerva-ink: #e8e4dc;
-  --minerva-bg: #0a0c10;
+}
+
+html.minerva-auth-tone-amber {
+  --minerva-bg: #fffbeb;
+  --minerva-link: #a16207;
 }
 
 * {
   box-sizing: border-box;
 }
 
-/* 为纵向滚动条预留稳定槽位，避免显隐时内容区左右跳动 */
 html {
   scrollbar-gutter: stable;
 }
@@ -30,14 +35,56 @@ body {
 }
 
 a {
-  color: var(--minerva-amber);
+  color: var(--minerva-link);
 }
 
 a:hover {
   text-decoration: underline;
 }
 
-/* Ant Design 表格在暗色下边框协调 */
 .ant-table {
-  --ant-color-border-secondary: #1e2630;
+  --ant-color-border-secondary: #e2e8f0;
+}
+
+/* 已登录 shell：整页不滚，仅主内容区滚 */
+html.minerva-app-shell {
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  scrollbar-gutter: auto;
+}
+
+html.minerva-app-shell body {
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html.minerva-app-shell #root {
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+html.minerva-app-shell .minerva-spa-wrapper {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+html.minerva-app-shell .minerva-route-surface {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }

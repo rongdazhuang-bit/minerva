@@ -1,14 +1,11 @@
-/* 认证全屏时锁定 html/body 高度，避免语言/主色/下拉导致整页出现滚动与抖动 */
-/* 认证页不预留 scrollbar-gutter，否则槽位会露出 body 的 #0a0c10，与 .login-shell 的 #050810 形成右缘色差带 */
+/* 认证全屏时锁定 html/body 高度；浅色底与 .login-shell 一致 */
 html.minerva-auth-page {
   scrollbar-gutter: auto;
-  /* 与 .login-shell 默认底一致，覆盖 --minerva-bg，避免任一侧边露出不同底色 */
-  background: #050810;
+  background: #f1f5f9;
 }
 
 html.minerva-auth-page.minerva-auth-tone-amber {
-  /* 与 .login-shell.tone-amber 底一致 */
-  background: #0a0806;
+  background: #fffbeb;
 }
 
 html.minerva-auth-page,
@@ -21,12 +18,11 @@ html.minerva-auth-page body {
 
 html.minerva-auth-page body {
   margin: 0;
-  /* 与 .login-shell 底一致，避免与 html 的 scrollbar 槽/边沿色差 */
-  background: #050810;
+  background: #f1f5f9;
 }
 
 html.minerva-auth-page.minerva-auth-tone-amber body {
-  background: #0a0806;
+  background: #fffbeb;
 }
 
 html.minerva-auth-page body #root {
@@ -36,25 +32,25 @@ html.minerva-auth-page body #root {
   overflow: hidden;
 }
 
-/* 登录 / 注册等公开页：深色背景 + 白卡在视口正中心（与页脚互不抢占） */
 .login-shell {
   position: relative;
   width: 100%;
   min-height: 100dvh;
-  min-height: 100vh; /* 旧浏览器回退 */
+  min-height: 100vh;
   overflow: hidden;
-  background: #050810;
+  background: #f1f5f9;
   box-sizing: border-box;
 }
 
-/* 在认证锁页下：填满 #root 固定视口，避免子树高度把 document 顶出滚动条 */
+/* 勿把 min-height 置 0：父链无明确高度时 height:100% 会塌成 0，导致整页空白 */
 html.minerva-auth-page .login-shell {
-  min-height: 0;
-  height: 100%;
-  max-height: 100%;
+  min-height: 100dvh;
+  min-height: 100vh;
+  height: auto;
+  max-height: 100dvh;
+  max-height: 100vh;
 }
 
-/* 工具栏：语言 + 主色 */
 .auth-page-toolbar {
   position: absolute;
   top: 16px;
@@ -68,50 +64,49 @@ html.minerva-auth-page .login-shell {
 .auth-page-toolbar-btn.ant-btn {
   width: 40px;
   height: 40px;
-  color: rgba(255, 255, 255, 0.88) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #475569 !important;
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(8px);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
 }
 
 .auth-page-toolbar-btn.ant-btn:hover {
-  color: #fff !important;
-  background: rgba(255, 255, 255, 0.1) !important;
-  border-color: rgba(255, 255, 255, 0.2);
+  color: #0f172a !important;
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
 }
 
-/* 悬停下拉：深色面板 + 语言/主色子项小图标 */
 .auth-toolbar-dropdown {
   min-width: 180px;
 }
 
 .auth-toolbar-dropdown .ant-dropdown-menu {
-  background: rgba(20, 24, 32, 0.98) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
   border-radius: 10px !important;
   padding: 6px !important;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45) !important;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.12) !important;
 }
 
 .auth-toolbar-dropdown .ant-dropdown-menu-item,
 .auth-toolbar-dropdown .ant-dropdown-menu-submenu-title {
-  color: rgba(255, 255, 255, 0.92) !important;
+  color: #334155 !important;
   border-radius: 8px !important;
   line-height: 1.4 !important;
 }
 
 .auth-toolbar-dropdown .ant-dropdown-menu-item:hover,
 .auth-toolbar-dropdown .ant-dropdown-menu-submenu-title:hover {
-  background: rgba(255, 255, 255, 0.08) !important;
+  background: #f1f5f9 !important;
 }
 
 .auth-toolbar-dropdown .ant-dropdown-menu-item-selected {
-  background: rgba(37, 99, 235, 0.3) !important;
-  color: #fff !important;
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
 }
 
-/* 子项前小图标：语言 */
 .auth-dropdown-icon {
   display: inline-flex;
   width: 22px;
@@ -138,7 +133,6 @@ html.minerva-auth-page .login-shell {
   color: #e0e7ff;
 }
 
-/* 子项前小图标：主题色样 */
 .auth-swatch {
   display: inline-block;
   width: 20px;
@@ -161,7 +155,6 @@ html.minerva-auth-page .login-shell {
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2) inset;
 }
 
-/* 白卡：水平、垂直都相对视口居中 */
 .login-center {
   position: absolute;
   left: 0;
@@ -179,39 +172,33 @@ html.minerva-auth-page .login-shell {
   padding: 0 20px;
 }
 
-/* 基底 + 柔和光斑 */
 .login-shell::before {
   content: '';
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 900px 480px at 15% 12%, rgba(59, 130, 246, 0.18), transparent 55%),
-    radial-gradient(ellipse 700px 420px at 88% 18%, rgba(139, 92, 246, 0.12), transparent 50%),
-    radial-gradient(ellipse 800px 500px at 50% 100%, rgba(15, 23, 42, 0.9), #050810);
+    radial-gradient(ellipse 900px 480px at 15% 12%, rgba(59, 130, 246, 0.1), transparent 55%),
+    radial-gradient(ellipse 700px 420px at 88% 18%, rgba(139, 92, 246, 0.06), transparent 50%),
+    radial-gradient(ellipse 900px 520px at 50% 100%, rgba(241, 245, 249, 0.85), #f1f5f9);
   pointer-events: none;
 }
 
-/* 琥珀主色时背景光斑偏暖金 */
 .login-shell.tone-amber {
-  background: #0a0806;
+  background: #fffbeb;
 }
 .login-shell.tone-amber::before {
   background:
-    radial-gradient(ellipse 900px 480px at 18% 10%, rgba(201, 162, 39, 0.2), transparent 55%),
-    radial-gradient(ellipse 700px 420px at 86% 20%, rgba(180, 83, 9, 0.1), transparent 50%),
-    radial-gradient(ellipse 800px 500px at 50% 100%, rgba(20, 15, 10, 0.92), #0a0806);
+    radial-gradient(ellipse 900px 480px at 18% 10%, rgba(217, 119, 6, 0.1), transparent 55%),
+    radial-gradient(ellipse 700px 420px at 86% 20%, rgba(245, 158, 11, 0.05), transparent 50%),
+    radial-gradient(ellipse 900px 520px at 50% 100%, rgba(255, 251, 235, 0.9), #fffbeb);
 }
 
-/* 极淡网格纹理 */
 .login-shell::after {
   content: '';
   position: absolute;
   inset: 0;
-  background-image: linear-gradient(
-      rgba(255, 255, 255, 0.02) 1px,
-      transparent 1px
-    ),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-image: linear-gradient(rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
   background-size: 64px 64px;
   mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, black, transparent);
   pointer-events: none;
@@ -225,8 +212,8 @@ html.minerva-auth-page .login-shell {
   background: #ffffff;
   border-radius: 16px;
   box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.08),
-    0 25px 50px -12px rgba(0, 0, 0, 0.35);
+    0 1px 3px rgba(15, 23, 42, 0.06),
+    0 20px 40px -16px rgba(15, 23, 42, 0.12);
   padding: 36px 40px 32px;
 }
 
@@ -282,7 +269,6 @@ html.minerva-auth-page .login-shell {
   color: #64748b;
 }
 
-/* 覆盖 Ant 表单项在浅色卡内的间距 */
 .login-card .ant-form-item {
   margin-bottom: 20px;
 }
@@ -302,7 +288,7 @@ html.minerva-auth-page .login-shell {
   margin: 0;
   text-align: center;
   font-size: 12px;
-  color: rgba(148, 163, 184, 0.75);
+  color: #94a3b8;
   letter-spacing: 0.02em;
   pointer-events: none;
 }

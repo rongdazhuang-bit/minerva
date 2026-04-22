@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom'
+import { AppThemedLayout } from '@/app/AppThemedLayout'
 import { AppLayout } from '@/app/layout/AppLayout'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { RegisterPage } from '@/features/auth/RegisterPage'
@@ -16,22 +17,29 @@ function RequireAuth({ children }: { children: ReactNode }) {
 }
 
 const router = createBrowserRouter([
-  { path: '/', element: <Navigate to="/app/rules" replace /> },
-  { path: '/login', element: <LoginPage /> },
-  { path: '/register', element: <RegisterPage /> },
   {
-    path: '/app',
-    element: (
-      <RequireAuth>
-        <AppLayout />
-      </RequireAuth>
-    ),
+    element: <AppThemedLayout />,
     children: [
-      { index: true, element: <Navigate to="rules" replace /> },
-      { path: 'rules', element: <RulesListPage /> },
-      { path: 'rules/:ruleId/edit', element: <RuleEditorPage /> },
-      { path: 'executions', element: <ExecutionsListPage /> },
-      { path: 'executions/:executionId', element: <ExecutionDetailPage /> },
+      { path: '/', element: <Navigate to="/app/rules" replace /> },
+      { path: '/login', element: <LoginPage /> },
+      { path: '/register', element: <RegisterPage /> },
+      { path: '/auth/login', element: <LoginPage /> },
+      { path: '/auth/register', element: <RegisterPage /> },
+      {
+        path: '/app',
+        element: (
+          <RequireAuth>
+            <AppLayout />
+          </RequireAuth>
+        ),
+        children: [
+          { index: true, element: <Navigate to="rules" replace /> },
+          { path: 'rules', element: <RulesListPage /> },
+          { path: 'rules/:ruleId/edit', element: <RuleEditorPage /> },
+          { path: 'executions', element: <ExecutionsListPage /> },
+          { path: 'executions/:executionId', element: <ExecutionDetailPage /> },
+        ],
+      },
     ],
   },
 ])

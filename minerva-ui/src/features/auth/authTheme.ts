@@ -4,6 +4,8 @@ export type AuthTone = 'blue' | 'amber'
 
 const STORAGE_TONE = 'minerva_auth_tone'
 
+export const MINERVA_TONE_EVENT = 'minerva-auth-tone'
+
 export function readStoredAuthTone(): AuthTone {
   const v = localStorage.getItem(STORAGE_TONE)
   if (v === 'amber' || v === 'blue') return v
@@ -12,9 +14,9 @@ export function readStoredAuthTone(): AuthTone {
 
 export function persistAuthTone(t: AuthTone) {
   localStorage.setItem(STORAGE_TONE, t)
+  window.dispatchEvent(new Event(MINERVA_TONE_EVENT))
 }
 
-/** 登录/注册等公开页白卡，与全应用暗色 ConfigProvider 隔离 */
 export function getAuthPageTheme(tone: AuthTone): ThemeConfig {
   if (tone === 'amber') {
     return {
@@ -52,3 +54,10 @@ export function getAuthPageTheme(tone: AuthTone): ThemeConfig {
   }
 }
 
+export function getAppLayoutTheme(tone: AuthTone): ThemeConfig {
+  const t = getAuthPageTheme(tone)
+  return {
+    ...t,
+    token: { ...t.token, borderRadius: 6, controlHeight: 32 },
+  }
+}

@@ -1,0 +1,33 @@
+.minerva-sider-resize-handle {
+  flex-shrink: 0;
+  width: 6px;
+  margin-left: -3px;
+  margin-right: -3px;
+  cursor: col-resize;
+  z-index: 2;
+  position: relative;
+  user-select: none;
+  touch-action: none;
+}
+
+.minerva-sider-resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: #e2e8f0;
+  border-radius: 1px;
+  transition: background 0.15s;
+}
+
+.minerva-sider-resize-handle:hover::after,
+.minerva-sider-resize-handle:focus-visible::after {
+  background: #94a3b8;
+}
+
+.minerva-app-body-row {
+  min-width: 0;
+}
