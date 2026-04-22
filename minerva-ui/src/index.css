@@ -10,6 +10,11 @@
   box-sizing: border-box;
 }
 
+/* 为纵向滚动条预留稳定槽位，避免显隐时内容区左右跳动 */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -17,6 +22,7 @@ body {
   background: var(--minerva-bg);
   font-family: 'DM Sans', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 #root {
