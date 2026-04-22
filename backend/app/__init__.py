@@ -1,0 +1,1 @@
+"""Minerva API application package."""
