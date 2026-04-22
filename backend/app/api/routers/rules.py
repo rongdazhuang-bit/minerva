@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from datetime import datetime
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_workspace_member
@@ -29,6 +31,23 @@ class RuleOut(BaseModel):
     workspace_id: uuid.UUID
     name: str
     type: str
+    model_config = {"from_attributes": True}
+
+
+class RuleListItemOut(RuleOut):
+    created_at: datetime
+    current_published_version_id: Optional[uuid.UUID] = None
+
+
+class LatestVersionOut(BaseModel):
+    id: uuid.UUID
+    version: int
+    state: str
+    flow_json: dict[str, Any]
+
+
+class RuleDetailOut(RuleListItemOut):
+    latest_version: Optional[LatestVersionOut] = None
 
 
 class AddVersionIn(BaseModel):
@@ -40,6 +59,56 @@ class RuleVersionOut(BaseModel):
     rule_id: uuid.UUID
     version: int
     state: str
+
+
+@router.get("/{workspace_id}/rules", response_model=list[RuleListItemOut])
+async def list_rules(
+    workspace_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+    _member: uuid.UUID = Depends(require_workspace_member),
+) -> list[Rule]:
+    r = await session.execute(
+        select(Rule)
+        .where(Rule.workspace_id == workspace_id)
+        .order_by(desc(Rule.created_at))
+    )
+    return list(r.scalars().all())
+
+
+@router.get("/{workspace_id}/rules/{rule_id}", response_model=RuleDetailOut)
+async def get_rule(
+    workspace_id: uuid.UUID,
+    rule_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+    _member: uuid.UUID = Depends(require_workspace_member),
+) -> RuleDetailOut:
+    rule = await session.get(Rule, rule_id)
+    if rule is None or rule.workspace_id != workspace_id:
+        raise AppError("rule.not_found", "Rule not found", 404)
+    latest_row = await session.execute(
+        select(RuleVersion)
+        .where(RuleVersion.rule_id == rule_id)
+        .order_by(desc(RuleVersion.version))
+        .limit(1)
+    )
+    latest = latest_row.scalar_one_or_none()
+    latest_out: LatestVersionOut | None = None
+    if latest is not None:
+        latest_out = LatestVersionOut(
+            id=latest.id,
+            version=latest.version,
+            state=latest.state,
+            flow_json=latest.flow_json,
+        )
+    return RuleDetailOut(
+        id=rule.id,
+        workspace_id=rule.workspace_id,
+        name=rule.name,
+        type=rule.type,
+        created_at=rule.created_at,
+        current_published_version_id=rule.current_published_version_id,
+        latest_version=latest_out,
+    )
 
 
 @router.post("/{workspace_id}/rules", response_model=RuleOut, status_code=201)

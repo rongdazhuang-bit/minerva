@@ -1,0 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;1,9..40,400&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&display=swap');
+
+:root {
+  --minerva-amber: #c9a227;
+  --minerva-ink: #e8e4dc;
+  --minerva-bg: #0a0c10;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--minerva-ink);
+  background: var(--minerva-bg);
+  font-family: 'DM Sans', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+a {
+  color: var(--minerva-amber);
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Ant Design 表格在暗色下边框协调 */
+.ant-table {
+  --ant-color-border-secondary: #1e2630;
+}
