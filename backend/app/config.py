@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     jwt_access_ttl_minutes: int = 15
     jwt_refresh_ttl_days: int = 7
     bcrypt_rounds: int = 12
+    redis_url: str = Field(
+        default="redis://127.0.0.1:6379/0",
+        description="Redis for ARQ and distributed locks.",
+    )
+    execution_max_steps: int = 10_000
+    redis_key_prefix: str = "minerva"
 
 
 settings = Settings()
