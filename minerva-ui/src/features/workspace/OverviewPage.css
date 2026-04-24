@@ -53,6 +53,15 @@ html.minerva-tone-sunshine .minerva-overview__card {
   color: var(--minerva-ink, #e8f0f8);
 }
 
+.minerva-overview__activity-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .minerva-overview__list-item {
   display: flex;
   justify-content: space-between;

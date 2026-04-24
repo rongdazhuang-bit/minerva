@@ -1,1 +1,1 @@
-"""OCR HTTP API (routers, schemas, deps)."""
+"""OCR database table mapping."""

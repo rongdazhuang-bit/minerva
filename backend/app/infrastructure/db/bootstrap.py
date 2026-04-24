@@ -71,6 +71,7 @@ def _dev_like_env() -> bool:
 
 def _import_models() -> None:
     import app.domain.identity.models  # noqa: F401
+    import app.tool.ocr.domain.db.models  # noqa: F401
 
 
 async def create_missing_tables() -> None:

@@ -1,1 +1,1 @@
-"""OCR HTTP API (routers, schemas, deps)."""
+"""view layer entity."""

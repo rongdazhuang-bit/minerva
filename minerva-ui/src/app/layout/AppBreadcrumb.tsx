@@ -7,6 +7,7 @@ import './appBreadcrumb.css'
 
 function settingsLeafTitle(pathname: string, t: (k: string) => string): string | null {
   if (pathname.startsWith('/app/settings/models')) return t('settings.models')
+  if (pathname.startsWith('/app/settings/ocr')) return t('settings.ocr')
   if (pathname.startsWith('/app/settings/data-sources')) return t('settings.dataSources')
   if (pathname.startsWith('/app/settings/menus')) return t('settings.menuConfig')
   if (pathname.startsWith('/app/settings/users')) return t('settings.users')

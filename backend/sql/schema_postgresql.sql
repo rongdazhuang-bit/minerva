@@ -83,70 +83,32 @@ CREATE TABLE IF NOT EXISTS workspace_memberships (
 CREATE INDEX IF NOT EXISTS ix_workspace_memberships_user_id ON workspace_memberships (user_id);
 CREATE INDEX IF NOT EXISTS ix_workspace_memberships_workspace_id ON workspace_memberships (workspace_id);
 
-CREATE TABLE IF NOT EXISTS rules (
-  id                            UUID         NOT NULL,
-  workspace_id                  UUID         NOT NULL,
-  name                          VARCHAR(200) NOT NULL,
-  type                          VARCHAR(32)  NOT NULL,
-  current_published_version_id  UUID         NULL,
-  created_at                    TIMESTAMPTZ  NOT NULL DEFAULT now(),
-  PRIMARY KEY (id),
-  CONSTRAINT rules_workspace_id_fk FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
-);
-CREATE INDEX IF NOT EXISTS ix_rules_workspace_id ON rules (workspace_id);
 
-CREATE TABLE IF NOT EXISTS rule_versions (
-  id                  UUID         NOT NULL,
-  rule_id             UUID         NOT NULL,
-  version             INTEGER      NOT NULL,
-  flow_schema_version INTEGER      NOT NULL,
-  flow_json           JSONB        NOT NULL,
-  state               VARCHAR(16)  NOT NULL,
-  created_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
-  PRIMARY KEY (id),
-  CONSTRAINT uq_rule_version_num UNIQUE (rule_id, version),
-  CONSTRAINT rule_versions_rule_id_fk FOREIGN KEY (rule_id) REFERENCES rules (id) ON DELETE CASCADE
+CREATE TABLE IF NOT EXISTS public.sys_ocr_tool (
+  id UUID NOT NULL,
+  workspace_id UUID NOT NULL,
+  "name" VARCHAR(128) NOT NULL,
+  url VARCHAR(128) NOT NULL,
+  auth_type VARCHAR(64) NULL,
+  user_name VARCHAR(64) NULL,
+  user_passwd VARCHAR(128) NULL,
+  api_key VARCHAR(128) NULL,
+  remark VARCHAR(128) NULL,
+  create_at TIMESTAMPTZ NULL DEFAULT now(),
+  update_at TIMESTAMPTZ NULL,
+  CONSTRAINT sys_ocr_tool_pk PRIMARY KEY (id),
+  CONSTRAINT sys_ocr_tool_workspace_id_fk FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS ix_rule_versions_rule_id ON rule_versions (rule_id);
-
-DO $$ BEGIN
-  ALTER TABLE rules
-    ADD CONSTRAINT fk_rules_current_published_version_id
-    FOREIGN KEY (current_published_version_id) REFERENCES rule_versions (id) ON DELETE SET NULL;
-EXCEPTION
-  WHEN duplicate_object THEN NULL;
-END $$;
-
-CREATE TABLE IF NOT EXISTS executions (
-  id              UUID         NOT NULL,
-  workspace_id    UUID         NOT NULL,
-  rule_id         UUID         NOT NULL,
-  rule_version_id UUID         NOT NULL,
-  status          VARCHAR(32)  NOT NULL,
-  input_json      JSONB        NOT NULL,
-  context_json    JSONB        NOT NULL,
-  current_node_id VARCHAR(128) NULL,
-  step_count      INTEGER      NOT NULL,
-  error_code      VARCHAR(64)  NULL,
-  error_detail    TEXT         NULL,
-  lock_token      UUID         NULL,
-  created_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
-  PRIMARY KEY (id),
-  CONSTRAINT executions_workspace_id_fk FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE,
-  CONSTRAINT executions_rule_id_fk FOREIGN KEY (rule_id) REFERENCES rules (id) ON DELETE CASCADE,
-  CONSTRAINT executions_rule_version_id_fk FOREIGN KEY (rule_version_id) REFERENCES rule_versions (id) ON DELETE CASCADE
-);
-CREATE INDEX IF NOT EXISTS ix_executions_workspace_id ON executions (workspace_id);
-CREATE INDEX IF NOT EXISTS ix_executions_rule_id ON executions (rule_id);
-
-CREATE TABLE IF NOT EXISTS execution_events (
-  id            UUID         NOT NULL,
-  execution_id  UUID         NOT NULL,
-  event_type    VARCHAR(64)  NOT NULL,
-  payload       JSONB        NOT NULL,
-  resume_nonce  UUID         NULL,
-  created_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
-  PRIMARY KEY (id),
-  CONSTRAINT execution_events_execution_id_fk FOREIGN KEY (execution_id) REFERENCES executions (id) ON DELETE CASCADE
-);
-CREATE INDEX IF NOT EXISTS ix_execution_events_execution_id ON execution_events (execution_id);
+CREATE INDEX IF NOT EXISTS ix_sys_ocr_tool_workspace_id ON sys_ocr_tool (workspace_id);
+COMMENT ON TABLE public.sys_ocr_tool IS 'OCR工具';
+COMMENT ON COLUMN public.sys_ocr_tool.id IS 'id';
+COMMENT ON COLUMN public.sys_ocr_tool.workspace_id IS '工作空间id';
+COMMENT ON COLUMN public.sys_ocr_tool."name" IS '名称';
+COMMENT ON COLUMN public.sys_ocr_tool.url IS '连接地址';
+COMMENT ON COLUMN public.sys_ocr_tool.auth_type IS '认证方式';
+COMMENT ON COLUMN public.sys_ocr_tool.user_name IS '账号';
+COMMENT ON COLUMN public.sys_ocr_tool.user_passwd IS '密码';
+COMMENT ON COLUMN public.sys_ocr_tool.api_key IS 'api key';
+COMMENT ON COLUMN public.sys_ocr_tool.remark IS '备注';
+COMMENT ON COLUMN public.sys_ocr_tool.create_at IS '创建日期';
+COMMENT ON COLUMN public.sys_ocr_tool.update_at IS '更新日期';

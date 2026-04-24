@@ -4,6 +4,7 @@ import {
   BookOutlined,
   DatabaseOutlined,
   FileSearchOutlined,
+  FileTextOutlined,
   IdcardOutlined,
   MenuOutlined,
   SettingOutlined,
@@ -92,6 +93,7 @@ const contentScrollStyle: CSSProperties = {
 
 function menuKeyForPath(pathname: string): string {
   if (pathname.startsWith('/app/settings/models')) return 'settings-models'
+  if (pathname.startsWith('/app/settings/ocr')) return 'settings-ocr'
   if (pathname.startsWith('/app/settings/data-sources')) return 'settings-data-sources'
   if (pathname.startsWith('/app/settings/menus')) return 'settings-menus'
   if (pathname.startsWith('/app/settings/users')) return 'settings-users'
@@ -208,6 +210,12 @@ export function AppLayout() {
                     icon: <ApiOutlined />,
                     label: t('settings.models'),
                     onClick: () => void nav('/app/settings/models'),
+                  },
+                  {
+                    key: 'settings-ocr',
+                    icon: <FileTextOutlined />,
+                    label: t('settings.ocr'),
+                    onClick: () => void nav('/app/settings/ocr'),
                   },
                   {
                     key: 'settings-data-sources',

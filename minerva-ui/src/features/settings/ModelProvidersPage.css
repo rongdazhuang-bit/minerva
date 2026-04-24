@@ -1,0 +1,48 @@
+.minerva-model-providers {
+  max-width: 960px;
+}
+
+.minerva-model-providers__intro {
+  margin-bottom: 20px;
+}
+
+.minerva-model-providers__title {
+  margin: 0 0 8px 0;
+  color: var(--minerva-ink, #e8f0f8);
+}
+
+.minerva-model-providers__lede {
+  margin: 0;
+  color: var(--minerva-ink, #e8f0f8);
+  opacity: 0.85;
+}
+
+html.minerva-tone-sunshine .minerva-model-providers__title,
+html.minerva-tone-sunshine .minerva-model-providers__lede {
+  color: var(--minerva-ink, #0f172a);
+  opacity: 1;
+}
+
+html.minerva-tone-sunshine .minerva-model-providers__lede {
+  opacity: 0.8;
+}
+
+.minerva-model-providers .ant-card {
+  background: var(--minerva-surface, #1a2836) !important;
+  border: 1px solid var(--minerva-border, #2a3f58) !important;
+  border-radius: 10px;
+}
+
+html.minerva-tone-sunshine .minerva-model-providers .ant-card {
+  background: var(--minerva-surface, #fff) !important;
+}
+
+.minerva-model-providers__llm .ant-typography {
+  color: var(--minerva-ink, #e8f0f8) !important;
+  opacity: 0.8;
+}
+
+html.minerva-tone-sunshine .minerva-model-providers__llm .ant-typography {
+  color: var(--minerva-ink, #0f172a) !important;
+  opacity: 0.8;
+}

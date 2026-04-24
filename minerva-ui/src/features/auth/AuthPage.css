@@ -54,6 +54,12 @@ html.minerva-auth-page .login-shell {
   gap: 8px;
 }
 
+/* Ref target for antd Tooltip; keeps flex alignment with sibling toolbar controls. */
+.auth-toolbar-dropdown-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+
 /* 顶栏：细青色描边圆形按钮，贴近参考图 */
 .auth-page-toolbar-btn.ant-btn {
   width: 40px;

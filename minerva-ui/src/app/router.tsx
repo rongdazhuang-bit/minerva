@@ -7,6 +7,7 @@ import { SmartReviewPage } from '@/features/workspace/SmartReviewPage'
 import { RulesLibraryPage } from '@/features/workspace/RulesLibraryPage'
 import { SettingsSectionLayout } from '@/features/settings/SettingsSectionLayout'
 import { ModelProvidersPage } from '@/features/settings/ModelProvidersPage'
+import { OcrSettingsPage } from '@/features/settings/OcrSettingsPage'
 import { DataSourcesPage } from '@/features/settings/DataSourcesPage'
 import { MenuConfigPage } from '@/features/settings/MenuConfigPage'
 import { UsersPage } from '@/features/settings/UsersPage'
@@ -49,6 +50,7 @@ const router = createBrowserRouter([
             children: [
               { index: true, element: <Navigate to="models" replace /> },
               { path: 'models', element: <ModelProvidersPage /> },
+              { path: 'ocr', element: <OcrSettingsPage /> },
               { path: 'data-sources', element: <DataSourcesPage /> },
               { path: 'menus', element: <MenuConfigPage /> },
               { path: 'users', element: <UsersPage /> },

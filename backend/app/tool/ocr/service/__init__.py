@@ -1,1 +1,1 @@
-"""view layer entity."""
+"""service layer."""

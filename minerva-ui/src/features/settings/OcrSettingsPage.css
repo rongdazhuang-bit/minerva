@@ -1,0 +1,119 @@
+.minerva-ocr-settings {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.minerva-ocr-settings__card {
+  flex: 1 1 auto;
+  min-height: 0;
+  background: var(--minerva-surface, #1a2836) !important;
+  border: 1px solid var(--minerva-border, #2a3f58) !important;
+  border-radius: 12px;
+  box-shadow: 0 6px 16px rgb(0 0 0 / 14%);
+}
+
+html.minerva-tone-sunshine .minerva-ocr-settings__card {
+  background: var(--minerva-surface, #fff) !important;
+  box-shadow: 0 6px 16px rgb(15 23 42 / 8%);
+}
+
+.minerva-ocr-settings__toolbar {
+  flex-shrink: 0;
+  margin-bottom: 14px;
+}
+
+.minerva-ocr-settings__card .ant-card-body {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-ocr-settings__table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.minerva-ocr-settings__table .ant-table-container {
+  border: 1px solid var(--minerva-border, #2a3f58);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.minerva-ocr-settings__table .ant-table-body {
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(148 163 184 / 55%) transparent;
+}
+
+.minerva-ocr-settings__table .ant-table-body::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.minerva-ocr-settings__table .ant-table-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.minerva-ocr-settings__table .ant-table-body::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgb(148 163 184 / 45%), rgb(100 116 139 / 55%));
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+.minerva-ocr-settings__table .ant-table-body::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgb(125 211 252 / 72%), rgb(59 130 246 / 72%));
+}
+
+.minerva-ocr-settings__table .ant-table-thead > tr > th {
+  background: rgb(255 255 255 / 4%);
+  color: var(--minerva-ink, #e8f0f8);
+  font-weight: 600;
+}
+
+.minerva-ocr-settings__table .ant-table-tbody > tr > td {
+  border-bottom-color: rgb(255 255 255 / 8%);
+}
+
+.minerva-ocr-settings__table .ant-table-tbody > tr:hover > td {
+  background: rgb(59 130 246 / 10%) !important;
+}
+
+html.minerva-tone-sunshine .minerva-ocr-settings__table .ant-table-container {
+  border-color: #dbe4f0;
+}
+
+html.minerva-tone-sunshine .minerva-ocr-settings__table .ant-table-body {
+  scrollbar-color: rgb(148 163 184 / 75%) transparent;
+}
+
+html.minerva-tone-sunshine .minerva-ocr-settings__table .ant-table-body::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #cbd5e1, #94a3b8);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+html.minerva-tone-sunshine .minerva-ocr-settings__table .ant-table-body::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #93c5fd, #60a5fa);
+}
+
+html.minerva-tone-sunshine .minerva-ocr-settings__table .ant-table-thead > tr > th {
+  background: #f7fafc;
+  color: var(--minerva-ink, #0f172a);
+}
+
+html.minerva-tone-sunshine .minerva-ocr-settings__table .ant-table-tbody > tr > td {
+  border-bottom-color: #edf2f7;
+}
+
+html.minerva-tone-sunshine .minerva-ocr-settings__table .ant-table-tbody > tr:hover > td {
+  background: #edf4ff !important;
+}

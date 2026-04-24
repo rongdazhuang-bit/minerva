@@ -4,7 +4,7 @@ import {
   FileTextOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons'
-import { Card, Col, List, Row, Statistic, Typography } from 'antd'
+import { Card, Col, Row, Statistic, Typography } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import './OverviewPage.css'
@@ -62,7 +62,7 @@ export function OverviewPage() {
 
       <Row gutter={[16, 16]} className="minerva-overview__stats">
         <Col xs={24} sm={12} lg={6}>
-          <Card size="small" className="minerva-overview__card" bordered={false}>
+          <Card size="small" className="minerva-overview__card" variant="borderless">
             <Statistic
               title={t('overview.stat.todayReview')}
               value={stats.todayReview}
@@ -71,17 +71,17 @@ export function OverviewPage() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card size="small" className="minerva-overview__card" bordered={false}>
+          <Card size="small" className="minerva-overview__card" variant="borderless">
             <Statistic
               title={t('overview.stat.pending')}
               value={stats.pending}
-              valueStyle={{ color: 'var(--minerva-link, #38bdf8)' }}
+              styles={{ content: { color: 'var(--minerva-link, #38bdf8)' } }}
               prefix={<ClockCircleOutlined className="minerva-overview__icon" aria-hidden />}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card size="small" className="minerva-overview__card" bordered={false}>
+          <Card size="small" className="minerva-overview__card" variant="borderless">
             <Statistic
               title={t('overview.stat.ruleHits')}
               value={stats.ruleHits}
@@ -90,7 +90,7 @@ export function OverviewPage() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card size="small" className="minerva-overview__card" bordered={false}>
+          <Card size="small" className="minerva-overview__card" variant="borderless">
             <Statistic
               title={t('overview.stat.weeklyDocs')}
               value={stats.weeklyDocs}
@@ -104,18 +104,16 @@ export function OverviewPage() {
         size="small"
         title={t('overview.recentTitle')}
         className="minerva-overview__card minerva-overview__activity"
-        bordered={false}
+        variant="borderless"
       >
-        <List
-          size="small"
-          dataSource={activities}
-          renderItem={(item) => (
-            <List.Item className="minerva-overview__list-item">
+        <ul className="minerva-overview__activity-list">
+          {activities.map((item) => (
+            <li key={item.id} className="minerva-overview__list-item">
               <span>{item.label}</span>
               <Text type="secondary">{item.time}</Text>
-            </List.Item>
-          )}
-        />
+            </li>
+          ))}
+        </ul>
       </Card>
     </div>
   )
