@@ -10,6 +10,7 @@
   touch-action: none;
 }
 
+/* 与 index.css 中各 minerva-tone 的 --minerva-border / --minerva-link 一致 */
 .minerva-sider-resize-handle::after {
   content: '';
   position: absolute;
@@ -18,14 +19,14 @@
   left: 50%;
   width: 2px;
   transform: translateX(-50%);
-  background: #e2e8f0;
+  background: var(--minerva-border, #2a3f58);
   border-radius: 1px;
   transition: background 0.15s;
 }
 
 .minerva-sider-resize-handle:hover::after,
 .minerva-sider-resize-handle:focus-visible::after {
-  background: #94a3b8;
+  background: var(--minerva-link, var(--minerva-primary, #38bdf8));
 }
 
 .minerva-app-body-row {

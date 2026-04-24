@@ -19,18 +19,13 @@ export function RegisterPage() {
   const [form] = Form.useForm()
 
   return (
-    <div
-      className={`login-shell${tone === 'amber' ? ' tone-amber' : ''}`}
-    >
+    <div className={`login-shell tone-${tone}`}>
       <AuthPageToolbar tone={tone} onToneChange={setTone} />
       <div className="login-center">
         <ConfigProvider theme={getAuthPageTheme(tone)}>
           <div className="login-card">
             <div className="login-header">
-              <div
-                className={`login-logo${tone === 'amber' ? ' tone-amber' : ''}`}
-                aria-hidden
-              >
+              <div className={`login-logo tone-${tone}`} aria-hidden>
                 M
               </div>
               <div>
@@ -51,7 +46,7 @@ export function RegisterPage() {
                   const o = await registerApi(email, password)
                   setTokens(o.access_token, o.refresh_token)
                   void message.success('OK')
-                  void nav('/app/rules')
+                  void nav('/app/overview')
                 } catch (e) {
                   if (e instanceof ApiError) {
                     void message.error(e.message)

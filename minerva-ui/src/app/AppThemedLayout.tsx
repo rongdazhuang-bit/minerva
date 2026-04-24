@@ -6,13 +6,16 @@ import {
   MINERVA_TONE_EVENT,
   getAppLayoutTheme,
   readStoredAuthTone,
+  syncMinervaToneClass,
   type AuthTone,
 } from '@/features/auth/authTheme'
 
+/** Wraps `/app` routes: zh locale, antd theme, and global tone from localStorage + `MINERVA_TONE_EVENT`. */
 export function AppThemedLayout() {
   const { pathname } = useLocation()
   const [tone, setTone] = useState<AuthTone>(() => readStoredAuthTone())
 
+  // e.g. after login navigation: re-read so shell matches the tone saved on the auth page
   useLayoutEffect(() => {
     setTone(readStoredAuthTone())
   }, [pathname])
@@ -24,7 +27,7 @@ export function AppThemedLayout() {
   }, [])
 
   useLayoutEffect(() => {
-    document.documentElement.classList.toggle('minerva-auth-tone-amber', tone === 'amber')
+    syncMinervaToneClass(tone)
   }, [tone])
 
   return (

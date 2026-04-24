@@ -1,0 +1,96 @@
+.minerva-overview {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.minerva-overview__hero {
+  margin-bottom: 24px;
+}
+
+.minerva-overview__title {
+  font-family: 'Fraunces', Georgia, serif;
+  margin-top: 0;
+  margin-bottom: 8px;
+  color: var(--minerva-ink, #e8f0f8);
+}
+
+.minerva-overview__subtitle {
+  color: var(--minerva-ink, #e8f0f8);
+  opacity: 0.88;
+  margin-bottom: 4px;
+}
+
+.minerva-overview__meta {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.minerva-overview__stats {
+  margin-bottom: 8px;
+}
+
+.minerva-overview__card {
+  background: var(--minerva-surface, #1a2836) !important;
+  border: 1px solid var(--minerva-border, #2a3f58) !important;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
+html.minerva-tone-sunshine .minerva-overview__card {
+  background: var(--minerva-surface, #fff) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.minerva-overview__icon {
+  margin-inline-end: 6px;
+  color: var(--minerva-link, #38bdf8);
+  opacity: 0.9;
+}
+
+.minerva-overview__activity .ant-card-head-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--minerva-ink, #e8f0f8);
+}
+
+.minerva-overview__list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  color: var(--minerva-ink, #e8f0f8);
+}
+
+html.minerva-tone-sunshine .minerva-overview__list-item,
+html.minerva-tone-sunshine .minerva-overview__activity .ant-card-head-title,
+html.minerva-tone-sunshine .minerva-overview__title,
+html.minerva-tone-sunshine .minerva-overview__subtitle {
+  color: var(--minerva-ink, #0f172a);
+}
+
+html.minerva-tone-sunshine .minerva-overview__card .ant-statistic-title {
+  color: #64748b;
+}
+
+html.minerva-tone-sunshine .minerva-overview__icon {
+  color: var(--minerva-link, #2563eb);
+}
+
+.minerva-overview__card .ant-statistic-content-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.minerva-overview__card .ant-statistic-title {
+  color: var(--minerva-ink, #e8f0f8);
+  opacity: 0.75;
+  font-size: 13px;
+}
+
+html.minerva-tone-sunshine .minerva-overview__card .ant-statistic-content-value,
+html.minerva-tone-sunshine .minerva-overview__card .ant-statistic-title {
+  color: inherit;
+}
+
+html.minerva-tone-sunshine .minerva-overview__card .ant-statistic-content-value {
+  color: #0f172a;
+}

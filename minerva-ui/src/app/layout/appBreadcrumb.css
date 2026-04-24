@@ -1,0 +1,22 @@
+.minerva-breadcrumb {
+  line-height: 1.4;
+}
+
+.minerva-breadcrumb .ant-breadcrumb-separator,
+.minerva-breadcrumb .ant-breadcrumb-link,
+.minerva-breadcrumb li:last-child {
+  color: var(--minerva-ink, #e8f0f8);
+}
+
+.minerva-breadcrumb a {
+  color: var(--minerva-link, #38bdf8);
+}
+
+.minerva-breadcrumb a:hover {
+  color: var(--minerva-primary, #38bdf8);
+  opacity: 0.9;
+}
+
+html.minerva-tone-sunshine .minerva-breadcrumb a {
+  color: var(--minerva-link, #2563eb);
+}

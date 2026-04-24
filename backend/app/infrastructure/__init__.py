@@ -1,1 +1,1 @@
-"""Infrastructure adapters (DB, Redis, security helpers)."""
+"""Infrastructure adapters (DB, security helpers)."""

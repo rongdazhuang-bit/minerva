@@ -1,1 +1,0 @@
-"""ARQ worker process."""

@@ -1,0 +1,44 @@
+/* 与侧栏/一级菜单同色：子菜单内联容器不再用 Ant Design 默认的加深底 */
+.minerva-app-sider-menu.ant-menu.ant-menu-inline .ant-menu-sub.ant-menu-inline,
+.minerva-app-sider-menu.ant-menu .ant-menu-sub,
+.minerva-app-sider-menu .ant-menu-inline > .ant-menu-submenu > .ant-menu-sub {
+  background: transparent !important;
+}
+
+/* 有子级的一级项（如「系统设置」）行底与整栏一致 */
+.minerva-app-sider-menu .ant-menu-submenu-title {
+  background: transparent !important;
+}
+
+/* 子项默认底与侧栏连续（透明叠在 Sider 上） */
+.minerva-app-sider-menu .ant-menu-submenu .ant-menu-item {
+  background: transparent !important;
+}
+
+/* 子菜单内选中、悬停与一级菜单同套 token，避免发灰/发黑块面 */
+.minerva-app-sider-menu.ant-menu-dark .ant-menu-item-selected,
+.minerva-app-sider-menu.ant-menu-dark
+  .ant-menu-submenu
+  .ant-menu-item.ant-menu-item-selected {
+  background: rgba(56, 189, 248, 0.12) !important;
+}
+
+.minerva-app-sider-menu.ant-menu-dark
+  .ant-menu-submenu
+  .ant-menu-item:hover:not(.ant-menu-item-selected) {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+/* 阳光浅色主题 */
+.minerva-app-sider-menu.ant-menu-light .ant-menu-item-selected,
+.minerva-app-sider-menu.ant-menu-light
+  .ant-menu-submenu
+  .ant-menu-item.ant-menu-item-selected {
+  background: rgba(37, 99, 235, 0.1) !important;
+}
+
+.minerva-app-sider-menu.ant-menu-light
+  .ant-menu-submenu
+  .ant-menu-item:hover:not(.ant-menu-item-selected) {
+  background: rgba(0, 0, 0, 0.04) !important;
+}

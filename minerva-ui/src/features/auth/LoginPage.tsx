@@ -30,18 +30,13 @@ export function LoginPage() {
   }, [form])
 
   return (
-    <div
-      className={`login-shell${tone === 'amber' ? ' tone-amber' : ''}`}
-    >
+    <div className={`login-shell tone-${tone}`}>
       <AuthPageToolbar tone={tone} onToneChange={setTone} />
       <div className="login-center">
         <ConfigProvider theme={getAuthPageTheme(tone)}>
           <div className="login-card">
             <div className="login-header">
-              <div
-                className={`login-logo${tone === 'amber' ? ' tone-amber' : ''}`}
-                aria-hidden
-              >
+              <div className={`login-logo tone-${tone}`} aria-hidden>
                 M
               </div>
               <div>
@@ -67,7 +62,7 @@ export function LoginPage() {
                   const o = await loginApi(email, password)
                   setTokens(o.access_token, o.refresh_token)
                   void message.success('OK')
-                  void nav('/app/rules')
+                  void nav('/app/overview')
                 } catch (e) {
                   if (e instanceof ApiError) {
                     void message.error(e.message)
@@ -79,8 +74,8 @@ export function LoginPage() {
             >
               <Form.Item
                 name="email"
-                label={t('auth.email')}
-                rules={[{ required: true, message: t('auth.emailRequired') }]}
+                label={t('auth.loginAccountLabel')}
+                rules={[{ required: true, message: t('auth.loginAccountRequired') }]}
               >
                 <Input type="email" autoComplete="email" placeholder="name@example.com" />
               </Form.Item>
@@ -92,11 +87,7 @@ export function LoginPage() {
                 <Input.Password autoComplete="current-password" />
               </Form.Item>
               <Form.Item>
-                <Checkbox
-                  checked={remember}
-                  onChange={(e) => setRemember(e.target.checked)}
-                  style={{ color: '#64748b' }}
-                >
+                <Checkbox checked={remember} onChange={(e) => setRemember(e.target.checked)}>
                   {t('auth.remember')}
                 </Checkbox>
               </Form.Item>

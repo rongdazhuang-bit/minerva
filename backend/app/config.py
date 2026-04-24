@@ -69,12 +69,6 @@ class Settings(BaseSettings):
     jwt_access_ttl_minutes: int = 15
     jwt_refresh_ttl_days: int = 7
     bcrypt_rounds: int = 12
-    redis_url: str = Field(
-        default="redis://127.0.0.1:6379/0",
-        description="Redis for ARQ and distributed locks.",
-    )
-    execution_max_steps: int = 10_000
-    redis_key_prefix: str = "minerva"
     auto_create_tables: bool = Field(
         default=True,
         description="为 True 时启动时按 ORM 元数据补建缺表；生产建议 False 并仅用 Alembic。",

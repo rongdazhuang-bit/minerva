@@ -1,15 +1,74 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;1,9..40,400&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&display=swap');
 
+/* 未执行 sync 前的兜底（与青蓝一致）；切换主题时 --minerva-bg / surface 随色调变化 */
 :root {
-  --minerva-ink: #0f172a;
-  --minerva-bg: #f1f5f9;
-  --minerva-link: #2563eb;
-  --minerva-amber: #c9a227;
+  --minerva-ink: #e8f0f8;
+  --minerva-bg: #0e1520;
+  --minerva-surface: #1a2836;
+  --minerva-surface-2: #121c28;
+  --minerva-link: #38bdf8;
+  --minerva-primary: #38bdf8;
+  --minerva-border: #2a3f58;
 }
 
-html.minerva-auth-tone-amber {
-  --minerva-bg: #fffbeb;
-  --minerva-link: #a16207;
+html.minerva-tone-cyan {
+  --minerva-ink: #e8f0f8;
+  --minerva-bg: #0e1520;
+  --minerva-surface: #1a2836;
+  --minerva-surface-2: #121c28;
+  --minerva-link: #38bdf8;
+  --minerva-primary: #38bdf8;
+  --minerva-border: #2a3f58;
+}
+/* 海碧：偏青绿底 */
+html.minerva-tone-sea {
+  --minerva-ink: #e8f0f8;
+  --minerva-bg: #0b181a;
+  --minerva-surface: #152e30;
+  --minerva-surface-2: #0d2224;
+  --minerva-link: #2dd4bf;
+  --minerva-primary: #2dd4bf;
+  --minerva-border: #245050;
+}
+/* 紫幕：偏靛紫底 */
+html.minerva-tone-purple {
+  --minerva-ink: #e8f0f8;
+  --minerva-bg: #120f1a;
+  --minerva-surface: #1e1830;
+  --minerva-surface-2: #16122a;
+  --minerva-link: #a78bfa;
+  --minerva-primary: #a78bfa;
+  --minerva-border: #3a3258;
+}
+/* 森绿：偏森绿底 */
+html.minerva-tone-forest {
+  --minerva-ink: #e8f0f8;
+  --minerva-bg: #0c1512;
+  --minerva-surface: #142420;
+  --minerva-surface-2: #0e1a16;
+  --minerva-link: #4ade80;
+  --minerva-primary: #4ade80;
+  --minerva-border: #2a4a3c;
+}
+/* 暮金：偏暖褐底 */
+html.minerva-tone-gold {
+  --minerva-ink: #e8f0f8;
+  --minerva-bg: #15120e;
+  --minerva-surface: #221e18;
+  --minerva-surface-2: #1a1610;
+  --minerva-link: #f59e0b;
+  --minerva-primary: #f59e0b;
+  --minerva-border: #3d3428;
+}
+/* 阳光：正常浅色/白底办公风 */
+html.minerva-tone-sunshine {
+  --minerva-ink: #0f172a;
+  --minerva-bg: #f1f5f9;
+  --minerva-surface: #ffffff;
+  --minerva-surface-2: #f8fafc;
+  --minerva-link: #2563eb;
+  --minerva-primary: #2563eb;
+  --minerva-border: #e2e8f0;
 }
 
 * {
@@ -42,8 +101,8 @@ a:hover {
   text-decoration: underline;
 }
 
-.ant-table {
-  --ant-color-border-secondary: #e2e8f0;
+html.minerva-app-shell .ant-table {
+  --ant-color-border-secondary: var(--minerva-border);
 }
 
 /* 已登录 shell：整页不滚，仅主内容区滚 */

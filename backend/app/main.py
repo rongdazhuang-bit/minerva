@@ -1,7 +1,5 @@
 from contextlib import asynccontextmanager
 
-from arq import create_pool
-from arq.connections import RedisSettings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
@@ -17,31 +15,23 @@ from app.limits import limiter
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await create_missing_tables()
-    app.state.arq_pool = None
-    try:
-        app.state.arq_pool = await create_pool(RedisSettings.from_dsn(settings.redis_url))
-    except OSError:
-        pass
-    except Exception:
-        pass
     yield
-    pool = getattr(app.state, "arq_pool", None)
-    if pool is not None:
-        await pool.close()
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 register_exception_handlers(app)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
+_cors: dict = {
+    "allow_origins": [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    "allow_credentials": True,
+    "allow_methods": ["*"],
+    "allow_headers": ["*"],
+}
+if settings.app_env in ("dev", "development", "local", "test"):
+    _cors["allow_origin_regex"] = r"^https?://(127\.0\.0\.1|localhost)(:\d+)?$"
+app.add_middleware(CORSMiddleware, **_cors)
 app.include_router(api)

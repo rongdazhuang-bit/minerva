@@ -1,37 +1,47 @@
-import { BulbOutlined, ClusterOutlined } from '@ant-design/icons'
+import {
+  ApiOutlined,
+  BarChartOutlined,
+  BookOutlined,
+  DatabaseOutlined,
+  FileSearchOutlined,
+  IdcardOutlined,
+  MenuOutlined,
+  SettingOutlined,
+  TagsOutlined,
+  UserOutlined,
+} from '@ant-design/icons'
 import { Layout, Menu } from 'antd'
+import { AppBreadcrumb } from '@/app/layout/AppBreadcrumb'
 import { AppHeaderToolbar } from '@/app/layout/AppHeaderToolbar'
 import type { CSSProperties } from 'react'
-import { useCallback, useLayoutEffect } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/app/AuthContext'
 import { useMinervaTone } from '@/app/useMinervaTone'
 import { SIDER_MIN_PX, useResizableSiderWidth } from '@/app/layout/useResizableSiderWidth'
 import './appSiderResize.css'
+import './appSiderMenu.css'
 
 const { Sider, Header, Content } = Layout
 
+const SUB_SETTINGS = 'sub-settings'
+
 const siderStyle: CSSProperties = {
-  background: '#f8fafc',
-  borderRight: '1px solid #e2e8f0',
+  background: 'var(--minerva-surface, #1b2838)',
+  borderRight: '1px solid var(--minerva-border, #2d3f55)',
   height: '100%',
   overflow: 'auto',
 }
 
-const brandAmber: CSSProperties = {
-  color: '#a16207',
+const brandBase: CSSProperties = {
+  color: 'var(--minerva-primary, #38bdf8)',
   fontSize: 18,
   fontWeight: 600,
   fontFamily: "'Fraunces', Georgia, serif",
   letterSpacing: 0.04,
   lineHeight: '56px',
   whiteSpace: 'nowrap',
-}
-
-const brandBlue: CSSProperties = {
-  ...brandAmber,
-  color: '#1d4ed8',
 }
 
 const headerStyle: CSSProperties = {
@@ -41,8 +51,8 @@ const headerStyle: CSSProperties = {
   flex: '0 0 auto',
   flexShrink: 0,
   width: '100%',
-  background: '#ffffff',
-  borderBottom: '1px solid #e2e8f0',
+  background: 'var(--minerva-surface, #1b2838)',
+  borderBottom: '1px solid var(--minerva-border, #2d3f55)',
   paddingInline: 20,
   height: 56,
   lineHeight: 1,
@@ -57,35 +67,72 @@ const bodyRowStyle: CSSProperties = {
   flexDirection: 'row',
   alignItems: 'stretch',
   overflow: 'hidden',
-  background: 'var(--minerva-bg, #f1f5f9)',
+  background: 'var(--minerva-bg, #121a21)',
 }
 
-const contentStyle: CSSProperties = {
+const contentOuterStyle: CSSProperties = {
   flex: 1,
   minWidth: 0,
   minHeight: 0,
-  padding: 20,
+  display: 'flex',
+  flexDirection: 'column',
+  overflow: 'hidden',
+  background: 'var(--minerva-bg, #121a21)',
+  padding: 0,
+}
+
+const contentScrollStyle: CSSProperties = {
+  flex: 1,
+  minHeight: 0,
   overflow: 'auto',
   overflowX: 'hidden',
   WebkitOverflowScrolling: 'touch',
-  background: 'var(--minerva-bg, #f1f5f9)',
+  padding: 20,
+}
+
+function menuKeyForPath(pathname: string): string {
+  if (pathname.startsWith('/app/settings/models')) return 'settings-models'
+  if (pathname.startsWith('/app/settings/data-sources')) return 'settings-data-sources'
+  if (pathname.startsWith('/app/settings/menus')) return 'settings-menus'
+  if (pathname.startsWith('/app/settings/users')) return 'settings-users'
+  if (pathname.startsWith('/app/settings/roles')) return 'settings-roles'
+  if (pathname.startsWith('/app/settings/dictionary')) return 'settings-dictionary'
+  if (pathname.startsWith('/app/settings')) return 'settings-models'
+  if (pathname.startsWith('/app/smart-review')) return 'smart-review'
+  if (pathname.startsWith('/app/rules')) return 'rules'
+  return 'overview'
 }
 
 export function AppLayout() {
   const { t } = useTranslation()
   const nav = useNavigate()
-  const path = useLocation().pathname
+  const { pathname } = useLocation()
   const { clear } = useAuth()
   const tone = useMinervaTone()
-  const brand = tone === 'amber' ? brandAmber : brandBlue
+  const shellLight = tone === 'sunshine'
   const { rowRef, siderWidth, onResizeStart } = useResizableSiderWidth()
+
+  const selectedKeys = useMemo(() => [menuKeyForPath(pathname)], [pathname])
+
+  const [menuOpenKeys, setMenuOpenKeys] = useState<string[]>([])
+
+  useEffect(() => {
+    if (pathname.startsWith('/app/settings')) {
+      setMenuOpenKeys((prev) => (prev.includes(SUB_SETTINGS) ? prev : [...prev, SUB_SETTINGS]))
+    } else {
+      setMenuOpenKeys((prev) => prev.filter((k) => k !== SUB_SETTINGS))
+    }
+  }, [pathname])
+
+  const showBreadcrumb = useMemo(() => {
+    if (pathname === '/app/overview' || pathname === '/app/overview/') return false
+    return true
+  }, [pathname])
 
   const onLogout = useCallback(() => {
     clear()
     void nav('/login')
   }, [clear, nav])
-
-  const left = path.startsWith('/app/executions') ? 'executions' : 'rules'
 
   useLayoutEffect(() => {
     document.documentElement.classList.add('minerva-app-shell')
@@ -104,11 +151,12 @@ export function AppLayout() {
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        background: 'var(--minerva-bg, #f1f5f9)',
+        background: 'var(--minerva-bg, #121a21)',
+        color: 'var(--minerva-ink, #e8f0f8)',
       }}
     >
       <Header style={headerStyle}>
-        <div style={brand}>{t('appName')}</div>
+        <div style={brandBase}>{t('appName')}</div>
         <AppHeaderToolbar onLogout={onLogout} />
       </Header>
 
@@ -121,24 +169,77 @@ export function AppLayout() {
             maxWidth: '20%',
             minWidth: SIDER_MIN_PX,
           }}
-          theme="light"
+          theme={shellLight ? 'light' : 'dark'}
         >
           <Menu
-            theme="light"
+            mode="inline"
+            className="minerva-app-sider-menu"
+            theme={shellLight ? 'light' : 'dark'}
             style={{ background: 'transparent', border: 'none', paddingTop: 8 }}
-            selectedKeys={[left]}
+            selectedKeys={selectedKeys}
+            openKeys={menuOpenKeys}
+            onOpenChange={setMenuOpenKeys}
             items={[
               {
+                key: 'overview',
+                icon: <BarChartOutlined />,
+                label: t('nav.overview'),
+                onClick: () => void nav('/app/overview'),
+              },
+              {
+                key: 'smart-review',
+                icon: <FileSearchOutlined />,
+                label: t('nav.smartReview'),
+                onClick: () => void nav('/app/smart-review'),
+              },
+              {
                 key: 'rules',
-                icon: <ClusterOutlined />,
+                icon: <BookOutlined />,
                 label: t('nav.rules'),
                 onClick: () => void nav('/app/rules'),
               },
               {
-                key: 'executions',
-                icon: <BulbOutlined />,
-                label: t('nav.executions'),
-                onClick: () => void nav('/app/executions'),
+                key: SUB_SETTINGS,
+                icon: <SettingOutlined />,
+                label: t('nav.settings'),
+                children: [
+                  {
+                    key: 'settings-models',
+                    icon: <ApiOutlined />,
+                    label: t('settings.models'),
+                    onClick: () => void nav('/app/settings/models'),
+                  },
+                  {
+                    key: 'settings-data-sources',
+                    icon: <DatabaseOutlined />,
+                    label: t('settings.dataSources'),
+                    onClick: () => void nav('/app/settings/data-sources'),
+                  },
+                  {
+                    key: 'settings-menus',
+                    icon: <MenuOutlined />,
+                    label: t('settings.menuConfig'),
+                    onClick: () => void nav('/app/settings/menus'),
+                  },
+                  {
+                    key: 'settings-users',
+                    icon: <UserOutlined />,
+                    label: t('settings.users'),
+                    onClick: () => void nav('/app/settings/users'),
+                  },
+                  {
+                    key: 'settings-roles',
+                    icon: <IdcardOutlined />,
+                    label: t('settings.roles'),
+                    onClick: () => void nav('/app/settings/roles'),
+                  },
+                  {
+                    key: 'settings-dictionary',
+                    icon: <TagsOutlined />,
+                    label: t('settings.dictionary'),
+                    onClick: () => void nav('/app/settings/dictionary'),
+                  },
+                ],
               },
             ]}
           />
@@ -152,8 +253,21 @@ export function AppLayout() {
           title={t('layout.siderResize')}
           onMouseDown={onResizeStart}
         />
-        <Content style={contentStyle}>
-          <Outlet />
+        <Content style={contentOuterStyle}>
+          {showBreadcrumb ? (
+            <div
+              style={{
+                flexShrink: 0,
+                padding: '12px 20px 10px',
+                borderBottom: '1px solid var(--minerva-border, #2d3f55)',
+              }}
+            >
+              <AppBreadcrumb />
+            </div>
+          ) : null}
+          <div style={contentScrollStyle}>
+            <Outlet />
+          </div>
         </Content>
       </div>
     </Layout>

@@ -1,3 +1,5 @@
+"""Domain services for users, tenants, workspaces, and refresh tokens."""
+
 from __future__ import annotations
 
 import uuid
@@ -30,6 +32,7 @@ class RegisterResult:
 async def register_user(
     session: AsyncSession, *, email: str, password: str
 ) -> RegisterResult:
+    """Create user, default tenant, default workspace, and owner memberships. Commits once."""
     email = email.strip().lower()
     existing = await session.execute(select(User).where(User.email == email))
     if existing.scalar_one_or_none() is not None:
@@ -72,6 +75,7 @@ async def register_user(
 async def authenticate_user(
     session: AsyncSession, *, email: str, password: str
 ) -> tuple[User, Tenant, Workspace] | None:
+    """Validate credentials; return one workspace+tenant the user may access, or None."""
     email = email.strip().lower()
     result = await session.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
@@ -95,6 +99,7 @@ async def authenticate_user(
 async def find_workspace_for_user(
     session: AsyncSession, *, user_id: uuid.UUID, workspace_id: uuid.UUID
 ) -> bool:
+    """True if the user is a member of the given workspace."""
     r = await session.execute(
         select(WorkspaceMembership.id).where(
             WorkspaceMembership.user_id == user_id,
@@ -107,6 +112,7 @@ async def find_workspace_for_user(
 async def persist_refresh_token(
     session: AsyncSession, *, user_id: uuid.UUID, jti: uuid.UUID
 ) -> RefreshToken:
+    """Store a new refresh row; expiry from settings.jwt_refresh_ttl_days."""
     from datetime import timedelta
 
     from app.config import settings
