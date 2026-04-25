@@ -14,6 +14,14 @@ import {
   type OcrToolListItem,
 } from '@/api/ocrTools'
 import { useAuth } from '@/app/AuthContext'
+import {
+  OCR_AUTH_API_KEY,
+  OCR_AUTH_BASIC,
+  OCR_AUTH_NONE,
+  canonicalOcrAuthType,
+  isOcrApiKeyAuth,
+  isOcrBasicAuth,
+} from '@/features/settings/ocrAuthType'
 import { clearOcrSettings, readOcrSettings } from '@/features/settings/ocrSettingsStorage'
 import './OcrSettingsPage.css'
 
@@ -84,9 +92,9 @@ export function OcrSettingsPage() {
       return sorted.map((i) => ({ value: i.code, label: i.name }))
     }
     return [
-      { value: 'none', label: t('settings.ocrAuthTypeDictNone') },
-      { value: 'basic', label: t('settings.ocrAuthTypeDictBasic') },
-      { value: 'api_key', label: t('settings.ocrAuthTypeDictApiKey') },
+      { value: OCR_AUTH_NONE, label: t('settings.ocrAuthTypeDictNone') },
+      { value: OCR_AUTH_BASIC, label: t('settings.ocrAuthTypeDictBasic') },
+      { value: OCR_AUTH_API_KEY, label: t('settings.ocrAuthTypeDictApiKey') },
     ]
   }, [authItems, t])
 
@@ -95,11 +103,17 @@ export function OcrSettingsPage() {
     for (const i of sortDictItems(authItems)) {
       m.set(i.code, i.name)
     }
+    const noneL = t('settings.ocrAuthTypeDictNone')
+    const basicL = t('settings.ocrAuthTypeDictBasic')
+    const apiL = t('settings.ocrAuthTypeDictApiKey')
     if (m.size === 0) {
-      m.set('none', t('settings.ocrAuthTypeDictNone'))
-      m.set('basic', t('settings.ocrAuthTypeDictBasic'))
-      m.set('api_key', t('settings.ocrAuthTypeDictApiKey'))
+      m.set(OCR_AUTH_NONE, noneL)
+      m.set(OCR_AUTH_BASIC, basicL)
+      m.set(OCR_AUTH_API_KEY, apiL)
     }
+    m.set('none', noneL)
+    m.set('basic', basicL)
+    m.set('api_key', apiL)
     return m
   }, [authItems, t])
 
@@ -135,13 +149,17 @@ export function OcrSettingsPage() {
     const cur = form.getFieldValue('auth_type') as string | undefined
     if (cur != null && baseAuthSelectOptions.some((o) => o.value === cur)) return
     const next =
-      baseAuthSelectOptions.find((o) => o.value === 'basic') ?? baseAuthSelectOptions[0]
+      baseAuthSelectOptions.find((o) => o.value === OCR_AUTH_BASIC) ??
+      baseAuthSelectOptions[0]
     form.setFieldsValue({ auth_type: next?.value })
   }, [open, editingId, baseAuthSelectOptions, form])
 
   const resolveAuthLabel = (code: string | null) => {
     if (code == null || code === '') return '—'
-    return authLabelByCode.get(code) ?? code
+    const exact = authLabelByCode.get(code)
+    if (exact) return exact
+    const canon = canonicalOcrAuthType(code)
+    return authLabelByCode.get(canon) ?? code
   }
 
   const columns: ColumnsType<OcrToolListItem> = [
@@ -217,7 +235,10 @@ export function OcrSettingsPage() {
       form.setFieldsValue({
         name: detail.name,
         url: detail.url,
-        auth_type: detail.auth_type ?? undefined,
+        auth_type:
+          detail.auth_type != null
+            ? canonicalOcrAuthType(detail.auth_type) || detail.auth_type
+            : undefined,
         user_name: detail.user_name ?? '',
         user_passwd: detail.user_passwd ?? '',
         api_key: detail.api_key ?? '',
@@ -232,16 +253,15 @@ export function OcrSettingsPage() {
   }
 
   const buildPayload = (values: OcrFormValues): OcrToolCreateBody => {
-    const authType = values.auth_type ?? ''
-    const isBasic = authType === 'basic'
-    const isApiKey = authType === 'api_key'
+    const raw = values.auth_type ?? ''
+    const authTypeStored = canonicalOcrAuthType(raw) || null
     return {
       name: values.name.trim(),
       url: values.url.trim(),
-      auth_type: authType || null,
-      user_name: isBasic ? values.user_name?.trim() || null : null,
-      user_passwd: isBasic ? values.user_passwd?.trim() || null : null,
-      api_key: isApiKey ? values.api_key?.trim() || null : null,
+      auth_type: authTypeStored,
+      user_name: isOcrBasicAuth(raw) ? values.user_name?.trim() || null : null,
+      user_passwd: isOcrBasicAuth(raw) ? values.user_passwd?.trim() || null : null,
+      api_key: isOcrApiKeyAuth(raw) ? values.api_key?.trim() || null : null,
       remark: values.remark?.trim() || null,
     }
   }
@@ -284,7 +304,7 @@ export function OcrSettingsPage() {
       await createOcrTool(workspaceId, {
         name: t('settings.ocrImportDefaultName'),
         url: legacy.baseUrl.trim(),
-        auth_type: legacy.apiKey.trim() ? 'api_key' : 'none',
+        auth_type: legacy.apiKey.trim() ? OCR_AUTH_API_KEY : OCR_AUTH_NONE,
         api_key: legacy.apiKey.trim() || null,
         remark: t('settings.ocrImportRemark'),
       })
@@ -297,8 +317,8 @@ export function OcrSettingsPage() {
   }
 
   const authType = watchedAuthType ?? ''
-  const showBasicFields = authType === 'basic'
-  const showApiKeyField = authType === 'api_key'
+  const showBasicFields = isOcrBasicAuth(authType)
+  const showApiKeyField = isOcrApiKeyAuth(authType)
 
   if (!workspaceId) {
     return (

@@ -26,6 +26,21 @@ from app.tool.ocr.service.ocr_tool_service import (
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/ocr-tools", tags=["ocr-tools"])
 
+_LEGACY_OCR_AUTH_TO_CANON: dict[str, str] = {
+    "none": "NONE",
+    "basic": "BASIC",
+    "api_key": "API_KEY",
+}
+
+
+def _normalize_ocr_auth_type(value: str | None) -> str | None:
+    if value is None:
+        return None
+    s = value.strip()
+    if not s:
+        return None
+    return _LEGACY_OCR_AUTH_TO_CANON.get(s.lower(), s)
+
 
 def _to_list_item(row: SysOcrTool) -> OcrToolListItemOut:
     return OcrToolListItemOut(
@@ -68,7 +83,7 @@ def _to_patch_dict(body: OcrToolPatchIn) -> dict[str, Any]:
             if value is None:
                 patch[key] = None
             elif isinstance(value, str):
-                patch[key] = value.strip() or None
+                patch[key] = _normalize_ocr_auth_type(value)
             else:
                 patch[key] = value
         else:
@@ -100,7 +115,7 @@ async def create_ocr_tool(
         workspace_id=workspace_id,
         name=body.name,
         url=body.url,
-        auth_type=(body.auth_type.strip() or None) if body.auth_type else None,
+        auth_type=_normalize_ocr_auth_type(body.auth_type),
         user_name=body.user_name,
         user_passwd=body.user_passwd,
         api_key=body.api_key,

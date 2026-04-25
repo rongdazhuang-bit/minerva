@@ -47,12 +47,13 @@ async def test_ocr_tools_crud_and_isolation() -> None:
             json={
                 "name": "paddleocr",
                 "url": "http://ocr.example/v1",
-                "auth_type": "api_key",
+                "auth_type": "API_KEY",
                 "api_key": "secret-key",
                 "remark": "primary",
             },
         )
         assert create.status_code == 201, create.text
+        assert create.json()["auth_type"] == "API_KEY"
         tool_id = create.json()["id"]
 
         list_one = await ac.get(f"/workspaces/{workspace1}/ocr-tools", headers=h1)
@@ -94,3 +95,39 @@ async def test_ocr_tools_crud_and_isolation() -> None:
 
         gone = await ac.get(f"/workspaces/{workspace1}/ocr-tools/{tool_id}", headers=h1)
         assert gone.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_ocr_auth_type_legacy_alias_normalized() -> None:
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as ac:
+        email = f"ocr-auth-{uuid.uuid4().hex}@example.com"
+        reg = await ac.post("/auth/register", json={"email": email, "password": "secret1234"})
+        assert reg.status_code == 201, reg.text
+        token = reg.json()["access_token"]
+        wid = _workspace_id_from_access_token(token)
+        h = {"Authorization": f"Bearer {token}"}
+
+        create = await ac.post(
+            f"/workspaces/{wid}/ocr-tools",
+            headers=h,
+            json={
+                "name": "legacy-basic",
+                "url": "http://ocr.example/v1",
+                "auth_type": "basic",
+                "user_name": "u",
+                "user_passwd": "p",
+            },
+        )
+        assert create.status_code == 201, create.text
+        assert create.json()["auth_type"] == "BASIC"
+
+        patch = await ac.patch(
+            f"/workspaces/{wid}/ocr-tools/{create.json()['id']}",
+            headers=h,
+            json={"auth_type": "api_key"},
+        )
+        assert patch.status_code == 200, patch.text
+        assert patch.json()["auth_type"] == "API_KEY"
