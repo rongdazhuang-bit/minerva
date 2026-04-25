@@ -109,6 +109,19 @@ async def find_workspace_for_user(
     return r.scalar_one_or_none() is not None
 
 
+async def find_workspace_role_for_user(
+    session: AsyncSession, *, user_id: uuid.UUID, workspace_id: uuid.UUID
+) -> MembershipRole | None:
+    """Return the user's workspace role, or None if not a member."""
+    r = await session.execute(
+        select(WorkspaceMembership.role).where(
+            WorkspaceMembership.user_id == user_id,
+            WorkspaceMembership.workspace_id == workspace_id,
+        )
+    )
+    return r.scalar_one_or_none()
+
+
 async def persist_refresh_token(
     session: AsyncSession, *, user_id: uuid.UUID, jti: uuid.UUID
 ) -> RefreshToken:
