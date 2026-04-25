@@ -116,7 +116,7 @@ function showErr(t: (k: string) => string, e: unknown) {
   void message.error(t('common.error'))
 }
 
-function renderDictCodeCopyable(code: string, t: (k: string) => string) {
+function renderCodeCopyable(code: string, t: (k: string) => string) {
   const v = code.trim()
   if (!v) return '—'
   return (
@@ -330,7 +330,7 @@ export function DictionaryPage() {
       key: 'dict_code',
       width: 200,
       ellipsis: true,
-      render: (v: string) => renderDictCodeCopyable(v, t),
+      render: (v: string) => renderCodeCopyable(v, t),
     },
     {
       title: t('settings.dictName'),
@@ -394,8 +394,9 @@ export function DictionaryPage() {
       title: t('settings.dictItemCode'),
       dataIndex: 'code',
       key: 'code',
-      width: 140,
+      width: 200,
       ellipsis: true,
+      render: (v: string) => renderCodeCopyable(v, t),
     },
     {
       title: t('settings.dictItemName'),
