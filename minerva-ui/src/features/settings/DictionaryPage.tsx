@@ -116,6 +116,22 @@ function showErr(t: (k: string) => string, e: unknown) {
   void message.error(t('common.error'))
 }
 
+function renderDictCodeCopyable(code: string, t: (k: string) => string) {
+  const v = code.trim()
+  if (!v) return '—'
+  return (
+    <Typography.Text
+      copyable={{
+        onCopy: () => void message.success(t('common.copied')),
+      }}
+      ellipsis={{ tooltip: v }}
+      style={{ maxWidth: '100%' }}
+    >
+      {v}
+    </Typography.Text>
+  )
+}
+
 export function DictionaryPage() {
   const { t } = useTranslation()
   const { workspaceId } = useAuth()
@@ -312,8 +328,9 @@ export function DictionaryPage() {
       title: t('settings.dictCode'),
       dataIndex: 'dict_code',
       key: 'dict_code',
-      width: 160,
+      width: 200,
       ellipsis: true,
+      render: (v: string) => renderDictCodeCopyable(v, t),
     },
     {
       title: t('settings.dictName'),
@@ -481,9 +498,23 @@ export function DictionaryPage() {
 
       <Drawer
         title={
-          activeDict
-            ? `${activeDict.dict_name ?? activeDict.dict_code} (${activeDict.dict_code})`
-            : t('settings.dictItems')
+          activeDict ? (
+            <span>
+              {activeDict.dict_name ?? activeDict.dict_code}
+              {' ('}
+              <Typography.Text
+                copyable={{
+                  onCopy: () => void message.success(t('common.copied')),
+                }}
+                style={{ wordBreak: 'break-all' }}
+              >
+                {activeDict.dict_code}
+              </Typography.Text>
+              {')'}
+            </span>
+          ) : (
+            t('settings.dictItems')
+          )
         }
         width={720}
         open={drawerOpen}
