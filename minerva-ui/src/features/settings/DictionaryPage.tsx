@@ -13,12 +13,13 @@ import {
   InputNumber,
   Modal,
   Popconfirm,
-  Select,
   Space,
   Table,
+  TreeSelect,
   Typography,
   message,
 } from 'antd'
+import type { TreeSelectProps } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -116,6 +117,28 @@ function showErr(t: (k: string) => string, e: unknown) {
   void message.error(t('common.error'))
 }
 
+function buildParentTreeData(
+  nodes: ItemRow[],
+  forbidden: Set<string>,
+): NonNullable<TreeSelectProps['treeData']> {
+  const out: NonNullable<TreeSelectProps['treeData']> = []
+  for (const n of nodes) {
+    if (forbidden.has(n.id)) continue
+    const rawChildren = n.children
+    const children =
+      rawChildren && rawChildren.length > 0
+        ? buildParentTreeData(rawChildren, forbidden)
+        : undefined
+    out.push({
+      title: `${n.code} — ${n.name}`,
+      value: n.id,
+      key: n.id,
+      ...(children && children.length > 0 ? { children } : {}),
+    })
+  }
+  return out
+}
+
 function renderCodeCopyable(code: string, t: (k: string) => string) {
   const v = code.trim()
   if (!v) return '—'
@@ -188,17 +211,12 @@ export function DictionaryPage() {
 
   const itemTree = useMemo(() => buildItemTree(itemsFlat), [itemsFlat])
 
-  const parentSelectOptions = useMemo(() => {
+  const parentTreeData = useMemo(() => {
     const forbidden = editingItemId
       ? new Set([editingItemId, ...descendantIds(itemsFlat, editingItemId)])
       : new Set<string>()
-    return itemsFlat
-      .filter((r) => !forbidden.has(r.id))
-      .map((r) => ({
-        value: r.id,
-        label: `${r.code} — ${r.name}`,
-      }))
-  }, [editingItemId, itemsFlat])
+    return buildParentTreeData(itemTree, forbidden)
+  }, [editingItemId, itemTree, itemsFlat])
 
   const openCreateDict = () => {
     setEditingDictId(null)
@@ -573,12 +591,14 @@ export function DictionaryPage() {
             <InputNumber style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="parent_uuid" label={t('settings.dictItemParent')}>
-            <Select
+            <TreeSelect
               allowClear
-              placeholder={t('settings.dictItemParentPlaceholder')}
-              options={parentSelectOptions}
-              optionFilterProp="label"
               showSearch
+              treeDefaultExpandAll
+              placeholder={t('settings.dictItemParentPlaceholder')}
+              treeData={parentTreeData}
+              treeNodeFilterProp="title"
+              style={{ width: '100%' }}
             />
           </Form.Item>
         </Form>
