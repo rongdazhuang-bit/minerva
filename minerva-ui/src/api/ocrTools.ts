@@ -1,7 +1,5 @@
 import { apiJson } from '@/api/client'
 
-export type OcrAuthType = 'none' | 'basic' | 'api_key'
-
 export type OcrToolListItem = {
   id: string
   name: string
@@ -32,7 +30,7 @@ export type OcrToolDetail = {
 export type OcrToolCreateBody = {
   name: string
   url: string
-  auth_type?: OcrAuthType | null
+  auth_type?: string | null
   user_name?: string | null
   user_passwd?: string | null
   api_key?: string | null
@@ -42,7 +40,7 @@ export type OcrToolCreateBody = {
 export type OcrToolPatchBody = Partial<{
   name: string
   url: string
-  auth_type: OcrAuthType | null
+  auth_type: string | null
   user_name: string | null
   user_passwd: string | null
   api_key: string | null

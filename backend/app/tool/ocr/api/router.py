@@ -65,7 +65,12 @@ def _to_patch_dict(body: OcrToolPatchIn) -> dict[str, Any]:
         if key in ("name", "url") and isinstance(value, str):
             patch[key] = value.strip()
         elif key == "auth_type":
-            patch[key] = value.value if value is not None else None
+            if value is None:
+                patch[key] = None
+            elif isinstance(value, str):
+                patch[key] = value.strip() or None
+            else:
+                patch[key] = value
         else:
             patch[key] = value
     return patch
@@ -95,7 +100,7 @@ async def create_ocr_tool(
         workspace_id=workspace_id,
         name=body.name,
         url=body.url,
-        auth_type=body.auth_type.value if body.auth_type else None,
+        auth_type=(body.auth_type.strip() or None) if body.auth_type else None,
         user_name=body.user_name,
         user_passwd=body.user_passwd,
         api_key=body.api_key,

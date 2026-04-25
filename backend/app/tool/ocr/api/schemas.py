@@ -2,21 +2,14 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from enum import Enum
 
 from pydantic import BaseModel, Field
-
-
-class OcrAuthType(str, Enum):
-    none = "none"
-    basic = "basic"
-    api_key = "api_key"
 
 
 class OcrToolCreateIn(BaseModel):
     name: str = Field(min_length=1, max_length=128)
     url: str = Field(min_length=1, max_length=128)
-    auth_type: OcrAuthType | None = None
+    auth_type: str | None = Field(default=None, max_length=64)
     user_name: str | None = Field(default=None, max_length=64)
     user_passwd: str | None = Field(default=None, max_length=128)
     api_key: str | None = Field(default=None, max_length=128)
@@ -26,7 +19,7 @@ class OcrToolCreateIn(BaseModel):
 class OcrToolPatchIn(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=128)
     url: str | None = Field(default=None, min_length=1, max_length=128)
-    auth_type: OcrAuthType | None = None
+    auth_type: str | None = Field(default=None, max_length=64)
     user_name: str | None = Field(default=None, max_length=64)
     user_passwd: str | None = Field(default=None, max_length=128)
     api_key: str | None = Field(default=None, max_length=128)

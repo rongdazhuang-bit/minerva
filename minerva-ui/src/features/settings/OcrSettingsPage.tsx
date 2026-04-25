@@ -3,6 +3,7 @@ import { Button, Card, Form, Input, Modal, Popconfirm, Select, Space, Table, Typ
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { listDictItems, listDicts, type SysDictItem } from '@/api/dicts'
 import {
   createOcrTool,
   deleteOcrTool,
@@ -18,14 +19,24 @@ import './OcrSettingsPage.css'
 
 const { Paragraph } = Typography
 
+/** 数据字典中 OCR 认证方式的字典编码（与「数据字典」菜单中的 dict_code 一致）。 */
+const AUTH_TYPE_DICT_CODE = 'AUTH_TYPE'
+
 type OcrFormValues = {
   name: string
   url: string
-  auth_type?: 'basic' | 'api_key'
+  auth_type?: string
   user_name?: string
   user_passwd?: string
   api_key?: string
   remark?: string
+}
+
+function sortDictItems(items: SysDictItem[]) {
+  return [...items].sort(
+    (a, b) =>
+      (b.item_sort ?? 0) - (a.item_sort ?? 0) || a.code.localeCompare(b.code),
+  )
 }
 
 export function OcrSettingsPage() {
@@ -37,9 +48,69 @@ export function OcrSettingsPage() {
   const [open, setOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const authType = Form.useWatch('auth_type', form) ?? 'basic'
+  const [authItems, setAuthItems] = useState<SysDictItem[]>([])
+  const [authDictLoading, setAuthDictLoading] = useState(false)
+
+  const watchedAuthType = Form.useWatch('auth_type', form)
   const legacy = useMemo(() => readOcrSettings(), [])
   const canImportLegacy = legacy.mode === 'http' && legacy.baseUrl.trim().length > 0
+
+  const loadAuthDict = useCallback(async () => {
+    if (!workspaceId) return
+    setAuthDictLoading(true)
+    try {
+      const dicts = await listDicts(workspaceId)
+      const d = dicts.find((row) => row.dict_code === AUTH_TYPE_DICT_CODE)
+      if (!d) {
+        setAuthItems([])
+        return
+      }
+      const rows = await listDictItems(workspaceId, d.id)
+      setAuthItems(rows)
+    } catch {
+      setAuthItems([])
+    } finally {
+      setAuthDictLoading(false)
+    }
+  }, [workspaceId])
+
+  useEffect(() => {
+    void loadAuthDict()
+  }, [loadAuthDict])
+
+  const baseAuthSelectOptions = useMemo(() => {
+    const sorted = sortDictItems(authItems)
+    if (sorted.length > 0) {
+      return sorted.map((i) => ({ value: i.code, label: i.name }))
+    }
+    return [
+      { value: 'none', label: t('settings.ocrAuthTypeDictNone') },
+      { value: 'basic', label: t('settings.ocrAuthTypeDictBasic') },
+      { value: 'api_key', label: t('settings.ocrAuthTypeDictApiKey') },
+    ]
+  }, [authItems, t])
+
+  const authLabelByCode = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const i of sortDictItems(authItems)) {
+      m.set(i.code, i.name)
+    }
+    if (m.size === 0) {
+      m.set('none', t('settings.ocrAuthTypeDictNone'))
+      m.set('basic', t('settings.ocrAuthTypeDictBasic'))
+      m.set('api_key', t('settings.ocrAuthTypeDictApiKey'))
+    }
+    return m
+  }, [authItems, t])
+
+  const authSelectOptions = useMemo(() => {
+    if (!open) return baseAuthSelectOptions
+    const cur = watchedAuthType
+    if (cur != null && cur !== '' && !baseAuthSelectOptions.some((o) => o.value === cur)) {
+      return [...baseAuthSelectOptions, { value: cur, label: cur }]
+    }
+    return baseAuthSelectOptions
+  }, [baseAuthSelectOptions, open, watchedAuthType])
 
   const load = useCallback(async () => {
     if (!workspaceId) return
@@ -57,6 +128,21 @@ export function OcrSettingsPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    if (!open || editingId) return
+    if (baseAuthSelectOptions.length === 0) return
+    const cur = form.getFieldValue('auth_type') as string | undefined
+    if (cur != null && baseAuthSelectOptions.some((o) => o.value === cur)) return
+    const next =
+      baseAuthSelectOptions.find((o) => o.value === 'basic') ?? baseAuthSelectOptions[0]
+    form.setFieldsValue({ auth_type: next?.value })
+  }, [open, editingId, baseAuthSelectOptions, form])
+
+  const resolveAuthLabel = (code: string | null) => {
+    if (code == null || code === '') return '—'
+    return authLabelByCode.get(code) ?? code
+  }
 
   const columns: ColumnsType<OcrToolListItem> = [
     {
@@ -77,12 +163,9 @@ export function OcrSettingsPage() {
       title: t('settings.ocrToolsAuthType'),
       dataIndex: 'auth_type',
       key: 'auth_type',
-      width: 140,
-      render: (value: string | null) => {
-        if (value === 'api_key') return 'API Key'
-        if (value === 'basic') return 'basic'
-        return '-'
-      },
+      width: 160,
+      ellipsis: true,
+      render: (value: string | null) => resolveAuthLabel(value),
     },
     {
       title: t('settings.ocrToolsRemark'),
@@ -122,7 +205,6 @@ export function OcrSettingsPage() {
   const openCreate = () => {
     setEditingId(null)
     form.resetFields()
-    form.setFieldsValue({ auth_type: 'basic' })
     setOpen(true)
   }
 
@@ -135,7 +217,7 @@ export function OcrSettingsPage() {
       form.setFieldsValue({
         name: detail.name,
         url: detail.url,
-        auth_type: detail.auth_type === 'api_key' ? 'api_key' : 'basic',
+        auth_type: detail.auth_type ?? undefined,
         user_name: detail.user_name ?? '',
         user_passwd: detail.user_passwd ?? '',
         api_key: detail.api_key ?? '',
@@ -150,15 +232,16 @@ export function OcrSettingsPage() {
   }
 
   const buildPayload = (values: OcrFormValues): OcrToolCreateBody => {
-    const authType = values.auth_type ?? 'basic'
+    const authType = values.auth_type ?? ''
     const isBasic = authType === 'basic'
+    const isApiKey = authType === 'api_key'
     return {
       name: values.name.trim(),
       url: values.url.trim(),
-      auth_type: authType,
+      auth_type: authType || null,
       user_name: isBasic ? values.user_name?.trim() || null : null,
       user_passwd: isBasic ? values.user_passwd?.trim() || null : null,
-      api_key: authType === 'api_key' ? values.api_key?.trim() || null : null,
+      api_key: isApiKey ? values.api_key?.trim() || null : null,
       remark: values.remark?.trim() || null,
     }
   }
@@ -212,6 +295,10 @@ export function OcrSettingsPage() {
       void message.error(t('common.error'))
     }
   }
+
+  const authType = watchedAuthType ?? ''
+  const showBasicFields = authType === 'basic'
+  const showApiKeyField = authType === 'api_key'
 
   if (!workspaceId) {
     return (
@@ -276,15 +363,19 @@ export function OcrSettingsPage() {
           >
             <Input maxLength={128} />
           </Form.Item>
-          <Form.Item name="auth_type" label={t('settings.ocrToolsAuthType')} initialValue="basic">
+          <Form.Item
+            name="auth_type"
+            label={t('settings.ocrToolsAuthType')}
+            rules={[{ required: true, message: t('settings.ocrAuthTypeRequired') }]}
+          >
             <Select
-              options={[
-                { value: 'basic', label: 'basic' },
-                { value: 'api_key', label: 'API Key' },
-              ]}
+              loading={authDictLoading}
+              options={authSelectOptions}
+              optionFilterProp="label"
+              showSearch
             />
           </Form.Item>
-          {authType === 'basic' ? (
+          {showBasicFields ? (
             <>
               <Form.Item
                 name="user_name"
@@ -302,7 +393,7 @@ export function OcrSettingsPage() {
               </Form.Item>
             </>
           ) : null}
-          {authType === 'api_key' ? (
+          {showApiKeyField ? (
             <Form.Item
               name="api_key"
               label={t('settings.ocrToolsApiKey')}
