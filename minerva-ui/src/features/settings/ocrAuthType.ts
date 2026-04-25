@@ -26,3 +26,10 @@ export function isOcrBasicAuth(code: string | null | undefined): boolean {
 export function isOcrApiKeyAuth(code: string | null | undefined): boolean {
   return canonicalOcrAuthType(code) === OCR_AUTH_API_KEY
 }
+
+/** 无认证（NONE）或未填写认证方式。 */
+export function isOcrNoneAuth(code: string | null | undefined): boolean {
+  if (code == null) return true
+  if (String(code).trim() === '') return true
+  return canonicalOcrAuthType(code) === OCR_AUTH_NONE
+}

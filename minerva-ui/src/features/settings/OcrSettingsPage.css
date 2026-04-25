@@ -117,3 +117,15 @@ html.minerva-tone-sunshine .minerva-ocr-settings__table .ant-table-tbody > tr > 
 html.minerva-tone-sunshine .minerva-ocr-settings__table .ant-table-tbody > tr:hover > td {
   background: #edf4ff !important;
 }
+
+.minerva-ocr-settings__drawer-detail .ant-typography h5 {
+  color: var(--minerva-ink, #e8f0f8);
+}
+
+html.minerva-tone-sunshine .minerva-ocr-settings__drawer-detail .ant-typography h5 {
+  color: var(--minerva-ink, #0f172a);
+}
+
+.minerva-ocr-settings__drawer-detail .ant-input-password input {
+  cursor: default;
+}

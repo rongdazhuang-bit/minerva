@@ -1,5 +1,21 @@
-import { DeleteOutlined, EditOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons'
-import { Button, Card, Form, Input, Modal, Popconfirm, Select, Space, Table, Typography, message } from 'antd'
+import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons'
+import {
+  Button,
+  Card,
+  Descriptions,
+  Divider,
+  Drawer,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Spin,
+  Table,
+  Typography,
+  message,
+} from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -11,6 +27,7 @@ import {
   listOcrTools,
   patchOcrTool,
   type OcrToolCreateBody,
+  type OcrToolDetail,
   type OcrToolListItem,
 } from '@/api/ocrTools'
 import { useAuth } from '@/app/AuthContext'
@@ -21,6 +38,7 @@ import {
   canonicalOcrAuthType,
   isOcrApiKeyAuth,
   isOcrBasicAuth,
+  isOcrNoneAuth,
 } from '@/features/settings/ocrAuthType'
 import { clearOcrSettings, readOcrSettings } from '@/features/settings/ocrSettingsStorage'
 import './OcrSettingsPage.css'
@@ -58,6 +76,9 @@ export function OcrSettingsPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [authItems, setAuthItems] = useState<SysDictItem[]>([])
   const [authDictLoading, setAuthDictLoading] = useState(false)
+  const [viewOpen, setViewOpen] = useState(false)
+  const [viewLoading, setViewLoading] = useState(false)
+  const [viewDetail, setViewDetail] = useState<OcrToolDetail | null>(null)
 
   const watchedAuthType = Form.useWatch('auth_type', form)
   const legacy = useMemo(() => readOcrSettings(), [])
@@ -162,6 +183,30 @@ export function OcrSettingsPage() {
     return authLabelByCode.get(canon) ?? code
   }
 
+  const formatDateTime = (v: string | null | undefined) =>
+    v ? new Date(v).toLocaleString(undefined, { hour12: false }) : '—'
+
+  const openView = async (toolId: string) => {
+    if (!workspaceId) return
+    setViewOpen(true)
+    setViewLoading(true)
+    setViewDetail(null)
+    try {
+      const detail = await getOcrTool(workspaceId, toolId)
+      setViewDetail(detail)
+    } catch {
+      void message.error(t('common.error'))
+      setViewOpen(false)
+    } finally {
+      setViewLoading(false)
+    }
+  }
+
+  const closeView = () => {
+    setViewOpen(false)
+    setViewDetail(null)
+  }
+
   const columns: ColumnsType<OcrToolListItem> = [
     {
       title: t('settings.ocrToolsName'),
@@ -195,9 +240,15 @@ export function OcrSettingsPage() {
     {
       title: t('settings.ocrToolsActions'),
       key: 'actions',
-      width: 140,
+      width: 200,
       render: (_, row) => (
         <Space>
+          <Button
+            type="text"
+            icon={<EyeOutlined />}
+            onClick={() => void openView(row.id)}
+            aria-label={t('settings.ocrToolsView')}
+          />
           <Button
             type="text"
             icon={<EditOutlined />}
@@ -427,6 +478,90 @@ export function OcrSettingsPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      <Drawer
+        title={t('settings.ocrToolsView')}
+        width={560}
+        open={viewOpen}
+        onClose={closeView}
+        destroyOnHidden
+      >
+        {viewLoading ? (
+          <div style={{ padding: 24, textAlign: 'center' }}>
+            <Spin />
+          </div>
+        ) : viewDetail ? (
+          <div className="minerva-ocr-settings__drawer-detail">
+            <Typography.Title level={5} style={{ marginTop: 0 }}>
+              {t('settings.ocrDetailBaseSection')}
+            </Typography.Title>
+            <Descriptions column={1} size="small" bordered>
+              <Descriptions.Item label={t('settings.ocrToolsName')}>
+                {viewDetail.name}
+              </Descriptions.Item>
+              <Descriptions.Item label={t('settings.ocrToolsUrl')}>
+                {viewDetail.url}
+              </Descriptions.Item>
+              <Descriptions.Item label={t('settings.ocrToolsAuthType')}>
+                {resolveAuthLabel(viewDetail.auth_type)}
+              </Descriptions.Item>
+              <Descriptions.Item label={t('settings.ocrToolsRemark')}>
+                {viewDetail.remark?.trim() ? viewDetail.remark : '—'}
+              </Descriptions.Item>
+              <Descriptions.Item label={t('settings.ocrDetailCreatedAt')}>
+                {formatDateTime(viewDetail.create_at)}
+              </Descriptions.Item>
+              <Descriptions.Item label={t('settings.ocrDetailUpdatedAt')}>
+                {formatDateTime(viewDetail.update_at)}
+              </Descriptions.Item>
+            </Descriptions>
+
+            <Divider />
+            <Typography.Title level={5}>{t('settings.ocrDetailCredentialSection')}</Typography.Title>
+
+            {isOcrBasicAuth(viewDetail.auth_type) ? (
+              <Descriptions column={1} size="small" bordered>
+                <Descriptions.Item label={t('settings.ocrToolsUsername')}>
+                  {viewDetail.user_name?.trim() ? viewDetail.user_name : '—'}
+                </Descriptions.Item>
+                <Descriptions.Item label={t('settings.ocrToolsPassword')}>
+                  {viewDetail.user_passwd ? (
+                    <Input.Password readOnly value={viewDetail.user_passwd} />
+                  ) : (
+                    '—'
+                  )}
+                </Descriptions.Item>
+              </Descriptions>
+            ) : null}
+
+            {isOcrApiKeyAuth(viewDetail.auth_type) ? (
+              <Descriptions column={1} size="small" bordered>
+                <Descriptions.Item label={t('settings.ocrToolsApiKey')}>
+                  {viewDetail.api_key ? (
+                    <Input.Password readOnly value={viewDetail.api_key} />
+                  ) : (
+                    '—'
+                  )}
+                </Descriptions.Item>
+              </Descriptions>
+            ) : null}
+
+            {isOcrNoneAuth(viewDetail.auth_type) ? (
+              <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+                {t('settings.ocrDetailNoneCredentials')}
+              </Typography.Paragraph>
+            ) : null}
+
+            {!isOcrBasicAuth(viewDetail.auth_type) &&
+            !isOcrApiKeyAuth(viewDetail.auth_type) &&
+            !isOcrNoneAuth(viewDetail.auth_type) ? (
+              <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+                {t('settings.ocrDetailCustomAuthHint')}
+              </Typography.Paragraph>
+            ) : null}
+          </div>
+        ) : null}
+      </Drawer>
     </div>
   )
 }
