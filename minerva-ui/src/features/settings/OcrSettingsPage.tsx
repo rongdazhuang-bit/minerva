@@ -186,6 +186,21 @@ export function OcrSettingsPage() {
   const formatDateTime = (v: string | null | undefined) =>
     v ? new Date(v).toLocaleString(undefined, { hour12: false }) : '—'
 
+  const renderCopyablePlain = (value: string | null | undefined) => {
+    const v = value?.trim()
+    if (!v) return '—'
+    return (
+      <Typography.Text
+        copyable={{
+          onCopy: () => void message.success(t('common.copied')),
+        }}
+        style={{ wordBreak: 'break-all' }}
+      >
+        {v}
+      </Typography.Text>
+    )
+  }
+
   const openView = async (toolId: string) => {
     if (!workspaceId) return
     setViewOpen(true)
@@ -522,14 +537,10 @@ export function OcrSettingsPage() {
             {isOcrBasicAuth(viewDetail.auth_type) ? (
               <Descriptions column={1} size="small" bordered>
                 <Descriptions.Item label={t('settings.ocrToolsUsername')}>
-                  {viewDetail.user_name?.trim() ? viewDetail.user_name : '—'}
+                  {renderCopyablePlain(viewDetail.user_name)}
                 </Descriptions.Item>
                 <Descriptions.Item label={t('settings.ocrToolsPassword')}>
-                  {viewDetail.user_passwd ? (
-                    <Input.Password readOnly value={viewDetail.user_passwd} />
-                  ) : (
-                    '—'
-                  )}
+                  {renderCopyablePlain(viewDetail.user_passwd)}
                 </Descriptions.Item>
               </Descriptions>
             ) : null}
@@ -537,11 +548,7 @@ export function OcrSettingsPage() {
             {isOcrApiKeyAuth(viewDetail.auth_type) ? (
               <Descriptions column={1} size="small" bordered>
                 <Descriptions.Item label={t('settings.ocrToolsApiKey')}>
-                  {viewDetail.api_key ? (
-                    <Input.Password readOnly value={viewDetail.api_key} />
-                  ) : (
-                    '—'
-                  )}
+                  {renderCopyablePlain(viewDetail.api_key)}
                 </Descriptions.Item>
               </Descriptions>
             ) : null}

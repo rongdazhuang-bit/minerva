@@ -126,6 +126,3 @@ html.minerva-tone-sunshine .minerva-ocr-settings__drawer-detail .ant-typography 
   color: var(--minerva-ink, #0f172a);
 }
 
-.minerva-ocr-settings__drawer-detail .ant-input-password input {
-  cursor: default;
-}

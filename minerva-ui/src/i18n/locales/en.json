@@ -144,5 +144,6 @@
   "auth.themeMenuGold": "Dusk gold",
   "auth.themeMenuSunshine": "Sunshine",
   "auth.logout": "Log out",
-  "common.error": "Request failed"
+  "common.error": "Request failed",
+  "common.copied": "Copied to clipboard"
 }

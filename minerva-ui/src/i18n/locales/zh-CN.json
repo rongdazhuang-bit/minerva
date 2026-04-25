@@ -144,5 +144,6 @@
   "auth.themeMenuGold": "暮金",
   "auth.themeMenuSunshine": "阳光",
   "auth.logout": "退出",
-  "common.error": "请求失败"
+  "common.error": "请求失败",
+  "common.copied": "已复制到剪贴板"
 }
