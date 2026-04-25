@@ -26,6 +26,9 @@ export function AppBreadcrumb() {
     if (pathname.startsWith('/app/smart-review')) {
       return [home, { title: t('nav.smartReview') }]
     }
+    if (pathname.startsWith('/app/file-ocr')) {
+      return [home, { title: t('nav.rulesFileOcr') }]
+    }
     if (pathname.startsWith('/app/rules')) {
       return [home, { title: t('nav.rules') }]
     }

@@ -47,8 +47,38 @@ export type SysDictItemPatchBody = Partial<{
   parent_uuid: string | null
 }>
 
-export function listDicts(workspaceId: string) {
-  return apiJson<SysDictListItem[]>(`/workspaces/${workspaceId}/dicts`)
+export type SysDictListPage = {
+  items: SysDictListItem[]
+  total: number
+}
+
+export type ListDictsParams = {
+  page?: number
+  page_size?: number
+}
+
+export function listDicts(workspaceId: string, params?: ListDictsParams) {
+  const sp = new URLSearchParams()
+  if (params?.page != null) sp.set('page', String(params.page))
+  if (params?.page_size != null) sp.set('page_size', String(params.page_size))
+  const q = sp.toString()
+  return apiJson<SysDictListPage>(
+    `/workspaces/${workspaceId}/dicts${q ? `?${q}` : ''}`,
+  )
+}
+
+/** Load all dictionaries for the workspace (follows pagination until complete). */
+export async function listAllDicts(workspaceId: string): Promise<SysDictListItem[]> {
+  const pageSize = 100
+  const out: SysDictListItem[] = []
+  let page = 1
+  while (true) {
+    const { items, total } = await listDicts(workspaceId, { page, page_size: pageSize })
+    out.push(...items)
+    if (out.length >= total || items.length === 0) break
+    page += 1
+  }
+  return out
 }
 
 export function createDict(workspaceId: string, body: SysDictCreateBody) {

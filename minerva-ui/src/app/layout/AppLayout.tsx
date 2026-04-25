@@ -7,6 +7,7 @@ import {
   FileTextOutlined,
   IdcardOutlined,
   MenuOutlined,
+  ScanOutlined,
   SettingOutlined,
   TagsOutlined,
   UserOutlined,
@@ -27,6 +28,7 @@ import './appSiderMenu.css'
 const { Sider, Header, Content } = Layout
 
 const SUB_SETTINGS = 'sub-settings'
+const SUB_RULES = 'sub-rules'
 
 const siderStyle: CSSProperties = {
   background: 'var(--minerva-surface, #1b2838)',
@@ -101,6 +103,7 @@ function menuKeyForPath(pathname: string): string {
   if (pathname.startsWith('/app/settings/dictionary')) return 'settings-dictionary'
   if (pathname.startsWith('/app/settings')) return 'settings-models'
   if (pathname.startsWith('/app/smart-review')) return 'smart-review'
+  if (pathname.startsWith('/app/file-ocr')) return 'file-ocr'
   if (pathname.startsWith('/app/rules')) return 'rules'
   return 'overview'
 }
@@ -119,11 +122,20 @@ export function AppLayout() {
   const [menuOpenKeys, setMenuOpenKeys] = useState<string[]>([])
 
   useEffect(() => {
-    if (pathname.startsWith('/app/settings')) {
-      setMenuOpenKeys((prev) => (prev.includes(SUB_SETTINGS) ? prev : [...prev, SUB_SETTINGS]))
-    } else {
-      setMenuOpenKeys((prev) => prev.filter((k) => k !== SUB_SETTINGS))
-    }
+    setMenuOpenKeys((prev) => {
+      let next = [...prev]
+      if (pathname.startsWith('/app/settings')) {
+        if (!next.includes(SUB_SETTINGS)) next.push(SUB_SETTINGS)
+      } else {
+        next = next.filter((k) => k !== SUB_SETTINGS)
+      }
+      if (pathname.startsWith('/app/rules')) {
+        if (!next.includes(SUB_RULES)) next.push(SUB_RULES)
+      } else {
+        next = next.filter((k) => k !== SUB_RULES)
+      }
+      return next
+    })
   }, [pathname])
 
   const showBreadcrumb = useMemo(() => {
@@ -199,6 +211,12 @@ export function AppLayout() {
                 icon: <BookOutlined />,
                 label: t('nav.rules'),
                 onClick: () => void nav('/app/rules'),
+              },
+              {
+                key: 'file-ocr',
+                icon: <ScanOutlined />,
+                label: t('nav.rulesFileOcr'),
+                onClick: () => void nav('/app/file-ocr'),
               },
               {
                 key: SUB_SETTINGS,

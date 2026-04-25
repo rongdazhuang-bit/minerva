@@ -28,6 +28,11 @@ class SysDictListItemOut(BaseModel):
     update_at: datetime | None
 
 
+class SysDictListPageOut(BaseModel):
+    items: list[SysDictListItemOut]
+    total: int
+
+
 class SysDictItemCreateIn(BaseModel):
     code: str = Field(min_length=1, max_length=64)
     name: str = Field(min_length=1, max_length=64)

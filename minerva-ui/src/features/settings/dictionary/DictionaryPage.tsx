@@ -162,6 +162,10 @@ export function DictionaryPage() {
   const [itemForm] = Form.useForm<ItemFormValues>()
 
   const [loading, setLoading] = useState(false)
+  const [dictListRev, setDictListRev] = useState(0)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  const [total, setTotal] = useState(0)
   const [dicts, setDicts] = useState<SysDictListItem[]>([])
   const [dictModalOpen, setDictModalOpen] = useState(false)
   const [dictSubmitting, setDictSubmitting] = useState(false)
@@ -175,22 +179,31 @@ export function DictionaryPage() {
   const [itemSubmitting, setItemSubmitting] = useState(false)
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
 
-  const loadDicts = useCallback(async () => {
-    if (!workspaceId) return
-    setLoading(true)
-    try {
-      const rows = await listDicts(workspaceId)
-      setDicts(rows)
-    } catch (e) {
-      showErr(t, e)
-    } finally {
-      setLoading(false)
-    }
-  }, [t, workspaceId])
-
   useEffect(() => {
-    void loadDicts()
-  }, [loadDicts])
+    if (!workspaceId) return
+    let cancelled = false
+    setLoading(true)
+    void (async () => {
+      try {
+        let data = await listDicts(workspaceId, { page, page_size: pageSize })
+        if (cancelled) return
+        const maxPage = Math.max(1, Math.ceil(data.total / pageSize) || 1)
+        if (page > maxPage) {
+          setPage(maxPage)
+          return
+        }
+        setDicts(data.items)
+        setTotal(data.total)
+      } catch (e) {
+        if (!cancelled) showErr(t, e)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [workspaceId, page, pageSize, dictListRev, t])
 
   const loadItems = useCallback(async () => {
     if (!workspaceId || !activeDict) return
@@ -244,20 +257,22 @@ export function DictionaryPage() {
         dict_name: values.dict_name?.trim() || null,
         dict_sort: values.dict_sort ?? 0,
       }
+      let saved: SysDictListItem
       if (editingDictId) {
-        await patchDict(workspaceId, editingDictId, payload)
+        saved = await patchDict(workspaceId, editingDictId, payload)
         void message.success(t('settings.dictUpdated'))
       } else {
-        await createDict(workspaceId, payload)
+        saved = await createDict(workspaceId, payload)
         void message.success(t('settings.dictCreated'))
       }
       setDictModalOpen(false)
-      const refreshed = await listDicts(workspaceId)
-      setDicts(refreshed)
       if (editingDictId && activeDict?.id === editingDictId) {
-        const next = refreshed.find((d) => d.id === editingDictId)
-        if (next) setActiveDict(next)
+        setActiveDict(saved)
       }
+      if (!editingDictId) {
+        setPage(1)
+      }
+      setDictListRev((n) => n + 1)
     } catch (e) {
       showErr(t, e)
     } finally {
@@ -274,7 +289,7 @@ export function DictionaryPage() {
         setDrawerOpen(false)
         setActiveDict(null)
       }
-      await loadDicts()
+      setDictListRev((n) => n + 1)
     } catch (e) {
       showErr(t, e)
     }
@@ -480,10 +495,20 @@ export function DictionaryPage() {
             loading={loading}
             columns={dictColumns}
             dataSource={dicts}
-            pagination={false}
+            pagination={{
+              current: page,
+              pageSize,
+              total,
+              showSizeChanger: true,
+              pageSizeOptions: [10, 20, 50, 100],
+              onChange: (p, ps) => {
+                setPage(p)
+                setPageSize(ps)
+              },
+            }}
             size="middle"
             className="minerva-dict-settings__table"
-            scroll={{ x: true, y: 'calc(100dvh - 320px)' }}
+            scroll={{ x: true, y: 'calc(100dvh - 360px)' }}
             sticky
           />
         </div>

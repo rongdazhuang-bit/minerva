@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, require_workspace_member
@@ -15,6 +15,7 @@ from app.sys.dict.api.schemas import (
     SysDictItemOut,
     SysDictItemPatchIn,
     SysDictListItemOut,
+    SysDictListPageOut,
     SysDictPatchIn,
 )
 from app.sys.dict.domain.db.models import SysDict, SysDictItem
@@ -74,15 +75,25 @@ def _item_patch(body: SysDictItemPatchIn) -> dict[str, Any]:
     return patch
 
 
-@router.get("", response_model=list[SysDictListItemOut])
+@router.get("", response_model=SysDictListPageOut)
 async def list_dicts(
     workspace_id: uuid.UUID,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
     _user: User = Depends(get_current_user),
     _workspace: uuid.UUID = Depends(require_workspace_member),
     session: AsyncSession = Depends(get_db),
-) -> list[SysDictListItemOut]:
-    rows = await svc.list_dicts(session, workspace_id=workspace_id)
-    return [_dict_to_list_out(r) for r in rows]
+) -> SysDictListPageOut:
+    rows, total = await svc.list_dicts_page(
+        session,
+        workspace_id=workspace_id,
+        page=page,
+        page_size=page_size,
+    )
+    return SysDictListPageOut(
+        items=[_dict_to_list_out(r) for r in rows],
+        total=total,
+    )
 
 
 @router.post("", response_model=SysDictListItemOut, status_code=status.HTTP_201_CREATED)

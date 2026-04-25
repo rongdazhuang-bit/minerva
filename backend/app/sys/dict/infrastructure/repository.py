@@ -9,13 +9,48 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.sys.dict.domain.db.models import SysDict, SysDictItem
 
 
+def _dict_list_order():
+    return (
+        SysDict.create_at.desc(),
+        SysDict.dict_sort.desc(),
+    )
+
+
 async def list_dicts_for_workspace(
     session: AsyncSession, *, workspace_id: uuid.UUID
 ) -> Sequence[SysDict]:
     result = await session.execute(
         select(SysDict)
         .where(SysDict.workspace_id == workspace_id)
-        .order_by(SysDict.create_at.desc(), SysDict.dict_sort.desc())
+        .order_by(*_dict_list_order())
+    )
+    return result.scalars().all()
+
+
+async def count_dicts_for_workspace(
+    session: AsyncSession, *, workspace_id: uuid.UUID
+) -> int:
+    result = await session.execute(
+        select(func.count()).select_from(SysDict).where(
+            SysDict.workspace_id == workspace_id
+        )
+    )
+    return int(result.scalar_one() or 0)
+
+
+async def list_dicts_for_workspace_page(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    limit: int,
+    offset: int,
+) -> Sequence[SysDict]:
+    result = await session.execute(
+        select(SysDict)
+        .where(SysDict.workspace_id == workspace_id)
+        .order_by(*_dict_list_order())
+        .limit(limit)
+        .offset(offset)
     )
     return result.scalars().all()
 

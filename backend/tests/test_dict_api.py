@@ -39,7 +39,7 @@ async def test_dicts_and_items_crud_isolation() -> None:
 
         list_empty = await ac.get(f"/workspaces/{workspace1}/dicts", headers=h1)
         assert list_empty.status_code == 200
-        assert list_empty.json() == []
+        assert list_empty.json() == {"items": [], "total": 0}
 
         create = await ac.post(
             f"/workspaces/{workspace1}/dicts",
@@ -68,9 +68,11 @@ async def test_dicts_and_items_crud_isolation() -> None:
 
         list_w2 = await ac.get(f"/workspaces/{workspace2}/dicts", headers=h2)
         assert list_w2.status_code == 200
-        assert any(d["id"] == w2_dict_id for d in list_w2.json())
+        w2_body = list_w2.json()
+        assert any(d["id"] == w2_dict_id for d in w2_body["items"])
         list_w1_again = await ac.get(f"/workspaces/{workspace1}/dicts", headers=h1)
-        assert all(d["id"] != w2_dict_id for d in list_w1_again.json())
+        w1_items = list_w1_again.json()["items"]
+        assert all(d["id"] != w2_dict_id for d in w1_items)
 
         other_same_code = await ac.post(
             f"/workspaces/{workspace1}/dicts",
@@ -84,7 +86,9 @@ async def test_dicts_and_items_crud_isolation() -> None:
 
         list_two = await ac.get(f"/workspaces/{workspace1}/dicts", headers=h1)
         assert list_two.status_code == 200
-        assert len(list_two.json()) == 2
+        two_body = list_two.json()
+        assert len(two_body["items"]) == 2
+        assert two_body["total"] == 2
 
         fake_id = str(uuid.uuid4())
         not_found = await ac.patch(
@@ -181,3 +185,48 @@ async def test_dicts_and_items_crud_isolation() -> None:
             headers=h1,
         )
         assert gone_items.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_dicts_list_pagination() -> None:
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as ac:
+        email = f"dp-{uuid.uuid4().hex}@example.com"
+        password = "secret1234"
+        reg = await ac.post("/auth/register", json={"email": email, "password": password})
+        assert reg.status_code == 201, reg.text
+        token = reg.json()["access_token"]
+        workspace_id = _workspace_id_from_access_token(token)
+        h = {"Authorization": f"Bearer {token}"}
+
+        for i in range(3):
+            c = await ac.post(
+                f"/workspaces/{workspace_id}/dicts",
+                headers=h,
+                json={"dict_code": f"p{i}", "dict_name": f"P{i}", "dict_sort": i},
+            )
+            assert c.status_code == 201, c.text
+
+        p1 = await ac.get(
+            f"/workspaces/{workspace_id}/dicts?page=1&page_size=2",
+            headers=h,
+        )
+        assert p1.status_code == 200
+        b1 = p1.json()
+        assert b1["total"] == 3
+        assert len(b1["items"]) == 2
+
+        p2 = await ac.get(
+            f"/workspaces/{workspace_id}/dicts?page=2&page_size=2",
+            headers=h,
+        )
+        assert p2.status_code == 200
+        b2 = p2.json()
+        assert b2["total"] == 3
+        assert len(b2["items"]) == 1
+
+        ids_p1 = {x["id"] for x in b1["items"]}
+        ids_p2 = {x["id"] for x in b2["items"]}
+        assert not ids_p1.intersection(ids_p2)

@@ -19,7 +19,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { listDictItems, listDicts, type SysDictItem } from '@/api/dicts'
+import { listAllDicts, listDictItems, type SysDictItem } from '@/api/dicts'
 import {
   createOcrTool,
   deleteOcrTool,
@@ -88,7 +88,7 @@ export function OcrSettingsPage() {
     if (!workspaceId) return
     setAuthDictLoading(true)
     try {
-      const dicts = await listDicts(workspaceId)
+      const dicts = await listAllDicts(workspaceId)
       const d = dicts.find((row) => row.dict_code === AUTH_TYPE_DICT_CODE)
       if (!d) {
         setAuthItems([])

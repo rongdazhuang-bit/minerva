@@ -65,6 +65,24 @@ async def list_dicts(session: AsyncSession, *, workspace_id: uuid.UUID) -> list[
     return list(await repo.list_dicts_for_workspace(session, workspace_id=workspace_id))
 
 
+async def list_dicts_page(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    page: int,
+    page_size: int,
+) -> tuple[list[SysDict], int]:
+    total = await repo.count_dicts_for_workspace(session, workspace_id=workspace_id)
+    offset = (page - 1) * page_size
+    rows = await repo.list_dicts_for_workspace_page(
+        session,
+        workspace_id=workspace_id,
+        limit=page_size,
+        offset=offset,
+    )
+    return list(rows), total
+
+
 async def get_dict(
     session: AsyncSession,
     *,
