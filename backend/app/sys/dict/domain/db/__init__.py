@@ -1,0 +1,1 @@
+"""Dictionary table mappings."""

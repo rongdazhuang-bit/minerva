@@ -112,3 +112,50 @@ COMMENT ON COLUMN public.sys_ocr_tool.api_key IS 'api key';
 COMMENT ON COLUMN public.sys_ocr_tool.remark IS '备注';
 COMMENT ON COLUMN public.sys_ocr_tool.create_at IS '创建日期';
 COMMENT ON COLUMN public.sys_ocr_tool.update_at IS '更新日期';
+
+CREATE TABLE public.sys_dict (
+     id uuid NOT NULL,
+     workspace_id uuid NOT NULL,
+     dict_code varchar(64) NOT NULL,
+     dict_name varchar(128) NULL,
+     dict_sort int2 DEFAULT 0 NULL,
+     create_at timestamptz NULL,
+     update_at timestamptz NULL,
+     CONSTRAINT sys_dict_pk PRIMARY KEY (id),
+     CONSTRAINT uq_sys_dict_workspace_dict_code UNIQUE (workspace_id, dict_code),
+     CONSTRAINT sys_dict_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE
+);
+COMMENT ON TABLE public.sys_dict IS '字典编码';
+
+COMMENT ON COLUMN public.sys_dict.id IS 'uuid';
+COMMENT ON COLUMN public.sys_dict.workspace_id IS '工作空间id';
+COMMENT ON COLUMN public.sys_dict.dict_code IS '字典编码';
+COMMENT ON COLUMN public.sys_dict.dict_name IS '字典名称';
+COMMENT ON COLUMN public.sys_dict.dict_sort IS '排序';
+COMMENT ON COLUMN public.sys_dict.create_at IS '创建时间';
+COMMENT ON COLUMN public.sys_dict.update_at IS '更新时间';
+
+CREATE TABLE public.sys_dict_item (
+  id uuid NOT NULL,
+  dict_uuid uuid NOT NULL,
+  parent_uuid uuid NULL,
+  code varchar(64) NOT NULL,
+  "name" varchar(64) NOT NULL,
+  item_sort int2 DEFAULT 0 NULL,
+  create_at timestamptz NULL,
+  update_at timestamptz NULL,
+  CONSTRAINT sys_dict_item_pk PRIMARY KEY (id),
+  CONSTRAINT uq_sys_dict_item_dict_code UNIQUE (dict_uuid, code),
+  CONSTRAINT sys_dict_item_dict_uuid_fkey FOREIGN KEY (dict_uuid) REFERENCES public.sys_dict(id) ON DELETE CASCADE,
+  CONSTRAINT sys_dict_item_parent_uuid_fkey FOREIGN KEY (parent_uuid) REFERENCES public.sys_dict_item(id) ON DELETE RESTRICT
+);
+COMMENT ON TABLE public.sys_dict_item IS '字典明细';
+
+COMMENT ON COLUMN public.sys_dict_item.id IS 'id';
+COMMENT ON COLUMN public.sys_dict_item.dict_uuid IS 'sys_dict.id';
+COMMENT ON COLUMN public.sys_dict_item.code IS '编码';
+COMMENT ON COLUMN public.sys_dict_item."name" IS '姓名';
+COMMENT ON COLUMN public.sys_dict_item.parent_uuid IS 'sys_dict_item.id';
+COMMENT ON COLUMN public.sys_dict_item.create_at IS '创建时间';
+COMMENT ON COLUMN public.sys_dict_item.update_at IS '更新时间';
+COMMENT ON COLUMN public.sys_dict_item.item_sort IS '排序';
