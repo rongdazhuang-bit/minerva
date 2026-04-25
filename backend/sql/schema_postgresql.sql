@@ -159,3 +159,46 @@ COMMENT ON COLUMN public.sys_dict_item.parent_uuid IS 'sys_dict_item.id';
 COMMENT ON COLUMN public.sys_dict_item.create_at IS '创建时间';
 COMMENT ON COLUMN public.sys_dict_item.update_at IS '更新时间';
 COMMENT ON COLUMN public.sys_dict_item.item_sort IS '排序';
+
+
+CREATE TABLE public.sys_models (
+	id uuid NOT NULL,
+	workspace_id uuid NOT NULL,
+	provider_name varchar(128) NOT NULL,
+	model_name varchar(128) NOT NULL,
+	model_type varchar(64) NOT NULL,
+	enabled bool DEFAULT true NOT NULL,
+	load_balancing_enabled bool DEFAULT false NOT NULL,
+	auth_type varchar(64) NOT NULL,
+	endpoint_url varchar(128) NULL,
+	api_key varchar(128) NULL,
+	auth_name varchar(64) NULL,
+	auth_passwd varchar(128) NULL,
+	context_size int2 NULL,
+	max_tokens_to_sample int2 NULL,
+	model_config text NULL,
+	create_at timestamptz NULL,
+	update_at timestamptz NULL,
+	CONSTRAINT sys_models_pk PRIMARY KEY (id),
+	CONSTRAINT sys_models_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS ix_sys_models_workspace_id ON public.sys_models (workspace_id);
+COMMENT ON TABLE public.sys_models IS '模型配置';
+
+COMMENT ON COLUMN public.sys_models.id IS 'id';
+COMMENT ON COLUMN public.sys_models.workspace_id IS '工作空间id';
+COMMENT ON COLUMN public.sys_models.provider_name IS '模型供应商id';
+COMMENT ON COLUMN public.sys_models.model_name IS '模型名称';
+COMMENT ON COLUMN public.sys_models.model_type IS '模型类型';
+COMMENT ON COLUMN public.sys_models.enabled IS '状态';
+COMMENT ON COLUMN public.sys_models.load_balancing_enabled IS '负载均衡';
+COMMENT ON COLUMN public.sys_models.auth_type IS '认证方式';
+COMMENT ON COLUMN public.sys_models.endpoint_url IS '模型地址';
+COMMENT ON COLUMN public.sys_models.api_key IS 'api key';
+COMMENT ON COLUMN public.sys_models.auth_name IS '账号';
+COMMENT ON COLUMN public.sys_models.auth_passwd IS '密码';
+COMMENT ON COLUMN public.sys_models.context_size IS '上下文窗口大小';
+COMMENT ON COLUMN public.sys_models.max_tokens_to_sample IS '最大 token 上限';
+COMMENT ON COLUMN public.sys_models.model_config IS '其它配置项';
+COMMENT ON COLUMN public.sys_models.create_at IS '创建时间';
+COMMENT ON COLUMN public.sys_models.update_at IS '更新时间';

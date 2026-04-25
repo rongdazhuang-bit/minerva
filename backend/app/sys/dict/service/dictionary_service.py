@@ -161,6 +161,21 @@ async def list_items(
     return list(await repo.list_items_for_dict(session, dict_uuid=dict_id))
 
 
+async def list_items_by_dict_code(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    dict_code: str,
+) -> list[SysDictItem]:
+    """All items for the dictionary with the given `dict_code` in this workspace; empty if missing."""
+    d = await repo.get_dict_by_code_for_workspace(
+        session, workspace_id=workspace_id, dict_code=dict_code
+    )
+    if d is None:
+        return []
+    return list(await repo.list_items_for_dict(session, dict_uuid=d.id))
+
+
 async def get_item(
     session: AsyncSession,
     *,

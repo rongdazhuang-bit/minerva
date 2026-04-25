@@ -12,7 +12,11 @@ _ALGO = "HS256"
 
 
 def create_access_token(
-    *, user_id: uuid.UUID, tenant_id: uuid.UUID, workspace_id: uuid.UUID
+    *,
+    user_id: uuid.UUID,
+    tenant_id: uuid.UUID,
+    workspace_id: uuid.UUID,
+    workspace_role: str | None = None,
 ) -> str:
     now = datetime.now(UTC)
     exp = now + timedelta(minutes=settings.jwt_access_ttl_minutes)
@@ -24,6 +28,8 @@ def create_access_token(
         "exp": exp,
         "iat": now,
     }
+    if workspace_role:
+        payload["wrole"] = workspace_role
     return jwt.encode(payload, settings.jwt_secret, algorithm=_ALGO)
 
 

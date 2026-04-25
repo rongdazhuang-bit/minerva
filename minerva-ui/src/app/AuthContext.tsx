@@ -11,7 +11,7 @@ import {
 const STORAGE_A = 'access_token'
 const STORAGE_R = 'refresh_token'
 
-type JwtPayload = { wid?: string }
+type JwtPayload = { wid?: string; wrole?: string }
 
 function readWidFromToken(access: string | null): string | null {
   if (!access) return null
@@ -23,10 +23,26 @@ function readWidFromToken(access: string | null): string | null {
   }
 }
 
+function readWorkspaceRoleFromToken(access: string | null): string | null {
+  if (!access) return null
+  try {
+    const p = jwtDecode(access) as JwtPayload
+    const r = p.wrole
+    if (r == null) return null
+    const s = String(r).trim()
+    return s === '' ? null : s
+  } catch {
+    return null
+  }
+}
+
 type AuthValue = {
   accessToken: string | null
   refreshToken: string | null
   workspaceId: string | null
+  workspaceRole: string | null
+  /** true when the current access token includes owner/admin for the active workspace. */
+  isWorkspaceManager: boolean
   isAuthenticated: boolean
   setTokens: (a: string, r: string) => void
   clear: () => void
@@ -45,6 +61,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => readWidFromToken(accessToken),
     [accessToken],
   )
+  const workspaceRole = useMemo(
+    () => readWorkspaceRoleFromToken(accessToken),
+    [accessToken],
+  )
+  const isWorkspaceManager = useMemo(() => {
+    const r = workspaceRole?.toLowerCase()
+    return r === 'owner' || r === 'admin'
+  }, [workspaceRole])
 
   const setTokens = useCallback((a: string, r: string) => {
     localStorage.setItem(STORAGE_A, a)
@@ -65,16 +89,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       accessToken,
       refreshToken,
       workspaceId,
+      workspaceRole,
+      isWorkspaceManager,
       isAuthenticated: Boolean(accessToken),
       setTokens,
       clear,
     }),
-    [accessToken, refreshToken, workspaceId, setTokens, clear],
+    [
+      accessToken,
+      refreshToken,
+      workspaceId,
+      workspaceRole,
+      isWorkspaceManager,
+      setTokens,
+      clear,
+    ],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
+// Fast refresh in Vite works best for component-only modules; this file intentionally exports a hook alongside the provider.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const v = useContext(AuthContext)
   if (!v) throw new Error('useAuth outside AuthProvider')

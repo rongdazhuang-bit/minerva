@@ -11,7 +11,6 @@ import {
   Form,
   Input,
   InputNumber,
-  Modal,
   Popconfirm,
   Space,
   Table,
@@ -185,7 +184,7 @@ export function DictionaryPage() {
     setLoading(true)
     void (async () => {
       try {
-        let data = await listDicts(workspaceId, { page, page_size: pageSize })
+        const data = await listDicts(workspaceId, { page, page_size: pageSize })
         if (cancelled) return
         const maxPage = Math.max(1, Math.ceil(data.total / pageSize) || 1)
         if (page > maxPage) {
@@ -514,13 +513,22 @@ export function DictionaryPage() {
         </div>
       </Card>
 
-      <Modal
+      <Drawer
+        width={640}
+        placement="right"
         open={dictModalOpen}
         title={editingDictId ? t('settings.dictEdit') : t('settings.dictAdd')}
-        onCancel={() => setDictModalOpen(false)}
-        onOk={() => void dictForm.submit()}
-        confirmLoading={dictSubmitting}
-        destroyOnHidden
+        onClose={() => setDictModalOpen(false)}
+        destroyOnClose
+        classNames={{ body: 'minerva-scrollbar-styled' }}
+        extra={
+          <Space>
+            <Button onClick={() => setDictModalOpen(false)}>{t('common.cancel')}</Button>
+            <Button type="primary" loading={dictSubmitting} onClick={() => void dictForm.submit()}>
+              {t('common.save')}
+            </Button>
+          </Space>
+        }
       >
         <Form form={dictForm} layout="vertical" onFinish={(v) => void onDictSubmit(v)}>
           <Form.Item
@@ -529,16 +537,16 @@ export function DictionaryPage() {
             extra={editingDictId ? <Text type="secondary">{t('settings.dictCodeEditHint')}</Text> : null}
             rules={[{ required: true, message: t('settings.dictCodeRequired') }]}
           >
-            <Input maxLength={64} />
+            <Input allowClear maxLength={64} />
           </Form.Item>
           <Form.Item name="dict_name" label={t('settings.dictName')}>
-            <Input maxLength={128} />
+            <Input allowClear maxLength={128} />
           </Form.Item>
           <Form.Item name="dict_sort" label={t('settings.dictSort')}>
             <InputNumber style={{ width: '100%' }} />
           </Form.Item>
         </Form>
-      </Modal>
+      </Drawer>
 
       <Drawer
         title={
@@ -561,12 +569,14 @@ export function DictionaryPage() {
           )
         }
         width={720}
+        placement="right"
         open={drawerOpen}
         onClose={() => {
           setDrawerOpen(false)
           setActiveDict(null)
           setItemsFlat([])
         }}
+        classNames={{ body: 'minerva-scrollbar-styled' }}
         styles={{ body: { display: 'flex', flexDirection: 'column', minHeight: 0 } }}
       >
         <div className="minerva-dict-settings__drawer-body">
@@ -589,13 +599,22 @@ export function DictionaryPage() {
         </div>
       </Drawer>
 
-      <Modal
+      <Drawer
+        width={640}
+        placement="right"
         open={itemModalOpen}
         title={editingItemId ? t('settings.dictItemEdit') : t('settings.dictItemAdd')}
-        onCancel={() => setItemModalOpen(false)}
-        onOk={() => void itemForm.submit()}
-        confirmLoading={itemSubmitting}
-        destroyOnHidden
+        onClose={() => setItemModalOpen(false)}
+        destroyOnClose
+        classNames={{ body: 'minerva-scrollbar-styled' }}
+        extra={
+          <Space>
+            <Button onClick={() => setItemModalOpen(false)}>{t('common.cancel')}</Button>
+            <Button type="primary" loading={itemSubmitting} onClick={() => void itemForm.submit()}>
+              {t('common.save')}
+            </Button>
+          </Space>
+        }
       >
         <Form form={itemForm} layout="vertical" onFinish={(v) => void onItemSubmit(v)}>
           <Form.Item
@@ -603,14 +622,14 @@ export function DictionaryPage() {
             label={t('settings.dictItemCode')}
             rules={[{ required: true, message: t('settings.dictItemCodeRequired') }]}
           >
-            <Input maxLength={64} />
+            <Input allowClear maxLength={64} />
           </Form.Item>
           <Form.Item
             name="name"
             label={t('settings.dictItemName')}
             rules={[{ required: true, message: t('settings.dictItemNameRequired') }]}
           >
-            <Input maxLength={64} />
+            <Input allowClear maxLength={64} />
           </Form.Item>
           <Form.Item name="item_sort" label={t('settings.dictItemSort')}>
             <InputNumber style={{ width: '100%' }} />
@@ -627,7 +646,7 @@ export function DictionaryPage() {
             />
           </Form.Item>
         </Form>
-      </Modal>
+      </Drawer>
     </div>
   )
 }

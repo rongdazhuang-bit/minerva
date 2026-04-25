@@ -8,8 +8,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
-from app.domain.identity.models import User
-from app.domain.identity.services import find_workspace_for_user
+from app.domain.identity.models import MembershipRole, User
+from app.domain.identity.services import find_workspace_for_user, find_workspace_role_for_user
 from app.exceptions import AppError
 from app.infrastructure.security.jwt_tokens import decode_token
 
@@ -43,4 +43,19 @@ async def require_workspace_member(
     """Use on routes that declare path param `workspace_id`; membership is checked."""
     if not await find_workspace_for_user(session, user_id=user.id, workspace_id=workspace_id):
         raise AppError("auth.forbidden", "Not a member of this workspace", 403)
+    return workspace_id
+
+
+async def require_workspace_owner_or_admin(
+    workspace_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> uuid.UUID:
+    role = await find_workspace_role_for_user(
+        session, user_id=user.id, workspace_id=workspace_id
+    )
+    if role is None:
+        raise AppError("auth.forbidden", "Not a member of this workspace", 403)
+    if role not in (MembershipRole.owner, MembershipRole.admin):
+        raise AppError("auth.forbidden", "Only workspace owner/admin can manage model providers", 403)
     return workspace_id

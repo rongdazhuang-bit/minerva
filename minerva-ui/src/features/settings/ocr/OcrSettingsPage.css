@@ -54,8 +54,8 @@ html.minerva-tone-sunshine .minerva-ocr-settings__card {
 }
 
 .minerva-ocr-settings__table .ant-table-body::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 5px;
+  height: 5px;
 }
 
 .minerva-ocr-settings__table .ant-table-body::-webkit-scrollbar-track {
@@ -64,7 +64,7 @@ html.minerva-tone-sunshine .minerva-ocr-settings__card {
 
 .minerva-ocr-settings__table .ant-table-body::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, rgb(148 163 184 / 45%), rgb(100 116 139 / 55%));
-  border: 2px solid transparent;
+  border: 1px solid transparent;
   border-radius: 999px;
   background-clip: padding-box;
 }
@@ -97,7 +97,7 @@ html.minerva-tone-sunshine .minerva-ocr-settings__table .ant-table-body {
 
 html.minerva-tone-sunshine .minerva-ocr-settings__table .ant-table-body::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, #cbd5e1, #94a3b8);
-  border: 2px solid transparent;
+  border: 1px solid transparent;
   background-clip: padding-box;
 }
 

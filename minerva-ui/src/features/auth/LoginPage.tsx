@@ -77,14 +77,19 @@ export function LoginPage() {
                 label={t('auth.loginAccountLabel')}
                 rules={[{ required: true, message: t('auth.loginAccountRequired') }]}
               >
-                <Input type="email" autoComplete="email" placeholder="name@example.com" />
+                <Input
+                  allowClear
+                  type="email"
+                  autoComplete="email"
+                  placeholder="name@example.com"
+                />
               </Form.Item>
               <Form.Item
                 name="password"
                 label={t('auth.password')}
                 rules={[{ required: true, message: t('auth.passwordRequired') }]}
               >
-                <Input.Password autoComplete="current-password" />
+                <Input.Password allowClear autoComplete="current-password" />
               </Form.Item>
               <Form.Item>
                 <Checkbox checked={remember} onChange={(e) => setRemember(e.target.checked)}>

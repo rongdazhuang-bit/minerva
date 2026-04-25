@@ -53,15 +53,28 @@ class TokenOut(BaseModel):
     token_type: str = "bearer"
 
 
-def _issue_tokens(
+async def _issue_tokens(
+    session: AsyncSession,
     *,
     user_id: uuid.UUID,
     tenant_id: uuid.UUID,
     workspace_id: uuid.UUID,
 ) -> tuple[TokenOut, uuid.UUID]:
     jti = uuid.uuid4()
+    r = await session.execute(
+        select(WorkspaceMembership.role).where(
+            WorkspaceMembership.user_id == user_id,
+            WorkspaceMembership.workspace_id == workspace_id,
+        )
+    )
+    wrole = r.scalar_one_or_none()
+    if wrole is None:
+        raise AppError("auth.no_workspace_membership", "No workspace membership for user", 401)
     access = create_access_token(
-        user_id=user_id, tenant_id=tenant_id, workspace_id=workspace_id
+        user_id=user_id,
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
+        workspace_role=wrole.value,
     )
     refresh = create_refresh_token(user_id=user_id, jti=jti)
     return (
@@ -76,7 +89,8 @@ def _issue_tokens(
 @router.post("/register", response_model=TokenOut, status_code=201)
 async def register(body: RegisterIn, session: AsyncSession = Depends(get_db)) -> TokenOut:
     r = await register_user(session, email=body.email, password=body.password)
-    out, jti = _issue_tokens(
+    out, jti = await _issue_tokens(
+        session,
         user_id=r.user.id,
         tenant_id=r.tenant.id,
         workspace_id=r.workspace.id,
@@ -91,7 +105,8 @@ async def login(body: LoginIn, session: AsyncSession = Depends(get_db)) -> Token
     if out is None:
         raise AppError("auth.invalid_credentials", "Invalid email or password", 401)
     user, tenant, workspace = out
-    tok, jti = _issue_tokens(
+    tok, jti = await _issue_tokens(
+        session,
         user_id=user.id,
         tenant_id=tenant.id,
         workspace_id=workspace.id,
@@ -134,7 +149,8 @@ async def refresh(body: RefreshIn, session: AsyncSession = Depends(get_db)) -> T
         raise AppError("auth.invalid_token", "No workspace for user", 401)
     workspace, tenant = first
     await revoke_refresh_token_row(session, jti)
-    tok, new_j = _issue_tokens(
+    tok, new_j = await _issue_tokens(
+        session,
         user_id=uid,
         tenant_id=tenant.id,
         workspace_id=workspace.id,

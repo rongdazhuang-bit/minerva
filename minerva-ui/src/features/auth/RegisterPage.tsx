@@ -61,7 +61,12 @@ export function RegisterPage() {
                 label={t('auth.email')}
                 rules={[{ required: true, message: t('auth.emailRequired') }]}
               >
-                <Input type="email" autoComplete="email" placeholder="name@example.com" />
+                <Input
+                  allowClear
+                  type="email"
+                  autoComplete="email"
+                  placeholder="name@example.com"
+                />
               </Form.Item>
               <Form.Item
                 name="password"
@@ -71,7 +76,7 @@ export function RegisterPage() {
                   { min: 8, message: t('auth.passwordMin') },
                 ]}
               >
-                <Input.Password autoComplete="new-password" />
+                <Input.Password allowClear autoComplete="new-password" />
               </Form.Item>
               <Form.Item style={{ marginBottom: 0 }}>
                 <Button

@@ -1,1 +1,1 @@
-"""OCR tool vertical slice (see repository skill `minerva-tool-module`)."""
+"""OCR tool vertical slice (see `.cursor/skills/code-comments/SKILL.md` — tool module section)."""

@@ -41,14 +41,14 @@
 
 ### 2.3 ORM 与启动建表
 
-- SQLAlchemy 模型放在 `backend/app/tool/ocr/domain/`（与 minerva-tool-module 范本一致）。
+- SQLAlchemy 模型放在 `backend/app/tool/ocr/domain/`（与 `.cursor/skills/code-comments/SKILL.md` 中 Minerva 工具模块范本一致）。
 - 在 `app/infrastructure/db/bootstrap.py` 的 `_import_models()` 中注册该模型，保证 `AUTO_CREATE_TABLES=true` 时元数据完整。
 
 ---
 
 ## 3. 后端分层与路由注册
 
-遵循 `.cursor/skills/minerva-tool-module/SKILL.md`：
+遵循 `.cursor/skills/code-comments/SKILL.md`（Minerva 工具模块章节）：
 
 | 层级 | 职责 |
 |------|------|
@@ -127,6 +127,6 @@
 ## 9. 自检记录（spec 定稿时核对）
 
 - [x] 无未决 `TBD`：timeout 已明确首版不入库；PATCH 语义在实现计划中定死。
-- [x] 与 minerva-tool-module 分层一致。
+- [x] 与 `code-comments/SKILL.md` 中工具模块分层一致。
 - [x] 权限模型与 `require_workspace_member` 一致。
 - [x] 多租户隔离通过 `workspace_id` 落实。

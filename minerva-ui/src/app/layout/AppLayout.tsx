@@ -24,6 +24,7 @@ import { useMinervaTone } from '@/app/useMinervaTone'
 import { SIDER_MIN_PX, useResizableSiderWidth } from '@/app/layout/useResizableSiderWidth'
 import './appSiderResize.css'
 import './appSiderMenu.css'
+import './appLayoutScroll.css'
 
 const { Sider, Header, Content } = Layout
 
@@ -34,7 +35,9 @@ const siderStyle: CSSProperties = {
   background: 'var(--minerva-surface, #1b2838)',
   borderRight: '1px solid var(--minerva-border, #2d3f55)',
   height: '100%',
-  overflow: 'auto',
+  display: 'flex',
+  flexDirection: 'column',
+  overflow: 'hidden',
 }
 
 const brandBase: CSSProperties = {
@@ -87,6 +90,8 @@ const contentOuterStyle: CSSProperties = {
 const contentScrollStyle: CSSProperties = {
   flex: 1,
   minHeight: 0,
+  display: 'flex',
+  flexDirection: 'column',
   overflow: 'auto',
   overflowX: 'hidden',
   WebkitOverflowScrolling: 'touch',
@@ -185,90 +190,95 @@ export function AppLayout() {
           }}
           theme={shellLight ? 'light' : 'dark'}
         >
-          <Menu
-            mode="inline"
-            className="minerva-app-sider-menu"
-            theme={shellLight ? 'light' : 'dark'}
-            style={{ background: 'transparent', border: 'none', paddingTop: 8 }}
-            selectedKeys={selectedKeys}
-            openKeys={menuOpenKeys}
-            onOpenChange={setMenuOpenKeys}
-            items={[
-              {
-                key: 'overview',
-                icon: <BarChartOutlined />,
-                label: t('nav.overview'),
-                onClick: () => void nav('/app/overview'),
-              },
-              {
-                key: 'smart-review',
-                icon: <FileSearchOutlined />,
-                label: t('nav.smartReview'),
-                onClick: () => void nav('/app/smart-review'),
-              },
-              {
-                key: 'rules',
-                icon: <BookOutlined />,
-                label: t('nav.rules'),
-                onClick: () => void nav('/app/rules'),
-              },
-              {
-                key: 'file-ocr',
-                icon: <ScanOutlined />,
-                label: t('nav.rulesFileOcr'),
-                onClick: () => void nav('/app/file-ocr'),
-              },
-              {
-                key: SUB_SETTINGS,
-                icon: <SettingOutlined />,
-                label: t('nav.settings'),
-                children: [
-                  {
-                    key: 'settings-models',
-                    icon: <ApiOutlined />,
-                    label: t('settings.models'),
-                    onClick: () => void nav('/app/settings/models'),
-                  },
-                  {
-                    key: 'settings-ocr',
-                    icon: <FileTextOutlined />,
-                    label: t('settings.ocr'),
-                    onClick: () => void nav('/app/settings/ocr'),
-                  },
-                  {
-                    key: 'settings-data-sources',
-                    icon: <DatabaseOutlined />,
-                    label: t('settings.dataSources'),
-                    onClick: () => void nav('/app/settings/data-sources'),
-                  },
-                  {
-                    key: 'settings-menus',
-                    icon: <MenuOutlined />,
-                    label: t('settings.menuConfig'),
-                    onClick: () => void nav('/app/settings/menus'),
-                  },
-                  {
-                    key: 'settings-users',
-                    icon: <UserOutlined />,
-                    label: t('settings.users'),
-                    onClick: () => void nav('/app/settings/users'),
-                  },
-                  {
-                    key: 'settings-roles',
-                    icon: <IdcardOutlined />,
-                    label: t('settings.roles'),
-                    onClick: () => void nav('/app/settings/roles'),
-                  },
-                  {
-                    key: 'settings-dictionary',
-                    icon: <TagsOutlined />,
-                    label: t('settings.dictionary'),
-                    onClick: () => void nav('/app/settings/dictionary'),
-                  },
-                ],
-              },
-            ]}
-          />
+          <div
+            className="minerva-app-sider-scroll"
+            style={{ flex: 1, minHeight: 0, overflow: 'auto' }}
+          >
+            <Menu
+              mode="inline"
+              className="minerva-app-sider-menu"
+              theme={shellLight ? 'light' : 'dark'}
+              style={{ background: 'transparent', border: 'none', paddingTop: 8 }}
+              selectedKeys={selectedKeys}
+              openKeys={menuOpenKeys}
+              onOpenChange={setMenuOpenKeys}
+              items={[
+                {
+                  key: 'overview',
+                  icon: <BarChartOutlined />,
+                  label: t('nav.overview'),
+                  onClick: () => void nav('/app/overview'),
+                },
+                {
+                  key: 'smart-review',
+                  icon: <FileSearchOutlined />,
+                  label: t('nav.smartReview'),
+                  onClick: () => void nav('/app/smart-review'),
+                },
+                {
+                  key: 'rules',
+                  icon: <BookOutlined />,
+                  label: t('nav.rules'),
+                  onClick: () => void nav('/app/rules'),
+                },
+                {
+                  key: 'file-ocr',
+                  icon: <ScanOutlined />,
+                  label: t('nav.rulesFileOcr'),
+                  onClick: () => void nav('/app/file-ocr'),
+                },
+                {
+                  key: SUB_SETTINGS,
+                  icon: <SettingOutlined />,
+                  label: t('nav.settings'),
+                  children: [
+                    {
+                      key: 'settings-models',
+                      icon: <ApiOutlined />,
+                      label: t('settings.models'),
+                      onClick: () => void nav('/app/settings/models'),
+                    },
+                    {
+                      key: 'settings-ocr',
+                      icon: <FileTextOutlined />,
+                      label: t('settings.ocr'),
+                      onClick: () => void nav('/app/settings/ocr'),
+                    },
+                    {
+                      key: 'settings-data-sources',
+                      icon: <DatabaseOutlined />,
+                      label: t('settings.dataSources'),
+                      onClick: () => void nav('/app/settings/data-sources'),
+                    },
+                    {
+                      key: 'settings-menus',
+                      icon: <MenuOutlined />,
+                      label: t('settings.menuConfig'),
+                      onClick: () => void nav('/app/settings/menus'),
+                    },
+                    {
+                      key: 'settings-users',
+                      icon: <UserOutlined />,
+                      label: t('settings.users'),
+                      onClick: () => void nav('/app/settings/users'),
+                    },
+                    {
+                      key: 'settings-roles',
+                      icon: <IdcardOutlined />,
+                      label: t('settings.roles'),
+                      onClick: () => void nav('/app/settings/roles'),
+                    },
+                    {
+                      key: 'settings-dictionary',
+                      icon: <TagsOutlined />,
+                      label: t('settings.dictionary'),
+                      onClick: () => void nav('/app/settings/dictionary'),
+                    },
+                  ],
+                },
+              ]}
+            />
+          </div>
         </Sider>
         <div
           className="minerva-sider-resize-handle"
@@ -291,7 +301,7 @@ export function AppLayout() {
               <AppBreadcrumb />
             </div>
           ) : null}
-          <div style={contentScrollStyle}>
+          <div className="minerva-app-main-scroll" style={contentScrollStyle}>
             <Outlet />
           </div>
         </Content>

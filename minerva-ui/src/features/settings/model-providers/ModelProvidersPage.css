@@ -1,48 +1,211 @@
+/* Fill the main scroll region (parent is flex); inner __body is the only vertical scroller. */
 .minerva-model-providers {
-  max-width: 960px;
+  width: 100%;
+  max-width: none;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.minerva-model-providers__intro {
-  margin-bottom: 20px;
+.minerva-model-providers__ro {
+  margin: 0 0 12px 0;
 }
 
-.minerva-model-providers__title {
-  margin: 0 0 8px 0;
-  color: var(--minerva-ink, #e8f0f8);
-}
-
-.minerva-model-providers__lede {
-  margin: 0;
-  color: var(--minerva-ink, #e8f0f8);
-  opacity: 0.85;
-}
-
-html.minerva-tone-sunshine .minerva-model-providers__title,
-html.minerva-tone-sunshine .minerva-model-providers__lede {
-  color: var(--minerva-ink, #0f172a);
-  opacity: 1;
-}
-
-html.minerva-tone-sunshine .minerva-model-providers__lede {
-  opacity: 0.8;
-}
-
-.minerva-model-providers .ant-card {
+.minerva-model-providers__card {
+  flex: 1 1 auto;
+  min-height: 0;
   background: var(--minerva-surface, #1a2836) !important;
   border: 1px solid var(--minerva-border, #2a3f58) !important;
-  border-radius: 10px;
+  border-radius: 12px;
+  box-shadow: 0 6px 16px rgb(0 0 0 / 14%);
 }
 
-html.minerva-tone-sunshine .minerva-model-providers .ant-card {
+html.minerva-tone-sunshine .minerva-model-providers__card {
   background: var(--minerva-surface, #fff) !important;
+  box-shadow: 0 6px 16px rgb(15 23 42 / 8%);
 }
 
-.minerva-model-providers__llm .ant-typography {
-  color: var(--minerva-ink, #e8f0f8) !important;
-  opacity: 0.8;
+.minerva-model-providers__card .ant-card-body {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-html.minerva-tone-sunshine .minerva-model-providers__llm .ant-typography {
-  color: var(--minerva-ink, #0f172a) !important;
-  opacity: 0.8;
+.minerva-model-providers__toolbar {
+  flex-shrink: 0;
+  margin-bottom: 14px;
+}
+
+/* Single main vertical scroller: list + collapse, not the whole app main pane. */
+.minerva-model-providers__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  /* .minerva-scrollbar-styled: shared scrollbar skin in appLayoutScroll.css */
+}
+
+.minerva-model-providers__body > .ant-spin-nested-loading,
+.minerva-model-providers__body .ant-spin-container {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-model-providers__collapse {
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow: visible;
+  padding-right: 0;
+}
+
+.minerva-model-providers__group-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding-right: 8px;
+}
+
+.minerva-model-providers__group-count {
+  white-space: nowrap;
+}
+
+.minerva-model-providers__table-wrap {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.minerva-model-providers__table .ant-table-container {
+  border: 1px solid var(--minerva-border, #2a3f58);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* Width scroll only (scroll.x); vertical scroll is the page __body, not the table body. */
+.minerva-model-providers__table .ant-table-body {
+  overflow-y: visible !important;
+  overflow-x: auto !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(148 163 184 / 55%) transparent;
+}
+
+.minerva-model-providers__table .ant-table-thead > tr > th {
+  background: rgb(255 255 255 / 4%);
+  color: var(--minerva-ink, #e8f0f8);
+  font-weight: 600;
+}
+
+html.minerva-tone-sunshine .minerva-model-providers__table .ant-table-thead > tr > th {
+  background: rgb(15 23 42 / 3%);
+  color: var(--minerva-ink, #0f172a);
+}
+
+/* Table footer: antd 默认 tableFooterBg 与表体区底色不一致，与表格视觉拉齐 */
+.minerva-model-providers__table .ant-table-footer {
+  background: transparent;
+  color: var(--minerva-ink, #e8f0f8);
+}
+
+html.minerva-tone-sunshine .minerva-model-providers__table .ant-table-footer {
+  color: var(--minerva-ink, #0f172a);
+}
+
+.minerva-model-providers__group-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 6px 0 2px 0;
+}
+
+.minerva-model-providers__form-alert {
+  margin-bottom: 12px;
+}
+
+/* 查看：两段 Descriptions 共用同宽 label 列；table-layout 与固定 label 宽配合更稳 */
+.minerva-model-providers__view .ant-descriptions-view > table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.minerva-model-providers__num {
+  width: 100%;
+}
+
+.minerva-model-providers__pre {
+  margin: 10px 0 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--minerva-border, #2a3f58);
+  border-radius: 10px;
+  background: rgb(0 0 0 / 18%);
+  color: var(--minerva-ink, #e8f0f8);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 查看：model_config 缩进 JSON 时在窄宽度下横向滚动，避免长行把布局撑破 */
+.minerva-model-providers__pre--json {
+  white-space: pre;
+  overflow-x: auto;
+  word-break: normal;
+}
+
+.minerva-model-providers__view-config-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 2px;
+}
+
+.minerva-model-providers__view-config-hint {
+  font-size: 12px;
+}
+
+html.minerva-tone-sunshine .minerva-model-providers__pre {
+  background: rgb(15 23 42 / 4%);
+  color: var(--minerva-ink, #0f172a);
+}
+
+.minerva-model-providers .ant-card-head-title {
+  color: var(--minerva-ink, #e8f0f8);
+}
+
+html.minerva-tone-sunshine .minerva-model-providers .ant-card-head-title {
+  color: var(--minerva-ink, #0f172a);
+}
+
+.minerva-model-providers .ant-collapse {
+  background: transparent;
+  border: 0;
+}
+
+.minerva-model-providers .ant-collapse > .ant-collapse-item {
+  border: 1px solid var(--minerva-border, #2a3f58) !important;
+  border-radius: 12px !important;
+  margin-bottom: 10px;
+  overflow: hidden;
+  background: rgb(0 0 0 / 10%);
+}
+
+html.minerva-tone-sunshine .minerva-model-providers .ant-collapse > .ant-collapse-item {
+  background: rgb(15 23 42 / 3%);
+}
+
+.minerva-model-providers .ant-collapse .ant-collapse-header {
+  color: var(--minerva-ink, #e8f0f8);
+}
+
+html.minerva-tone-sunshine .minerva-model-providers .ant-collapse .ant-collapse-header {
+  color: var(--minerva-ink, #0f172a);
+}
+
+.minerva-model-providers .ant-collapse .ant-collapse-content {
+  background: transparent;
+  border-top: 1px solid var(--minerva-border, #2a3f58);
 }

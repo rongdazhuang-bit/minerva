@@ -70,6 +70,21 @@ async def get_dict_for_workspace(
     return result.scalar_one_or_none()
 
 
+async def get_dict_by_code_for_workspace(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    dict_code: str,
+) -> SysDict | None:
+    result = await session.execute(
+        select(SysDict).where(
+            SysDict.workspace_id == workspace_id,
+            SysDict.dict_code == dict_code.strip(),
+        )
+    )
+    return result.scalar_one_or_none()
+
+
 async def list_items_for_dict(
     session: AsyncSession,
     *,

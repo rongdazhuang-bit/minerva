@@ -7,7 +7,6 @@ import {
   Drawer,
   Form,
   Input,
-  Modal,
   Popconfirm,
   Select,
   Space,
@@ -423,13 +422,22 @@ export function OcrSettingsPage() {
         </div>
       </Card>
 
-      <Modal
-        open={open}
+      <Drawer
         title={editingId ? t('settings.ocrToolsEdit') : t('settings.ocrToolsAdd')}
-        onCancel={() => setOpen(false)}
-        onOk={() => void form.submit()}
-        confirmLoading={submitting}
-        destroyOnHidden
+        width={640}
+        placement="right"
+        open={open}
+        onClose={() => setOpen(false)}
+        destroyOnClose
+        classNames={{ body: 'minerva-scrollbar-styled' }}
+        extra={
+          <Space>
+            <Button onClick={() => setOpen(false)}>{t('common.cancel')}</Button>
+            <Button type="primary" loading={submitting} onClick={() => void form.submit()}>
+              {t('common.save')}
+            </Button>
+          </Space>
+        }
       >
         <Form form={form} layout="vertical" onFinish={(values) => void onSubmit(values)}>
           <Form.Item
@@ -437,7 +445,7 @@ export function OcrSettingsPage() {
             label={t('settings.ocrToolsName')}
             rules={[{ required: true, message: t('settings.ocrToolsNameRequired') }]}
           >
-            <Input maxLength={128} />
+            <Input allowClear maxLength={128} />
           </Form.Item>
           <Form.Item
             name="url"
@@ -447,7 +455,7 @@ export function OcrSettingsPage() {
               { type: 'url', message: t('settings.ocrErrorUrl') },
             ]}
           >
-            <Input maxLength={128} />
+            <Input allowClear maxLength={128} />
           </Form.Item>
           <Form.Item
             name="auth_type"
@@ -455,6 +463,7 @@ export function OcrSettingsPage() {
             rules={[{ required: true, message: t('settings.ocrAuthTypeRequired') }]}
           >
             <Select
+              allowClear
               loading={authDictLoading}
               options={authSelectOptions}
               optionFilterProp="label"
@@ -468,14 +477,14 @@ export function OcrSettingsPage() {
                 label={t('settings.ocrToolsUsername')}
                 rules={[{ required: true, message: t('settings.ocrToolsUsernameRequired') }]}
               >
-                <Input maxLength={64} />
+                <Input allowClear maxLength={64} />
               </Form.Item>
               <Form.Item
                 name="user_passwd"
                 label={t('settings.ocrToolsPassword')}
                 rules={[{ required: true, message: t('settings.ocrToolsPasswordRequired') }]}
               >
-                <Input.Password maxLength={128} />
+                <Input.Password allowClear maxLength={128} />
               </Form.Item>
             </>
           ) : null}
@@ -485,21 +494,23 @@ export function OcrSettingsPage() {
               label={t('settings.ocrToolsApiKey')}
               rules={[{ required: true, message: t('settings.ocrToolsApiKeyRequired') }]}
             >
-              <Input.Password maxLength={128} />
+              <Input.Password allowClear maxLength={128} />
             </Form.Item>
           ) : null}
           <Form.Item name="remark" label={t('settings.ocrToolsRemark')}>
-            <Input maxLength={128} />
+            <Input allowClear maxLength={128} />
           </Form.Item>
         </Form>
-      </Modal>
+      </Drawer>
 
       <Drawer
         title={t('settings.ocrToolsView')}
-        width={560}
+        width={640}
+        placement="right"
         open={viewOpen}
         onClose={closeView}
-        destroyOnHidden
+        destroyOnClose
+        classNames={{ body: 'minerva-scrollbar-styled' }}
       >
         {viewLoading ? (
           <div style={{ padding: 24, textAlign: 'center' }}>

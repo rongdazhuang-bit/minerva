@@ -119,7 +119,7 @@ app/sys/
 ## 6. 管理端 UI
 
 - 技术栈：现有 Ant Design、`AuthContext.workspaceId`、与 OCR 页一致的 API 调用方式。
-- **布局**：参考 `OcrSettingsPage`——**右侧页面不整页纵向滚动**；**仅表格体滚动 + 表头固定**；滚动条按需出现（见 minerva-tool-module SKILL 中 OCR 滚动规则）。
+- **布局**：参考 `OcrSettingsPage`——**右侧页面不整页纵向滚动**；**仅表格体滚动 + 表头固定**；滚动条按需出现（见 `.cursor/skills/code-comments/SKILL.md` 中「OCR 工具管理页（前端）滚动规则」）。
 - **主表**：列含编码、名称、排序、创建时间等；顶部 **新增字典**；行操作：**编辑**、**删除**（确认）、**字典项**（打开 **Drawer**）。
 - **抽屉**：树形 `Table`；新增/编辑时使用 **下拉选择父项**（排除自身及子孙，与后端防环一致）；支持 `code`、`name`、`item_sort`、父级。
 - **i18n**：更新 `zh-CN` / `en`，移除「开发中」占位。
