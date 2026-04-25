@@ -1,0 +1,1 @@
+export { MenuConfigPage } from './MenuConfigPage'

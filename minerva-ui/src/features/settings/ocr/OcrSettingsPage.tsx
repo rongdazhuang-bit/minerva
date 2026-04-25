@@ -39,8 +39,8 @@ import {
   isOcrApiKeyAuth,
   isOcrBasicAuth,
   isOcrNoneAuth,
-} from '@/features/settings/ocrAuthType'
-import { clearOcrSettings, readOcrSettings } from '@/features/settings/ocrSettingsStorage'
+} from './ocrAuthType'
+import { clearOcrSettings, readOcrSettings } from './ocrSettingsStorage'
 import './OcrSettingsPage.css'
 
 const { Paragraph } = Typography
