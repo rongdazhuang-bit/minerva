@@ -28,8 +28,16 @@ async def list_dicts_for_workspace(
 
 
 async def count_dicts_for_workspace(
-    session: AsyncSession, *, workspace_id: uuid.UUID
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    dict_code: str | None = None,
 ) -> int:
+    if dict_code is not None:
+        row = await get_dict_by_code_for_workspace(
+            session, workspace_id=workspace_id, dict_code=dict_code
+        )
+        return 1 if row is not None else 0
     result = await session.execute(
         select(func.count()).select_from(SysDict).where(
             SysDict.workspace_id == workspace_id
@@ -44,7 +52,17 @@ async def list_dicts_for_workspace_page(
     workspace_id: uuid.UUID,
     limit: int,
     offset: int,
+    dict_code: str | None = None,
 ) -> Sequence[SysDict]:
+    if dict_code is not None:
+        d = await get_dict_by_code_for_workspace(
+            session, workspace_id=workspace_id, dict_code=dict_code
+        )
+        if d is None:
+            return []
+        if offset > 0 or limit <= 0:
+            return []
+        return (d,)
     result = await session.execute(
         select(SysDict)
         .where(SysDict.workspace_id == workspace_id)

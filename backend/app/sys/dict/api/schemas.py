@@ -6,6 +6,20 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
+class SysDictItemNodeOut(BaseModel):
+    """Recursive dictionary item node (multi-level `parent_uuid` tree)."""
+
+    id: uuid.UUID
+    dict_uuid: uuid.UUID
+    parent_uuid: uuid.UUID | None
+    code: str
+    name: str
+    item_sort: int | None
+    create_at: datetime | None
+    update_at: datetime | None
+    children: list["SysDictItemNodeOut"] = Field(default_factory=list)
+
+
 class SysDictCreateIn(BaseModel):
     dict_code: str = Field(min_length=1, max_length=64)
     dict_name: str | None = Field(default=None, max_length=128)
@@ -26,6 +40,7 @@ class SysDictListItemOut(BaseModel):
     dict_sort: int | None
     create_at: datetime | None
     update_at: datetime | None
+    item_tree: list[SysDictItemNodeOut] | None = None
 
 
 class SysDictListPageOut(BaseModel):
@@ -56,3 +71,6 @@ class SysDictItemOut(BaseModel):
     item_sort: int | None
     create_at: datetime | None
     update_at: datetime | None
+
+
+SysDictItemNodeOut.model_rebuild()

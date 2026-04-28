@@ -43,7 +43,8 @@ class ModelProviderPatchIn(BaseModel):
 
 
 class ModelProviderListItemOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    # Alias model_config: allow constructor kwargs as other_config= (see router mappers)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
     id: uuid.UUID
     provider_name: str
@@ -67,7 +68,7 @@ class ModelProviderListItemOut(BaseModel):
 
 
 class ModelProviderDetailOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
     id: uuid.UUID
     workspace_id: uuid.UUID
@@ -93,7 +94,7 @@ class ModelProviderDetailOut(BaseModel):
 
 
 class ModelProviderGroupItemOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
     id: uuid.UUID
     model_name: str

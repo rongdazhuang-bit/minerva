@@ -2,6 +2,7 @@ import {
   ApiOutlined,
   BarChartOutlined,
   BookOutlined,
+  DashboardOutlined,
   DatabaseOutlined,
   FileSearchOutlined,
   FileTextOutlined,
@@ -10,6 +11,7 @@ import {
   ScanOutlined,
   SettingOutlined,
   TagsOutlined,
+  UnorderedListOutlined,
   UserOutlined,
 } from '@ant-design/icons'
 import { Layout, Menu } from 'antd'
@@ -109,7 +111,9 @@ function menuKeyForPath(pathname: string): string {
   if (pathname.startsWith('/app/settings')) return 'settings-models'
   if (pathname.startsWith('/app/smart-review')) return 'smart-review'
   if (pathname.startsWith('/app/file-ocr')) return 'file-ocr'
-  if (pathname.startsWith('/app/rules')) return 'rules'
+  if (pathname.startsWith('/app/rules/management')) return 'rules-mgmt-list'
+  if (pathname.startsWith('/app/rules/overview')) return 'rules-overview'
+  if (pathname.startsWith('/app/rules')) return 'rules-overview'
   return 'overview'
 }
 
@@ -216,10 +220,23 @@ export function AppLayout() {
                   onClick: () => void nav('/app/smart-review'),
                 },
                 {
-                  key: 'rules',
+                  key: SUB_RULES,
                   icon: <BookOutlined />,
                   label: t('nav.rules'),
-                  onClick: () => void nav('/app/rules'),
+                  children: [
+                    {
+                      key: 'rules-overview',
+                      icon: <DashboardOutlined />,
+                      label: t('nav.rulesOverview'),
+                      onClick: () => void nav('/app/rules/overview'),
+                    },
+                    {
+                      key: 'rules-mgmt-list',
+                      icon: <UnorderedListOutlined />,
+                      label: t('nav.rulesManagementList'),
+                      onClick: () => void nav('/app/rules/management'),
+                    },
+                  ],
                 },
                 {
                   key: 'file-ocr',

@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.tool.ocr.domain.db.models import SysOcrTool
+from app.sys.tool.ocr.domain.db.models import SysOcrTool
 
 
 async def list_for_workspace(

@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.1",
+    "@tanstack/react-query": "^5.100.5",
     "@xyflow/react": "^12.10.2",
     "antd": "^6.3.6",
     "i18next": "^26.0.6",

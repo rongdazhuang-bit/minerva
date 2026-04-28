@@ -1,0 +1,7 @@
+import { Empty } from 'antd'
+import { useTranslation } from 'react-i18next'
+
+export function RulesOverviewPage() {
+  const { t } = useTranslation()
+  return <Empty description={t('placeholders.rulesOverview')} style={{ color: 'var(--minerva-ink)' }} />
+}

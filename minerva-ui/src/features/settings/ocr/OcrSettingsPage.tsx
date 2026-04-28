@@ -18,7 +18,8 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { listAllDicts, listDictItems, type SysDictItem } from '@/api/dicts'
+import type { SysDictItem } from '@/api/dicts'
+import { useDictItemTree } from '@/hooks/useDictItemTree'
 import {
   createOcrTool,
   deleteOcrTool,
@@ -73,8 +74,9 @@ export function OcrSettingsPage() {
   const [open, setOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [authItems, setAuthItems] = useState<SysDictItem[]>([])
-  const [authDictLoading, setAuthDictLoading] = useState(false)
+  const authDictQ = useDictItemTree(AUTH_TYPE_DICT_CODE)
+  const authItems = useMemo(() => authDictQ.data?.flat ?? [], [authDictQ.data])
+  const authDictLoading = authDictQ.isLoading
   const [viewOpen, setViewOpen] = useState(false)
   const [viewLoading, setViewLoading] = useState(false)
   const [viewDetail, setViewDetail] = useState<OcrToolDetail | null>(null)
@@ -82,29 +84,6 @@ export function OcrSettingsPage() {
   const watchedAuthType = Form.useWatch('auth_type', form)
   const legacy = useMemo(() => readOcrSettings(), [])
   const canImportLegacy = legacy.mode === 'http' && legacy.baseUrl.trim().length > 0
-
-  const loadAuthDict = useCallback(async () => {
-    if (!workspaceId) return
-    setAuthDictLoading(true)
-    try {
-      const dicts = await listAllDicts(workspaceId)
-      const d = dicts.find((row) => row.dict_code === AUTH_TYPE_DICT_CODE)
-      if (!d) {
-        setAuthItems([])
-        return
-      }
-      const rows = await listDictItems(workspaceId, d.id)
-      setAuthItems(rows)
-    } catch {
-      setAuthItems([])
-    } finally {
-      setAuthDictLoading(false)
-    }
-  }, [workspaceId])
-
-  useEffect(() => {
-    void loadAuthDict()
-  }, [loadAuthDict])
 
   const baseAuthSelectOptions = useMemo(() => {
     const sorted = sortDictItems(authItems)

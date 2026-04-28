@@ -71,14 +71,19 @@ async def list_dicts_page(
     workspace_id: uuid.UUID,
     page: int,
     page_size: int,
+    dict_code: str | None = None,
 ) -> tuple[list[SysDict], int]:
-    total = await repo.count_dicts_for_workspace(session, workspace_id=workspace_id)
+    code = dict_code.strip() if dict_code else None
+    total = await repo.count_dicts_for_workspace(
+        session, workspace_id=workspace_id, dict_code=code
+    )
     offset = (page - 1) * page_size
     rows = await repo.list_dicts_for_workspace_page(
         session,
         workspace_id=workspace_id,
         limit=page_size,
         offset=offset,
+        dict_code=code,
     )
     return list(rows), total
 

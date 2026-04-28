@@ -1,6 +1,7 @@
 import { registerApi } from '@/api/auth'
 import { ApiError } from '@/api/client'
 import { useAuth } from '@/app/AuthContext'
+import { AuthPasswordInput } from '@/features/auth/AuthPasswordInput'
 import { AuthPageToolbar } from '@/features/auth/AuthPageToolbar'
 import { getAuthPageTheme } from '@/features/auth/authTheme'
 import { useAuthPageBodyLock } from '@/features/auth/useAuthPageBodyLock'
@@ -76,7 +77,7 @@ export function RegisterPage() {
                   { min: 8, message: t('auth.passwordMin') },
                 ]}
               >
-                <Input.Password allowClear autoComplete="new-password" />
+                <AuthPasswordInput allowClear autoComplete="new-password" />
               </Form.Item>
               <Form.Item style={{ marginBottom: 0 }}>
                 <Button

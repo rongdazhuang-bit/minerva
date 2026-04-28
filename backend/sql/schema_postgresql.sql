@@ -202,3 +202,44 @@ COMMENT ON COLUMN public.sys_models.max_tokens_to_sample IS '最大 token 上限
 COMMENT ON COLUMN public.sys_models.model_config IS '其它配置项';
 COMMENT ON COLUMN public.sys_models.create_at IS '创建时间';
 COMMENT ON COLUMN public.sys_models.update_at IS '更新时间';
+
+
+
+CREATE TABLE public.rule_base (
+	id uuid NOT NULL,
+	workspace_id uuid NOT NULL, -- 工作空间id
+	sequence_number int2 DEFAULT 0 NOT NULL, -- 序号
+    engineering_code varchar(64) NULL, -- 工程编码
+	subject_code varchar(64) NULL, -- 专业
+	serial_number varchar(32) NULL,
+	document_type varchar(64) NULL, -- 文档类型
+	review_section varchar(128) NOT NULL, -- 校审章节
+	review_object varchar(128) NOT NULL, -- 校审对象
+	review_rules text NOT NULL, -- 校审规则
+	review_rules_ai text NULL, -- 校审规则（AI 润色）
+	review_result text NOT NULL, -- 校审结果
+	status varchar NOT NULL, -- 是有否有效(Y/N)
+	create_at timestamptz NULL, -- 创建时间
+	update_at timestamptz NULL, -- 更新时间
+	CONSTRAINT rule_base_pk PRIMARY KEY (id),
+	CONSTRAINT rule_base_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS ix_rule_base_workspace_id ON public.rule_base (workspace_id);
+COMMENT ON TABLE public.rule_base IS '规则库';
+
+-- Column comments
+
+COMMENT ON COLUMN public.rule_base.workspace_id IS '工作空间id';
+COMMENT ON COLUMN public.rule_base.sequence_number IS '序号';
+COMMENT ON COLUMN public.rule_base.subject_code IS '专业';
+COMMENT ON COLUMN public.rule_base.serial_number IS '编号';
+COMMENT ON COLUMN public.rule_base.document_type IS '文档类型';
+COMMENT ON COLUMN public.rule_base.engineering_code IS '工程编码';
+COMMENT ON COLUMN public.rule_base.review_section IS '校审章节';
+COMMENT ON COLUMN public.rule_base.review_object IS '校审对象';
+COMMENT ON COLUMN public.rule_base.review_rules IS '校审规则';
+COMMENT ON COLUMN public.rule_base.review_rules_ai IS '校审规则（AI 润色）';
+COMMENT ON COLUMN public.rule_base.review_result IS '校审结果';
+COMMENT ON COLUMN public.rule_base.status IS '是有否有效(Y/N)';
+COMMENT ON COLUMN public.rule_base.create_at IS '创建时间';
+COMMENT ON COLUMN public.rule_base.update_at IS '更新时间';

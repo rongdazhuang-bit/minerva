@@ -1,6 +1,7 @@
 import { loginApi } from '@/api/auth'
 import { ApiError } from '@/api/client'
 import { useAuth } from '@/app/AuthContext'
+import { AuthPasswordInput } from '@/features/auth/AuthPasswordInput'
 import { AuthPageToolbar } from '@/features/auth/AuthPageToolbar'
 import { getAuthPageTheme } from '@/features/auth/authTheme'
 import { useAuthPageBodyLock } from '@/features/auth/useAuthPageBodyLock'
@@ -89,7 +90,7 @@ export function LoginPage() {
                 label={t('auth.password')}
                 rules={[{ required: true, message: t('auth.passwordRequired') }]}
               >
-                <Input.Password allowClear autoComplete="current-password" />
+                <AuthPasswordInput allowClear autoComplete="current-password" />
               </Form.Item>
               <Form.Item>
                 <Checkbox checked={remember} onChange={(e) => setRemember(e.target.checked)}>

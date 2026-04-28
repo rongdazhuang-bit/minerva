@@ -23,6 +23,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '@/api/client'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   createDict,
   createDictItem,
@@ -36,6 +37,8 @@ import {
   type SysDictListItem,
 } from '@/api/dicts'
 import { useAuth } from '@/app/AuthContext'
+import { dictQueryKeys } from '@/constants/dictQueryKeys'
+import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
 import './DictionaryPage.css'
 
 const { Paragraph, Text } = Typography
@@ -157,13 +160,18 @@ function renderCodeCopyable(code: string, t: (k: string) => string) {
 export function DictionaryPage() {
   const { t } = useTranslation()
   const { workspaceId } = useAuth()
+  const queryClient = useQueryClient()
+  const invalidateWorkspaceDictCache = useCallback(() => {
+    if (!workspaceId) return
+    void queryClient.invalidateQueries({ queryKey: dictQueryKeys.all(workspaceId) })
+  }, [queryClient, workspaceId])
   const [dictForm] = Form.useForm<DictFormValues>()
   const [itemForm] = Form.useForm<ItemFormValues>()
 
   const [loading, setLoading] = useState(false)
   const [dictListRev, setDictListRev] = useState(0)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [total, setTotal] = useState(0)
   const [dicts, setDicts] = useState<SysDictListItem[]>([])
   const [dictModalOpen, setDictModalOpen] = useState(false)
@@ -272,6 +280,7 @@ export function DictionaryPage() {
         setPage(1)
       }
       setDictListRev((n) => n + 1)
+      invalidateWorkspaceDictCache()
     } catch (e) {
       showErr(t, e)
     } finally {
@@ -289,6 +298,7 @@ export function DictionaryPage() {
         setActiveDict(null)
       }
       setDictListRev((n) => n + 1)
+      invalidateWorkspaceDictCache()
     } catch (e) {
       showErr(t, e)
     }
@@ -337,6 +347,7 @@ export function DictionaryPage() {
       }
       setItemModalOpen(false)
       await loadItems()
+      invalidateWorkspaceDictCache()
     } catch (e) {
       showErr(t, e)
     } finally {
@@ -350,6 +361,7 @@ export function DictionaryPage() {
       await deleteDictItem(workspaceId, activeDict.id, itemId)
       void message.success(t('settings.dictItemDeleted'))
       await loadItems()
+      invalidateWorkspaceDictCache()
     } catch (e) {
       showErr(t, e)
     }

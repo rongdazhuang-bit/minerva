@@ -2,12 +2,14 @@
 name: code-comments
 description: >-
   Repository conventions: (1) when and how to write code comments in TypeScript/React
-  and Python; (2) backend tool modules under `app/tool` with `backend/app/tool/ocr` as
+  and Python; (2) backend tool modules under `app/sys/tool` with `backend/app/sys/tool/ocr` as
   the layout template, including table scroll rules; (3) minerva-ui Ant Design forms:
-  `allowClear` on text inputs and selects, and InputNumber limitations. Use when adding
+  `allowClear` on text inputs and selects, and InputNumber limitations; (4) paginated
+  lists: default 10 per page (shared constants in `app/pagination.py` and
+  `minerva-ui/src/constants/pagination.ts`). Use when adding
   or editing comments, documenting APIs, reviewing comment quality, scaffolding
-  `app/tool/<name>`, building settings/auth forms, or the user asks for
-  注释规范、工具模块目录、表单可清除、或表格滚动.
+  `app/sys/tool/<name>`, building settings/auth forms, or the user asks for
+  注释规范、工具模块目录、表单可清除、表格滚动、或分页条数.
 ---
 
 # 代码注释规范（Minerva）
@@ -45,6 +47,14 @@ description: >-
 - 适用：普通 **`Input`**、**`Input.Password`**、**`Select`**、**`TreeSelect`** 等（与 antd 文档一致有 `allowClear` 的组件）。
 - **不适用**：**`InputNumber`**（本仓库使用 **antd 6**：类型与实现**均无** `allowClear`）——不要给 `InputNumber` 写 `allowClear`，否则 **TypeScript 与构建会失败**；需「一键清数字」时单独封装，或与表单约定 `null` / `??` 默认值的交互一致，依靠键盘删空等。
 
+### minerva-ui：分页列表默认每页 10 条
+
+凡**带服务端/接口分页**的 `Table` 或列表请求，**默认每页条数固定为 10**，与后端列表 API 的默认 `page_size` 一致。
+
+- **前端**：自 `minerva-ui/src/constants/pagination.ts` 引用 **`DEFAULT_PAGE_SIZE`** 作为 `Table` 的 `pagination.pageSize` 与请求参数中的 `page_size` 初始值；**新建**分页列表时不得再写死其他数字（如 20）作为默认，除非有明确产品要求并同时改常量与相关 API 默认值。
+- **后端**：自 `app.pagination` 引用 **`DEFAULT_PAGE_SIZE`** 作为 `Query(..., default=DEFAULT_PAGE_SIZE)` 等；新增分页列表端点沿用同一常量。
+- **例外**：在客户端**循环拉全量**（如合并多页直到 `total` 满足）时，为减少往返可对单次请求使用**不超过**接口 `le` 上限的较大 `page_size`；这不改变「用户打开列表时看到的」默认 10 条约定。
+
 ## Python
 
 - **模块级**：`"""` 一段说明职责与主要入口（2～4 行内）。
@@ -62,23 +72,23 @@ description: >-
 
 ---
 
-# Minerva 工具模块：以 `app/tool/ocr` 为模板的代码结构
+# Minerva 工具模块：以 `app/sys/tool/ocr` 为模板的代码结构
 
 ## 规范来源
 
 本项目的**标准代码结构**以仓库内**已存在**的目录为唯一范本：
 
-- **范本根目录**：`backend/app/tool/ocr/`
-- **父包**：`backend/app/tool/`（`__init__.py` 表示 `app.tool` 为工具集成包）
+- **范本根目录**：`backend/app/sys/tool/ocr/`
+- **父包**：`backend/app/sys/tool/`（`__init__.py` 表示 `app.sys.tool` 为系统域下的工具集成包）
 
-新增任何工具型能力时：**先对照 `app/tool/ocr` 的目录名与子包划分**，再建 `app/tool/<新模块名>/`，子目录**与 ocr 同级同名**，不在别处发明平行结构（除非经架构变更讨论后更新本 Skill）。
+新增任何工具型能力时：**先对照 `app/sys/tool/ocr` 的目录名与子包划分**，再建 `app/sys/tool/<新模块名>/`，子目录**与 ocr 同级同名**，不在别处发明平行结构（除非经架构变更讨论后更新本 Skill）。
 
 ## 参考目录（仓库现状，与 ocr 一致则合规）
 
-`backend/app/tool/`：
+`backend/app/sys/tool/`：
 
 ```text
-app/tool/
+app/sys/tool/
   __init__.py
   ocr/
     __init__.py
@@ -103,12 +113,12 @@ app/tool/
       schemas.py
 ```
 
-以上路径在导入时为：`app.tool.ocr` → `app.tool.ocr.domain` / `api` / `service` / `utils` 等。
+以上路径在导入时为：`app.sys.tool.ocr` → `app.sys.tool.ocr.domain` / `api` / `service` / `utils` 等。
 
 **新工具模块**将 `ocr` 整段换成 `<name>`，即：
 
 ```text
-app/tool/<name>/
+app/sys/tool/<name>/
   __init__.py
   domain/__init__.py
   service/__init__.py
@@ -129,7 +139,7 @@ app/tool/<name>/
 | **api** | FastAPI 路由、Pydantic 入参/出参、本模块 `deps`；在 `app/api/router.py` 中 `include_router` 挂接。 |
 | **utils** | 本模块内具体工具类实现。 |
 
-与全局 `app/domain`、`app/infrastructure` 的边界：**可复用则 import**；**仅本工具使用**的代码放在 `app/tool/<name>/` 下。
+与全局 `app/domain`、`app/infrastructure` 的边界：**可复用则 import**；**仅本工具使用**的代码放在 `app/sys/tool/<name>/` 下。
 
 ## 增量文件应落在哪一层
 
@@ -144,7 +154,7 @@ app/tool/<name>/
 
 ## 检查清单
 
-1. 新建 `app/tool/<name>/` 时，**子目录与 `app/tool/ocr` 一一对应**（含 `domain` 下 db/dto/vo 等子包时的惯例）。
+1. 新建 `app/sys/tool/<name>/` 时，**子目录与 `app/sys/tool/ocr` 一一对应**（含 `domain` 下 db/dto/vo 等子包时的惯例）。
 2. 业务代码按上表落层；跨层依赖方向为 **api → service → (domain, infrastructure 实现)**，**domain 不依赖 api**。
 3. 路由在 `app/api/router.py` 注册；配置走 `app/config.py` 等，密钥不进仓库。
 4. 持久化/迁移遵守仓库 `alembic`、`sql/` 习惯。
@@ -152,7 +162,7 @@ app/tool/<name>/
 
 ## 与 `app/domain/identity` 等目录的关系
 
-`app/domain/*` 多为**按领域水平切分**；`app/tool/<name>` 为**单工具垂直切片**（以 ocr 为范式的全栈目录）。**新的外部工具/能力集成**优先放在 `app/tool/`，与 ocr 同构；若多工具共享同一领域模型，再考虑上提到 `app/domain` 并重构。
+`app/domain/*` 多为**按领域水平切分**；`app/sys/tool/<name>` 为**单工具垂直切片**（以 ocr 为范式的全栈目录）。**新的外部工具/能力集成**优先放在 `app/sys/tool/`，与 ocr 同构；若多工具共享同一领域模型，再考虑上提到 `app/domain` 并重构。
 
 ## 表格滚动规则
 

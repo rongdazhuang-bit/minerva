@@ -9,9 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, require_workspace_member
 from app.dependencies import get_db
 from app.domain.identity.models import User
+from app.pagination import DEFAULT_PAGE_SIZE
 from app.sys.dict.api.schemas import (
     SysDictCreateIn,
     SysDictItemCreateIn,
+    SysDictItemNodeOut,
     SysDictItemOut,
     SysDictItemPatchIn,
     SysDictListItemOut,
@@ -20,6 +22,7 @@ from app.sys.dict.api.schemas import (
 )
 from app.sys.dict.domain.db.models import SysDict, SysDictItem
 from app.sys.dict.service import dictionary_service as svc
+from app.sys.dict.utils.item_tree import build_item_tree
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/dicts", tags=["dicts"])
 
@@ -75,25 +78,43 @@ def _item_patch(body: SysDictItemPatchIn) -> dict[str, Any]:
     return patch
 
 
-@router.get("", response_model=SysDictListPageOut)
+@router.get(
+    "",
+    response_model=SysDictListPageOut,
+    response_model_exclude_none=True,
+)
 async def list_dicts(
     workspace_id: uuid.UUID,
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
+    code: str | None = Query(default=None, max_length=64),
     _user: User = Depends(get_current_user),
     _workspace: uuid.UUID = Depends(require_workspace_member),
     session: AsyncSession = Depends(get_db),
 ) -> SysDictListPageOut:
+    raw_code = code.strip() if code else None
     rows, total = await svc.list_dicts_page(
         session,
         workspace_id=workspace_id,
         page=page,
         page_size=page_size,
+        dict_code=raw_code,
     )
-    return SysDictListPageOut(
-        items=[_dict_to_list_out(r) for r in rows],
-        total=total,
-    )
+    item_tree_payload: list[SysDictItemNodeOut] | None = None
+    if raw_code is not None and rows:
+        flat = await svc.list_items_by_dict_code(
+            session, workspace_id=workspace_id, dict_code=raw_code
+        )
+        item_tree_payload = build_item_tree(flat)
+
+    out_items: list[SysDictListItemOut] = []
+    for r in rows:
+        base = _dict_to_list_out(r)
+        if item_tree_payload is not None:
+            out_items.append(base.model_copy(update={"item_tree": item_tree_payload}))
+        else:
+            out_items.append(base)
+    return SysDictListPageOut(items=out_items, total=total)
 
 
 @router.post("", response_model=SysDictListItemOut, status_code=status.HTTP_201_CREATED)

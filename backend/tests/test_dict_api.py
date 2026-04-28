@@ -230,3 +230,81 @@ async def test_dicts_list_pagination() -> None:
         ids_p1 = {x["id"] for x in b1["items"]}
         ids_p2 = {x["id"] for x in b2["items"]}
         assert not ids_p1.intersection(ids_p2)
+
+
+@pytest.mark.asyncio
+async def test_dicts_list_by_code_with_item_tree() -> None:
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as ac:
+        email = f"dc-{uuid.uuid4().hex}@example.com"
+        password = "secret1234"
+        reg = await ac.post("/auth/register", json={"email": email, "password": password})
+        assert reg.status_code == 201, reg.text
+        token = reg.json()["access_token"]
+        workspace_id = _workspace_id_from_access_token(token)
+        h = {"Authorization": f"Bearer {token}"}
+
+        miss = await ac.get(
+            f"/workspaces/{workspace_id}/dicts?code=nope&page=1&page_size=10",
+            headers=h,
+        )
+        assert miss.status_code == 200
+        assert miss.json() == {"items": [], "total": 0}
+
+        create = await ac.post(
+            f"/workspaces/{workspace_id}/dicts",
+            headers=h,
+            json={"dict_code": "KINDS", "dict_name": "Kinds", "dict_sort": 1},
+        )
+        assert create.status_code == 201, create.text
+        dict_id = create.json()["id"]
+
+        r1 = await ac.post(
+            f"/workspaces/{workspace_id}/dicts/{dict_id}/items",
+            headers=h,
+            json={"code": "a", "name": "A", "item_sort": 2},
+        )
+        assert r1.status_code == 201, r1.text
+        id_a = r1.json()["id"]
+        r2 = await ac.post(
+            f"/workspaces/{workspace_id}/dicts/{dict_id}/items",
+            headers=h,
+            json={"code": "a1", "name": "A1", "item_sort": 1, "parent_uuid": id_a},
+        )
+        assert r2.status_code == 201, r2.text
+
+        by_code = await ac.get(
+            f"/workspaces/{workspace_id}/dicts?code=KINDS&page=1&page_size=10",
+            headers=h,
+        )
+        assert by_code.status_code == 200
+        body = by_code.json()
+        assert body["total"] == 1
+        assert len(body["items"]) == 1
+        row0 = body["items"][0]
+        assert row0["dict_code"] == "KINDS"
+        assert "item_tree" in row0
+        tree = row0["item_tree"]
+        assert len(tree) == 1
+        assert tree[0]["code"] == "a"
+        assert len(tree[0]["children"]) == 1
+        assert tree[0]["children"][0]["code"] == "a1"
+
+        page2 = await ac.get(
+            f"/workspaces/{workspace_id}/dicts?code=KINDS&page=2&page_size=10",
+            headers=h,
+        )
+        assert page2.status_code == 200
+        b2 = page2.json()
+        assert b2["total"] == 1
+        assert b2["items"] == []
+
+        no_list = await ac.get(
+            f"/workspaces/{workspace_id}/dicts",
+            headers=h,
+        )
+        assert no_list.status_code == 200
+        for it in no_list.json()["items"]:
+            assert "item_tree" not in it

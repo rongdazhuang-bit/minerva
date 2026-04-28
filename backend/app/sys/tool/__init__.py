@@ -1,1 +1,1 @@
-"""Tool integrations: vertical slices under `app.tool.<name>`."""
+"""Tool integrations: vertical slices under `app.sys.tool.<name>`."""

@@ -16,6 +16,24 @@ function settingsLeafTitle(pathname: string, t: (k: string) => string): string |
   return null
 }
 
+function rulesBreadcrumb(
+  pathname: string,
+  t: (k: string) => string,
+  home: ItemType,
+): ItemType[] | null {
+  if (!pathname.startsWith('/app/rules')) return null
+  const rulesBase: ItemType = {
+    title: <Link to="/app/rules/overview">{t('nav.rules')}</Link>,
+  }
+  if (pathname.startsWith('/app/rules/management')) {
+    return [home, rulesBase, { title: t('nav.rulesManagementList') }]
+  }
+  if (pathname.startsWith('/app/rules/overview') || pathname.match(/^\/app\/rules\/?$/)) {
+    return [home, rulesBase, { title: t('nav.rulesOverview') }]
+  }
+  return [home, rulesBase, { title: t('nav.rulesOverview') }]
+}
+
 export function AppBreadcrumb() {
   const { t } = useTranslation()
   const { pathname } = useLocation()
@@ -29,9 +47,8 @@ export function AppBreadcrumb() {
     if (pathname.startsWith('/app/file-ocr')) {
       return [home, { title: t('nav.rulesFileOcr') }]
     }
-    if (pathname.startsWith('/app/rules')) {
-      return [home, { title: t('nav.rules') }]
-    }
+    const rules = rulesBreadcrumb(pathname, t, home)
+    if (rules) return rules
     if (pathname.startsWith('/app/settings')) {
       const leaf = settingsLeafTitle(pathname, t)
       if (leaf) {

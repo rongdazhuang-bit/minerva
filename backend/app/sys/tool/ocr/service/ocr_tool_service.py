@@ -7,8 +7,8 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import AppError
-from app.tool.ocr.domain.db.models import SysOcrTool
-from app.tool.ocr.infrastructure import repository as repo
+from app.sys.tool.ocr.domain.db.models import SysOcrTool
+from app.sys.tool.ocr.infrastructure import repository as repo
 
 
 def _utc_now() -> datetime:

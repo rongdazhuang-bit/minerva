@@ -9,14 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, require_workspace_member
 from app.dependencies import get_db
 from app.domain.identity.models import User
-from app.tool.ocr.api.schemas import (
+from app.sys.tool.ocr.api.schemas import (
     OcrToolCreateIn,
     OcrToolDetailOut,
     OcrToolListItemOut,
     OcrToolPatchIn,
 )
-from app.tool.ocr.domain.db.models import SysOcrTool
-from app.tool.ocr.service.ocr_tool_service import (
+from app.sys.tool.ocr.domain.db.models import SysOcrTool
+from app.sys.tool.ocr.service.ocr_tool_service import (
     create_tool,
     delete_tool,
     get_tool,
