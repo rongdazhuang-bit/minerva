@@ -588,7 +588,7 @@ export function ModelProvidersPage() {
               <div className="minerva-model-providers__table-wrap">
                 <Table<ModelProviderGroupItem>
                   size="small"
-                  className="minerva-model-providers__table"
+                  className="minerva-model-providers__table minerva-table-body-scrollbar-ocr"
                   rowKey="id"
                   pagination={false}
                   columns={columns}
@@ -617,7 +617,7 @@ export function ModelProvidersPage() {
                     <div className="minerva-model-providers__table-wrap">
                       <Table<ModelProviderGroupItem>
                         size="small"
-                        className="minerva-model-providers__table"
+                        className="minerva-model-providers__table minerva-table-body-scrollbar-ocr"
                         rowKey="id"
                         pagination={false}
                         columns={columns}

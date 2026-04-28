@@ -5,7 +5,12 @@ import { AppLayout } from '@/app/layout/AppLayout'
 import { OverviewPage } from '@/features/workspace/OverviewPage'
 import { SmartReviewPage } from '@/features/workspace/SmartReviewPage'
 import { RulesFileOcrPage } from '@/features/workspace/RulesFileOcrPage'
-import { RulesManagementPage, RulesOverviewPage, RulesSectionLayout } from '@/features/rules'
+import {
+  RulesManagementPage,
+  RulesPromptManagementPage,
+  RulesOverviewPage,
+  RulesSectionLayout,
+} from '@/features/rules'
 import { DataSourcesPage } from '@/features/settings/data-sources'
 import { DictionaryPage } from '@/features/settings/dictionary'
 import { SettingsSectionLayout } from '@/features/settings/layout'
@@ -51,6 +56,12 @@ const router = createBrowserRouter([
               { index: true, element: <Navigate to="overview" replace /> },
               { path: 'overview', element: <RulesOverviewPage /> },
               { path: 'management', element: <RulesManagementPage /> },
+              { path: 'config/models', element: <Navigate to="/app/rules/config/config-prompts" replace /> },
+              { path: 'config/prompts', element: <Navigate to="/app/rules/config/config-prompts" replace /> },
+              {
+                path: 'config/config-prompts',
+                element: <RulesPromptManagementPage />,
+              },
             ],
           },
           { path: 'file-ocr', element: <RulesFileOcrPage /> },

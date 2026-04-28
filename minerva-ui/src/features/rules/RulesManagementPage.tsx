@@ -24,11 +24,11 @@ import {
   Tooltip,
   message,
 } from 'antd'
-import type { DefaultOptionType } from 'antd/es/cascader'
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { useTranslation } from 'react-i18next'
-import type { SysDictItem, SysDictItemNode } from '@/api/dicts'
 import { useDictItemTree } from '@/hooks/useDictItemTree'
 import {
   createRuleBase,
@@ -36,16 +36,22 @@ import {
   listRuleBase,
   patchRuleBase,
   polishReviewRules,
-  type ListRuleBaseParams,
   type RuleBaseListItem,
 } from '@/api/ruleBase'
 import { ApiError } from '@/api/client'
 import { useAuth } from '@/app/AuthContext'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
+import {
+  ENG_SUBJECT_DOC_DICT_CODE,
+  dictNodesToCascaderOptions,
+  findSequentialPathInTree,
+  formatScopeTriplePathLabel,
+  listParamsFromCascadePath,
+  pathToTriple,
+  tripleToPath,
+  buildCodeNameMap,
+} from '@/features/rules/scopeTriple'
 import './RulesManagementPage.css'
-
-/** 多级字典：第 1～3 级 code 依次对应 engineering_code / subject_code / document_type */
-const ENG_SUBJECT_DOC_DICT_CODE = 'RULE_ENG_SUBJECT_DOC'
 
 type FormValues = {
   sequence_number: number
@@ -65,91 +71,6 @@ function showErr(t: (k: string) => string, e: unknown) {
     return
   }
   void message.error(t('common.error'))
-}
-
-function buildCodeNameMap(items: SysDictItem[]) {
-  const m = new Map<string, string>()
-  for (const it of items) {
-    m.set(it.code, it.name)
-  }
-  return m
-}
-
-function dictNodesToCascaderOptions(nodes: SysDictItemNode[]): DefaultOptionType[] {
-  return nodes.map((n) => ({
-    value: n.code,
-    label: n.name,
-    children: n.children?.length ? dictNodesToCascaderOptions(n.children) : undefined,
-  }))
-}
-
-function pathToTriple(path: string[] | undefined | null) {
-  const p = path?.filter((x) => x != null && String(x).trim() !== '') ?? []
-  return {
-    engineering_code: p[0] ?? null,
-    subject_code: p[1] ?? null,
-    document_type: p[2] ?? null,
-  }
-}
-
-function tripleToPath(
-  eng: string | null | undefined,
-  sub: string | null | undefined,
-  doc: string | null | undefined,
-): string[] | undefined {
-  if (!eng?.trim()) return undefined
-  const e = eng.trim()
-  const out: string[] = [e]
-  if (sub?.trim()) {
-    out.push(sub.trim())
-    if (doc?.trim()) out.push(doc.trim())
-  }
-  return out
-}
-
-function listParamsFromCascadePath(
-  path: string[] | undefined,
-): Pick<ListRuleBaseParams, 'engineering_code' | 'subject_code' | 'document_type'> {
-  const p = path?.filter(Boolean) ?? []
-  const o: Pick<ListRuleBaseParams, 'engineering_code' | 'subject_code' | 'document_type'> =
-    {}
-  if (p.length >= 1) o.engineering_code = p[0]
-  if (p.length >= 2) o.subject_code = p[1]
-  if (p.length >= 3) o.document_type = p[2]
-  return o
-}
-
-function formatTriplePathLabel(row: RuleBaseListItem, nameByCode: Map<string, string>) {
-  const parts: string[] = []
-  for (const c of [row.engineering_code, row.subject_code, row.document_type]) {
-    if (!c) continue
-    parts.push(nameByCode.get(c) ?? c)
-  }
-  return parts.length ? parts.join(' / ') : '—'
-}
-
-/** 在非空编码序列上与树前缀匹配，兼容仅有专业/文档类型等业务旧数据时的回显。 */
-function findSequentialPathInTree(
-  nodes: SysDictItemNode[],
-  codes: string[],
-): string[] | undefined {
-  if (!codes.length || !nodes.length) return undefined
-  const walk = (
-    arr: SysDictItemNode[],
-    depth: number,
-    acc: string[],
-  ): string[] | undefined => {
-    const code = codes[depth]
-    for (const n of arr) {
-      if (n.code !== code) continue
-      const next = [...acc, n.code]
-      if (depth === codes.length - 1) return next
-      const sub = walk(n.children ?? [], depth + 1, next)
-      if (sub) return sub
-    }
-    return undefined
-  }
-  return walk(nodes, 0, [])
 }
 
 export function RulesManagementPage() {
@@ -238,10 +159,15 @@ export function RulesManagementPage() {
       void message.warning(t('rules.aiPolishNeedRules'))
       return
     }
+    const path = form.getFieldValue('eng_subject_doc') as string[] | undefined
+    const { engineering_code, subject_code, document_type } = pathToTriple(path)
     setPolishingRules(true)
     try {
       const { review_rules_ai } = await polishReviewRules(workspaceId, {
         review_rules: rules,
+        engineering_code: engineering_code ?? undefined,
+        subject_code: subject_code ?? undefined,
+        document_type: document_type ?? undefined,
       })
       form.setFieldValue('review_rules_ai', review_rules_ai)
       void message.success(t('rules.aiPolishSuccess'))
@@ -403,7 +329,7 @@ export function RulesManagementPage() {
         width: 260,
         fixed: 'left',
         ellipsis: { showTitle: true },
-        render: (_, row) => formatTriplePathLabel(row, engSubDocNameMap),
+        render: (_, row) => formatScopeTriplePathLabel(row, engSubDocNameMap),
       },
       {
         title: t('rules.colSection'),
@@ -552,14 +478,14 @@ export function RulesManagementPage() {
         </div>
         <div className="minerva-rules-page__table-wrap">
           <Table<RuleBaseListItem>
-            className="minerva-rules-page__table"
+            className="minerva-card-table-scroll-ocr minerva-rules-page__table"
             size="small"
             rowKey="id"
             loading={loading}
             columns={columns}
             dataSource={rows}
             tableLayout="fixed"
-            scroll={{ x: 'max-content', y: 420 }}
+            scroll={{ x: 'max-content', y: 'calc(100dvh - 400px)' }}
             sticky
             pagination={{
               current: page,
@@ -579,6 +505,7 @@ export function RulesManagementPage() {
         onClose={() => setOpen(false)}
         width="50%"
         destroyOnClose
+        classNames={{ body: 'minerva-scrollbar-styled' }}
         styles={{ body: { paddingBottom: 8 } }}
         footer={
           <Space style={{ justifyContent: 'flex-end', width: '100%' }}>
@@ -660,12 +587,20 @@ export function RulesManagementPage() {
                 }
                 rules={[{ required: true, message: t('rules.fieldRules') }]}
               >
-                <Input.TextArea allowClear rows={4} />
+                <Input.TextArea
+                  allowClear
+                  rows={4}
+                  classNames={{ textarea: 'minerva-scrollbar-styled' }}
+                />
               </Form.Item>
             </Col>
             <Col span={24}>
               <Form.Item name="review_rules_ai" label={t('rules.fieldRulesAi')}>
-                <Input.TextArea allowClear rows={4} />
+                <Input.TextArea
+                  allowClear
+                  rows={4}
+                  classNames={{ textarea: 'minerva-scrollbar-styled' }}
+                />
               </Form.Item>
             </Col>
             <Col span={24}>
@@ -674,7 +609,11 @@ export function RulesManagementPage() {
                 label={t('rules.fieldResult')}
                 rules={[{ required: true, message: t('rules.fieldResult') }]}
               >
-                <Input.TextArea allowClear rows={4} />
+                <Input.TextArea
+                  allowClear
+                  rows={4}
+                  classNames={{ textarea: 'minerva-scrollbar-styled' }}
+                />
               </Form.Item>
             </Col>
             <Col span={24}>
@@ -706,6 +645,7 @@ export function RulesManagementPage() {
           setDetailRow(null)
         }}
         width="50%"
+        classNames={{ body: 'minerva-scrollbar-styled' }}
         footer={
           <div style={{ textAlign: 'right' }}>
             <Button
@@ -720,7 +660,12 @@ export function RulesManagementPage() {
         }
       >
         {detailRow ? (
-          <Descriptions bordered column={1} size="small">
+          <Descriptions
+            bordered
+            column={1}
+            size="small"
+            className="minerva-rules-drawer-details"
+          >
             <Descriptions.Item label={t('rules.fieldSequence')}>
               {detailRow.sequence_number}
             </Descriptions.Item>
@@ -728,7 +673,7 @@ export function RulesManagementPage() {
               {detailRow.serial_number ?? '—'}
             </Descriptions.Item>
             <Descriptions.Item label={t('rules.detailEngSubjectDoc')}>
-              {formatTriplePathLabel(detailRow, engSubDocNameMap)}
+              {formatScopeTriplePathLabel(detailRow, engSubDocNameMap)}
             </Descriptions.Item>
             <Descriptions.Item label={t('rules.fieldSection')}>
               {detailRow.review_section}
@@ -740,7 +685,15 @@ export function RulesManagementPage() {
               {detailRow.review_rules}
             </Descriptions.Item>
             <Descriptions.Item label={t('rules.fieldRulesAi')}>
-              {detailRow.review_rules_ai ?? '—'}
+              {detailRow.review_rules_ai?.trim()
+                ? (
+                    <div className="minerva-rules-md">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {detailRow.review_rules_ai}
+                      </ReactMarkdown>
+                    </div>
+                  )
+                : '—'}
             </Descriptions.Item>
             <Descriptions.Item label={t('rules.fieldResult')}>
               {detailRow.review_result}

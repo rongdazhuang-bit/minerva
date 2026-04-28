@@ -39,3 +39,32 @@ class RuleBase(Base):
         DateTime(timezone=True), server_default=text("now()"), nullable=True
     )
     update_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class RuleConfigPrompt(Base):
+    __tablename__ = "rule_config_prompt"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    model_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("sys_models.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    engineering_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    subject_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    document_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    sys_prompt: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    user_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    chat_memory: Mapped[str | None] = mapped_column(Text, nullable=True)
+    create_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), nullable=True
+    )
+    update_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

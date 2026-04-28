@@ -93,8 +93,6 @@ html.minerva-tone-sunshine .minerva-model-providers__card {
 .minerva-model-providers__table .ant-table-body {
   overflow-y: visible !important;
   overflow-x: auto !important;
-  scrollbar-width: thin;
-  scrollbar-color: rgb(148 163 184 / 55%) transparent;
 }
 
 .minerva-model-providers__table .ant-table-thead > tr > th {

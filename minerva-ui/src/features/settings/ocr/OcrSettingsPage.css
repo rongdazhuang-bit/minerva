@@ -40,39 +40,6 @@ html.minerva-tone-sunshine .minerva-ocr-settings__card {
   overflow: hidden;
 }
 
-.minerva-ocr-settings__table .ant-table-container {
-  border: 1px solid var(--minerva-border, #2a3f58);
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.minerva-ocr-settings__table .ant-table-body {
-  overflow-y: auto !important;
-  overflow-x: auto !important;
-  scrollbar-width: thin;
-  scrollbar-color: rgb(148 163 184 / 55%) transparent;
-}
-
-.minerva-ocr-settings__table .ant-table-body::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-
-.minerva-ocr-settings__table .ant-table-body::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.minerva-ocr-settings__table .ant-table-body::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgb(148 163 184 / 45%), rgb(100 116 139 / 55%));
-  border: 1px solid transparent;
-  border-radius: 999px;
-  background-clip: padding-box;
-}
-
-.minerva-ocr-settings__table .ant-table-body::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgb(125 211 252 / 72%), rgb(59 130 246 / 72%));
-}
-
 .minerva-ocr-settings__table .ant-table-thead > tr > th {
   background: rgb(255 255 255 / 4%);
   color: var(--minerva-ink, #e8f0f8);
@@ -85,24 +52,6 @@ html.minerva-tone-sunshine .minerva-ocr-settings__card {
 
 .minerva-ocr-settings__table .ant-table-tbody > tr:hover > td {
   background: rgb(59 130 246 / 10%) !important;
-}
-
-html.minerva-tone-sunshine .minerva-ocr-settings__table .ant-table-container {
-  border-color: #dbe4f0;
-}
-
-html.minerva-tone-sunshine .minerva-ocr-settings__table .ant-table-body {
-  scrollbar-color: rgb(148 163 184 / 75%) transparent;
-}
-
-html.minerva-tone-sunshine .minerva-ocr-settings__table .ant-table-body::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #cbd5e1, #94a3b8);
-  border: 1px solid transparent;
-  background-clip: padding-box;
-}
-
-html.minerva-tone-sunshine .minerva-ocr-settings__table .ant-table-body::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #93c5fd, #60a5fa);
 }
 
 html.minerva-tone-sunshine .minerva-ocr-settings__table .ant-table-thead > tr > th {

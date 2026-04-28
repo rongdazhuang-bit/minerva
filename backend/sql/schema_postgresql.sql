@@ -1,5 +1,5 @@
 -- Minerva 表结构（PostgreSQL），与 Alembic 迁移链一致：
--- 3552a1daa5cc (identity) -> 947e36be8860 (rules) -> bbec5fe9111a (executions)
+-- 3552a1daa5cc (identity) -> … -> c3d4e5f6a7b8 (rule_base engineering_code) -> d4e5f6a7b8c9 (rule_config_prompt)
 --
 -- 使用: psql -U minerva -d minerva -f schema_postgresql.sql
 -- 推荐仍用: cd backend && alembic upgrade head
@@ -226,9 +226,6 @@ CREATE TABLE public.rule_base (
 );
 CREATE INDEX IF NOT EXISTS ix_rule_base_workspace_id ON public.rule_base (workspace_id);
 COMMENT ON TABLE public.rule_base IS '规则库';
-
--- Column comments
-
 COMMENT ON COLUMN public.rule_base.workspace_id IS '工作空间id';
 COMMENT ON COLUMN public.rule_base.sequence_number IS '序号';
 COMMENT ON COLUMN public.rule_base.subject_code IS '专业';
@@ -243,3 +240,38 @@ COMMENT ON COLUMN public.rule_base.review_result IS '校审结果';
 COMMENT ON COLUMN public.rule_base.status IS '是有否有效(Y/N)';
 COMMENT ON COLUMN public.rule_base.create_at IS '创建时间';
 COMMENT ON COLUMN public.rule_base.update_at IS '更新时间';
+
+
+CREATE TABLE public.rule_config_prompt (
+	id uuid NOT NULL,
+	workspace_id uuid NOT NULL,
+	model_id uuid NOT NULL,
+	engineering_code varchar(64) NULL,
+	subject_code varchar(64) NULL,
+	document_type varchar(64) NULL,
+	sys_prompt varchar(1024) NULL,
+	user_prompt text NULL,
+	chat_memory text NULL,
+	create_at timestamptz NULL DEFAULT now(),
+	update_at timestamptz NULL,
+	CONSTRAINT rule_config_prompt_pkey PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS ix_rule_config_prompt_workspace_id ON public.rule_config_prompt (workspace_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_rule_config_prompt_workspace_scope ON public.rule_config_prompt (
+	workspace_id,
+	coalesce(engineering_code, ''),
+	coalesce(subject_code, ''),
+	coalesce(document_type, '')
+);
+COMMENT ON TABLE public.rule_config_prompt IS '规则库-提示词配置（按上下文绑定模型）';
+COMMENT ON COLUMN public.rule_config_prompt.id IS 'id';
+COMMENT ON COLUMN public.rule_config_prompt.workspace_id IS '工作空间id';
+COMMENT ON COLUMN public.rule_config_prompt.model_id IS '模型id';
+COMMENT ON COLUMN public.rule_config_prompt.engineering_code IS '工程编码';
+COMMENT ON COLUMN public.rule_config_prompt.subject_code IS '专业';
+COMMENT ON COLUMN public.rule_config_prompt.document_type IS '文档类型';
+COMMENT ON COLUMN public.rule_config_prompt.sys_prompt IS '系统提示词';
+COMMENT ON COLUMN public.rule_config_prompt.user_prompt IS '用户提示词';
+COMMENT ON COLUMN public.rule_config_prompt.chat_memory IS '对话记忆';
+COMMENT ON COLUMN public.rule_config_prompt.create_at IS '创建时间';
+COMMENT ON COLUMN public.rule_config_prompt.update_at IS '更新时间';

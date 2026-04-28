@@ -73,7 +73,7 @@ def _import_models() -> None:
     import app.domain.identity.models  # noqa: F401
     import app.sys.dict.domain.db.models  # noqa: F401
     import app.sys.model_provider.domain.db.models  # noqa: F401
-    import app.sys.rule.domain.db.models  # noqa: F401
+    import app.rule.domain.db.models  # noqa: F401
     import app.sys.tool.ocr.domain.db.models  # noqa: F401
 
 

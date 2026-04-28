@@ -1,0 +1,130 @@
+/* 规则库 — 概览统计（单行平铺） */
+
+.minerva-rules-overview {
+  width: 100%;
+  max-width: none;
+  padding-bottom: 8px;
+}
+
+.minerva-rules-overview__stats-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 6px;
+  margin-inline: -2px;
+  padding-inline: 2px;
+  /* 隐藏滚动条但仍可拖动（WebKit）— 可选；保留滚动条更易发现横向溢出 */
+  scrollbar-gutter: stable;
+}
+
+.minerva-rules-overview__stats.ant-row {
+  flex-wrap: nowrap !important;
+}
+
+.minerva-rules-overview__stat-col {
+  min-width: 148px;
+}
+
+.minerva-rules-overview__card {
+  position: relative;
+  height: 100%;
+  background: var(--minerva-surface, #1a2836) !important;
+  border: 1px solid var(--minerva-border, #2a3f58) !important;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 18%);
+  overflow: hidden;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.minerva-rules-overview__card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  border-radius: 4px 0 0 4px;
+  background: var(--minerva-rules-overview-accent, var(--minerva-link, #38bdf8));
+  opacity: 0.92;
+}
+
+.minerva-rules-overview__card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgb(0 0 0 / 22%);
+}
+
+.minerva-rules-overview__card .ant-card-body {
+  padding: 18px 18px 18px 20px;
+}
+
+html.minerva-tone-sunshine .minerva-rules-overview__card {
+  background: var(--minerva-surface, #fff) !important;
+  box-shadow: 0 4px 14px rgb(15 23 42 / 7%);
+}
+
+html.minerva-tone-sunshine .minerva-rules-overview__card:hover {
+  box-shadow: 0 12px 28px rgb(15 23 42 / 10%);
+}
+
+.minerva-rules-overview__icon {
+  margin-inline-end: 8px;
+  font-size: 18px;
+  color: var(--minerva-rules-overview-accent, var(--minerva-link, #38bdf8));
+  opacity: 0.92;
+  vertical-align: -0.15em;
+}
+
+.minerva-rules-overview__card .ant-statistic-content-value {
+  font-variant-numeric: tabular-nums;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.minerva-rules-overview__card .ant-statistic-title {
+  color: var(--minerva-ink, #e8f0f8);
+  opacity: 0.78;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.minerva-rules-overview__card--engineering {
+  --minerva-rules-overview-accent: var(--minerva-link, #38bdf8);
+}
+
+.minerva-rules-overview__card--subject {
+  --minerva-rules-overview-accent: #34d399;
+}
+
+.minerva-rules-overview__card--document {
+  --minerva-rules-overview-accent: #a78bfa;
+}
+
+.minerva-rules-overview__card--rules {
+  --minerva-rules-overview-accent: #fbbf24;
+}
+
+html.minerva-tone-sunshine .minerva-rules-overview__card .ant-statistic-content-value {
+  color: #0f172a;
+}
+
+html.minerva-tone-sunshine .minerva-rules-overview__card .ant-statistic-title {
+  color: #64748b;
+}
+
+html.minerva-tone-sunshine .minerva-rules-overview__card--subject {
+  --minerva-rules-overview-accent: #059669;
+}
+
+html.minerva-tone-sunshine .minerva-rules-overview__card--document {
+  --minerva-rules-overview-accent: #7c3aed;
+}
+
+html.minerva-tone-sunshine .minerva-rules-overview__card--rules {
+  --minerva-rules-overview-accent: #d97706;
+}
+
+html.minerva-tone-sunshine .minerva-rules-overview__icon {
+  color: var(--minerva-rules-overview-accent, var(--minerva-link, #2563eb));
+}

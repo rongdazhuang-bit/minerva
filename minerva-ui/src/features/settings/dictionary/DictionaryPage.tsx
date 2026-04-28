@@ -518,7 +518,7 @@ export function DictionaryPage() {
               },
             }}
             size="middle"
-            className="minerva-dict-settings__table"
+            className="minerva-card-table-scroll-ocr minerva-dict-settings__table"
             scroll={{ x: true, y: 'calc(100dvh - 360px)' }}
             sticky
           />
@@ -603,8 +603,9 @@ export function DictionaryPage() {
               dataSource={itemTree}
               pagination={false}
               size="small"
-              className="minerva-dict-settings__drawer-table"
+              className="minerva-card-table-scroll-ocr minerva-dict-settings__drawer-table"
               scroll={{ x: true, y: 'calc(100dvh - 260px)' }}
+              sticky
               expandable={{ defaultExpandAllRows: true }}
             />
           </div>

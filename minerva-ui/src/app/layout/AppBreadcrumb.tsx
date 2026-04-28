@@ -28,6 +28,9 @@ function rulesBreadcrumb(
   if (pathname.startsWith('/app/rules/management')) {
     return [home, rulesBase, { title: t('nav.rulesManagementList') }]
   }
+  if (pathname.startsWith('/app/rules/config/config-prompts')) {
+    return [home, rulesBase, { title: t('nav.rulesConfig') }, { title: t('nav.rulesPromptManagement') }]
+  }
   if (pathname.startsWith('/app/rules/overview') || pathname.match(/^\/app\/rules\/?$/)) {
     return [home, rulesBase, { title: t('nav.rulesOverview') }]
   }

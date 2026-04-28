@@ -30,6 +30,155 @@ html.minerva-tone-sunshine .minerva-rules-page__card {
   margin-bottom: 14px;
 }
 
+/* Detail view: label column (field list) fixed at 30%, content 70% */
+.minerva-rules-drawer-details.ant-descriptions-bordered table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.minerva-rules-drawer-details.ant-descriptions-bordered .ant-descriptions-item-label {
+  width: 30%;
+  vertical-align: top;
+}
+
+.minerva-rules-drawer-details.ant-descriptions-bordered .ant-descriptions-item-content {
+  width: 70%;
+  vertical-align: top;
+  word-break: break-word;
+}
+
+/* Markdown body for 校审规则（AI） in detail drawer */
+.minerva-rules-md {
+  color: var(--minerva-ink, #e8f0f8);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.minerva-rules-md :first-child {
+  margin-top: 0;
+}
+
+.minerva-rules-md :last-child {
+  margin-bottom: 0;
+}
+
+.minerva-rules-md p {
+  margin: 0.5em 0;
+}
+
+.minerva-rules-md h1,
+.minerva-rules-md h2,
+.minerva-rules-md h3,
+.minerva-rules-md h4 {
+  margin: 0.75em 0 0.4em;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.minerva-rules-md h1 {
+  font-size: 1.25em;
+}
+
+.minerva-rules-md h2 {
+  font-size: 1.15em;
+}
+
+.minerva-rules-md h3,
+.minerva-rules-md h4 {
+  font-size: 1.05em;
+}
+
+.minerva-rules-md ul,
+.minerva-rules-md ol {
+  margin: 0.5em 0;
+  padding-inline-start: 1.35em;
+}
+
+.minerva-rules-md li {
+  margin: 0.2em 0;
+}
+
+.minerva-rules-md blockquote {
+  margin: 0.5em 0;
+  padding: 0.35em 0.75em;
+  border-inline-start: 3px solid var(--minerva-border, #2a3f58);
+  background: color-mix(in srgb, var(--minerva-surface-2, #121c28) 80%, transparent);
+  color: var(--minerva-ink-muted, #94a3b8);
+}
+
+html.minerva-tone-sunshine .minerva-rules-md blockquote {
+  background: color-mix(in srgb, var(--minerva-surface-2, #f1f5f9) 90%, transparent);
+  color: var(--minerva-ink-muted, #64748b);
+}
+
+.minerva-rules-md a {
+  color: var(--minerva-link, #38bdf8);
+  word-break: break-all;
+}
+
+html.minerva-tone-sunshine .minerva-rules-md a {
+  color: var(--minerva-link, #2563eb);
+}
+
+.minerva-rules-md code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--minerva-surface-2, #121c28);
+  border: 1px solid var(--minerva-border, #2a3f58);
+}
+
+html.minerva-tone-sunshine .minerva-rules-md code {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+}
+
+.minerva-rules-md pre {
+  margin: 0.6em 0;
+  padding: 0.65em 0.85em;
+  overflow: auto;
+  border-radius: 8px;
+  background: var(--minerva-surface-2, #121c28);
+  border: 1px solid var(--minerva-border, #2a3f58);
+}
+
+html.minerva-tone-sunshine .minerva-rules-md pre {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.minerva-rules-md pre code {
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 0.85em;
+}
+
+.minerva-rules-md hr {
+  margin: 0.85em 0;
+  border: none;
+  border-top: 1px solid var(--minerva-border, #2a3f58);
+}
+
+.minerva-rules-md table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.6em 0;
+  font-size: 0.95em;
+}
+
+.minerva-rules-md th,
+.minerva-rules-md td {
+  border: 1px solid var(--minerva-border, #2a3f58);
+  padding: 0.35em 0.5em;
+  text-align: start;
+}
+
+.minerva-rules-md th {
+  background: color-mix(in srgb, var(--minerva-surface-2, #121c28) 70%, transparent);
+}
+
 .minerva-rules-form__inline-label {
   display: inline-flex;
   align-items: center;
@@ -82,33 +231,6 @@ html.minerva-tone-sunshine .minerva-rules-form__ai-btn {
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
-}
-
-.minerva-rules-page__table .ant-table-container {
-  border: 1px solid var(--minerva-border, #2a3f58);
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.minerva-rules-page__table .ant-table-body {
-  overflow-y: auto !important;
-  overflow-x: auto !important;
-  scrollbar-gutter: stable;
-  scrollbar-width: thin;
-}
-
-.minerva-rules-page__table .ant-table-body::-webkit-scrollbar {
-  width: 6px;
-  height: 4px;
-}
-
-.minerva-rules-page__table .ant-table-body::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--minerva-ink) 20%, transparent);
-  border-radius: 8px;
-}
-
-.minerva-rules-page__table .ant-table-body::-webkit-scrollbar-track {
-  background: transparent;
 }
 
 /* antd 6 / rc-table 使用 fix-start、fix-end；勿写 fix-left/fix-right，否则 :not 匹配不到，会把 z-index 盖到固定列上，横滚时滚动列压住固定列。 */

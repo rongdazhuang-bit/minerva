@@ -74,6 +74,23 @@ class Settings(BaseSettings):
         description="为 True 时启动时按 ORM 元数据补建缺表；生产建议 False 并仅用 Alembic。",
         validation_alias=AliasChoices("AUTO_CREATE_TABLES", "auto_create_tables"),
     )
+    ai_http_connect_timeout: float = Field(
+        default=10.0,
+        description="AI 上游 HTTP 连接超时（秒）。",
+        validation_alias=AliasChoices("AI_HTTP_CONNECT_TIMEOUT", "ai_http_connect_timeout"),
+    )
+    ai_http_read_timeout: float = Field(
+        default=120.0,
+        description="AI 上游 HTTP 读超时（秒）。",
+        validation_alias=AliasChoices("AI_HTTP_READ_TIMEOUT", "ai_http_read_timeout"),
+    )
+    ai_retry_max_attempts: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="可重试错误（超时、连接失败、429、503）的最大尝试次数。",
+        validation_alias=AliasChoices("AI_RETRY_MAX_ATTEMPTS", "ai_retry_max_attempts"),
+    )
 
 
 settings = Settings()

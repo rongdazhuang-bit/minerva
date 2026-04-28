@@ -394,7 +394,7 @@ export function OcrSettingsPage() {
             dataSource={items}
             pagination={false}
             size="middle"
-            className="minerva-ocr-settings__table"
+            className="minerva-card-table-scroll-ocr minerva-ocr-settings__table"
             scroll={{ x: true, y: 'calc(100dvh - 320px)' }}
             sticky
           />
