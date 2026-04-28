@@ -6,7 +6,8 @@ from collections.abc import Sequence
 from sqlalchemy import and_, func, nulls_last, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.sys.rule.domain.db.models import RuleBase
+from app.rule.domain.db.models import RuleBase
+from app.rule.domain.scope_triple import scope_triple_filter_conditions
 
 
 def _list_filters(
@@ -17,15 +18,15 @@ def _list_filters(
     subject_code: str | None,
     document_type: str | None,
 ) -> list:
-    conds: list = [RuleBase.workspace_id == workspace_id]
+    conds: list = scope_triple_filter_conditions(
+        RuleBase,
+        workspace_id,
+        engineering_code,
+        subject_code,
+        document_type,
+    )
     if status is not None:
         conds.append(RuleBase.status == status)
-    if engineering_code is not None:
-        conds.append(RuleBase.engineering_code == engineering_code)
-    if subject_code is not None:
-        conds.append(RuleBase.subject_code == subject_code)
-    if document_type is not None:
-        conds.append(RuleBase.document_type == document_type)
     return conds
 
 
@@ -114,3 +115,35 @@ async def delete_for_workspace(
         return False
     await session.delete(row)
     return True
+
+
+async def overview_stats_for_workspace(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+) -> tuple[int, list[str], list[str], list[str]]:
+    """规则总数；三列 trim 后非空的 distinct code，按 trim 值升序。"""
+    base_ws = RuleBase.workspace_id == workspace_id
+    rc = await session.execute(
+        select(func.count()).select_from(RuleBase).where(base_ws)
+    )
+    rule_count = int(rc.scalar_one() or 0)
+
+    async def _distinct_trimmed(column) -> list[str]:
+        stmt = (
+            select(func.trim(column))
+            .where(
+                base_ws,
+                column.isnot(None),
+                func.trim(column) != "",
+            )
+            .distinct()
+            .order_by(func.trim(column))
+        )
+        rows = await session.execute(stmt)
+        return [row[0] for row in rows.all()]
+
+    engineering_codes = await _distinct_trimmed(RuleBase.engineering_code)
+    subject_codes = await _distinct_trimmed(RuleBase.subject_code)
+    document_type_codes = await _distinct_trimmed(RuleBase.document_type)
+    return rule_count, engineering_codes, subject_codes, document_type_codes

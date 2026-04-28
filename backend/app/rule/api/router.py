@@ -10,16 +10,17 @@ from app.api.deps import get_current_user, require_workspace_member
 from app.dependencies import get_db
 from app.domain.identity.models import User
 from app.pagination import DEFAULT_PAGE_SIZE
-from app.sys.rule.api.schemas import (
+from app.rule.api.schemas import (
     RuleBaseCreateIn,
     RuleBaseListItemOut,
     RuleBaseListPageOut,
+    RuleBaseOverviewStatsOut,
     RuleBasePatchIn,
     RuleBasePolishReviewRulesIn,
     RuleBasePolishReviewRulesOut,
 )
-from app.sys.rule.domain.db.models import RuleBase
-from app.sys.rule.service import rule_base_service as svc
+from app.rule.domain.db.models import RuleBase
+from app.rule.service import rule_base_service as svc
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/rule-base", tags=["rule-base"])
 
@@ -115,6 +116,27 @@ async def list_rule_base(
     )
 
 
+@router.get(
+    "/overview-stats",
+    response_model=RuleBaseOverviewStatsOut,
+)
+async def read_rule_base_overview_stats(
+    workspace_id: uuid.UUID,
+    _user: User = Depends(get_current_user),
+    _workspace: uuid.UUID = Depends(require_workspace_member),
+    session: AsyncSession = Depends(get_db),
+) -> RuleBaseOverviewStatsOut:
+    rule_count, eng, sub, doc = await svc.get_rule_base_overview_stats(
+        session, workspace_id=workspace_id
+    )
+    return RuleBaseOverviewStatsOut(
+        rule_count=rule_count,
+        engineering_codes=eng,
+        subject_codes=sub,
+        document_type_codes=doc,
+    )
+
+
 @router.post(
     "",
     response_model=RuleBaseListItemOut,
@@ -154,10 +176,16 @@ async def polish_review_rules(
     body: RuleBasePolishReviewRulesIn,
     _user: User = Depends(get_current_user),
     _workspace: uuid.UUID = Depends(require_workspace_member),
+    session: AsyncSession = Depends(get_db),
 ) -> RuleBasePolishReviewRulesOut:
-    # Placeholder until a real LLM/service integration exists.
-    src = body.review_rules.strip()
-    polished = f"[AI polish placeholder]\n{src}"
+    polished = await svc.polish_review_rules(
+        session,
+        workspace_id=workspace_id,
+        engineering_code=_strip_opt(body.engineering_code),
+        subject_code=_strip_opt(body.subject_code),
+        document_type=_strip_opt(body.document_type),
+        review_rules=body.review_rules.strip(),
+    )
     return RuleBasePolishReviewRulesOut(review_rules_ai=polished)
 
 

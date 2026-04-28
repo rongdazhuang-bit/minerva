@@ -60,8 +60,19 @@ export type ListRuleBaseParams = {
   document_type?: string
 }
 
+export type RuleBaseOverviewStats = {
+  rule_count: number
+  engineering_codes: string[]
+  subject_codes: string[]
+  document_type_codes: string[]
+}
+
 function ruleBasePath(workspaceId: string, suffix = '') {
   return `/workspaces/${workspaceId}/rule-base${suffix}`
+}
+
+export function getRuleBaseOverviewStats(workspaceId: string) {
+  return apiJson<RuleBaseOverviewStats>(ruleBasePath(workspaceId, '/overview-stats'))
 }
 
 export function listRuleBase(workspaceId: string, params?: ListRuleBaseParams) {
@@ -101,10 +112,14 @@ export function deleteRuleBase(workspaceId: string, ruleId: string) {
   })
 }
 
-export function polishReviewRules(
-  workspaceId: string,
-  body: { review_rules: string },
-) {
+export type PolishReviewRulesBody = {
+  review_rules: string
+  engineering_code?: string | null
+  subject_code?: string | null
+  document_type?: string | null
+}
+
+export function polishReviewRules(workspaceId: string, body: PolishReviewRulesBody) {
   return apiJson<{ review_rules_ai: string }>(
     ruleBasePath(workspaceId, '/polish-review-rules'),
     {

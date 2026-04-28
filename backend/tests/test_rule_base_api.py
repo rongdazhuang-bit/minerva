@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import jwt
 import pytest
@@ -65,13 +66,46 @@ async def test_rule_base_crud_and_isolation() -> None:
         assert create.json()["review_section"] == "sec"
         assert create.json().get("review_rules_ai") is None
 
-        polish = await ac.post(
-            f"/workspaces/{workspace1}/rule-base/polish-review-rules",
-            headers=h1,
-            json={"review_rules": "  raw  "},
-        )
+        mid = uuid.uuid4()
+        cfg = MagicMock()
+        cfg.model_id = mid
+        cfg.sys_prompt = "你是校审助手"
+        cfg.user_prompt = "请润色以下规则"
+        cfg.chat_memory = None
+        model = MagicMock()
+        model.model_name = "test-model"
+        model.endpoint_url = "http://127.0.0.1:9/v1"
+        model.api_key = "sk-test"
+        model.auth_type = "API_KEY"
+        model.enabled = True
+        model.max_tokens_to_sample = None
+        completion = {
+            "choices": [{"message": {"content": "  polished line  "}}],
+        }
+        with (
+            patch(
+                "app.rule.service.rule_base_service.rcp_repo.try_resolve",
+                new_callable=AsyncMock,
+                return_value=cfg,
+            ),
+            patch(
+                "app.rule.service.rule_base_service.model_svc.get_model",
+                new_callable=AsyncMock,
+                return_value=model,
+            ),
+            patch(
+                "app.rule.service.rule_base_service.chat_service.complete",
+                new_callable=AsyncMock,
+                return_value=completion,
+            ),
+        ):
+            polish = await ac.post(
+                f"/workspaces/{workspace1}/rule-base/polish-review-rules",
+                headers=h1,
+                json={"review_rules": "  raw  "},
+            )
         assert polish.status_code == 200, polish.text
-        assert polish.json()["review_rules_ai"].endswith("raw")
+        assert polish.json()["review_rules_ai"] == "polished line"
 
         patch_ai = await ac.patch(
             f"/workspaces/{workspace1}/rule-base/{rule_id}",
@@ -95,13 +129,13 @@ async def test_rule_base_crud_and_isolation() -> None:
         )
         assert not_found.status_code == 404
 
-        patch = await ac.patch(
+        patch_serial = await ac.patch(
             f"/workspaces/{workspace1}/rule-base/{rule_id}",
             headers=h1,
             json={"serial_number": "R-002"},
         )
-        assert patch.status_code == 200, patch.text
-        assert patch.json()["serial_number"] == "R-002"
+        assert patch_serial.status_code == 200, patch_serial.text
+        assert patch_serial.json()["serial_number"] == "R-002"
 
         forbidden = await ac.get(f"/workspaces/{workspace1}/rule-base", headers=h2)
         assert forbidden.status_code == 403
@@ -114,3 +148,94 @@ async def test_rule_base_crud_and_isolation() -> None:
 
         list_after = await ac.get(f"/workspaces/{workspace1}/rule-base", headers=h1)
         assert list_after.json()["total"] == 0
+
+
+@pytest.mark.asyncio
+async def test_rule_base_overview_stats() -> None:
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as ac:
+        user1_email = f"rbos-{uuid.uuid4().hex}@example.com"
+        user2_email = f"rbos2-{uuid.uuid4().hex}@example.com"
+        password = "secret1234"
+
+        reg1 = await ac.post("/auth/register", json={"email": user1_email, "password": password})
+        assert reg1.status_code == 201, reg1.text
+        token1 = reg1.json()["access_token"]
+        workspace1 = _workspace_id_from_access_token(token1)
+        h1 = {"Authorization": f"Bearer {token1}"}
+
+        reg2 = await ac.post("/auth/register", json={"email": user2_email, "password": password})
+        assert reg2.status_code == 201, reg2.text
+        token2 = reg2.json()["access_token"]
+        h2 = {"Authorization": f"Bearer {token2}"}
+
+        clear = await ac.get(
+            f"/workspaces/{workspace1}/rule-base/overview-stats", headers=h1
+        )
+        assert clear.status_code == 200, clear.text
+        assert clear.json() == {
+            "rule_count": 0,
+            "engineering_codes": [],
+            "subject_codes": [],
+            "document_type_codes": [],
+        }
+
+        def _body(**kw: object) -> dict:
+            b = {
+                "sequence_number": 1,
+                "engineering_code": None,
+                "subject_code": None,
+                "serial_number": "R",
+                "document_type": None,
+                "review_section": "sec",
+                "review_object": "obj",
+                "review_rules": "rule",
+                "review_result": "res",
+                "status": "Y",
+            }
+            b.update(kw)
+            return b
+
+        for spec in (
+            {
+                "sequence_number": 1,
+                "engineering_code": "E1",
+                "subject_code": "S1",
+                "document_type": "D1",
+            },
+            {
+                "sequence_number": 2,
+                "engineering_code": "E1",
+                "subject_code": "S1",
+                "document_type": "D1",
+            },
+            {
+                "sequence_number": 3,
+                "engineering_code": "E2",
+                "subject_code": None,
+                "document_type": None,
+            },
+        ):
+            cr = await ac.post(
+                f"/workspaces/{workspace1}/rule-base",
+                headers=h1,
+                json=_body(**spec),
+            )
+            assert cr.status_code == 201, cr.text
+
+        r = await ac.get(
+            f"/workspaces/{workspace1}/rule-base/overview-stats", headers=h1
+        )
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert data["rule_count"] == 3
+        assert data["engineering_codes"] == ["E1", "E2"]
+        assert data["subject_codes"] == ["S1"]
+        assert data["document_type_codes"] == ["D1"]
+
+        forbidden = await ac.get(
+            f"/workspaces/{workspace1}/rule-base/overview-stats", headers=h2
+        )
+        assert forbidden.status_code == 403
