@@ -1,3 +1,5 @@
+"""Workspace-level routes managing configured LLM providers and catalog models."""
+
 from __future__ import annotations
 
 import uuid

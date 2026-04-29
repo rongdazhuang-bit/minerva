@@ -1,3 +1,5 @@
+"""Business logic for hierarchical dictionaries and authorization gates."""
+
 from __future__ import annotations
 
 import uuid

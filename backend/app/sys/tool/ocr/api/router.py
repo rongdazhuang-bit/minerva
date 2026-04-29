@@ -1,3 +1,5 @@
+"""Workspace endpoints configuring OCR tool integrations."""
+
 from __future__ import annotations
 
 import uuid
@@ -21,6 +23,7 @@ from app.sys.tool.ocr.service.ocr_tool_service import (
     delete_tool,
     get_tool,
     list_tools,
+    normalize_ocr_config_from_db,
     update_tool,
 )
 
@@ -50,6 +53,7 @@ def _to_list_item(row: SysOcrTool) -> OcrToolListItemOut:
         auth_type=row.auth_type,
         user_name=row.user_name,
         remark=row.remark,
+        ocr_type=row.ocr_type,
         has_api_key=bool(row.api_key),
         has_password=bool(row.user_passwd),
         create_at=row.create_at,
@@ -68,6 +72,8 @@ def _to_detail(row: SysOcrTool) -> OcrToolDetailOut:
         user_passwd=row.user_passwd,
         api_key=row.api_key,
         remark=row.remark,
+        ocr_type=row.ocr_type,
+        ocr_config=normalize_ocr_config_from_db(row.ocr_config),
         create_at=row.create_at,
         update_at=row.update_at,
     )
@@ -84,6 +90,21 @@ def _to_patch_dict(body: OcrToolPatchIn) -> dict[str, Any]:
                 patch[key] = None
             elif isinstance(value, str):
                 patch[key] = _normalize_ocr_auth_type(value)
+            else:
+                patch[key] = value
+        elif key == "ocr_type":
+            if value is None:
+                patch[key] = None
+            elif isinstance(value, str):
+                s = value.strip()
+                patch[key] = s or None
+            else:
+                patch[key] = value
+        elif key == "ocr_config":
+            if value is None:
+                patch[key] = None
+            elif isinstance(value, dict) and not value:
+                patch[key] = None
             else:
                 patch[key] = value
         else:
@@ -110,6 +131,10 @@ async def create_ocr_tool(
     _workspace: uuid.UUID = Depends(require_workspace_member),
     session: AsyncSession = Depends(get_db),
 ) -> OcrToolDetailOut:
+    ocr_type = body.ocr_type.strip() if body.ocr_type else None
+    ocr_cfg = body.ocr_config
+    if ocr_cfg is not None and isinstance(ocr_cfg, dict) and not ocr_cfg:
+        ocr_cfg = None
     row = await create_tool(
         session,
         workspace_id=workspace_id,
@@ -120,6 +145,8 @@ async def create_ocr_tool(
         user_passwd=body.user_passwd,
         api_key=body.api_key,
         remark=body.remark,
+        ocr_type=ocr_type,
+        ocr_config=ocr_cfg,
     )
     return _to_detail(row)
 

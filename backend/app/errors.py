@@ -1,3 +1,5 @@
+"""HTTP exception handlers that normalize domain, validation, and rate-limit errors."""
+
 from __future__ import annotations
 
 from typing import Any, Literal
@@ -9,6 +11,8 @@ from pydantic_core import to_jsonable_python
 
 
 class ErrorBody(BaseModel):
+    """JSON envelope returned by API error handlers."""
+
     code: str
     message: str
     details: dict[str, Any] | None = None
@@ -16,12 +20,16 @@ class ErrorBody(BaseModel):
 
 
 def register_exception_handlers(app) -> None:
+    """Attach FastAPI handlers for ``AppError`` and ``RequestValidationError``."""
+
     from fastapi.exceptions import RequestValidationError
 
     from app.exceptions import AppError
 
     @app.exception_handler(AppError)
     async def app_error_handler(_request: Request, exc: AppError) -> JSONResponse:
+        """Serialize ``AppError`` to ``ErrorBody`` with HTTP status from the exception."""
+
         return JSONResponse(
             status_code=exc.status_code,
             content=ErrorBody(
@@ -34,6 +42,8 @@ def register_exception_handlers(app) -> None:
 
     @app.exception_handler(RequestValidationError)
     async def validation_handler(request: Request, exc: RequestValidationError):
+        """Return 422 with structured Pydantic validation issues."""
+
         return JSONResponse(
             status_code=422,
             content=ErrorBody(

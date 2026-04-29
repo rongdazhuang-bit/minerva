@@ -1,3 +1,5 @@
+"""Registers concrete ``ChatCompletionStrategy`` implementations per ``ProviderKind``."""
+
 from app.ai_api.domain.models import ProviderKind
 from app.ai_api.strategies.aliyun_placeholder import AliyunPlaceholderStrategy
 from app.ai_api.strategies.base import ChatCompletionStrategy
@@ -12,7 +14,7 @@ __all__ = [
     "get_strategy",
 ]
 
-_STRATEGIES: dict[str, ChatCompletionStrategy] = {
+_STRATEGIES: dict[str, ChatCompletionStrategy] = {  # Concrete singletons keyed by ``ProviderKind``.
     "openai_compatible": OpenAICompatibleStrategy(),
     "volcengine": VolcenginePlaceholderStrategy(),
     "aliyun": AliyunPlaceholderStrategy(),
@@ -20,6 +22,8 @@ _STRATEGIES: dict[str, ChatCompletionStrategy] = {
 
 
 def get_strategy(provider_kind: ProviderKind | str) -> ChatCompletionStrategy:
+    """Resolve strategy singleton or raise ``AppError`` when vendor unsupported."""
+
     key = provider_kind.value if isinstance(provider_kind, ProviderKind) else provider_kind
     if key not in _STRATEGIES:
         from app.exceptions import AppError

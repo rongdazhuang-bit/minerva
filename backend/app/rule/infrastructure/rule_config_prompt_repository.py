@@ -1,3 +1,5 @@
+"""Async repository helpers for ``RuleConfigPrompt`` joined with ``SysModel``."""
+
 from __future__ import annotations
 
 import uuid

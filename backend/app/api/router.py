@@ -1,3 +1,5 @@
+"""Aggregates FastAPI routers for health checks, auth, AI, rules, and system modules."""
+
 from fastapi import APIRouter
 
 from app.api.routers import auth, health, probe

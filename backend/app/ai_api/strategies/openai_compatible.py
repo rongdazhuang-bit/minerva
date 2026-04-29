@@ -1,3 +1,5 @@
+"""OpenAI-compatible ``AsyncOpenAI`` integration with structured logging."""
+
 from __future__ import annotations
 
 import logging
@@ -14,12 +16,14 @@ from app.exceptions import AppError
 
 log = logging.getLogger(__name__)
 
-# OpenAI-compatible HTTP path used by AsyncOpenAI.chat.completions.create
+# Endpoint suffix appended to user-provided base URLs for chat completions.
 _CHAT_COMPLETIONS_PATH = "/chat/completions"
 _LOG_JSON_MAX_CHARS = 100_000
 
 
 def _chat_completions_url(base_url: str) -> str:
+    """Append chat completions suffix with normalized slashes."""
+
     return base_url.rstrip("/") + _CHAT_COMPLETIONS_PATH
 
 
@@ -35,6 +39,8 @@ def _json_for_log(data: Any) -> str:
 
 
 def _completion_kwargs(params: ChatCallParams, *, stream: bool) -> dict[str, Any]:
+    """Translate ``ChatCallParams`` into kwargs accepted by ``chat.completions.create``."""
+
     kwargs: dict[str, Any] = {
         "model": params.model,
         "messages": params.messages,
@@ -48,12 +54,16 @@ def _completion_kwargs(params: ChatCallParams, *, stream: bool) -> dict[str, Any
 
 
 def _text_for_log(text: str) -> str:
+    """Truncate huge plaintext payloads intended for info logs."""
+
     if len(text) > _LOG_JSON_MAX_CHARS:
         return text[:_LOG_JSON_MAX_CHARS] + f"... [truncated, original_length={len(text)}]"
     return text
 
 
 def _log_upstream_http_error(*, url: str, exc: APIStatusError, method: str) -> None:
+    """Emit WARNING logs containing sanitized upstream HTTP bodies."""
+
     body = ""
     if exc.response is not None:
         try:
@@ -70,6 +80,8 @@ def _log_upstream_http_error(*, url: str, exc: APIStatusError, method: str) -> N
 
 
 def _client_timeout() -> Timeout:
+    """Construct ``httpx.Timeout`` from AI-related ``settings`` fields."""
+
     return Timeout(
         connect=settings.ai_http_connect_timeout,
         read=settings.ai_http_read_timeout,
@@ -79,6 +91,8 @@ def _client_timeout() -> Timeout:
 
 
 def _map_openai_error(exc: BaseException) -> AppError:
+    """Normalize upstream transport/SDK failures into stable ``AppError`` codes."""
+
     if isinstance(exc, APIStatusError):
         code = exc.status_code
         if code == 401:
@@ -106,7 +120,11 @@ def _map_openai_error(exc: BaseException) -> AppError:
 
 
 class OpenAICompatibleStrategy:
+    """Concrete strategy issuing REST chat completions against OpenAI-compatible APIs."""
+
     async def complete(self, params: ChatCallParams) -> dict[str, Any]:
+        """Perform blocking completion with structured logging."""
+
         base_url = params.base_url.rstrip("/")
         url = _chat_completions_url(base_url)
         kwargs = _completion_kwargs(params, stream=False)
@@ -146,6 +164,8 @@ class OpenAICompatibleStrategy:
             raise AppError("ai.error", "Unexpected error calling upstream.", 500) from e
 
     async def stream(self, params: ChatCallParams) -> AsyncIterator[dict[str, Any]]:
+        """Yield streamed completion chunks while summarizing traffic for logs."""
+
         base_url = params.base_url.rstrip("/")
         url = _chat_completions_url(base_url)
         kwargs = _completion_kwargs(params, stream=True)

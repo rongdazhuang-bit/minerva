@@ -1,15 +1,18 @@
 ---
 name: code-comments
 description: >-
-  Repository conventions: (1) when and how to write code comments in TypeScript/React
-  and Python; (2) backend tool modules under `app/sys/tool` with `backend/app/sys/tool/ocr` as
-  the layout template, including table scroll rules; (3) minerva-ui Ant Design forms:
-  `allowClear` on text inputs and selects, and InputNumber limitations; (4) paginated
+  Repository conventions: (1) mandatory comments on every class and method/function,
+  plus variable documentation where required; (2) full 「注释说明规则」—scope, exclusions,
+  templates, self-checklist, backlog strategy; (3) when and how to write code comments in TypeScript/React
+  and Python; (4) backend tool modules under `app/sys/tool` with `backend/app/sys/tool/ocr` as
+  the layout template, including table scroll rules; (5) minerva-ui Ant Design forms:
+  `allowClear` on text inputs and selects, and InputNumber limitations; (6) paginated
   lists: default 10 per page (shared constants in `app/pagination.py` and
   `minerva-ui/src/constants/pagination.ts`). Use when adding
   or editing comments, documenting APIs, reviewing comment quality, scaffolding
-  `app/sys/tool/<name>`, building settings/auth forms, or the user asks for
-  注释规范、工具模块目录、表单可清除、表格滚动、或分页条数.
+  `app/sys/tool/<name>`, building settings/auth forms, enforcing comment rules repo-wide,
+  or the user asks for
+  注释规范、注释说明规则、工具模块目录、表单可清除、表格滚动、或分页条数.
 ---
 
 # 代码注释规范（Minerva）
@@ -17,6 +20,96 @@ description: >-
 ## 目标
 
 用**少量、高信噪比**的注释，帮助后续阅读者理解**意图、约束与副作用**；不把注释当成第二份实现说明。
+
+## 硬性规则（必须遵守）
+
+以下为本仓库对 Agent 与人工提交的**最低文档要求**；与下文「什么时候写」表中「少写或省略」冲突时，以本节约束为准。
+
+| 对象 | 要求 |
+|------|------|
+| **类** | 每个类须有注释：Python 使用类 docstring `"""..."""`；TypeScript/React 使用块注释 `/** ... */` 或等价形式，说明职责、边界或与父类/接口的关系。 |
+| **方法 / 函数** | 每个方法及模块级函数须有注释（含 `private` / 以下划线开头的 Python 方法）：说明用途；若有参数或返回值且类型不足以表达契约，须写明含义或非显而易见的副作用。 |
+| **变量说明** | **模块级常量**、**类属性（含 React `useState` 等持久状态若语义非字面可得）**须有简短说明（声明旁单行或类 docstring 中的字段列表）。**局部变量**：业务含义、单位、枚举语义或读者无法从右侧表达式一眼读出的命名须有行尾或紧邻注释；纯惯例短名（如循环 `i`、`idx`、临时 `tmp`）若上下文已足够清晰可省略。 |
+
+违反上述硬性规则的变更应在合并前补齐；审查评论质量时仍适用下文「风格」与「什么时候写」中的高信噪比原则——**Mandatory does not mean boilerplate**：禁止复制标识符英文译文凑行数。
+
+## 注释说明规则（完整，可直接交付对照）
+
+本节把「写什么、写在哪、哪些豁免」写成可执行的条文；硬性粒度仍以一节为准。
+
+### 适用范围（必须做注释的代码）
+
+| 区域 | 路径模式 | 说明 |
+|------|-----------|------|
+| 后端应用 | `backend/app/**/*.py` | 业务与基础设施 Python 源码。 |
+| 前端应用 | `minerva-ui/src/**/*.{ts,tsx}` | 页面、组件、hooks、API 封装等。 |
+
+**不在此范围**：`node_modules/`、`dist/`、`__pycache__/`、锁文件、纯二进制；**测试代码**建议同等对待，但不与本 Skill 的「工具模块」条款混为一谈。
+
+### 豁免或从简（仍须在 PR 中交代）
+
+| 情形 | 做法 |
+|------|------|
+| `minerva-ui/src/vite-env.d.ts` | 保留 `/// <reference types="vite/client" />` 等三斜杠指令即可；无需为每个 `ImportMeta` 字段重复作文档 unless 自定义扩展。 |
+| 纯 barrel `index.ts` / `index.ts` 仅 `export * from "./x"` | 模块顶部 **一行** `/** Re-exports ... */` 或等价注释即可，不要求对每个再导出逐一注解（导出目标的注释在原文件）。 |
+| Python **仅** 空白、`from pkg import mod` 的 `__init__.py` | 单行 docstring：`"""Exports public symbols for package `<qualified name>`."""` 或说明留白 intentionally empty（若团队约定保留空文件）。 |
+| SQL / Alembic 迁移 | 以分段 `--` 注释为主；不按「类/方法 docstring」句式强求。 |
+
+### 写法模板（复制再改成真话）
+
+**Python 模块（文件前几行内的第一段字面量字符串，或与 PEP 236 相容的布局）**
+
+```python
+"""One line: what this module owns (routers, settings, tokens, …)."""
+
+from __future__ import annotations
+```
+
+若先有 `from __future__`，则模块 docstring 为其下一语句亦可。
+
+**Python 类 / 函数**
+
+```python
+class Foo:
+    """Role of this aggregate / SQLAlchemy model / schema."""
+
+    def bar(self, x: int) -> str:
+        """Turn ``x`` into … ; raises … when …"""
+```
+
+**Python 模块级名绑定**
+
+```python
+# Stable JWT signing algorithm for access and refresh tokens.
+_ALGO = "HS256"
+```
+
+**TypeScript 导出函数 / 组件**
+
+```tsx
+/** Renders workspace overview metrics and shortcuts. */
+export function OverviewPage() { ... }
+```
+
+**TS 常量 / 配置**
+
+```ts
+/** Axios/React Query defaults shared by API modules. */
+export const queryClient = ...
+```
+
+### 自检清单（合并 / Agent 收尾）
+
+1. **模块**：`backend/app` 下每个 `.py` 有可被发现的中文或英文模块 docstring（`"""…"""`）；TS/TSX 文件有可读的顶层块注释说明文件职责（单行即可）。
+2. **类 / def**：均有注释；嵌套路由内层函数若为 Handler closure（如 `register_exception_handlers` 内）也需简要说明响应契约。
+3. **变量**：模块常量、`settings`-级别以外的 `_FOO` 若要全局可读须有注释（见硬性规则）。
+4. **一致性**：注释语种与本 Skill「语言」节一致；不粘贴过时实现的复述。
+
+### 存量代码补齐策略（全仓统一补注释时）
+
+- **增量**：凡触碰的文件顺带补齐缺注释的顶层符号（不要求在同 PR 改无关文件，但若改动已过红线则应补齐）。
+- **专项**：按子树分批（例如 `app/rule`、`minerva-ui/src/features/rules`）提交，便于评审。
+- **自动化**：可选自建脚本 AST 扫模块 docstring、或 ESLint `jsdoc/require-jsdoc` 仅对新代码启用——不在此 Skill 固定命令名，以免与仓库演进脱节。
 
 ## 语言
 
@@ -36,6 +129,7 @@ description: >-
 
 ## TypeScript / React
 
+- **硬性规则落地**：每个 **class**、每个函数（含 **函数组件**、`export const Foo = () => …`、类方法与模块顶层函数）须有注释；见上文「硬性规则」节。
 - 对 **`export` 的函数/常量**：若行为非一目了然，用 **1～3 行**块注释或简短 JSDoc（`@param` 仅当类型不足以表达时）。
 - **Hooks**：在 `useEffect`/`useLayoutEffect` 中注明**依赖项含义**与**与 DOM/布局相关的顺序**（先同步 class 再持久化等）。
 - **与全局样式联动**：若依赖 `document.documentElement` 的 class 或 `index.css` 变量，在 **单一同步函数**处集中说明，避免在多处散写。
@@ -57,6 +151,7 @@ description: >-
 
 ## Python
 
+- **硬性规则落地**：每个 **class**、每个 **def**（含 `_` 前缀私有方法）须有 docstring 或紧邻块注释；模块级变量与类属性须有说明（见「硬性规则」节）。
 - **模块级**：`"""` 一段说明职责与主要入口（2～4 行内）。
 - **公开 service 函数**（`async def` 被 router 或其它包调用）：一句说明返回语义；复杂时补充 **Raises** 或关键步骤（事务边界、`commit` 时机）。
 
@@ -67,7 +162,8 @@ description: >-
 
 ## 与 Agent 的约定
 
-- 为现有代码**补注释**时：优先**入口、持久化、事件、与 CSS 联动**等读者易漏的点；不批量给每个私有函数加模板注释。
+- **硬性规则**：新建或修改的类、方法、须说明的变量必须符合上文「硬性规则」节；不得留下无注释的新增类/方法。
+- 为现有代码**补注释**时：在遵守硬性规则前提下，优先**入口、持久化、事件、与 CSS 联动**等读者易漏的点；注释仍须简洁，避免空洞模板句。
 - 新功能合入时：随 PR 带上的注释应**经得起删**：若实现改了，这段注释是否仍真；过时注释优先改或删。
 
 ---

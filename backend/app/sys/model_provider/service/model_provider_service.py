@@ -1,3 +1,5 @@
+"""Coordinates catalog providers/models with workspace-specific defaults."""
+
 from __future__ import annotations
 
 import uuid

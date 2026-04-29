@@ -1,3 +1,5 @@
+"""Authentication routes: signup, login, and refresh-token rotation."""
+
 from __future__ import annotations
 
 import uuid
@@ -34,20 +36,28 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 class RegisterIn(BaseModel):
+    """Credential payload for ``POST /auth/register``."""
+
     email: EmailStr
     password: str = Field(min_length=8, max_length=200)
 
 
 class LoginIn(BaseModel):
+    """Credential payload for ``POST /auth/login``."""
+
     email: EmailStr
     password: str
 
 
 class RefreshIn(BaseModel):
+    """Opaque refresh token body for ``POST /auth/refresh``."""
+
     refresh_token: str
 
 
 class TokenOut(BaseModel):
+    """Bearer pair returned after successful auth."""
+
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
@@ -60,6 +70,8 @@ async def _issue_tokens(
     tenant_id: uuid.UUID,
     workspace_id: uuid.UUID,
 ) -> tuple[TokenOut, uuid.UUID]:
+    """Create access/refresh tokens after validating workspace membership."""
+
     jti = uuid.uuid4()
     r = await session.execute(
         select(WorkspaceMembership.role).where(
@@ -88,6 +100,8 @@ async def _issue_tokens(
 
 @router.post("/register", response_model=TokenOut, status_code=201)
 async def register(body: RegisterIn, session: AsyncSession = Depends(get_db)) -> TokenOut:
+    """Register a user and return freshly minted bearer tokens."""
+
     r = await register_user(session, email=body.email, password=body.password)
     out, jti = await _issue_tokens(
         session,
@@ -101,6 +115,8 @@ async def register(body: RegisterIn, session: AsyncSession = Depends(get_db)) ->
 
 @router.post("/login", response_model=TokenOut)
 async def login(body: LoginIn, session: AsyncSession = Depends(get_db)) -> TokenOut:
+    """Authenticate existing credentials and persist a new refresh row."""
+
     out = await authenticate_user(session, email=body.email, password=body.password)
     if out is None:
         raise AppError("auth.invalid_credentials", "Invalid email or password", 401)
@@ -117,6 +133,8 @@ async def login(body: LoginIn, session: AsyncSession = Depends(get_db)) -> Token
 
 @router.post("/refresh", response_model=TokenOut)
 async def refresh(body: RefreshIn, session: AsyncSession = Depends(get_db)) -> TokenOut:
+    """Rotate refresh token after validating stored row and workspace membership."""
+
     try:
         payload = decode_token(body.refresh_token)
     except jwt.PyJWTError as e:

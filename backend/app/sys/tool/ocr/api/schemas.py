@@ -1,7 +1,11 @@
+"""Request/response schemas for OCR tool CRUD."""
+
 from __future__ import annotations
 
 import uuid
 from datetime import datetime
+
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -14,6 +18,8 @@ class OcrToolCreateIn(BaseModel):
     user_passwd: str | None = Field(default=None, max_length=128)
     api_key: str | None = Field(default=None, max_length=128)
     remark: str | None = Field(default=None, max_length=128)
+    ocr_type: str | None = Field(default=None, max_length=64)
+    ocr_config: dict[str, Any] | None = None
 
 
 class OcrToolPatchIn(BaseModel):
@@ -24,6 +30,8 @@ class OcrToolPatchIn(BaseModel):
     user_passwd: str | None = Field(default=None, max_length=128)
     api_key: str | None = Field(default=None, max_length=128)
     remark: str | None = Field(default=None, max_length=128)
+    ocr_type: str | None = Field(default=None, max_length=64)
+    ocr_config: dict[str, Any] | None = None
 
 
 class OcrToolListItemOut(BaseModel):
@@ -33,6 +41,7 @@ class OcrToolListItemOut(BaseModel):
     auth_type: str | None
     user_name: str | None
     remark: str | None
+    ocr_type: str | None
     has_api_key: bool
     has_password: bool
     create_at: datetime | None
@@ -49,5 +58,7 @@ class OcrToolDetailOut(BaseModel):
     user_passwd: str | None
     api_key: str | None
     remark: str | None
+    ocr_type: str | None
+    ocr_config: dict[str, Any] | None = None
     create_at: datetime | None
     update_at: datetime | None

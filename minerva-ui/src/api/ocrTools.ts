@@ -7,6 +7,7 @@ export type OcrToolListItem = {
   auth_type: string | null
   user_name: string | null
   remark: string | null
+  ocr_type: string | null
   has_api_key: boolean
   has_password: boolean
   create_at: string | null
@@ -23,6 +24,8 @@ export type OcrToolDetail = {
   user_passwd: string | null
   api_key: string | null
   remark: string | null
+  ocr_type: string | null
+  ocr_config: Record<string, unknown> | null
   create_at: string | null
   update_at: string | null
 }
@@ -35,6 +38,8 @@ export type OcrToolCreateBody = {
   user_passwd?: string | null
   api_key?: string | null
   remark?: string | null
+  ocr_type?: string | null
+  ocr_config?: Record<string, unknown> | null
 }
 
 export type OcrToolPatchBody = Partial<{
@@ -45,6 +50,8 @@ export type OcrToolPatchBody = Partial<{
   user_passwd: string | null
   api_key: string | null
   remark: string | null
+  ocr_type: string | null
+  ocr_config: Record<string, unknown> | null
 }>
 
 export function listOcrTools(workspaceId: string) {

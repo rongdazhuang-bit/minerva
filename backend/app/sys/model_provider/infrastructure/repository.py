@@ -1,3 +1,5 @@
+"""Lightweight queries listing catalog ``SysModel`` rows."""
+
 from __future__ import annotations
 
 import uuid

@@ -1,3 +1,5 @@
+"""Pydantic request shapes exposed by ``ai_api`` routers."""
+
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
@@ -6,6 +8,8 @@ from app.ai_api.domain.models import ProviderKind
 
 
 class ChatMessageIn(BaseModel):
+    """Inbound chat message tuple mirroring OpenAI chat payloads."""
+
     role: str
     content: str
 

@@ -1,3 +1,5 @@
+/** Bootstrap React root with global providers and routing tree. */
+
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { AppRouter } from '@/app/router'

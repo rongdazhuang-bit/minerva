@@ -94,6 +94,8 @@ CREATE TABLE IF NOT EXISTS public.sys_ocr_tool (
   user_passwd VARCHAR(128) NULL,
   api_key VARCHAR(128) NULL,
   remark VARCHAR(128) NULL,
+  ocr_type VARCHAR(64) NULL,
+  ocr_config JSONB NULL,
   create_at TIMESTAMPTZ NULL DEFAULT now(),
   update_at TIMESTAMPTZ NULL,
   CONSTRAINT sys_ocr_tool_pk PRIMARY KEY (id),
@@ -110,6 +112,8 @@ COMMENT ON COLUMN public.sys_ocr_tool.user_name IS '账号';
 COMMENT ON COLUMN public.sys_ocr_tool.user_passwd IS '密码';
 COMMENT ON COLUMN public.sys_ocr_tool.api_key IS 'api key';
 COMMENT ON COLUMN public.sys_ocr_tool.remark IS '备注';
+COMMENT ON COLUMN public.sys_ocr_tool.ocr_type IS 'OCR引擎类型字典项编码（如 dict_code=TOOL_OCR）';
+COMMENT ON COLUMN public.sys_ocr_tool.ocr_config IS 'OCR调用扩展参数JSON（键名与接口一致）';
 COMMENT ON COLUMN public.sys_ocr_tool.create_at IS '创建日期';
 COMMENT ON COLUMN public.sys_ocr_tool.update_at IS '更新日期';
 
@@ -275,3 +279,28 @@ COMMENT ON COLUMN public.rule_config_prompt.user_prompt IS '用户提示词';
 COMMENT ON COLUMN public.rule_config_prompt.chat_memory IS '对话记忆';
 COMMENT ON COLUMN public.rule_config_prompt.create_at IS '创建时间';
 COMMENT ON COLUMN public.rule_config_prompt.update_at IS '更新时间';
+
+CREATE TABLE public.sys_store (
+    id uuid NOT NULL,
+    "name" varchar(32) NULL,
+    "type" varchar(16) NULL,
+    enabled bool DEFAULT true NOT NULL,
+    auth_type varchar(64) NOT NULL,
+    endpoint_url varchar(128) NULL,
+    api_key varchar(128) NULL,
+    auth_name varchar(64) NULL,
+    auth_passwd varchar(128) NULL,
+    create_at timestamptz NULL,
+    update_at timestamptz NULL,
+    CONSTRAINT sys_store_pk PRIMARY KEY (id)
+);COMMENT ON TABLE public.sys_store IS '文件存储';
+COMMENT ON COLUMN public.sys_store."name" IS '名称';
+COMMENT ON COLUMN public.sys_store.enabled IS '状态';
+COMMENT ON COLUMN public.sys_store.auth_type IS '认证方式';
+COMMENT ON COLUMN public.sys_store.endpoint_url IS '地址';
+COMMENT ON COLUMN public.sys_store.api_key IS 'api key';
+COMMENT ON COLUMN public.sys_store.auth_name IS '账号';
+COMMENT ON COLUMN public.sys_store.auth_passwd IS '密码';
+COMMENT ON COLUMN public.sys_store."type" IS '存储类型';
+COMMENT ON COLUMN public.sys_store.create_at IS '创建时间';
+COMMENT ON COLUMN public.sys_store.update_at IS '更新时间';

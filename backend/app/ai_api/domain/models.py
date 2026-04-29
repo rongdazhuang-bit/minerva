@@ -1,3 +1,5 @@
+"""Domain primitives shared between AI strategies and HTTP schemas."""
+
 from __future__ import annotations
 
 from enum import Enum
@@ -6,6 +8,8 @@ from pydantic import BaseModel, Field
 
 
 class ProviderKind(str, Enum):
+    """Upstream vendor discriminator stored on HTTP requests."""
+
     openai_compatible = "openai_compatible"
     volcengine = "volcengine"
     aliyun = "aliyun"

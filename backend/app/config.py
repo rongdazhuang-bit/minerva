@@ -1,3 +1,5 @@
+"""Application settings: env vars, merged dotenv files, and typed defaults."""
+
 from __future__ import annotations
 
 import os
@@ -6,7 +8,7 @@ from pathlib import Path
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-_BACKEND_DIR = Path(__file__).resolve().parent.parent
+_BACKEND_DIR = Path(__file__).resolve().parent.parent  # backend/ root (parent of app/)
 
 
 def _discover_app_env() -> str:
@@ -44,6 +46,8 @@ _APP_ENV = _discover_app_env()
 
 
 class Settings(BaseSettings):
+    """Pydantic-settings model for database URLs, JWT, AI timeouts, and feature flags."""
+
     model_config = SettingsConfigDict(
         env_file=_env_file_paths(),
         env_file_encoding="utf-8",
@@ -93,4 +97,5 @@ class Settings(BaseSettings):
     )
 
 
+# Singleton loaded at import time for ``from app.config import settings``.
 settings = Settings()

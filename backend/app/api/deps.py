@@ -1,3 +1,5 @@
+"""Dependency helpers for JWT bearer auth and workspace authorization gates."""
+
 from __future__ import annotations
 
 import uuid
@@ -13,6 +15,7 @@ from app.domain.identity.services import find_workspace_for_user, find_workspace
 from app.exceptions import AppError
 from app.infrastructure.security.jwt_tokens import decode_token
 
+# Optional Bearer extractor so routes can return 401 instead of FastAPI's default 403 when absent.
 bearer = HTTPBearer(auto_error=False)
 
 
@@ -20,6 +23,8 @@ async def get_current_user(
     cred: HTTPAuthorizationCredentials | None = Depends(bearer),
     session: AsyncSession = Depends(get_db),
 ) -> User:
+    """Resolve the signed-in user from an access JWT or raise ``AppError``."""
+
     if cred is None or cred.scheme.lower() != "bearer":
         raise AppError("auth.missing_token", "Authorization Bearer token required", 401)
     try:
@@ -51,6 +56,8 @@ async def require_workspace_owner_or_admin(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> uuid.UUID:
+    """Ensure ``user`` is owner or admin in ``workspace_id``."""
+
     role = await find_workspace_role_for_user(
         session, user_id=user.id, workspace_id=workspace_id
     )

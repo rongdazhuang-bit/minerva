@@ -1,3 +1,5 @@
+"""Orchestrates AI completions with retries and SSE-friendly streaming."""
+
 from __future__ import annotations
 
 import asyncio
@@ -14,7 +16,7 @@ from app.exceptions import AppError
 
 log = logging.getLogger(__name__)
 
-_RETRIABLE_CODES = frozenset(
+_RETRIABLE_CODES = frozenset(  # ``AppError`` codes eligible for exponential backoff retries.
     {
         "ai.upstream.rate_limited",
         "ai.upstream.timeout",
@@ -31,6 +33,8 @@ def build_openai_messages(
     user_prompt: str | None,
     messages: list[ChatMessage],
 ) -> list[dict[str, str]]:
+    """Flatten prompts into OpenAI-compatible role/content chat arrays."""
+
     out: list[dict[str, str]] = []
     if system_prompt is not None and system_prompt != "":
         out.append({"role": "system", "content": system_prompt})
@@ -42,6 +46,8 @@ def build_openai_messages(
 
 
 class ChatService:
+    """Facade delegating to provider strategies with retry/backoff."""
+
     async def complete(
         self,
         *,
@@ -55,6 +61,8 @@ class ChatService:
         temperature: float | None = None,
         max_tokens: int | None = None,
     ) -> dict[str, Any]:
+        """Perform non-streaming completion via configured strategy."""
+
         strategy = get_strategy(provider_kind)
         params = ChatCallParams(
             base_url=base_url,
@@ -101,6 +109,8 @@ class ChatService:
         temperature: float | None = None,
         max_tokens: int | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
+        """Yield upstream chunks from streaming-capable strategies."""
+
         strategy = get_strategy(provider_kind)
         params = ChatCallParams(
             base_url=base_url,
@@ -130,6 +140,8 @@ class ChatService:
         temperature: float | None = None,
         max_tokens: int | None = None,
     ) -> AsyncIterator[bytes]:
+        """Emit SSE-formatted ``data:`` lines ending with ``[DONE]``."""
+
         async for chunk in self.stream_chunks(
             provider_kind=provider_kind,
             base_url=base_url,
@@ -146,4 +158,4 @@ class ChatService:
         yield b"data: [DONE]\n\n"
 
 
-chat_service = ChatService()
+chat_service = ChatService()  # Shared singleton used by FastAPI routers.

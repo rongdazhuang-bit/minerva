@@ -1,3 +1,5 @@
+"""Workspace-scoped AI chat completions with optional SSE streaming."""
+
 from __future__ import annotations
 
 import uuid
@@ -19,6 +21,8 @@ router = APIRouter(
 
 
 def _to_chat_messages(body: ChatCompletionRequest) -> list[ChatMessage]:
+    """Map inbound payload messages into domain ``ChatMessage`` rows."""
+
     return [ChatMessage(role=m.role, content=m.content) for m in body.messages]
 
 
@@ -29,6 +33,8 @@ async def create_chat_completion(
     _user: User = Depends(get_current_user),
     _workspace: uuid.UUID = Depends(require_workspace_member),
 ) -> dict[str, Any] | StreamingResponse:
+    """Proxy unified chat completion to providers with optional streaming."""
+
     msgs = _to_chat_messages(body)
     if body.stream:
         return StreamingResponse(

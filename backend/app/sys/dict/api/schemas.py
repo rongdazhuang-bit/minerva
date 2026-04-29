@@ -1,3 +1,5 @@
+"""Pydantic contracts for system dictionaries and hierarchical items."""
+
 from __future__ import annotations
 
 import uuid

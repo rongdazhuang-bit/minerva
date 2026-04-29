@@ -12,6 +12,7 @@ import {
   Space,
   Spin,
   Table,
+  Tabs,
   Typography,
   message,
 } from 'antd'
@@ -32,6 +33,23 @@ import {
 } from '@/api/ocrTools'
 import { useAuth } from '@/app/AuthContext'
 import {
+  MineruOcrParamsFields,
+  OcrToolParamsTabs,
+  PaddleOcrParamsFields,
+} from './PaddleOcrParamsTab'
+import {
+  MINERU_OCR_TYPE_CODE,
+  defaultMineruFormValues,
+  mineruFormValuesToOcrConfig,
+  ocrConfigToMineruFormValues,
+} from './mineruParams'
+import {
+  defaultPaddleFormValues,
+  ocrConfigToPaddleFormValues,
+  paddleFormValuesToOcrConfig,
+  PADDLE_OCR_TYPE_CODE,
+} from './paddleOcrParams'
+import {
   OCR_AUTH_API_KEY,
   OCR_AUTH_BASIC,
   OCR_AUTH_NONE,
@@ -48,6 +66,9 @@ const { Paragraph } = Typography
 /** 数据字典中 OCR 认证方式的字典编码（与「数据字典」菜单中的 dict_code 一致）。 */
 const AUTH_TYPE_DICT_CODE = 'AUTH_TYPE'
 
+/** OCR 引擎类型（如 Paddle），字典编码 TOOL_OCR。 */
+const OCR_TYPE_DICT_CODE = 'TOOL_OCR'
+
 type OcrFormValues = {
   name: string
   url: string
@@ -56,6 +77,11 @@ type OcrFormValues = {
   user_passwd?: string
   api_key?: string
   remark?: string
+  ocr_type?: string
+  /** Nested Paddle option inputs; serialized into `ocr_config` when type is PADDLE_OCR. */
+  paddle?: Record<string, unknown>
+  /** MinerU option inputs; serialized into `ocr_config` when type is MINERU. */
+  mineru?: Record<string, unknown>
 }
 
 function sortDictItems(items: SysDictItem[]) {
@@ -77,11 +103,15 @@ export function OcrSettingsPage() {
   const authDictQ = useDictItemTree(AUTH_TYPE_DICT_CODE)
   const authItems = useMemo(() => authDictQ.data?.flat ?? [], [authDictQ.data])
   const authDictLoading = authDictQ.isLoading
+  const ocrTypeDictQ = useDictItemTree(OCR_TYPE_DICT_CODE)
+  const ocrTypeItems = useMemo(() => ocrTypeDictQ.data?.flat ?? [], [ocrTypeDictQ.data])
+  const ocrTypeDictLoading = ocrTypeDictQ.isLoading
   const [viewOpen, setViewOpen] = useState(false)
   const [viewLoading, setViewLoading] = useState(false)
   const [viewDetail, setViewDetail] = useState<OcrToolDetail | null>(null)
 
   const watchedAuthType = Form.useWatch('auth_type', form)
+  const watchedOcrType = Form.useWatch('ocr_type', form) as string | undefined
   const legacy = useMemo(() => readOcrSettings(), [])
   const canImportLegacy = legacy.mode === 'http' && legacy.baseUrl.trim().length > 0
 
@@ -116,6 +146,27 @@ export function OcrSettingsPage() {
     return m
   }, [authItems, t])
 
+  const ocrTypeLabelByCode = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const i of sortDictItems(ocrTypeItems)) {
+      m.set(i.code, i.name)
+    }
+    return m
+  }, [ocrTypeItems])
+
+  const ocrTypeSelectOptions = useMemo(() => {
+    const sorted = sortDictItems(ocrTypeItems)
+    if (sorted.length > 0) {
+      return sorted.map((i) => ({ value: i.code, label: i.name }))
+    }
+    return [{ value: PADDLE_OCR_TYPE_CODE, label: t('settings.ocrToolsOcrTypePaddleFallback') }]
+  }, [ocrTypeItems, t])
+
+  const resolveOcrTypeLabel = (code: string | null | undefined) => {
+    if (code == null || code === '') return '—'
+    return ocrTypeLabelByCode.get(code) ?? code
+  }
+
   const authSelectOptions = useMemo(() => {
     if (!open) return baseAuthSelectOptions
     const cur = watchedAuthType
@@ -124,6 +175,15 @@ export function OcrSettingsPage() {
     }
     return baseAuthSelectOptions
   }, [baseAuthSelectOptions, open, watchedAuthType])
+
+  const ocrTypeSelectOptionsWithCurrent = useMemo(() => {
+    if (!open) return ocrTypeSelectOptions
+    const cur = watchedOcrType
+    if (cur != null && cur !== '' && !ocrTypeSelectOptions.some((o) => o.value === cur)) {
+      return [...ocrTypeSelectOptions, { value: cur, label: cur }]
+    }
+    return ocrTypeSelectOptions
+  }, [ocrTypeSelectOptions, open, watchedOcrType])
 
   const load = useCallback(async () => {
     if (!workspaceId) return
@@ -209,6 +269,14 @@ export function OcrSettingsPage() {
       ellipsis: true,
     },
     {
+      title: t('settings.ocrToolsOcrType'),
+      dataIndex: 'ocr_type',
+      key: 'ocr_type',
+      width: 140,
+      ellipsis: true,
+      render: (value: string | null) => resolveOcrTypeLabel(value),
+    },
+    {
       title: t('settings.ocrToolsUrl'),
       dataIndex: 'url',
       key: 'url',
@@ -267,6 +335,11 @@ export function OcrSettingsPage() {
   const openCreate = () => {
     setEditingId(null)
     form.resetFields()
+    form.setFieldsValue({
+      ocr_type: PADDLE_OCR_TYPE_CODE,
+      paddle: defaultPaddleFormValues(),
+      mineru: defaultMineruFormValues(),
+    })
     setOpen(true)
   }
 
@@ -287,6 +360,9 @@ export function OcrSettingsPage() {
         user_passwd: detail.user_passwd ?? '',
         api_key: detail.api_key ?? '',
         remark: detail.remark ?? '',
+        ocr_type: detail.ocr_type?.trim() || PADDLE_OCR_TYPE_CODE,
+        paddle: ocrConfigToPaddleFormValues(detail.ocr_config ?? undefined),
+        mineru: ocrConfigToMineruFormValues(detail.ocr_config ?? undefined),
       })
       setOpen(true)
     } catch {
@@ -299,6 +375,13 @@ export function OcrSettingsPage() {
   const buildPayload = (values: OcrFormValues): OcrToolCreateBody => {
     const raw = values.auth_type ?? ''
     const authTypeStored = canonicalOcrAuthType(raw) || null
+    const ocrType = values.ocr_type?.trim() || null
+    let ocr_config: Record<string, unknown> | null = null
+    if (ocrType === PADDLE_OCR_TYPE_CODE) {
+      ocr_config = paddleFormValuesToOcrConfig(values.paddle) ?? null
+    } else if (ocrType === MINERU_OCR_TYPE_CODE) {
+      ocr_config = mineruFormValuesToOcrConfig(values.mineru) ?? null
+    }
     return {
       name: values.name.trim(),
       url: values.url.trim(),
@@ -307,12 +390,24 @@ export function OcrSettingsPage() {
       user_passwd: isOcrBasicAuth(raw) ? values.user_passwd?.trim() || null : null,
       api_key: isOcrApiKeyAuth(raw) ? values.api_key?.trim() || null : null,
       remark: values.remark?.trim() || null,
+      ocr_type: ocrType,
+      ocr_config,
     }
   }
 
   const onSubmit = async (values: OcrFormValues) => {
     if (!workspaceId) return
-    const payload = buildPayload(values)
+    let payload: OcrToolCreateBody
+    try {
+      payload = buildPayload(values)
+    } catch (e) {
+      if (e instanceof Error && e.message.startsWith('invalid_json:')) {
+        const field = e.message.slice('invalid_json:'.length)
+        void message.error(t('settings.ocrPaddleInvalidJson', { field }))
+        return
+      }
+      throw e
+    }
     setSubmitting(true)
     try {
       if (editingId) {
@@ -351,6 +446,7 @@ export function OcrSettingsPage() {
         auth_type: legacy.apiKey.trim() ? OCR_AUTH_API_KEY : OCR_AUTH_NONE,
         api_key: legacy.apiKey.trim() || null,
         remark: t('settings.ocrImportRemark'),
+        ocr_type: PADDLE_OCR_TYPE_CODE,
       })
       clearOcrSettings()
       void message.success(t('settings.ocrImportDone'))
@@ -403,7 +499,7 @@ export function OcrSettingsPage() {
 
       <Drawer
         title={editingId ? t('settings.ocrToolsEdit') : t('settings.ocrToolsAdd')}
-        width={640}
+        width={920}
         placement="right"
         open={open}
         onClose={() => setOpen(false)}
@@ -419,6 +515,18 @@ export function OcrSettingsPage() {
         }
       >
         <Form form={form} layout="vertical" onFinish={(values) => void onSubmit(values)}>
+          <Form.Item
+            name="ocr_type"
+            label={t('settings.ocrToolsOcrType')}
+            rules={[{ required: true, message: t('settings.ocrToolsOcrTypeRequired') }]}
+          >
+            <Select
+              loading={ocrTypeDictLoading}
+              options={ocrTypeSelectOptionsWithCurrent}
+              optionFilterProp="label"
+              showSearch
+            />
+          </Form.Item>
           <Form.Item
             name="name"
             label={t('settings.ocrToolsName')}
@@ -479,12 +587,13 @@ export function OcrSettingsPage() {
           <Form.Item name="remark" label={t('settings.ocrToolsRemark')}>
             <Input allowClear maxLength={128} />
           </Form.Item>
+          <OcrToolParamsTabs ocrType={watchedOcrType} t={t} />
         </Form>
       </Drawer>
 
       <Drawer
         title={t('settings.ocrToolsView')}
-        width={640}
+        width={920}
         placement="right"
         open={viewOpen}
         onClose={closeView}
@@ -501,6 +610,9 @@ export function OcrSettingsPage() {
               {t('settings.ocrDetailBaseSection')}
             </Typography.Title>
             <Descriptions column={1} size="small" bordered>
+              <Descriptions.Item label={t('settings.ocrToolsOcrType')}>
+                {resolveOcrTypeLabel(viewDetail.ocr_type)}
+              </Descriptions.Item>
               <Descriptions.Item label={t('settings.ocrToolsName')}>
                 {viewDetail.name}
               </Descriptions.Item>
@@ -556,6 +668,55 @@ export function OcrSettingsPage() {
                 {t('settings.ocrDetailCustomAuthHint')}
               </Typography.Paragraph>
             ) : null}
+
+            <Divider />
+            <Tabs
+              items={[
+                {
+                  key: 'params',
+                  label: t('settings.ocrParamsTab'),
+                  children:
+                    viewDetail.ocr_type === PADDLE_OCR_TYPE_CODE ? (
+                      <Form
+                        layout="vertical"
+                        disabled
+                        style={{ marginBottom: 0 }}
+                        initialValues={{
+                          paddle: ocrConfigToPaddleFormValues(viewDetail.ocr_config ?? undefined),
+                        }}
+                      >
+                        <PaddleOcrParamsFields t={t} />
+                      </Form>
+                    ) : viewDetail.ocr_type === MINERU_OCR_TYPE_CODE ? (
+                      <Form
+                        layout="vertical"
+                        disabled
+                        style={{ marginBottom: 0 }}
+                        initialValues={{
+                          mineru: ocrConfigToMineruFormValues(viewDetail.ocr_config ?? undefined),
+                        }}
+                      >
+                        <MineruOcrParamsFields t={t} />
+                      </Form>
+                    ) : viewDetail.ocr_config &&
+                      typeof viewDetail.ocr_config === 'object' &&
+                      Object.keys(viewDetail.ocr_config).length > 0 ? (
+                      <Typography.Paragraph copyable style={{ marginBottom: 0 }}>
+                        <pre
+                          className="minerva-ocr-settings__json-view"
+                          style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                        >
+                          {JSON.stringify(viewDetail.ocr_config, null, 2)}
+                        </pre>
+                      </Typography.Paragraph>
+                    ) : (
+                      <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+                        {t('settings.ocrParamsEmpty')}
+                      </Typography.Paragraph>
+                    ),
+                },
+              ]}
+            />
           </div>
         ) : null}
       </Drawer>

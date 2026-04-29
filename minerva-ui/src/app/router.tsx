@@ -1,3 +1,5 @@
+/** Declares workspace, rules, settings, and auth routes for the Minerva SPA. */
+
 import type { ReactNode } from 'react'
 import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom'
 import { AppThemedLayout } from '@/app/AppThemedLayout'

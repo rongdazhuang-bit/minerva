@@ -1,3 +1,5 @@
+"""Persisted Rule Base rows and prompt templates referencing workspace models."""
+
 from __future__ import annotations
 
 import uuid
@@ -11,6 +13,8 @@ from app.infrastructure.db.base import Base
 
 
 class RuleBase(Base):
+    """Structured engineering review checklist scoped to a workspace."""
+
     __tablename__ = "rule_base"
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -42,6 +46,8 @@ class RuleBase(Base):
 
 
 class RuleConfigPrompt(Base):
+    """Prompt trio keyed by workspace + LLM model tuple."""
+
     __tablename__ = "rule_config_prompt"
 
     id: Mapped[uuid.UUID] = mapped_column(

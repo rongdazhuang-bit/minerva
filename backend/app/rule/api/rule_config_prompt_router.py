@@ -1,3 +1,5 @@
+"""Workspace CRUD endpoints for Rule Config prompts tied to catalog models."""
+
 from __future__ import annotations
 
 import uuid
@@ -28,6 +30,8 @@ router = APIRouter(
 def _to_item(
     row: RuleConfigPrompt, provider_name: str, model_name: str
 ) -> RuleConfigPromptListItemOut:
+    """Map ORM row plus joined catalog labels into outbound schema."""
+
     return RuleConfigPromptListItemOut(
         id=row.id,
         workspace_id=row.workspace_id,
@@ -46,6 +50,8 @@ def _to_item(
 
 
 def _optional_longtext(s: str | None) -> str | None:
+    """Normalize nullable prompt blobs."""
+
     if s is None:
         return None
     t = s.strip()
@@ -53,6 +59,8 @@ def _optional_longtext(s: str | None) -> str | None:
 
 
 def _patch_from_body(body: RuleConfigPromptPatchIn) -> dict[str, Any]:
+    """Convert pydantic patch payload into SQL assignment mapping."""
+
     data = body.model_dump(exclude_unset=True)
     out: dict[str, Any] = dict(data)
     for k in ("sys_prompt", "user_prompt", "chat_memory"):
@@ -73,6 +81,8 @@ async def list_rule_config_prompts(
     _workspace: uuid.UUID = Depends(require_workspace_member),
     session: AsyncSession = Depends(get_db),
 ) -> RuleConfigPromptListPageOut:
+    """Paginate prompt rows filtered by optional facet triple."""
+
     rows, total = await rcp_svc.list_page(
         session,
         workspace_id=workspace_id,
@@ -100,6 +110,8 @@ async def create_rule_config_prompt(
     _workspace: uuid.UUID = Depends(require_workspace_member),
     session: AsyncSession = Depends(get_db),
 ) -> RuleConfigPromptListItemOut:
+    """Persist prompt triple referencing configured catalog model."""
+
     row, pn, mn = await rcp_svc.create(
         session,
         workspace_id=workspace_id,
@@ -122,6 +134,8 @@ async def get_rule_config_prompt(
     _workspace: uuid.UUID = Depends(require_workspace_member),
     session: AsyncSession = Depends(get_db),
 ) -> RuleConfigPromptListItemOut:
+    """Fetch prompt configuration row by id."""
+
     row, pn, mn = await rcp_svc.get_one(
         session, workspace_id=workspace_id, config_prompt_id=config_prompt_id
     )
@@ -137,6 +151,8 @@ async def patch_rule_config_prompt(
     _workspace: uuid.UUID = Depends(require_workspace_member),
     session: AsyncSession = Depends(get_db),
 ) -> RuleConfigPromptListItemOut:
+    """Partially update prompts or short-circuit no-op fetch."""
+
     patch = _patch_from_body(body)
     if not patch:
         row, pn, mn = await rcp_svc.get_one(
@@ -164,6 +180,8 @@ async def delete_rule_config_prompt(
     _workspace: uuid.UUID = Depends(require_workspace_member),
     session: AsyncSession = Depends(get_db),
 ) -> Response:
+    """Delete prompt configuration."""
+
     await rcp_svc.delete(
         session, workspace_id=workspace_id, config_prompt_id=config_prompt_id
     )

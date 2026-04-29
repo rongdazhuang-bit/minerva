@@ -1,3 +1,5 @@
+"""Async queries for ``SysDict`` / ``SysDictItem`` persistence."""
+
 from __future__ import annotations
 
 import uuid

@@ -1,3 +1,5 @@
+"""HTTP-facing pydantic contracts for Rule Base and Rule Config Prompt APIs."""
+
 from __future__ import annotations
 
 import uuid
@@ -8,6 +10,8 @@ from pydantic import BaseModel, Field
 
 
 class RuleBaseCreateIn(BaseModel):
+    """Validated payload for creating Rule Base rows."""
+
     sequence_number: int = Field(default=0, ge=-32768, le=32767)
     engineering_code: str | None = Field(default=None, max_length=64)
     subject_code: str | None = Field(default=None, max_length=64)
@@ -22,6 +26,8 @@ class RuleBaseCreateIn(BaseModel):
 
 
 class RuleBasePatchIn(BaseModel):
+    """Partial update payload with optional fields mirroring ``RuleBase`` columns."""
+
     sequence_number: int | None = Field(default=None, ge=-32768, le=32767)
     engineering_code: str | None = Field(default=None, max_length=64)
     subject_code: str | None = Field(default=None, max_length=64)
@@ -36,6 +42,8 @@ class RuleBasePatchIn(BaseModel):
 
 
 class RuleBaseListItemOut(BaseModel):
+    """Single Rule Base projection returned by list/detail endpoints."""
+
     id: uuid.UUID
     workspace_id: uuid.UUID
     sequence_number: int
@@ -54,6 +62,8 @@ class RuleBaseListItemOut(BaseModel):
 
 
 class RuleBaseListPageOut(BaseModel):
+    """Paginated list envelope."""
+
     items: list[RuleBaseListItemOut]
     total: int
 
@@ -68,10 +78,14 @@ class RuleBasePolishReviewRulesIn(BaseModel):
 
 
 class RuleBasePolishReviewRulesOut(BaseModel):
+    """AI-polished review rule text."""
+
     review_rules_ai: str
 
 
 class RuleConfigPromptCreateIn(BaseModel):
+    """Payload defining prompts tied to model provider rows."""
+
     model_id: uuid.UUID
     engineering_code: str | None = Field(default=None, max_length=64)
     subject_code: str | None = Field(default=None, max_length=64)
@@ -82,6 +96,8 @@ class RuleConfigPromptCreateIn(BaseModel):
 
 
 class RuleConfigPromptPatchIn(BaseModel):
+    """Partial updates for prompt triplets."""
+
     model_id: uuid.UUID | None = None
     engineering_code: str | None = Field(default=None, max_length=64)
     subject_code: str | None = Field(default=None, max_length=64)
@@ -92,6 +108,8 @@ class RuleConfigPromptPatchIn(BaseModel):
 
 
 class RuleConfigPromptListItemOut(BaseModel):
+    """Joined prompt row plus resolved provider/model labels."""
+
     id: uuid.UUID
     workspace_id: uuid.UUID
     model_id: uuid.UUID
@@ -108,11 +126,15 @@ class RuleConfigPromptListItemOut(BaseModel):
 
 
 class RuleConfigPromptListPageOut(BaseModel):
+    """Paginated prompt configuration view."""
+
     items: list[RuleConfigPromptListItemOut]
     total: int
 
 
 class RuleBaseOverviewStatsOut(BaseModel):
+    """Facet counters backing dashboard filters."""
+
     rule_count: int = Field(ge=0)
     engineering_codes: list[str] = Field(default_factory=list)
     subject_codes: list[str] = Field(default_factory=list)

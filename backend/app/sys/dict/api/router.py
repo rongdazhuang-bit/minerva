@@ -1,3 +1,5 @@
+"""CRUD routes for system dictionaries and hierarchical dictionary items."""
+
 from __future__ import annotations
 
 import uuid

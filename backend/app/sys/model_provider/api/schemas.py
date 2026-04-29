@@ -1,3 +1,5 @@
+"""Pydantic payloads for provider/model catalog APIs."""
+
 from __future__ import annotations
 
 import uuid

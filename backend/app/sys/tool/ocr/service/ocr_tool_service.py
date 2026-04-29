@@ -1,5 +1,8 @@
+"""Use cases for OCR tool rows scoped per workspace."""
+
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -9,6 +12,48 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.exceptions import AppError
 from app.sys.tool.ocr.domain.db.models import SysOcrTool
 from app.sys.tool.ocr.infrastructure import repository as repo
+
+
+def normalize_ocr_config_from_db(raw: Any) -> dict | None:
+    """Map JSON column values to ``dict`` or ``None`` for API responses.
+
+    Some async PG drivers return JSON/JSONB as a string; normalize so
+    ``OcrToolDetailOut`` always receives a dict or None.
+    """
+    if raw is None:
+        return None
+    if isinstance(raw, dict):
+        return None if not raw else raw
+    if isinstance(raw, str):
+        s = raw.strip()
+        if not s:
+            return None
+        try:
+            parsed: Any = json.loads(s)
+        except json.JSONDecodeError:
+            return None
+        if isinstance(parsed, dict):
+            return None if not parsed else parsed
+    return None
+
+
+def _coerce_ocr_config_payload(raw: Any) -> dict | None:
+    """Normalize API payloads and turn empty configs into None before persist."""
+    if raw is None:
+        return None
+    if isinstance(raw, str):
+        s = raw.strip()
+        if not s:
+            return None
+        try:
+            raw = json.loads(s)
+        except json.JSONDecodeError:
+            return None
+    if not isinstance(raw, dict):
+        return None
+    if not raw:
+        return None
+    return raw
 
 
 def _utc_now() -> datetime:
@@ -46,6 +91,8 @@ async def create_tool(
     user_passwd: str | None,
     api_key: str | None,
     remark: str | None,
+    ocr_type: str | None,
+    ocr_config: Any,
 ) -> SysOcrTool:
     now = _utc_now()
     row = SysOcrTool(
@@ -57,6 +104,8 @@ async def create_tool(
         user_passwd=user_passwd,
         api_key=api_key,
         remark=remark,
+        ocr_type=ocr_type,
+        ocr_config=_coerce_ocr_config_payload(ocr_config),
         create_at=now,
         update_at=now,
     )
@@ -79,6 +128,8 @@ async def update_tool(
         tool_id=tool_id,
     )
     for key, value in patch.items():
+        if key == "ocr_config":
+            value = _coerce_ocr_config_payload(value)
         setattr(row, key, value)
     row.update_at = _utc_now()
     await session.commit()

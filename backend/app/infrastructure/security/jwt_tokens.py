@@ -1,3 +1,5 @@
+"""JWT helpers using HS256 and secrets from ``app.config.settings``."""
+
 from __future__ import annotations
 
 import uuid
@@ -8,7 +10,7 @@ import jwt
 
 from app.config import settings
 
-_ALGO = "HS256"
+_ALGO = "HS256"  # Signing algorithm for access and refresh tokens.
 
 
 def create_access_token(
@@ -18,6 +20,8 @@ def create_access_token(
     workspace_id: uuid.UUID,
     workspace_role: str | None = None,
 ) -> str:
+    """Mint a short-lived access JWT including tenant/workspace context."""
+
     now = datetime.now(UTC)
     exp = now + timedelta(minutes=settings.jwt_access_ttl_minutes)
     payload: dict[str, Any] = {
@@ -34,6 +38,8 @@ def create_access_token(
 
 
 def create_refresh_token(*, user_id: uuid.UUID, jti: uuid.UUID) -> str:
+    """Mint a long-lived refresh JWT referencing opaque ``jti`` stored server-side."""
+
     now = datetime.now(UTC)
     exp = now + timedelta(days=settings.jwt_refresh_ttl_days)
     payload: dict[str, Any] = {
@@ -47,4 +53,6 @@ def create_refresh_token(*, user_id: uuid.UUID, jti: uuid.UUID) -> str:
 
 
 def decode_token(token: str) -> dict[str, Any]:
+    """Decode and verify a JWT issued by this module or raise ``jwt.PyJWTError``."""
+
     return jwt.decode(token, settings.jwt_secret, algorithms=[_ALGO])

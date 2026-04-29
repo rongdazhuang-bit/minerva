@@ -1,3 +1,5 @@
+"""Catalog models capturing workspace-specific LLM endpoints."""
+
 from __future__ import annotations
 
 import uuid
@@ -13,6 +15,8 @@ from app.infrastructure.db.base import Base
 
 
 class SysModel(Base):
+    """Configured LLM endpoint row tied to workspace authorization triple."""
+
     __tablename__ = "sys_models"
 
     id: Mapped[uuid.UUID] = mapped_column(

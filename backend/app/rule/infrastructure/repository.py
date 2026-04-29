@@ -1,3 +1,5 @@
+"""Async repository helpers querying ``RuleBase`` rows."""
+
 from __future__ import annotations
 
 import uuid

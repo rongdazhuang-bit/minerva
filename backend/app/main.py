@@ -1,3 +1,5 @@
+"""FastAPI ASGI entry: app wiring, CORS, rate-limit middleware, and startup lifespan."""
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -14,6 +16,8 @@ from app.limits import limiter
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Ensure ORM tables exist when configured; release resources on shutdown."""
+
     await create_missing_tables()
     yield
 
@@ -22,6 +26,7 @@ app = FastAPI(title=settings.app_name, lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 register_exception_handlers(app)
+# Browser-facing CORS: localhost dev URLs plus regex matching when APP_ENV is dev-like.
 _cors: dict = {
     "allow_origins": [
         "http://localhost:5173",

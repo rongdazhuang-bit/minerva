@@ -1,3 +1,5 @@
+"""Persistence helpers for workspace OCR tools."""
+
 from __future__ import annotations
 
 import uuid

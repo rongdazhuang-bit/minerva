@@ -1,3 +1,5 @@
+"""SQLAlchemy models backing configurable dictionaries."""
+
 from __future__ import annotations
 
 import uuid
@@ -11,6 +13,8 @@ from app.infrastructure.db.base import Base
 
 
 class SysDict(Base):
+    """Workspace dictionary category identified by ``dict_code``."""
+
     __tablename__ = "sys_dict"
     __table_args__ = (
         UniqueConstraint(
@@ -39,6 +43,8 @@ class SysDict(Base):
 
 
 class SysDictItem(Base):
+    """Tree-shaped dictionary entry referencing optional ``parent_uuid``."""
+
     __tablename__ = "sys_dict_item"
     __table_args__ = (
         UniqueConstraint("dict_uuid", "code", name="uq_sys_dict_item_dict_code"),

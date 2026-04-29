@@ -1,6 +1,6 @@
-from __future__ import annotations
+"""Application services orchestrating Rule Base persistence, repositories, and AI polish."""
 
-import uuid
+from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 

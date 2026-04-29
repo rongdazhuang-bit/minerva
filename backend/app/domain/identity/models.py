@@ -1,3 +1,5 @@
+"""Identity ORM models: accounts, tenants, workspaces, memberships, refresh tokens."""
+
 from __future__ import annotations
 
 import enum
@@ -13,12 +15,16 @@ from app.infrastructure.db.base import Base
 
 
 class MembershipRole(str, enum.Enum):
+    """Tenant/workspace authorization role bucket."""
+
     owner = "owner"
     admin = "admin"
     member = "member"
 
 
 class User(Base):
+    """Authenticated principal with unique email and bcrypt hash."""
+
     __tablename__ = "users"
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -31,6 +37,8 @@ class User(Base):
 
 
 class Tenant(Base):
+    """Top-level org boundary identified by stable slug."""
+
     __tablename__ = "tenants"
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -40,6 +48,8 @@ class Tenant(Base):
 
 
 class Workspace(Base):
+    """Collaboration scope under one tenant (slug unique per tenant)."""
+
     __tablename__ = "workspaces"
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -55,6 +65,8 @@ class Workspace(Base):
 
 
 class TenantMembership(Base):
+    """Join row tying a user to a tenant with ``MembershipRole``."""
+
     __tablename__ = "tenant_memberships"
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -74,6 +86,8 @@ class TenantMembership(Base):
 
 
 class WorkspaceMembership(Base):
+    """Join row tying a user to a workspace with ``MembershipRole``."""
+
     __tablename__ = "workspace_memberships"
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -93,6 +107,8 @@ class WorkspaceMembership(Base):
 
 
 class RefreshToken(Base):
+    """Opaque refresh session keyed by ``jti`` with revocation metadata."""
+
     __tablename__ = "refresh_tokens"
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4

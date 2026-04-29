@@ -1,3 +1,5 @@
+"""Workspace-scoped REST endpoints managing persisted Rule Base rows."""
+
 from __future__ import annotations
 
 import uuid
@@ -26,6 +28,8 @@ router = APIRouter(prefix="/workspaces/{workspace_id}/rule-base", tags=["rule-ba
 
 
 def _to_out(row: RuleBase) -> RuleBaseListItemOut:
+    """Project SQLAlchemy ``RuleBase`` row into API list-item payload."""
+
     return RuleBaseListItemOut(
         id=row.id,
         workspace_id=row.workspace_id,
@@ -46,6 +50,8 @@ def _to_out(row: RuleBase) -> RuleBaseListItemOut:
 
 
 def _strip_opt(s: str | None) -> str | None:
+    """Return trimmed filter strings or ``None`` when blank after stripping."""
+
     if s is None:
         return None
     t = s.strip()
@@ -53,6 +59,8 @@ def _strip_opt(s: str | None) -> str | None:
 
 
 def _optional_text(s: str | None) -> str | None:
+    """Normalize nullable descriptive strings submitted via schemas."""
+
     if s is None:
         return None
     t = s.strip()
@@ -60,6 +68,8 @@ def _optional_text(s: str | None) -> str | None:
 
 
 def _patch_from_body(body: RuleBasePatchIn) -> dict[str, Any]:
+    """Coerce validated patch payload into SQL update mapping."""
+
     data = body.model_dump(exclude_unset=True)
     out: dict[str, Any] = {}
     for key, value in data.items():
@@ -100,6 +110,8 @@ async def list_rule_base(
     _workspace: uuid.UUID = Depends(require_workspace_member),
     session: AsyncSession = Depends(get_db),
 ) -> RuleBaseListPageOut:
+    """Return paginated Rule Base rows filtered by optional query facets."""
+
     rows, total = await svc.list_rule_base_page(
         session,
         workspace_id=workspace_id,
@@ -126,6 +138,8 @@ async def read_rule_base_overview_stats(
     _workspace: uuid.UUID = Depends(require_workspace_member),
     session: AsyncSession = Depends(get_db),
 ) -> RuleBaseOverviewStatsOut:
+    """Expose aggregate counts and distinct filter-value buckets."""
+
     rule_count, eng, sub, doc = await svc.get_rule_base_overview_stats(
         session, workspace_id=workspace_id
     )
@@ -149,6 +163,8 @@ async def create_rule_base(
     _workspace: uuid.UUID = Depends(require_workspace_member),
     session: AsyncSession = Depends(get_db),
 ) -> RuleBaseListItemOut:
+    """Persist a newly authored Rule Base row."""
+
     row = await svc.create_rule_base(
         session,
         workspace_id=workspace_id,
@@ -178,6 +194,8 @@ async def polish_review_rules(
     _workspace: uuid.UUID = Depends(require_workspace_member),
     session: AsyncSession = Depends(get_db),
 ) -> RuleBasePolishReviewRulesOut:
+    """Invoke downstream polishing pipeline for AI-assisted rule text."""
+
     polished = await svc.polish_review_rules(
         session,
         workspace_id=workspace_id,
@@ -198,6 +216,8 @@ async def patch_rule_base(
     _workspace: uuid.UUID = Depends(require_workspace_member),
     session: AsyncSession = Depends(get_db),
 ) -> RuleBaseListItemOut:
+    """Apply partial updates or short-circuit fetch when payload empty."""
+
     patch = _patch_from_body(body)
     if not patch:
         row = await svc.get_rule_base(
@@ -221,5 +241,7 @@ async def remove_rule_base(
     _workspace: uuid.UUID = Depends(require_workspace_member),
     session: AsyncSession = Depends(get_db),
 ) -> Response:
+    """Hard-delete Rule Base row scoped to workspace."""
+
     await svc.delete_rule_base(session, workspace_id=workspace_id, rule_id=rule_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

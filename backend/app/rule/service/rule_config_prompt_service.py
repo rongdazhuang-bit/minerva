@@ -1,3 +1,5 @@
+"""Use cases for Rule Config Prompt rows joined against catalog models."""
+
 from __future__ import annotations
 
 import uuid
