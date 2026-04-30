@@ -23,6 +23,7 @@ dependencies = [
   "slowapi>=0.1.9",
   "orjson>=3.10",
   "openai>=1.59",
+  "boto3>=1.35",
 ]
 
 [project.optional-dependencies]
