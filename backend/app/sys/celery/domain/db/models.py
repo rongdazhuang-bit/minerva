@@ -40,7 +40,7 @@ class SysCelery(Base):
     cron: Mapped[str | None] = mapped_column(String(64), nullable=True)
     task: Mapped[str] = mapped_column(String(128), nullable=False)
     args_json: Mapped[dict[str, Any] | list[Any] | None] = mapped_column(JSONB, nullable=True)
-    kwargs_json: Mapped[dict[str, Any] | list[Any] | None] = mapped_column(JSONB, nullable=True)
+    kwargs_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     timezone: Mapped[str | None] = mapped_column(
         String(64), nullable=True, server_default=sa.text("'Asia/Shanghai'")
     )

@@ -70,7 +70,27 @@ def _normalize_task_kwargs(value: Any) -> dict[str, Any]:
 
     if isinstance(value, dict):
         return value
-    return {}
+    if value is None:
+        return {}
+    raise AppError(
+        "celery_job.invalid_kwargs_json",
+        "kwargs_json must be an object when running task",
+        422,
+    )
+
+
+def _normalize_kwargs_payload(value: Any) -> dict[str, Any] | None:
+    """Validate and normalize persisted ``kwargs_json`` payload."""
+
+    if value is None:
+        return None
+    if isinstance(value, dict):
+        return value
+    raise AppError(
+        "celery_job.invalid_kwargs_json",
+        "kwargs_json must be an object or null",
+        422,
+    )
 
 
 async def list_jobs_page(
@@ -123,7 +143,7 @@ async def create_job(
         task=_normalize_required_str(str(data["task"])),
         cron=_normalize_nullable_str(data.get("cron")),
         args_json=data.get("args_json"),
-        kwargs_json=data.get("kwargs_json"),
+        kwargs_json=_normalize_kwargs_payload(data.get("kwargs_json")),
         timezone=_normalize_nullable_str(data.get("timezone")) or "Asia/Shanghai",
         enabled=bool(data.get("enabled", True)),
         status=_normalize_nullable_str(data.get("status")),
@@ -157,6 +177,9 @@ async def update_job(
             continue
         if key in {"cron", "timezone", "status", "remark"}:
             setattr(row, key, _normalize_nullable_str(value))
+            continue
+        if key == "kwargs_json":
+            setattr(row, key, _normalize_kwargs_payload(value))
             continue
         setattr(row, key, value)
     row.update_at = _utc_now()

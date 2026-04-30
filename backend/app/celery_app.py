@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from socket import timeout as SocketTimeout
 from typing import Any
 
 from app.config import settings
@@ -34,6 +35,25 @@ def _build_celery_app() -> Any:
 celery_app = _build_celery_app()
 
 
+def _translate_enqueue_error(exc: Exception) -> AppError:
+    """Map Celery/Kombu enqueue failures to stable domain errors."""
+
+    error_name = exc.__class__.__name__
+    if error_name in {"OperationalError", "ChannelError", "TimeoutError"} or isinstance(
+        exc, (ConnectionError, TimeoutError, SocketTimeout)
+    ):
+        return AppError(
+            "celery.enqueue_unavailable",
+            "Celery broker is unavailable",
+            503,
+        )
+    return AppError(
+        "celery.enqueue_failed",
+        "Celery enqueue failed",
+        502,
+    )
+
+
 def enqueue_task(
     task_name: str,
     *,
@@ -44,10 +64,15 @@ def enqueue_task(
 
     if celery_app is None:
         raise AppError("celery.runtime_unavailable", "Celery runtime is not installed", 503)
-    result = celery_app.send_task(
-        task_name,
-        args=args or [],
-        kwargs=kwargs or {},
-        queue=settings.celery_default_queue,
-    )
+    try:
+        result = celery_app.send_task(
+            task_name,
+            args=args or [],
+            kwargs=kwargs or {},
+            queue=settings.celery_default_queue,
+        )
+    except AppError:
+        raise
+    except Exception as exc:
+        raise _translate_enqueue_error(exc) from exc
     return str(result.id)

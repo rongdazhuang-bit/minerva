@@ -17,7 +17,7 @@ class CeleryJobCreateIn(BaseModel):
     task: str = Field(min_length=1, max_length=128)
     cron: str | None = Field(default=None, max_length=64)
     args_json: dict[str, Any] | list[Any] | None = None
-    kwargs_json: dict[str, Any] | list[Any] | None = None
+    kwargs_json: dict[str, Any] | None = None
     timezone: str | None = Field(default="Asia/Shanghai", max_length=64)
     enabled: bool = True
     status: str | None = Field(default=None, max_length=2)
@@ -32,7 +32,7 @@ class CeleryJobPatchIn(BaseModel):
     task: str | None = Field(default=None, min_length=1, max_length=128)
     cron: str | None = Field(default=None, max_length=64)
     args_json: dict[str, Any] | list[Any] | None = None
-    kwargs_json: dict[str, Any] | list[Any] | None = None
+    kwargs_json: dict[str, Any] | None = None
     timezone: str | None = Field(default=None, max_length=64)
     enabled: bool | None = None
     status: str | None = Field(default=None, max_length=2)
@@ -51,7 +51,7 @@ class CeleryJobListItemOut(BaseModel):
     task: str
     cron: str | None
     args_json: dict[str, Any] | list[Any] | None
-    kwargs_json: dict[str, Any] | list[Any] | None
+    kwargs_json: dict[str, Any] | None
     timezone: str | None
     enabled: bool
     next_run_at: datetime | None
@@ -77,7 +77,7 @@ class CeleryJobDetailOut(BaseModel):
     task: str
     cron: str | None
     args_json: dict[str, Any] | list[Any] | None
-    kwargs_json: dict[str, Any] | list[Any] | None
+    kwargs_json: dict[str, Any] | None
     timezone: str | None
     enabled: bool
     next_run_at: datetime | None

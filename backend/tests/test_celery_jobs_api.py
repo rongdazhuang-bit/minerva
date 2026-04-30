@@ -14,6 +14,7 @@ import app.domain.identity.models  # noqa: F401
 from app.config import settings
 from app.infrastructure.db.session import async_session_factory, engine
 from app.main import app
+from app import celery_app as celery_runtime
 from app.sys.celery.domain.db.models import SysCelery
 from app.sys.celery.service import celery_schedule_service
 
@@ -289,3 +290,56 @@ async def test_duplicate_task_code_returns_conflict_error() -> None:
         body = duplicated.json()
         assert body["code"] == "celery_job.task_code_conflict"
         assert "task_code" in body["message"]
+
+
+@pytest.mark.asyncio
+async def test_create_job_rejects_non_object_kwargs_json() -> None:
+    """Create endpoint should reject ``kwargs_json`` payloads that are not objects."""
+
+    await _ensure_celery_table_exists()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        _token, workspace_id, headers = await _register_workspace_user(client)
+        invalid = await client.post(
+            f"/workspaces/{workspace_id}/celery-jobs",
+            headers=headers,
+            json={
+                "name": "invalid-kwargs-job",
+                "task_code": "invalid.kwargs.job",
+                "task": "app.tasks.invalid_kwargs",
+                "kwargs_json": ["invalid", "list"],
+                "enabled": True,
+            },
+        )
+        assert invalid.status_code == 422, invalid.text
+        body = invalid.json()
+        assert body["code"] == "request.validation"
+
+
+@pytest.mark.asyncio
+async def test_run_now_returns_stable_error_when_enqueue_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run-now should map enqueue exceptions to stable service unavailable errors."""
+
+    await _ensure_celery_table_exists()
+
+    class _FailingCelery:
+        """Fake celery app whose enqueue always fails."""
+
+        def send_task(self, *args, **kwargs):
+            """Raise connection error to mimic unavailable broker."""
+
+            del args, kwargs
+            raise ConnectionError("broker down")
+
+    monkeypatch.setattr(celery_runtime, "celery_app", _FailingCelery())
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        _token, workspace_id, headers = await _register_workspace_user(client)
+        created = await _create_job(client, workspace_id=workspace_id, headers=headers)
+        job_id = created["id"]
+        run_now = await client.post(
+            f"/workspaces/{workspace_id}/celery-jobs/{job_id}/run-now",
+            headers=headers,
+        )
+        assert run_now.status_code == 503, run_now.text
+        body = run_now.json()
+        assert body["code"] == "celery.enqueue_unavailable"
