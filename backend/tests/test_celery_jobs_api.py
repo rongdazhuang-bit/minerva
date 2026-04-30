@@ -233,7 +233,7 @@ async def test_celery_job_crud_endpoints() -> None:
             f"/workspaces/{workspace_id}/celery-jobs/{job_id}/run-now",
             headers=headers,
         )
-        assert run_now.status_code == 202, run_now.text
+        assert run_now.status_code == 501, run_now.text
         assert run_now.json()["accepted"] is False
         assert run_now.json()["reason"] == "run_now_not_implemented_in_task2"
 
@@ -246,3 +246,30 @@ async def test_celery_job_crud_endpoints() -> None:
         after = await client.get(f"/workspaces/{workspace_id}/celery-jobs?page=1&page_size=10", headers=headers)
         assert after.status_code == 200, after.text
         assert after.json()["total"] == 0
+
+
+@pytest.mark.asyncio
+async def test_duplicate_task_code_returns_conflict_error() -> None:
+    """Creating duplicated ``task_code`` in same workspace should return 409 domain error."""
+
+    await _ensure_celery_table_exists()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        _token, workspace_id, headers = await _register_workspace_user(client)
+
+        _ = await _create_job(client, workspace_id=workspace_id, headers=headers)
+        duplicated = await client.post(
+            f"/workspaces/{workspace_id}/celery-jobs",
+            headers=headers,
+            json={
+                "name": "another-report",
+                "task_code": "report.daily",
+                "task": "app.tasks.report_daily_v2",
+                "cron": "0 9 * * *",
+                "enabled": True,
+            },
+        )
+        assert duplicated.status_code != 500, duplicated.text
+        assert duplicated.status_code == 409, duplicated.text
+        body = duplicated.json()
+        assert body["code"] == "celery_job.task_code_conflict"
+        assert "task_code" in body["message"]

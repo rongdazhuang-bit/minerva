@@ -235,7 +235,11 @@ async def start_celery_job(
     return _to_detail(row)
 
 
-@router.post("/{job_id}/run-now", response_model=CeleryJobRunNowOut, status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/{job_id}/run-now",
+    response_model=CeleryJobRunNowOut,
+    status_code=status.HTTP_501_NOT_IMPLEMENTED,
+)
 async def run_celery_job_now(
     workspace_id: uuid.UUID,
     job_id: uuid.UUID,

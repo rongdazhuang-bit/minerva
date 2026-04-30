@@ -6,11 +6,15 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import AppError
 from app.sys.celery.domain.db.models import SysCelery
 from app.sys.celery.infrastructure import repository as repo
+
+
+_TASK_CODE_UNIQUE_CONSTRAINT = "uq_sys_celery_workspace_task_code"
 
 
 def _utc_now() -> datetime:
@@ -35,6 +39,19 @@ def _normalize_required_str(value: str) -> str:
     if not trimmed:
         raise AppError("celery_job.invalid_argument", "Required string field cannot be blank", 422)
     return trimmed
+
+
+def _translate_integrity_error(exc: IntegrityError) -> AppError:
+    """Map DB integrity violations to stable domain errors."""
+
+    raw = str(getattr(exc, "orig", exc))
+    if _TASK_CODE_UNIQUE_CONSTRAINT in raw or "sys_celery_workspace_task_code" in raw:
+        return AppError(
+            "celery_job.task_code_conflict",
+            "task_code already exists in this workspace",
+            409,
+        )
+    return AppError("celery_job.integrity_error", "Invalid celery job data", 409)
 
 
 async def list_jobs_page(
@@ -96,7 +113,11 @@ async def create_job(
         update_at=now,
     )
     session.add(row)
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise _translate_integrity_error(exc) from exc
     await session.refresh(row)
     return row
 
@@ -120,7 +141,11 @@ async def update_job(
             continue
         setattr(row, key, value)
     row.update_at = _utc_now()
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise _translate_integrity_error(exc) from exc
     await session.refresh(row)
     return row
 
