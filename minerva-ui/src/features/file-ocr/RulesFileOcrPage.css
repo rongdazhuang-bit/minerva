@@ -127,3 +127,141 @@ html.minerva-tone-sunshine .minerva-file-ocr-overview__card--failed {
 html.minerva-tone-sunshine .minerva-file-ocr-overview__icon {
   color: var(--minerva-file-ocr-overview-accent, var(--minerva-link, #2563eb));
 }
+
+.minerva-file-ocr-tasks {
+  width: 100%;
+}
+
+.minerva-file-ocr-tasks__card {
+  width: 100%;
+}
+
+.minerva-file-ocr-tasks__filter {
+  display: flex;
+  gap: 8px 0;
+  margin-bottom: 12px;
+}
+
+.minerva-file-ocr-tasks__table .ant-table-cell {
+  vertical-align: middle;
+}
+
+.minerva-file-ocr-tasks__wizard-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.minerva-file-ocr-tasks__ocr-type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.minerva-file-ocr-tasks__wizard-content--type .minerva-file-ocr-tasks__ocr-type-grid {
+  min-height: 220px;
+  align-content: center;
+}
+
+.minerva-file-ocr-tasks__ocr-type-card {
+  width: 100%;
+  min-height: 104px;
+  border: 1px solid var(--minerva-border, #2a3f58);
+  border-radius: 12px;
+  background: var(--minerva-surface, #1a2836);
+  color: var(--minerva-ink, #e8f0f8);
+  text-align: left;
+  padding: 14px 16px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.minerva-file-ocr-tasks__ocr-type-card:hover {
+  border-color: var(--minerva-link, #38bdf8);
+  box-shadow: 0 8px 20px rgb(0 0 0 / 18%);
+  transform: translateY(-1px);
+}
+
+.minerva-file-ocr-tasks__ocr-type-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.minerva-file-ocr-tasks__ocr-type-icon {
+  font-size: 20px;
+  line-height: 1;
+  margin-bottom: 8px;
+  color: var(--minerva-link, #38bdf8);
+}
+
+.minerva-file-ocr-tasks__ocr-type-desc {
+  opacity: 0.75;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.minerva-file-ocr-tasks__wizard-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.minerva-file-ocr-tasks__dragger.ant-upload-wrapper .ant-upload-drag {
+  border-radius: 12px;
+}
+
+.minerva-file-ocr-tasks__upload-rules {
+  margin: 8px 0 4px;
+  padding-left: 18px;
+  text-align: left;
+}
+
+.minerva-file-ocr-tasks__upload-rules li {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--minerva-ink, #e8f0f8);
+  opacity: 0.82;
+}
+
+.minerva-file-ocr-tasks__progress-list {
+  max-height: 220px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.minerva-file-ocr-tasks__progress-item {
+  padding: 8px 0;
+}
+
+.minerva-file-ocr-tasks__progress-name {
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--minerva-ink, #e8f0f8);
+  word-break: break-all;
+}
+
+html.minerva-tone-sunshine .minerva-file-ocr-tasks__ocr-type-card {
+  background: #fff;
+  border-color: #d1d5db;
+  color: #0f172a;
+}
+
+html.minerva-tone-sunshine .minerva-file-ocr-tasks__ocr-type-card:hover {
+  border-color: #2563eb;
+  box-shadow: 0 10px 22px rgb(15 23 42 / 10%);
+}
+
+html.minerva-tone-sunshine .minerva-file-ocr-tasks__ocr-type-icon {
+  color: #2563eb;
+}
+
+html.minerva-tone-sunshine .minerva-file-ocr-tasks__upload-rules li {
+  color: #475569;
+}

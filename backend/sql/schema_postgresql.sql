@@ -208,9 +208,11 @@ CREATE TABLE public.ocr_file (
 	id uuid NOT NULL,
 	workspace_id uuid NOT NULL,
 	file_name varchar(256) NULL,
-	file_uri varchar(1024) NULL,
+	file_size int8 NULL,
+	object_key varchar(1024) NOT NULL,
 	ocr_type varchar(16) NOT NULL,
 	status varchar(16) NOT NULL,
+	page_count int4 NULL,
 	remark text NULL,
 	create_at timestamptz NULL,
 	update_at timestamptz NULL,
@@ -221,9 +223,11 @@ COMMENT ON TABLE public.ocr_file IS 'OCR文件';
 COMMENT ON COLUMN public.ocr_file.id IS 'id';
 COMMENT ON COLUMN public.ocr_file.workspace_id IS '工作空间id';
 COMMENT ON COLUMN public.ocr_file.file_name IS '源文件名';
-COMMENT ON COLUMN public.ocr_file.file_uri IS '文件地址';
+COMMENT ON COLUMN public.ocr_file.file_size IS '文件大小(字节)';
+COMMENT ON COLUMN public.ocr_file.object_key IS '文件对象键';
 COMMENT ON COLUMN public.ocr_file.ocr_type IS 'OCR类型';
 COMMENT ON COLUMN public.ocr_file.status IS '状态(字典OCR_FILE_STATUS)';
+COMMENT ON COLUMN public.ocr_file.page_count IS '页数';
 COMMENT ON COLUMN public.ocr_file.remark IS '备注';
 COMMENT ON COLUMN public.ocr_file.create_at IS '创建时间';
 COMMENT ON COLUMN public.ocr_file.update_at IS '更新时间';

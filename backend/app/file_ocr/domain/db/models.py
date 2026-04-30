@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, text
+from sqlalchemy import BIGINT, DateTime, ForeignKey, Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -27,9 +27,11 @@ class OcrFile(Base):
         nullable=False,
     )
     file_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
-    file_uri: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    file_size: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
+    object_key: Mapped[str] = mapped_column(String(1024), nullable=False)
     ocr_type: Mapped[str] = mapped_column(String(16), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False)
+    page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     remark: Mapped[str | None] = mapped_column(Text, nullable=True)
     create_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), nullable=True
