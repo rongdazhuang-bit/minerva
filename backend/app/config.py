@@ -95,6 +95,21 @@ class Settings(BaseSettings):
         description="可重试错误（超时、连接失败、429、503）的最大尝试次数。",
         validation_alias=AliasChoices("AI_RETRY_MAX_ATTEMPTS", "ai_retry_max_attempts"),
     )
+    celery_broker_url: str = Field(
+        default="redis://127.0.0.1:6379/0",
+        description="Celery broker URL for task enqueue operations.",
+        validation_alias=AliasChoices("CELERY_BROKER_URL", "celery_broker_url"),
+    )
+    celery_result_backend: str = Field(
+        default="redis://127.0.0.1:6379/1",
+        description="Celery backend URL for task states/results.",
+        validation_alias=AliasChoices("CELERY_RESULT_BACKEND", "celery_result_backend"),
+    )
+    celery_default_queue: str = Field(
+        default="default",
+        description="Default queue name for run-now dispatch.",
+        validation_alias=AliasChoices("CELERY_DEFAULT_QUEUE", "celery_default_queue"),
+    )
 
 
 # Singleton loaded at import time for ``from app.config import settings``.

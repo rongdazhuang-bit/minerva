@@ -9,6 +9,7 @@ from typing import Any
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.celery_app import enqueue_task
 from app.exceptions import AppError
 from app.sys.celery.domain.db.models import SysCelery
 from app.sys.celery.infrastructure import repository as repo
@@ -52,6 +53,24 @@ def _translate_integrity_error(exc: IntegrityError) -> AppError:
             409,
         )
     return AppError("celery_job.integrity_error", "Invalid celery job data", 409)
+
+
+def _normalize_task_args(value: Any) -> list[Any]:
+    """Convert persisted ``args_json`` payload to Celery positional args."""
+
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    return [value]
+
+
+def _normalize_task_kwargs(value: Any) -> dict[str, Any]:
+    """Convert persisted ``kwargs_json`` payload to Celery keyword args."""
+
+    if isinstance(value, dict):
+        return value
+    return {}
 
 
 async def list_jobs_page(
@@ -193,3 +212,20 @@ async def start_job(
         job_id=job_id,
         patch={"enabled": True},
     )
+
+
+async def send_task_now(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    job_id: uuid.UUID,
+) -> str:
+    """Enqueue one existing job immediately and return accepted task id."""
+
+    row = await get_job(session, workspace_id=workspace_id, job_id=job_id)
+    task_id = enqueue_task(
+        row.task,
+        args=_normalize_task_args(row.args_json),
+        kwargs=_normalize_task_kwargs(row.kwargs_json),
+    )
+    return task_id

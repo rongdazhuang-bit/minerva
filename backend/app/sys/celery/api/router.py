@@ -6,6 +6,7 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Response, status
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import (
@@ -22,7 +23,6 @@ from app.sys.celery.api.schemas import (
     CeleryJobListItemOut,
     CeleryJobListPageOut,
     CeleryJobPatchIn,
-    CeleryJobRunNowOut,
 )
 from app.sys.celery.domain.db.models import SysCelery
 from app.sys.celery.service import celery_schedule_service as svc
@@ -31,6 +31,14 @@ router = APIRouter(
     prefix="/workspaces/{workspace_id}/celery-jobs",
     tags=["celery-jobs"],
 )
+
+
+class CeleryJobRunNowAcceptedOut(BaseModel):
+    """Run-now success response containing accepted celery task id."""
+
+    accepted: bool
+    job_id: uuid.UUID
+    task_id: str
 
 
 def _to_list_item(row: SysCelery) -> CeleryJobListItemOut:
@@ -237,8 +245,7 @@ async def start_celery_job(
 
 @router.post(
     "/{job_id}/run-now",
-    response_model=CeleryJobRunNowOut,
-    status_code=status.HTTP_501_NOT_IMPLEMENTED,
+    response_model=CeleryJobRunNowAcceptedOut,
 )
 async def run_celery_job_now(
     workspace_id: uuid.UUID,
@@ -246,16 +253,12 @@ async def run_celery_job_now(
     _user: User = Depends(get_current_user),
     _workspace: uuid.UUID = Depends(require_workspace_owner_or_admin),
     session: AsyncSession = Depends(get_db),
-) -> CeleryJobRunNowOut:
-    """Return placeholder run-now response without celery runtime dependency."""
+) -> CeleryJobRunNowAcceptedOut:
+    """Enqueue one celery job immediately and return accepted task id."""
 
-    await svc.get_job(
+    task_id = await svc.send_task_now(
         session,
         workspace_id=workspace_id,
         job_id=job_id,
     )
-    return CeleryJobRunNowOut(
-        accepted=False,
-        job_id=job_id,
-        reason="run_now_not_implemented_in_task2",
-    )
+    return CeleryJobRunNowAcceptedOut(accepted=True, job_id=job_id, task_id=task_id)

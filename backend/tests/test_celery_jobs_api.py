@@ -15,6 +15,7 @@ from app.config import settings
 from app.infrastructure.db.session import async_session_factory, engine
 from app.main import app
 from app.sys.celery.domain.db.models import SysCelery
+from app.sys.celery.service import celery_schedule_service
 
 
 async def _prepare_workspace() -> uuid.UUID:
@@ -197,10 +198,22 @@ async def test_stop_and_start_job() -> None:
 
 
 @pytest.mark.asyncio
-async def test_celery_job_crud_endpoints() -> None:
-    """Cover list/create/patch/delete and run-now placeholder behaviors."""
+async def test_celery_job_crud_endpoints(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Cover list/create/patch/delete and verify run-now enqueues one task."""
 
     await _ensure_celery_table_exists()
+    captured: dict[str, str] = {}
+
+    async def _fake_send_task_now(session, *, workspace_id: uuid.UUID, job_id: uuid.UUID) -> str:
+        """Capture run-now arguments and return one fake celery task id."""
+
+        del session
+        captured["workspace_id"] = str(workspace_id)
+        captured["job_id"] = str(job_id)
+        return "mocked-task-id-001"
+
+    monkeypatch.setattr(celery_schedule_service, "send_task_now", _fake_send_task_now)
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         _token, workspace_id, headers = await _register_workspace_user(client)
 
@@ -233,9 +246,12 @@ async def test_celery_job_crud_endpoints() -> None:
             f"/workspaces/{workspace_id}/celery-jobs/{job_id}/run-now",
             headers=headers,
         )
-        assert run_now.status_code == 501, run_now.text
-        assert run_now.json()["accepted"] is False
-        assert run_now.json()["reason"] == "run_now_not_implemented_in_task2"
+        assert run_now.status_code == 200, run_now.text
+        assert run_now.json()["accepted"] is True
+        assert run_now.json()["task_id"] == "mocked-task-id-001"
+        assert run_now.json()["job_id"] == job_id
+        assert captured["workspace_id"] == workspace_id
+        assert captured["job_id"] == job_id
 
         deleted = await client.delete(
             f"/workspaces/{workspace_id}/celery-jobs/{job_id}",
