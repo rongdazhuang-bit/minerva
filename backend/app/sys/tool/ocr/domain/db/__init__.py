@@ -1,1 +1,1 @@
-"""OCR database table mapping."""
+"""OCR tool database table mapping."""

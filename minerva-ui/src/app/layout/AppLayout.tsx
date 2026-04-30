@@ -35,6 +35,7 @@ const { Sider, Header, Content } = Layout
 const SUB_SETTINGS = 'sub-settings'
 const SUB_RULES = 'sub-rules'
 const SUB_RULES_CONFIG = 'sub-rules-config'
+const SUB_FILE_OCR = 'sub-file-ocr'
 
 const siderStyle: CSSProperties = {
   background: 'var(--minerva-surface, #1b2838)',
@@ -104,6 +105,8 @@ const contentScrollStyle: CSSProperties = {
 }
 
 function menuKeyForPath(pathname: string): string {
+  if (pathname.startsWith('/app/file-ocr/overview')) return 'file-ocr-overview'
+  if (pathname.startsWith('/app/file-ocr/tasks')) return 'file-ocr-tasks'
   if (pathname.startsWith('/app/settings/models')) return 'settings-models'
   if (pathname.startsWith('/app/settings/ocr')) return 'settings-ocr'
   if (pathname.startsWith('/app/settings/file-storage')) return 'settings-file-storage'
@@ -114,7 +117,7 @@ function menuKeyForPath(pathname: string): string {
   if (pathname.startsWith('/app/settings/dictionary')) return 'settings-dictionary'
   if (pathname.startsWith('/app/settings')) return 'settings-models'
   if (pathname.startsWith('/app/smart-review')) return 'smart-review'
-  if (pathname.startsWith('/app/file-ocr')) return 'file-ocr'
+  if (pathname.startsWith('/app/file-ocr')) return 'file-ocr-overview'
   if (pathname.startsWith('/app/rules/config/config-prompts')) return 'rules-config-config-prompts'
   if (pathname.startsWith('/app/rules/management')) return 'rules-mgmt-list'
   if (pathname.startsWith('/app/rules/overview')) return 'rules-overview'
@@ -152,6 +155,11 @@ export function AppLayout() {
         if (!next.includes(SUB_RULES_CONFIG)) next.push(SUB_RULES_CONFIG)
       } else {
         next = next.filter((k) => k !== SUB_RULES_CONFIG)
+      }
+      if (pathname.startsWith('/app/file-ocr')) {
+        if (!next.includes(SUB_FILE_OCR)) next.push(SUB_FILE_OCR)
+      } else {
+        next = next.filter((k) => k !== SUB_FILE_OCR)
       }
       return next
     })
@@ -262,10 +270,23 @@ export function AppLayout() {
                   ],
                 },
                 {
-                  key: 'file-ocr',
+                  key: SUB_FILE_OCR,
                   icon: <ScanOutlined />,
                   label: t('nav.rulesFileOcr'),
-                  onClick: () => void nav('/app/file-ocr'),
+                  children: [
+                    {
+                      key: 'file-ocr-overview',
+                      icon: <DashboardOutlined />,
+                      label: t('nav.rulesFileOcrOverview'),
+                      onClick: () => void nav('/app/file-ocr/overview'),
+                    },
+                    {
+                      key: 'file-ocr-tasks',
+                      icon: <UnorderedListOutlined />,
+                      label: t('nav.rulesFileOcrTaskList'),
+                      onClick: () => void nav('/app/file-ocr/tasks'),
+                    },
+                  ],
                 },
                 {
                   key: SUB_SETTINGS,

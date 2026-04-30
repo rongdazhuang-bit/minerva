@@ -1,1 +1,1 @@
-"""service layer."""
+"""OCR tool service layer."""

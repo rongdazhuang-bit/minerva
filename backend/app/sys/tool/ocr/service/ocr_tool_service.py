@@ -15,11 +15,7 @@ from app.sys.tool.ocr.infrastructure import repository as repo
 
 
 def normalize_ocr_config_from_db(raw: Any) -> dict | None:
-    """Map JSON column values to ``dict`` or ``None`` for API responses.
-
-    Some async PG drivers return JSON/JSONB as a string; normalize so
-    ``OcrToolDetailOut`` always receives a dict or None.
-    """
+    """Map JSON column values to ``dict`` or ``None`` for API responses."""
     if raw is None:
         return None
     if isinstance(raw, dict):

@@ -75,6 +75,7 @@ def _import_models() -> None:
     import app.sys.file_storage.domain.db.models  # noqa: F401
     import app.sys.model_provider.domain.db.models  # noqa: F401
     import app.rule.domain.db.models  # noqa: F401
+    import app.file_ocr.domain.db.models  # noqa: F401
     import app.sys.tool.ocr.domain.db.models  # noqa: F401
 
 

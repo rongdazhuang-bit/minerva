@@ -1,1 +1,1 @@
-"""infrastructure."""
+"""OCR tool infrastructure layer."""

@@ -4,9 +4,9 @@ import type { ReactNode } from 'react'
 import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom'
 import { AppThemedLayout } from '@/app/AppThemedLayout'
 import { AppLayout } from '@/app/layout/AppLayout'
+import { RulesFileOcrPage, RulesFileOcrTasksPage } from '@/features/file-ocr'
 import { OverviewPage } from '@/features/workspace/OverviewPage'
 import { SmartReviewPage } from '@/features/workspace/SmartReviewPage'
-import { RulesFileOcrPage } from '@/features/workspace/RulesFileOcrPage'
 import {
   RulesManagementPage,
   RulesPromptManagementPage,
@@ -67,7 +67,14 @@ const router = createBrowserRouter([
               },
             ],
           },
-          { path: 'file-ocr', element: <RulesFileOcrPage /> },
+          {
+            path: 'file-ocr',
+            children: [
+              { index: true, element: <Navigate to="overview" replace /> },
+              { path: 'overview', element: <RulesFileOcrPage /> },
+              { path: 'tasks', element: <RulesFileOcrTasksPage /> },
+            ],
+          },
           {
             path: 'settings',
             element: <SettingsSectionLayout />,

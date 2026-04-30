@@ -1,1 +1,1 @@
-"""OCR domain layer."""
+"""OCR tool domain layer."""

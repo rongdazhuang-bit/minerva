@@ -38,6 +38,21 @@ function rulesBreadcrumb(
   return [home, rulesBase, { title: t('nav.rulesOverview') }]
 }
 
+function fileOcrBreadcrumb(
+  pathname: string,
+  t: (k: string) => string,
+  home: ItemType,
+): ItemType[] | null {
+  if (!pathname.startsWith('/app/file-ocr')) return null
+  const fileOcrBase: ItemType = {
+    title: <Link to="/app/file-ocr/overview">{t('nav.rulesFileOcr')}</Link>,
+  }
+  if (pathname.startsWith('/app/file-ocr/tasks')) {
+    return [home, fileOcrBase, { title: t('nav.rulesFileOcrTaskList') }]
+  }
+  return [home, fileOcrBase, { title: t('nav.rulesFileOcrOverview') }]
+}
+
 export function AppBreadcrumb() {
   const { t } = useTranslation()
   const { pathname } = useLocation()
@@ -48,9 +63,8 @@ export function AppBreadcrumb() {
     if (pathname.startsWith('/app/smart-review')) {
       return [home, { title: t('nav.smartReview') }]
     }
-    if (pathname.startsWith('/app/file-ocr')) {
-      return [home, { title: t('nav.rulesFileOcr') }]
-    }
+    const fileOcr = fileOcrBreadcrumb(pathname, t, home)
+    if (fileOcr) return fileOcr
     const rules = rulesBreadcrumb(pathname, t, home)
     if (rules) return rules
     if (pathname.startsWith('/app/settings')) {
