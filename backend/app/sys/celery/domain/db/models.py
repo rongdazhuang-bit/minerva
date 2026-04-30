@@ -41,13 +41,13 @@ class SysCelery(Base):
     task: Mapped[str] = mapped_column(String(128), nullable=False)
     args_json: Mapped[dict[str, Any] | list[Any] | None] = mapped_column(JSONB, nullable=True)
     kwargs_json: Mapped[dict[str, Any] | list[Any] | None] = mapped_column(JSONB, nullable=True)
-    timezone: Mapped[str] = mapped_column(
-        String(64), nullable=False, server_default=sa.text("'Asia/Shanghai'")
+    timezone: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, server_default=sa.text("'Asia/Shanghai'")
     )
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=sa.true())
     next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    last_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    last_status: Mapped[str | None] = mapped_column(String(16), nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     version: Mapped[int] = mapped_column(
         BigInteger, nullable=False, server_default=sa.text("0")

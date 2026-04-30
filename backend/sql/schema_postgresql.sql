@@ -282,7 +282,7 @@ ALTER TABLE public.sys_celery
   ADD COLUMN IF NOT EXISTS enabled bool,
   ADD COLUMN IF NOT EXISTS next_run_at timestamptz,
   ADD COLUMN IF NOT EXISTS last_run_at timestamptz,
-  ADD COLUMN IF NOT EXISTS last_status varchar(32),
+  ADD COLUMN IF NOT EXISTS last_status varchar(16),
   ADD COLUMN IF NOT EXISTS last_error text,
   ADD COLUMN IF NOT EXISTS version bigint;
 ALTER TABLE public.sys_celery
@@ -301,7 +301,9 @@ ALTER TABLE public.sys_celery
     END,
   ALTER COLUMN timezone TYPE varchar(64),
   ALTER COLUMN timezone SET DEFAULT 'Asia/Shanghai',
+  ALTER COLUMN timezone DROP NOT NULL,
   ALTER COLUMN enabled SET DEFAULT true,
+  ALTER COLUMN last_status TYPE varchar(16),
   ALTER COLUMN version TYPE bigint,
   ALTER COLUMN version SET DEFAULT 0;
 UPDATE public.sys_celery
