@@ -2,6 +2,7 @@ import {
   ApiOutlined,
   BarChartOutlined,
   BookOutlined,
+  ClockCircleOutlined,
   DashboardOutlined,
   DatabaseOutlined,
   FileSearchOutlined,
@@ -115,6 +116,7 @@ function menuKeyForPath(pathname: string): string {
   if (pathname.startsWith('/app/settings/users')) return 'settings-users'
   if (pathname.startsWith('/app/settings/roles')) return 'settings-roles'
   if (pathname.startsWith('/app/settings/dictionary')) return 'settings-dictionary'
+  if (pathname.startsWith('/app/settings/celery')) return 'settings-celery'
   if (pathname.startsWith('/app/settings')) return 'settings-models'
   if (pathname.startsWith('/app/smart-review')) return 'smart-review'
   if (pathname.startsWith('/app/file-ocr')) return 'file-ocr-overview'
@@ -340,6 +342,12 @@ export function AppLayout() {
                       icon: <TagsOutlined />,
                       label: t('settings.dictionary'),
                       onClick: () => void nav('/app/settings/dictionary'),
+                    },
+                    {
+                      key: 'settings-celery',
+                      icon: <ClockCircleOutlined />,
+                      label: t('settings.celery'),
+                      onClick: () => void nav('/app/settings/celery'),
                     },
                   ],
                 },

@@ -16,6 +16,7 @@ import {
 import { DataSourcesPage } from '@/features/settings/data-sources'
 import { DictionaryPage } from '@/features/settings/dictionary'
 import { FileStoragePage } from '@/features/file-storage'
+import { CeleryPage } from '@/features/settings/celery'
 import { SettingsSectionLayout } from '@/features/settings/layout'
 import { MenuConfigPage } from '@/features/settings/menu-config'
 import { ModelProvidersPage } from '@/features/settings/model-providers'
@@ -88,6 +89,7 @@ const router = createBrowserRouter([
               { path: 'users', element: <UsersPage /> },
               { path: 'roles', element: <RolesPage /> },
               { path: 'dictionary', element: <DictionaryPage /> },
+              { path: 'celery', element: <CeleryPage /> },
             ],
           },
         ],
