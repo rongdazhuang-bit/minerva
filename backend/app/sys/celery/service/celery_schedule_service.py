@@ -13,6 +13,7 @@ from app.celery_app import enqueue_task
 from app.exceptions import AppError
 from app.sys.celery.domain.db.models import SysCelery
 from app.sys.celery.infrastructure import repository as repo
+from app.sys.celery.service import beat_sync_service
 
 
 _TASK_CODE_UNIQUE_CONSTRAINT = "uq_sys_celery_workspace_task_code"
@@ -93,6 +94,32 @@ def _normalize_kwargs_payload(value: Any) -> dict[str, Any] | None:
     )
 
 
+def _next_version(current_version: int | None) -> int:
+    """Return next monotonically increasing schedule version."""
+
+    return int(current_version or 0) + 1
+
+
+def _build_sync_payload(row: SysCelery, *, op: str) -> dict[str, Any]:
+    """Build one schedule sync event payload for Redis publication."""
+
+    return {
+        "workspace_id": str(row.workspace_id),
+        "job_id": str(row.id),
+        "op": op,
+        "version": int(row.version or 0),
+        "task_code": row.task_code,
+        "enabled": bool(row.enabled),
+        "cron": row.cron,
+    }
+
+
+def _publish_sync_event(payload: dict[str, Any]) -> None:
+    """Publish one schedule changed event without failing API flow."""
+
+    beat_sync_service.publish_schedule_changed_event(payload)
+
+
 async def list_jobs_page(
     session: AsyncSession,
     *,
@@ -146,6 +173,7 @@ async def create_job(
         kwargs_json=_normalize_kwargs_payload(data.get("kwargs_json")),
         timezone=_normalize_nullable_str(data.get("timezone")) or "Asia/Shanghai",
         enabled=bool(data.get("enabled", True)),
+        version=1,
         status=_normalize_nullable_str(data.get("status")),
         remark=_normalize_nullable_str(data.get("remark")),
         create_at=now,
@@ -158,6 +186,7 @@ async def create_job(
         await session.rollback()
         raise _translate_integrity_error(exc) from exc
     await session.refresh(row)
+    _publish_sync_event(_build_sync_payload(row, op="create"))
     return row
 
 
@@ -167,6 +196,7 @@ async def update_job(
     workspace_id: uuid.UUID,
     job_id: uuid.UUID,
     patch: dict[str, Any],
+    sync_op: str = "update",
 ) -> SysCelery:
     """Patch one job under workspace scope and persist changes."""
 
@@ -182,6 +212,7 @@ async def update_job(
             setattr(row, key, _normalize_kwargs_payload(value))
             continue
         setattr(row, key, value)
+    row.version = _next_version(row.version)
     row.update_at = _utc_now()
     try:
         await session.commit()
@@ -189,6 +220,7 @@ async def update_job(
         await session.rollback()
         raise _translate_integrity_error(exc) from exc
     await session.refresh(row)
+    _publish_sync_event(_build_sync_payload(row, op=sync_op))
     return row
 
 
@@ -201,8 +233,18 @@ async def delete_job(
     """Delete one workspace job row physically."""
 
     row = await get_job(session, workspace_id=workspace_id, job_id=job_id)
+    deleted_payload = {
+        "workspace_id": str(row.workspace_id),
+        "job_id": str(row.id),
+        "op": "delete",
+        "version": _next_version(row.version),
+        "task_code": row.task_code,
+        "enabled": False,
+        "cron": row.cron,
+    }
     await session.delete(row)
     await session.commit()
+    _publish_sync_event(deleted_payload)
 
 
 async def stop_job(
@@ -218,6 +260,7 @@ async def stop_job(
         workspace_id=workspace_id,
         job_id=job_id,
         patch={"enabled": False},
+        sync_op="stop",
     )
 
 
@@ -234,6 +277,7 @@ async def start_job(
         workspace_id=workspace_id,
         job_id=job_id,
         patch={"enabled": True},
+        sync_op="start",
     )
 
 

@@ -110,6 +110,24 @@ class Settings(BaseSettings):
         description="Default queue name for run-now dispatch.",
         validation_alias=AliasChoices("CELERY_DEFAULT_QUEUE", "celery_default_queue"),
     )
+    celery_schedule_sync_channel: str = Field(
+        default="minerva:celery:schedule_sync",
+        description="Redis pub/sub channel for celery beat hot-reload events.",
+        validation_alias=AliasChoices(
+            "CELERY_SCHEDULE_SYNC_CHANNEL",
+            "celery_schedule_sync_channel",
+        ),
+    )
+    celery_schedule_reconcile_seconds: int = Field(
+        default=60,
+        ge=10,
+        le=3600,
+        description="Low-frequency reconciliation interval hint for beat sync.",
+        validation_alias=AliasChoices(
+            "CELERY_SCHEDULE_RECONCILE_SECONDS",
+            "celery_schedule_reconcile_seconds",
+        ),
+    )
 
 
 # Singleton loaded at import time for ``from app.config import settings``.
