@@ -1,6 +1,6 @@
 /** Renders workspace celery jobs list page with action column operations. */
 
-import { DeleteOutlined, EditOutlined, PlayCircleOutlined, StopOutlined } from '@ant-design/icons'
+import { DeleteOutlined, EditOutlined, PlayCircleOutlined, PlusOutlined, StopOutlined } from '@ant-design/icons'
 import {
   Alert,
   Button,
@@ -8,13 +8,11 @@ import {
   Empty,
   Form,
   Input,
-  Modal,
   Popconfirm,
   Select,
   Space,
   Table,
   Tag,
-  Typography,
   message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -25,13 +23,16 @@ import { ApiError } from '@/api/client'
 import { useAuth } from '@/app/AuthContext'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
 import {
+  createCeleryJob,
   deleteCeleryJob,
   listCeleryJobs,
+  patchCeleryJob,
   runCeleryJobNow,
   startCeleryJob,
   stopCeleryJob,
 } from './api'
-import type { CeleryJob, CeleryJobListParams } from './types'
+import { CeleryFormModal } from './CeleryFormModal'
+import type { CeleryJob, CeleryJobCreateBody, CeleryJobListParams, CeleryJobPatchBody } from './types'
 
 type FilterFormValues = {
   name?: string
@@ -79,7 +80,9 @@ export function CeleryPage() {
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [filters, setFilters] = useState<CeleryJobListParams>({})
   const [refreshTick, setRefreshTick] = useState(0)
-  const [editOpen, setEditOpen] = useState(false)
+  const [formOpen, setFormOpen] = useState(false)
+  const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
+  const [formSubmitting, setFormSubmitting] = useState(false)
   const [editingRow, setEditingRow] = useState<CeleryJob | null>(null)
   const [actionLoadingMap, setActionLoadingMap] = useState<Record<string, boolean>>({})
 
@@ -117,16 +120,45 @@ export function CeleryPage() {
     setFilters({})
   }
 
-  /** Opens placeholder edit modal for one celery job row. */
+  /** Opens edit modal and loads selected row into form. */
   const openEditModal = (row: CeleryJob) => {
+    setFormMode('edit')
     setEditingRow(row)
-    setEditOpen(true)
+    setFormOpen(true)
   }
 
-  /** Closes placeholder edit modal and clears selected row. */
-  const closeEditModal = () => {
-    setEditOpen(false)
+  /** Opens create modal with default values and no selected row. */
+  const openCreateModal = () => {
+    setFormMode('create')
     setEditingRow(null)
+    setFormOpen(true)
+  }
+
+  /** Closes add/edit modal and resets selected row pointer. */
+  const closeFormModal = () => {
+    setFormOpen(false)
+    setEditingRow(null)
+  }
+
+  /** Submits add/edit payload and refreshes table after success. */
+  const handleSubmitForm = async (payload: CeleryJobCreateBody | CeleryJobPatchBody) => {
+    if (!workspaceId) return
+    setFormSubmitting(true)
+    try {
+      if (formMode === 'create') {
+        await createCeleryJob(workspaceId, payload as CeleryJobCreateBody)
+        void message.success(t('settings.celery.created'))
+      } else if (editingRow != null) {
+        await patchCeleryJob(workspaceId, editingRow.id, payload as CeleryJobPatchBody)
+        void message.success(t('settings.celery.updated'))
+      }
+      closeFormModal()
+      reloadList()
+    } catch (error) {
+      void message.error(error instanceof ApiError ? error.message : t('common.error'))
+    } finally {
+      setFormSubmitting(false)
+    }
   }
 
   /** Deletes one celery job row and refreshes table data. */
@@ -338,6 +370,9 @@ export function CeleryPage() {
                 {t('rules.search')}
               </Button>
               <Button onClick={handleReset}>{t('rules.resetFilter')}</Button>
+              <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+                {t('settings.celery.actionAdd')}
+              </Button>
             </Space>
           </Form.Item>
         </Form>
@@ -373,21 +408,14 @@ export function CeleryPage() {
         />
       </Card>
 
-      <Modal
-        open={editOpen}
-        title={t('settings.celery.editModalTitle')}
-        onCancel={closeEditModal}
-        onOk={closeEditModal}
-      >
-        <Typography.Paragraph style={{ marginBottom: 8 }}>
-          {t('settings.celery.editPlaceholder')}
-        </Typography.Paragraph>
-        <Typography.Text type="secondary">
-          {editingRow == null
-            ? '—'
-            : `${t('settings.celery.colName')}: ${editingRow.name} / ${t('settings.celery.colTaskCode')}: ${editingRow.task_code}`}
-        </Typography.Text>
-      </Modal>
+      <CeleryFormModal
+        open={formOpen}
+        mode={formMode}
+        submitting={formSubmitting}
+        job={editingRow}
+        onCancel={closeFormModal}
+        onSubmit={handleSubmitForm}
+      />
     </div>
   )
 }

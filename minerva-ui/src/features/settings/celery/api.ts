@@ -3,6 +3,7 @@
 import { apiJson } from '@/api/client'
 import type {
   CeleryJob,
+  CeleryJobCreateBody,
   CeleryJobListPage,
   CeleryJobListParams,
   CeleryJobPatchBody,
@@ -33,6 +34,14 @@ export function listCeleryJobs(workspaceId: string, params?: CeleryJobListParams
 export function patchCeleryJob(workspaceId: string, jobId: string, body: CeleryJobPatchBody) {
   return apiJson<CeleryJob>(celeryJobsPath(workspaceId, `/${jobId}`), {
     method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+/** Creates one celery job and returns created detail payload. */
+export function createCeleryJob(workspaceId: string, body: CeleryJobCreateBody) {
+  return apiJson<CeleryJob>(celeryJobsPath(workspaceId), {
+    method: 'POST',
     body: JSON.stringify(body),
   })
 }

@@ -39,6 +39,20 @@ export type CeleryJobListParams = {
   enabled?: boolean
 }
 
+/** Payload for creating one celery job row. */
+export type CeleryJobCreateBody = {
+  name: string
+  task_code: string
+  task: string
+  cron?: string | null
+  args_json?: Record<string, unknown> | unknown[] | null
+  kwargs_json?: Record<string, unknown> | null
+  timezone?: string | null
+  enabled?: boolean
+  status?: string | null
+  remark?: string | null
+}
+
 /** Partial payload for updating a celery job. */
 export type CeleryJobPatchBody = {
   name?: string | null
