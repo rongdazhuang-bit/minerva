@@ -262,3 +262,51 @@ COMMENT ON COLUMN public.sys_storage.auth_passwd IS '密码';
 COMMENT ON COLUMN public.sys_storage.create_at IS '创建时间';
 COMMENT ON COLUMN public.sys_storage.update_at IS '更新时间';
 
+CREATE TABLE IF NOT EXISTS public.sys_celery (
+  id uuid NOT NULL,
+  workspace_id uuid NOT NULL,
+  "name" varchar(64) NOT NULL,
+  task_code varchar(128) NOT NULL,
+  cron varchar(64) NULL,
+  task varchar(128) NULL,
+  args_json text NULL,
+  kwargs_json text NULL,
+  timezone varchar(64) NULL,
+  enabled bool DEFAULT true NOT NULL,
+  next_run_at timestamptz NULL,
+  last_run_at timestamptz NULL,
+  last_status varchar(32) NULL,
+  last_error text NULL,
+  version int4 DEFAULT 1 NOT NULL,
+  status varchar(2) NULL,
+  remark varchar(128) NULL,
+  create_at timestamptz NULL,
+  update_at timestamptz NULL,
+  CONSTRAINT sys_tasks_pk PRIMARY KEY (id),
+  CONSTRAINT uq_sys_celery_workspace_task_code UNIQUE (workspace_id, task_code),
+  CONSTRAINT sys_celery_workspace_id_fk FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS ix_sys_celery_workspace_id ON public.sys_celery (workspace_id);
+CREATE INDEX IF NOT EXISTS ix_sys_celery_enabled ON public.sys_celery (enabled);
+CREATE INDEX IF NOT EXISTS ix_sys_celery_next_run_at ON public.sys_celery (next_run_at);
+COMMENT ON TABLE public.sys_celery IS '定时任务调度';
+COMMENT ON COLUMN public.sys_celery.id IS 'id';
+COMMENT ON COLUMN public.sys_celery.workspace_id IS '工作空间id';
+COMMENT ON COLUMN public.sys_celery."name" IS '名称';
+COMMENT ON COLUMN public.sys_celery.task_code IS '任务编码';
+COMMENT ON COLUMN public.sys_celery.cron IS 'cron';
+COMMENT ON COLUMN public.sys_celery.task IS '任务';
+COMMENT ON COLUMN public.sys_celery.args_json IS '位置参数(JSON字符串)';
+COMMENT ON COLUMN public.sys_celery.kwargs_json IS '关键字参数(JSON字符串)';
+COMMENT ON COLUMN public.sys_celery.timezone IS '时区';
+COMMENT ON COLUMN public.sys_celery.enabled IS '是否启用';
+COMMENT ON COLUMN public.sys_celery.next_run_at IS '下次执行时间';
+COMMENT ON COLUMN public.sys_celery.last_run_at IS '上次执行时间';
+COMMENT ON COLUMN public.sys_celery.last_status IS '上次执行状态';
+COMMENT ON COLUMN public.sys_celery.last_error IS '上次错误';
+COMMENT ON COLUMN public.sys_celery.version IS '版本号';
+COMMENT ON COLUMN public.sys_celery.status IS '状态(Y/N)';
+COMMENT ON COLUMN public.sys_celery.remark IS '备注';
+COMMENT ON COLUMN public.sys_celery.create_at IS '创建时间';
+COMMENT ON COLUMN public.sys_celery.update_at IS '更新时间';
+
