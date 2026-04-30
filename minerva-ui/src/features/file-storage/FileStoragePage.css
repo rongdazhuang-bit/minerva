@@ -1,0 +1,20 @@
+.minerva-file-storage-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.minerva-file-storage-settings__card {
+  background: var(--minerva-surface, #1b2838);
+}
+
+.minerva-file-storage-settings__toolbar {
+  display: flex;
+  justify-content: flex-start;
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.minerva-file-storage-settings__table-wrap {
+  min-height: 0;
+}

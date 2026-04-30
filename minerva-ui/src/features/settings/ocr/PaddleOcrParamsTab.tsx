@@ -1,5 +1,7 @@
 import { Col, Form, Input, InputNumber, Row, Select, Tabs, Typography } from 'antd'
 import type { TFunction } from 'i18next'
+import { Fragment } from 'react'
+import type { ReactNode } from 'react'
 
 import {
   MINERU_EXTRA_FORMAT_OPTIONS,
@@ -13,10 +15,91 @@ type PaddleFieldsProps = {
   t: TFunction
 }
 
+type ReadonlyParamItem = {
+  /** Stable key used by React and to look up the serialized config value. */
+  key: string
+  /** Translated field label shown in the read-only parameter grid. */
+  label: ReactNode
+  /** Serialized or form-normalized value to show as plain text. */
+  value: unknown
+  /** Optional full-width cell span for values that need extra horizontal room. */
+  span?: number
+}
+
+/**
+ * Converts booleans, arrays and empty values into compact read-only text.
+ */
+function renderReadonlyValue(value: unknown, t: TFunction) {
+  if (value === true) return t('common.yes')
+  if (value === false) return t('common.no')
+  if (Array.isArray(value)) {
+    const text = value
+      .filter((v): v is string | number | boolean => ['string', 'number', 'boolean'].includes(typeof v))
+      .map((v) => String(v))
+      .join(', ')
+    return text || '—'
+  }
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : '—'
+  if (typeof value === 'string') return value.trim() ? value : '—'
+  if (value == null) return '—'
+  return JSON.stringify(value, null, 2)
+}
+
+/**
+ * Renders OCR engine parameters as a bordered detail table.
+ */
+function OcrParamsReadonlyDescriptions({ items, t }: { items: ReadonlyParamItem[]; t: TFunction }) {
+  const rows = items.reduce<ReadonlyParamItem[][]>((acc, item, index) => {
+    if (index % 2 === 0) acc.push([item])
+    else acc[acc.length - 1].push(item)
+    return acc
+  }, [])
+
+  return (
+    <table className="minerva-ocr-settings__params-table">
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.map((item) => item.key).join('__')}>
+            {row.map((item) => {
+              const rendered = renderReadonlyValue(item.value, t)
+              const isLong = typeof rendered === 'string' && (rendered.includes('\n') || rendered.length > 80)
+              return (
+                <Fragment key={item.key}>
+                  <th scope="row">
+                    {item.label}
+                  </th>
+                  <td>
+                    {isLong ? (
+                      <pre
+                        className="minerva-ocr-settings__json-view"
+                        style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                      >
+                        {rendered}
+                      </pre>
+                    ) : (
+                      <Typography.Text style={{ wordBreak: 'break-word' }}>{rendered}</Typography.Text>
+                    )}
+                  </td>
+                </Fragment>
+              )
+            })}
+            {row.length === 1 ? (
+              <>
+                <th aria-hidden="true" />
+                <td aria-hidden="true" />
+              </>
+            ) : null}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
 /**
  * Yes / no / unset dropdown consistent with other Paddle boolean params.
  */
-export function triBoolSelect(t: PaddleFieldsProps['t']) {
+function triBoolSelect(t: PaddleFieldsProps['t']) {
   return (
     <Select
       allowClear
@@ -281,6 +364,111 @@ export function MineruOcrParamsFields({ t }: MineruFieldsProps) {
       </Col>
     </Row>
   )
+}
+
+/**
+ * Shows Paddle OCR parameters without editable controls in the view drawer.
+ */
+export function PaddleOcrParamsReadonly({
+  values,
+  t,
+}: {
+  /** Form-normalized Paddle values produced from persisted `ocr_config`. */
+  values: Record<string, unknown>
+  t: TFunction
+}) {
+  const boolFields = [
+    ['useDocOrientationClassify', 'settings.ocrPaddle.useDocOrientationClassify'],
+    ['useDocUnwarping', 'settings.ocrPaddle.useDocUnwarping'],
+    ['useLayoutDetection', 'settings.ocrPaddle.useLayoutDetection'],
+    ['useChartRecognition', 'settings.ocrPaddle.useChartRecognition'],
+  ] as const
+  const numberFields = [
+    'repetitionPenalty',
+    'temperature',
+    'topP',
+    'minPixels',
+    'maxPixels',
+  ] as const
+  const items: ReadonlyParamItem[] = [
+    {
+      key: 'fileType',
+      label: t('settings.ocrPaddle.fileType'),
+      value:
+        values.fileType === 0
+          ? t('settings.ocrPaddle.fileTypePdf')
+          : values.fileType === 1
+            ? t('settings.ocrPaddle.fileTypeImage')
+            : undefined,
+    },
+    ...boolFields.map(([key, labelKey]) => ({ key, label: t(labelKey), value: values[key] })),
+    {
+      key: 'layoutThresholdText',
+      label: t('settings.ocrPaddle.layoutThreshold'),
+      value: values.layoutThresholdText,
+    },
+    { key: 'layoutNms', label: t('settings.ocrPaddle.layoutNms'), value: values.layoutNms },
+    {
+      key: 'layoutUnclipRatioText',
+      label: t('settings.ocrPaddle.layoutUnclipRatio'),
+      value: values.layoutUnclipRatioText,
+    },
+    {
+      key: 'layoutMergeBboxesMode',
+      label: t('settings.ocrPaddle.layoutMergeBboxesMode'),
+      value: values.layoutMergeBboxesMode,
+    },
+    { key: 'promptLabel', label: t('settings.ocrPaddle.promptLabel'), value: values.promptLabel },
+    ...numberFields.map((key) => ({
+      key,
+      label: t(`settings.ocrPaddle.${key}`),
+      value: values[key],
+    })),
+    {
+      key: 'showFormulaNumber',
+      label: t('settings.ocrPaddle.showFormulaNumber'),
+      value: values.showFormulaNumber,
+    },
+    {
+      key: 'prettifyMarkdown',
+      label: t('settings.ocrPaddle.prettifyMarkdown'),
+      value: values.prettifyMarkdown,
+    },
+    { key: 'visualize', label: t('settings.ocrPaddle.visualize'), value: values.visualize },
+  ]
+  return <OcrParamsReadonlyDescriptions items={items} t={t} />
+}
+
+/**
+ * Shows MinerU OCR parameters without editable controls in the view drawer.
+ */
+export function MineruOcrParamsReadonly({
+  values,
+  t,
+}: {
+  /** Form-normalized MinerU values produced from persisted `ocr_config`. */
+  values: Record<string, unknown>
+  t: TFunction
+}) {
+  const items: ReadonlyParamItem[] = [
+    { key: 'isOcr', label: t('settings.ocrMineru.isOcr'), value: values.isOcr },
+    { key: 'enableFormula', label: t('settings.ocrMineru.enableFormula'), value: values.enableFormula },
+    { key: 'enableTable', label: t('settings.ocrMineru.enableTable'), value: values.enableTable },
+    { key: 'language', label: t('settings.ocrMineru.language'), value: values.language },
+    { key: 'dataId', label: t('settings.ocrMineru.dataId'), value: values.dataId },
+    { key: 'callback', label: t('settings.ocrMineru.callback'), value: values.callback },
+    { key: 'seed', label: t('settings.ocrMineru.seed'), value: values.seed },
+    { key: 'extraFormats', label: t('settings.ocrMineru.extraFormats'), value: values.extraFormats },
+    { key: 'pageRanges', label: t('settings.ocrMineru.pageRanges'), value: values.pageRanges },
+    { key: 'modelVersion', label: t('settings.ocrMineru.modelVersion'), value: values.modelVersion },
+    { key: 'noCache', label: t('settings.ocrMineru.noCache'), value: values.noCache },
+    {
+      key: 'cacheTolerance',
+      label: t('settings.ocrMineru.cacheTolerance'),
+      value: values.cacheTolerance,
+    },
+  ]
+  return <OcrParamsReadonlyDescriptions items={items} t={t} />
 }
 
 type ParamsTabsProps = {

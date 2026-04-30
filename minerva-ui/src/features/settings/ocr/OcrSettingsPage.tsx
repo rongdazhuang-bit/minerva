@@ -33,9 +33,9 @@ import {
 } from '@/api/ocrTools'
 import { useAuth } from '@/app/AuthContext'
 import {
-  MineruOcrParamsFields,
+  MineruOcrParamsReadonly,
   OcrToolParamsTabs,
-  PaddleOcrParamsFields,
+  PaddleOcrParamsReadonly,
 } from './PaddleOcrParamsTab'
 import {
   MINERU_OCR_TYPE_CODE,
@@ -609,7 +609,12 @@ export function OcrSettingsPage() {
             <Typography.Title level={5} style={{ marginTop: 0 }}>
               {t('settings.ocrDetailBaseSection')}
             </Typography.Title>
-            <Descriptions column={1} size="small" bordered>
+            <Descriptions
+              className="minerva-ocr-settings__detail-descriptions"
+              column={1}
+              size="small"
+              bordered
+            >
               <Descriptions.Item label={t('settings.ocrToolsOcrType')}>
                 {resolveOcrTypeLabel(viewDetail.ocr_type)}
               </Descriptions.Item>
@@ -637,7 +642,12 @@ export function OcrSettingsPage() {
             <Typography.Title level={5}>{t('settings.ocrDetailCredentialSection')}</Typography.Title>
 
             {isOcrBasicAuth(viewDetail.auth_type) ? (
-              <Descriptions column={1} size="small" bordered>
+              <Descriptions
+                className="minerva-ocr-settings__detail-descriptions"
+                column={1}
+                size="small"
+                bordered
+              >
                 <Descriptions.Item label={t('settings.ocrToolsUsername')}>
                   {renderCopyablePlain(viewDetail.user_name)}
                 </Descriptions.Item>
@@ -648,7 +658,12 @@ export function OcrSettingsPage() {
             ) : null}
 
             {isOcrApiKeyAuth(viewDetail.auth_type) ? (
-              <Descriptions column={1} size="small" bordered>
+              <Descriptions
+                className="minerva-ocr-settings__detail-descriptions"
+                column={1}
+                size="small"
+                bordered
+              >
                 <Descriptions.Item label={t('settings.ocrToolsApiKey')}>
                   {renderCopyablePlain(viewDetail.api_key)}
                 </Descriptions.Item>
@@ -677,27 +692,15 @@ export function OcrSettingsPage() {
                   label: t('settings.ocrParamsTab'),
                   children:
                     viewDetail.ocr_type === PADDLE_OCR_TYPE_CODE ? (
-                      <Form
-                        layout="vertical"
-                        disabled
-                        style={{ marginBottom: 0 }}
-                        initialValues={{
-                          paddle: ocrConfigToPaddleFormValues(viewDetail.ocr_config ?? undefined),
-                        }}
-                      >
-                        <PaddleOcrParamsFields t={t} />
-                      </Form>
+                      <PaddleOcrParamsReadonly
+                        values={ocrConfigToPaddleFormValues(viewDetail.ocr_config ?? undefined)}
+                        t={t}
+                      />
                     ) : viewDetail.ocr_type === MINERU_OCR_TYPE_CODE ? (
-                      <Form
-                        layout="vertical"
-                        disabled
-                        style={{ marginBottom: 0 }}
-                        initialValues={{
-                          mineru: ocrConfigToMineruFormValues(viewDetail.ocr_config ?? undefined),
-                        }}
-                      >
-                        <MineruOcrParamsFields t={t} />
-                      </Form>
+                      <MineruOcrParamsReadonly
+                        values={ocrConfigToMineruFormValues(viewDetail.ocr_config ?? undefined)}
+                        t={t}
+                      />
                     ) : viewDetail.ocr_config &&
                       typeof viewDetail.ocr_config === 'object' &&
                       Object.keys(viewDetail.ocr_config).length > 0 ? (

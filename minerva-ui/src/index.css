@@ -105,6 +105,72 @@ html.minerva-app-shell .ant-table {
   --ant-color-border-secondary: var(--minerva-border);
 }
 
+/*
+ * Browser autofill paints native inputs with a light background. Keep Ant Design
+ * inputs aligned with the current Minerva tone across app pages and drawers.
+ */
+html.minerva-app-shell input.ant-input:-webkit-autofill,
+html.minerva-app-shell input.ant-input:-webkit-autofill:hover,
+html.minerva-app-shell input.ant-input:-webkit-autofill:focus,
+html.minerva-app-shell input.ant-input:-webkit-autofill:active {
+  border: none !important;
+  outline: none !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--minerva-surface-2, #121c28) inset !important;
+  box-shadow: 0 0 0 1000px var(--minerva-surface-2, #121c28) inset !important;
+  -webkit-text-fill-color: var(--minerva-ink, #e8f0f8) !important;
+  caret-color: var(--minerva-ink, #e8f0f8);
+}
+
+html.minerva-app-shell .ant-input-affix-wrapper > input.ant-input:-webkit-autofill,
+html.minerva-app-shell .ant-input-affix-wrapper > input.ant-input:-webkit-autofill:hover,
+html.minerva-app-shell .ant-input-affix-wrapper > input.ant-input:-webkit-autofill:focus,
+html.minerva-app-shell .ant-input-affix-wrapper > input.ant-input:-webkit-autofill:active {
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  -webkit-box-shadow: none !important;
+  box-shadow: none !important;
+  -webkit-text-fill-color: var(--minerva-ink, #e8f0f8) !important;
+  caret-color: var(--minerva-ink, #e8f0f8);
+}
+
+html.minerva-app-shell .ant-input-affix-wrapper:has(input.ant-input:-webkit-autofill) {
+  background: var(--minerva-surface-2, #121c28) !important;
+}
+
+html.minerva-app-shell.minerva-tone-sunshine input.ant-input:-webkit-autofill,
+html.minerva-app-shell.minerva-tone-sunshine input.ant-input:-webkit-autofill:hover,
+html.minerva-app-shell.minerva-tone-sunshine input.ant-input:-webkit-autofill:focus,
+html.minerva-app-shell.minerva-tone-sunshine input.ant-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #0f172a !important;
+  caret-color: #0f172a;
+}
+
+html.minerva-app-shell.minerva-tone-sunshine
+  .ant-input-affix-wrapper:has(input.ant-input:-webkit-autofill) {
+  background: #ffffff !important;
+}
+
+html.minerva-app-shell.minerva-tone-sunshine
+  .ant-input-affix-wrapper
+  > input.ant-input:-webkit-autofill,
+html.minerva-app-shell.minerva-tone-sunshine
+  .ant-input-affix-wrapper
+  > input.ant-input:-webkit-autofill:hover,
+html.minerva-app-shell.minerva-tone-sunshine
+  .ant-input-affix-wrapper
+  > input.ant-input:-webkit-autofill:focus,
+html.minerva-app-shell.minerva-tone-sunshine
+  .ant-input-affix-wrapper
+  > input.ant-input:-webkit-autofill:active {
+  -webkit-text-fill-color: #0f172a !important;
+  caret-color: #0f172a;
+}
+
 /* 已登录 shell：整页不滚，仅主内容区滚 */
 html.minerva-app-shell {
   height: 100%;

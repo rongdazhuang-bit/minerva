@@ -71,6 +71,82 @@ html.minerva-tone-sunshine .minerva-ocr-settings__table .ant-table-tbody > tr:ho
   color: var(--minerva-ink, #e8f0f8);
 }
 
+.minerva-ocr-settings__detail-descriptions .ant-descriptions-view table,
+.minerva-ocr-settings__params-table {
+  table-layout: fixed;
+}
+
+.minerva-ocr-settings__detail-descriptions .ant-descriptions-item-label {
+  width: 25%;
+  min-width: 180px;
+  white-space: normal;
+}
+
+.minerva-ocr-settings__detail-descriptions .ant-descriptions-item-content {
+  width: 75%;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.minerva-ocr-settings__params-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--minerva-border, #2a3f58);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.minerva-ocr-settings__params-table th,
+.minerva-ocr-settings__params-table td {
+  width: 25%;
+  min-width: 0;
+  padding: 16px;
+  border-inline-end: 1px solid var(--minerva-border, #2a3f58);
+  border-block-end: 1px solid var(--minerva-border, #2a3f58);
+  text-align: left;
+  vertical-align: middle;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.minerva-ocr-settings__params-table th {
+  background: rgb(255 255 255 / 4%);
+  color: var(--minerva-ink-muted, #9fb3c8);
+  font-weight: 500;
+}
+
+.minerva-ocr-settings__params-table td {
+  color: var(--minerva-ink, #e8f0f8);
+}
+
+.minerva-ocr-settings__params-table th:nth-child(4n),
+.minerva-ocr-settings__params-table td:nth-child(4n) {
+  border-inline-end: 0;
+}
+
+.minerva-ocr-settings__params-table tr:last-child th,
+.minerva-ocr-settings__params-table tr:last-child td {
+  border-block-end: 0;
+}
+
+.minerva-ocr-settings__params-table .ant-typography {
+  max-width: 100%;
+}
+
+html.minerva-tone-sunshine .minerva-ocr-settings__params-table {
+  border-color: #edf2f7;
+}
+
+html.minerva-tone-sunshine .minerva-ocr-settings__params-table th,
+html.minerva-tone-sunshine .minerva-ocr-settings__params-table td {
+  border-color: #edf2f7;
+}
+
+html.minerva-tone-sunshine .minerva-ocr-settings__params-table th {
+  background: #f7fafc;
+}
+
 html.minerva-tone-sunshine .minerva-ocr-settings__drawer-detail .ant-typography h5 {
   color: var(--minerva-ink, #0f172a);
 }

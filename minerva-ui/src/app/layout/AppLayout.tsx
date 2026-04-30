@@ -6,6 +6,7 @@ import {
   DatabaseOutlined,
   FileSearchOutlined,
   FileTextOutlined,
+  FolderOpenOutlined,
   IdcardOutlined,
   MenuOutlined,
   ScanOutlined,
@@ -105,6 +106,7 @@ const contentScrollStyle: CSSProperties = {
 function menuKeyForPath(pathname: string): string {
   if (pathname.startsWith('/app/settings/models')) return 'settings-models'
   if (pathname.startsWith('/app/settings/ocr')) return 'settings-ocr'
+  if (pathname.startsWith('/app/settings/file-storage')) return 'settings-file-storage'
   if (pathname.startsWith('/app/settings/data-sources')) return 'settings-data-sources'
   if (pathname.startsWith('/app/settings/menus')) return 'settings-menus'
   if (pathname.startsWith('/app/settings/users')) return 'settings-users'
@@ -281,6 +283,12 @@ export function AppLayout() {
                       icon: <FileTextOutlined />,
                       label: t('settings.ocr'),
                       onClick: () => void nav('/app/settings/ocr'),
+                    },
+                    {
+                      key: 'settings-file-storage',
+                      icon: <FolderOpenOutlined />,
+                      label: t('settings.fileStorage'),
+                      onClick: () => void nav('/app/settings/file-storage'),
                     },
                     {
                       key: 'settings-data-sources',

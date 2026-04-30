@@ -15,6 +15,7 @@ import {
 } from '@/features/rules'
 import { DataSourcesPage } from '@/features/settings/data-sources'
 import { DictionaryPage } from '@/features/settings/dictionary'
+import { FileStoragePage } from '@/features/file-storage'
 import { SettingsSectionLayout } from '@/features/settings/layout'
 import { MenuConfigPage } from '@/features/settings/menu-config'
 import { ModelProvidersPage } from '@/features/settings/model-providers'
@@ -74,6 +75,7 @@ const router = createBrowserRouter([
               { index: true, element: <Navigate to="models" replace /> },
               { path: 'models', element: <ModelProvidersPage /> },
               { path: 'ocr', element: <OcrSettingsPage /> },
+              { path: 'file-storage', element: <FileStoragePage /> },
               { path: 'data-sources', element: <DataSourcesPage /> },
               { path: 'menus', element: <MenuConfigPage /> },
               { path: 'users', element: <UsersPage /> },

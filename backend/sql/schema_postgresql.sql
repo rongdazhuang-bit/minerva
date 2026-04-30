@@ -1,5 +1,5 @@
 -- Minerva 表结构（PostgreSQL），与 Alembic 迁移链一致：
--- 3552a1daa5cc (identity) -> … -> c3d4e5f6a7b8 (rule_base engineering_code) -> d4e5f6a7b8c9 (rule_config_prompt)
+-- 3552a1daa5cc (identity) -> 947e36be8860 (rules) -> bbec5fe9111a (executions)
 --
 -- 使用: psql -U minerva -d minerva -f schema_postgresql.sql
 -- 推荐仍用: cd backend && alembic upgrade head
@@ -93,9 +93,9 @@ CREATE TABLE IF NOT EXISTS public.sys_ocr_tool (
   user_name VARCHAR(64) NULL,
   user_passwd VARCHAR(128) NULL,
   api_key VARCHAR(128) NULL,
+	ocr_type varchar(16) NULL,
+	ocr_config text NULL,
   remark VARCHAR(128) NULL,
-  ocr_type VARCHAR(64) NULL,
-  ocr_config JSONB NULL,
   create_at TIMESTAMPTZ NULL DEFAULT now(),
   update_at TIMESTAMPTZ NULL,
   CONSTRAINT sys_ocr_tool_pk PRIMARY KEY (id),
@@ -112,8 +112,6 @@ COMMENT ON COLUMN public.sys_ocr_tool.user_name IS '账号';
 COMMENT ON COLUMN public.sys_ocr_tool.user_passwd IS '密码';
 COMMENT ON COLUMN public.sys_ocr_tool.api_key IS 'api key';
 COMMENT ON COLUMN public.sys_ocr_tool.remark IS '备注';
-COMMENT ON COLUMN public.sys_ocr_tool.ocr_type IS 'OCR引擎类型字典项编码（如 dict_code=TOOL_OCR）';
-COMMENT ON COLUMN public.sys_ocr_tool.ocr_config IS 'OCR调用扩展参数JSON（键名与接口一致）';
 COMMENT ON COLUMN public.sys_ocr_tool.create_at IS '创建日期';
 COMMENT ON COLUMN public.sys_ocr_tool.update_at IS '更新日期';
 
@@ -164,7 +162,6 @@ COMMENT ON COLUMN public.sys_dict_item.create_at IS '创建时间';
 COMMENT ON COLUMN public.sys_dict_item.update_at IS '更新时间';
 COMMENT ON COLUMN public.sys_dict_item.item_sort IS '排序';
 
-
 CREATE TABLE public.sys_models (
 	id uuid NOT NULL,
 	workspace_id uuid NOT NULL,
@@ -207,100 +204,57 @@ COMMENT ON COLUMN public.sys_models.model_config IS '其它配置项';
 COMMENT ON COLUMN public.sys_models.create_at IS '创建时间';
 COMMENT ON COLUMN public.sys_models.update_at IS '更新时间';
 
-
-
-CREATE TABLE public.rule_base (
-	id uuid NOT NULL,
-	workspace_id uuid NOT NULL, -- 工作空间id
-	sequence_number int2 DEFAULT 0 NOT NULL, -- 序号
-    engineering_code varchar(64) NULL, -- 工程编码
-	subject_code varchar(64) NULL, -- 专业
-	serial_number varchar(32) NULL,
-	document_type varchar(64) NULL, -- 文档类型
-	review_section varchar(128) NOT NULL, -- 校审章节
-	review_object varchar(128) NOT NULL, -- 校审对象
-	review_rules text NOT NULL, -- 校审规则
-	review_rules_ai text NULL, -- 校审规则（AI 润色）
-	review_result text NOT NULL, -- 校审结果
-	status varchar NOT NULL, -- 是有否有效(Y/N)
-	create_at timestamptz NULL, -- 创建时间
-	update_at timestamptz NULL, -- 更新时间
-	CONSTRAINT rule_base_pk PRIMARY KEY (id),
-	CONSTRAINT rule_base_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE
-);
-CREATE INDEX IF NOT EXISTS ix_rule_base_workspace_id ON public.rule_base (workspace_id);
-COMMENT ON TABLE public.rule_base IS '规则库';
-COMMENT ON COLUMN public.rule_base.workspace_id IS '工作空间id';
-COMMENT ON COLUMN public.rule_base.sequence_number IS '序号';
-COMMENT ON COLUMN public.rule_base.subject_code IS '专业';
-COMMENT ON COLUMN public.rule_base.serial_number IS '编号';
-COMMENT ON COLUMN public.rule_base.document_type IS '文档类型';
-COMMENT ON COLUMN public.rule_base.engineering_code IS '工程编码';
-COMMENT ON COLUMN public.rule_base.review_section IS '校审章节';
-COMMENT ON COLUMN public.rule_base.review_object IS '校审对象';
-COMMENT ON COLUMN public.rule_base.review_rules IS '校审规则';
-COMMENT ON COLUMN public.rule_base.review_rules_ai IS '校审规则（AI 润色）';
-COMMENT ON COLUMN public.rule_base.review_result IS '校审结果';
-COMMENT ON COLUMN public.rule_base.status IS '是有否有效(Y/N)';
-COMMENT ON COLUMN public.rule_base.create_at IS '创建时间';
-COMMENT ON COLUMN public.rule_base.update_at IS '更新时间';
-
-
-CREATE TABLE public.rule_config_prompt (
+CREATE TABLE public.ocr_file (
 	id uuid NOT NULL,
 	workspace_id uuid NOT NULL,
-	model_id uuid NOT NULL,
-	engineering_code varchar(64) NULL,
-	subject_code varchar(64) NULL,
-	document_type varchar(64) NULL,
-	sys_prompt varchar(1024) NULL,
-	user_prompt text NULL,
-	chat_memory text NULL,
-	create_at timestamptz NULL DEFAULT now(),
+	file_name varchar(256) NULL,
+	file_uri varchar(1024) NULL,
+	ocr_type varchar(16) NOT NULL,
+	status varchar(16) NOT NULL,
+	remark text NULL,
+	create_at timestamptz NULL,
 	update_at timestamptz NULL,
-	CONSTRAINT rule_config_prompt_pkey PRIMARY KEY (id)
+	CONSTRAINT ocr_file_pk PRIMARY KEY (id)
 );
-CREATE INDEX IF NOT EXISTS ix_rule_config_prompt_workspace_id ON public.rule_config_prompt (workspace_id);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_rule_config_prompt_workspace_scope ON public.rule_config_prompt (
-	workspace_id,
-	coalesce(engineering_code, ''),
-	coalesce(subject_code, ''),
-	coalesce(document_type, '')
-);
-COMMENT ON TABLE public.rule_config_prompt IS '规则库-提示词配置（按上下文绑定模型）';
-COMMENT ON COLUMN public.rule_config_prompt.id IS 'id';
-COMMENT ON COLUMN public.rule_config_prompt.workspace_id IS '工作空间id';
-COMMENT ON COLUMN public.rule_config_prompt.model_id IS '模型id';
-COMMENT ON COLUMN public.rule_config_prompt.engineering_code IS '工程编码';
-COMMENT ON COLUMN public.rule_config_prompt.subject_code IS '专业';
-COMMENT ON COLUMN public.rule_config_prompt.document_type IS '文档类型';
-COMMENT ON COLUMN public.rule_config_prompt.sys_prompt IS '系统提示词';
-COMMENT ON COLUMN public.rule_config_prompt.user_prompt IS '用户提示词';
-COMMENT ON COLUMN public.rule_config_prompt.chat_memory IS '对话记忆';
-COMMENT ON COLUMN public.rule_config_prompt.create_at IS '创建时间';
-COMMENT ON COLUMN public.rule_config_prompt.update_at IS '更新时间';
 
-CREATE TABLE public.sys_store (
-    id uuid NOT NULL,
-    "name" varchar(32) NULL,
-    "type" varchar(16) NULL,
-    enabled bool DEFAULT true NOT NULL,
-    auth_type varchar(64) NOT NULL,
-    endpoint_url varchar(128) NULL,
-    api_key varchar(128) NULL,
-    auth_name varchar(64) NULL,
-    auth_passwd varchar(128) NULL,
-    create_at timestamptz NULL,
-    update_at timestamptz NULL,
-    CONSTRAINT sys_store_pk PRIMARY KEY (id)
-);COMMENT ON TABLE public.sys_store IS '文件存储';
-COMMENT ON COLUMN public.sys_store."name" IS '名称';
-COMMENT ON COLUMN public.sys_store.enabled IS '状态';
-COMMENT ON COLUMN public.sys_store.auth_type IS '认证方式';
-COMMENT ON COLUMN public.sys_store.endpoint_url IS '地址';
-COMMENT ON COLUMN public.sys_store.api_key IS 'api key';
-COMMENT ON COLUMN public.sys_store.auth_name IS '账号';
-COMMENT ON COLUMN public.sys_store.auth_passwd IS '密码';
-COMMENT ON COLUMN public.sys_store."type" IS '存储类型';
-COMMENT ON COLUMN public.sys_store.create_at IS '创建时间';
-COMMENT ON COLUMN public.sys_store.update_at IS '更新时间';
+COMMENT ON TABLE public.ocr_file IS 'OCR文件';
+COMMENT ON COLUMN public.ocr_file.id IS 'id';
+COMMENT ON COLUMN public.ocr_file.workspace_id IS '工作空间id';
+COMMENT ON COLUMN public.ocr_file.file_name IS '源文件名';
+COMMENT ON COLUMN public.ocr_file.file_uri IS '文件地址';
+COMMENT ON COLUMN public.ocr_file.ocr_type IS 'OCR类型';
+COMMENT ON COLUMN public.ocr_file.status IS '状态(字典OCR_FILE_STATUS)';
+COMMENT ON COLUMN public.ocr_file.remark IS '备注';
+COMMENT ON COLUMN public.ocr_file.create_at IS '创建时间';
+COMMENT ON COLUMN public.ocr_file.update_at IS '更新时间';
+
+CREATE TABLE public.sys_storage (
+	id uuid NOT NULL,
+	workspace_id uuid NOT NULL,
+	"name" varchar(32) NULL,
+	"type" varchar(16) NULL,
+	enabled bool DEFAULT true NOT NULL,
+	auth_type varchar(64) NOT NULL,
+	endpoint_url varchar(128) NULL,
+	api_key varchar(128) NULL,
+	auth_name varchar(64) NULL,
+	auth_passwd varchar(128) NULL,
+	create_at timestamptz NULL,
+	update_at timestamptz NULL,
+	CONSTRAINT sys_store_pk PRIMARY KEY (id)
+);
+
+COMMENT ON TABLE public.sys_storage IS '文件存储';
+COMMENT ON COLUMN public.sys_storage.id IS 'id';
+COMMENT ON COLUMN public.sys_storage.workspace_id IS '工作空间id';
+COMMENT ON COLUMN public.sys_storage."name" IS '名称';
+COMMENT ON COLUMN public.sys_storage."type" IS '存储类型';
+COMMENT ON COLUMN public.sys_storage.enabled IS '状态';
+COMMENT ON COLUMN public.sys_storage.auth_type IS '认证方式';
+COMMENT ON COLUMN public.sys_storage.endpoint_url IS '地址';
+COMMENT ON COLUMN public.sys_storage.api_key IS 'api key';
+COMMENT ON COLUMN public.sys_storage.auth_name IS '账号';
+COMMENT ON COLUMN public.sys_storage.auth_passwd IS '密码';
+COMMENT ON COLUMN public.sys_storage.create_at IS '创建时间';
+COMMENT ON COLUMN public.sys_storage.update_at IS '更新时间';
+

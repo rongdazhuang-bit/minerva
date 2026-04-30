@@ -322,10 +322,18 @@ html.minerva-auth-page .login-shell {
 }
 
 .login-card .ant-input,
+.login-card .ant-input-affix-wrapper,
 .login-card .ant-input-password {
   background: var(--minerva-surface-2, #121c28) !important;
   color: #e8f0f8 !important;
   border-color: var(--minerva-border, #2a3f58) !important;
+}
+
+.login-card .ant-input-affix-wrapper > input.ant-input {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: inherit !important;
 }
 
 .login-card .ant-input::placeholder,
@@ -347,8 +355,7 @@ html.minerva-auth-page .login-shell {
 
 /*
  * 浏览器自动填充会强制浅色底，覆盖暗色主题。用 inset box-shadow「铺底」并统一字色（Chrome/Safari 等）。
- * Ant Design 在 affix 内层 input:focus 上写了 box-shadow: none !important，会盖掉上述内阴影并在上下缘留下细线，
- * 故对 .ant-input-affix-wrapper > input 提高优先级并单独覆盖 focus/active。
+ * 带 suffix 的密码框由外层 affix wrapper 负责铺底，内层 input 只保留文字颜色，避免自动填充阴影边缘形成横线。
  */
 html.minerva-auth-page .login-card input.ant-input:-webkit-autofill,
 html.minerva-auth-page .login-card input.ant-input:-webkit-autofill:hover,
@@ -368,10 +375,17 @@ html.minerva-auth-page .login-card .ant-input-affix-wrapper > input.ant-input:-w
 html.minerva-auth-page .login-card .ant-input-affix-wrapper > input.ant-input:-webkit-autofill:active {
   border: none !important;
   outline: none !important;
-  -webkit-box-shadow: 0 0 0 1000px var(--minerva-surface-2, #121c28) inset !important;
-  box-shadow: 0 0 0 1000px var(--minerva-surface-2, #121c28) inset !important;
+  background: transparent !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  -webkit-box-shadow: none !important;
+  box-shadow: none !important;
   -webkit-text-fill-color: #e8f0f8 !important;
   caret-color: #e8f0f8;
+}
+
+html.minerva-auth-page .login-card .ant-input-affix-wrapper:has(input.ant-input:-webkit-autofill) {
+  background: var(--minerva-surface-2, #121c28) !important;
 }
 
 .login-footer {
@@ -512,6 +526,7 @@ html.minerva-tone-sunshine .login-card .ant-form-item-label > label {
 }
 
 html.minerva-tone-sunshine .login-card .ant-input,
+html.minerva-tone-sunshine .login-card .ant-input-affix-wrapper,
 html.minerva-tone-sunshine .login-card .ant-input-password {
   background: #ffffff !important;
   color: #0f172a !important;
@@ -540,6 +555,12 @@ html.minerva-auth-page.minerva-tone-sunshine .login-card input.ant-input:-webkit
 
 html.minerva-auth-page.minerva-tone-sunshine
   .login-card
+  .ant-input-affix-wrapper:has(input.ant-input:-webkit-autofill) {
+  background: #ffffff !important;
+}
+
+html.minerva-auth-page.minerva-tone-sunshine
+  .login-card
   .ant-input-affix-wrapper
   > input.ant-input:-webkit-autofill,
 html.minerva-auth-page.minerva-tone-sunshine
@@ -556,8 +577,11 @@ html.minerva-auth-page.minerva-tone-sunshine
   > input.ant-input:-webkit-autofill:active {
   border: none !important;
   outline: none !important;
-  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
-  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  background: transparent !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  -webkit-box-shadow: none !important;
+  box-shadow: none !important;
   -webkit-text-fill-color: #0f172a !important;
   caret-color: #0f172a;
 }

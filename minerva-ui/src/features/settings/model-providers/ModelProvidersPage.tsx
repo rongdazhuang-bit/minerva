@@ -240,6 +240,14 @@ export function ModelProvidersPage() {
     return sorted.map((i) => ({ value: i.name, label: `${i.name} (${i.code})` }))
   }, [typeItems])
 
+  const booleanOptions = useMemo(
+    () => [
+      { value: true, label: t('common.yes') },
+      { value: false, label: t('common.no') },
+    ],
+    [t],
+  )
+
   const resolveAuthLabel = (code: string) => {
     const exact = authLabelByCode.get(code)
     if (exact) return exact
@@ -703,15 +711,11 @@ export function ModelProvidersPage() {
               placeholder={t('settings.modelProvidersFieldModelTypePh')}
             />
           </Form.Item>
-          <Form.Item name="enabled" label={t('settings.modelProvidersFieldEnabled')} valuePropName="checked">
-            <Switch />
+          <Form.Item name="enabled" label={t('settings.modelProvidersFieldEnabled')}>
+            <Select options={booleanOptions} />
           </Form.Item>
-          <Form.Item
-            name="load_balancing_enabled"
-            label={t('settings.modelProvidersFieldLb')}
-            valuePropName="checked"
-          >
-            <Switch />
+          <Form.Item name="load_balancing_enabled" label={t('settings.modelProvidersFieldLb')}>
+            <Select options={booleanOptions} />
           </Form.Item>
           <Form.Item
             name="auth_type"
