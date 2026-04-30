@@ -81,15 +81,13 @@ async def test_create_job_persists_extended_fields() -> None:
                     task_code="report.daily",
                     task="app.tasks.report_daily",
                     cron="0 8 * * *",
-                    args_json='["daily"]',
-                    kwargs_json='{"force": true}',
-                    timezone="Asia/Shanghai",
+                    args_json=["daily"],
+                    kwargs_json={"force": True},
                     enabled=True,
                     next_run_at=next_run_at,
                     last_run_at=last_run_at,
                     last_status="SUCCESS",
                     last_error=None,
-                    version=2,
                     status="Y",
                     remark="nightly run",
                 )
@@ -99,14 +97,14 @@ async def test_create_job_persists_extended_fields() -> None:
             persisted = await session.get(SysCelery, job_id)
             assert persisted is not None
             assert persisted.task_code == "report.daily"
-            assert persisted.args_json == '["daily"]'
-            assert persisted.kwargs_json == '{"force": true}'
+            assert persisted.args_json == ["daily"]
+            assert persisted.kwargs_json == {"force": True}
             assert persisted.timezone == "Asia/Shanghai"
             assert persisted.enabled is True
             assert persisted.next_run_at == next_run_at
             assert persisted.last_run_at == last_run_at
             assert persisted.last_status == "SUCCESS"
             assert persisted.last_error is None
-            assert persisted.version == 2
+            assert persisted.version == 0
     finally:
         await _cleanup_workspace(workspace_id)

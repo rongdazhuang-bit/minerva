@@ -266,29 +266,94 @@ CREATE TABLE IF NOT EXISTS public.sys_celery (
   id uuid NOT NULL,
   workspace_id uuid NOT NULL,
   "name" varchar(64) NOT NULL,
-  task_code varchar(128) NOT NULL,
   cron varchar(64) NULL,
-  task varchar(128) NULL,
-  args_json text NULL,
-  kwargs_json text NULL,
-  timezone varchar(64) NULL,
-  enabled bool DEFAULT true NOT NULL,
-  next_run_at timestamptz NULL,
-  last_run_at timestamptz NULL,
-  last_status varchar(32) NULL,
-  last_error text NULL,
-  version int4 DEFAULT 1 NOT NULL,
   status varchar(2) NULL,
+  task varchar(128) NULL,
   remark varchar(128) NULL,
   create_at timestamptz NULL,
   update_at timestamptz NULL,
-  CONSTRAINT sys_tasks_pk PRIMARY KEY (id),
-  CONSTRAINT uq_sys_celery_workspace_task_code UNIQUE (workspace_id, task_code),
-  CONSTRAINT sys_celery_workspace_id_fk FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE
+  CONSTRAINT sys_tasks_pk PRIMARY KEY (id)
 );
+ALTER TABLE public.sys_celery
+  ADD COLUMN IF NOT EXISTS task_code varchar(64),
+  ADD COLUMN IF NOT EXISTS args_json jsonb,
+  ADD COLUMN IF NOT EXISTS kwargs_json jsonb,
+  ADD COLUMN IF NOT EXISTS timezone varchar(64),
+  ADD COLUMN IF NOT EXISTS enabled bool,
+  ADD COLUMN IF NOT EXISTS next_run_at timestamptz,
+  ADD COLUMN IF NOT EXISTS last_run_at timestamptz,
+  ADD COLUMN IF NOT EXISTS last_status varchar(32),
+  ADD COLUMN IF NOT EXISTS last_error text,
+  ADD COLUMN IF NOT EXISTS version bigint;
+ALTER TABLE public.sys_celery
+  ALTER COLUMN task_code TYPE varchar(64),
+  ALTER COLUMN args_json TYPE jsonb USING
+    CASE
+      WHEN args_json IS NULL THEN NULL
+      WHEN btrim(args_json::text, '"') = '' THEN NULL
+      ELSE (args_json::text)::jsonb
+    END,
+  ALTER COLUMN kwargs_json TYPE jsonb USING
+    CASE
+      WHEN kwargs_json IS NULL THEN NULL
+      WHEN btrim(kwargs_json::text, '"') = '' THEN NULL
+      ELSE (kwargs_json::text)::jsonb
+    END,
+  ALTER COLUMN timezone TYPE varchar(64),
+  ALTER COLUMN timezone SET DEFAULT 'Asia/Shanghai',
+  ALTER COLUMN enabled SET DEFAULT true,
+  ALTER COLUMN version TYPE bigint,
+  ALTER COLUMN version SET DEFAULT 0;
+UPDATE public.sys_celery
+SET enabled = true
+WHERE enabled IS NULL;
+UPDATE public.sys_celery
+SET version = 0
+WHERE version IS NULL;
+ALTER TABLE public.sys_celery
+  ALTER COLUMN enabled SET NOT NULL,
+  ALTER COLUMN version SET NOT NULL;
+UPDATE public.sys_celery
+SET task = ''
+WHERE task IS NULL;
+ALTER TABLE public.sys_celery
+  ALTER COLUMN task SET NOT NULL;
+UPDATE public.sys_celery
+SET task_code = LEFT(task, 64)
+WHERE task_code IS NULL AND task IS NOT NULL;
+UPDATE public.sys_celery
+SET task_code = LEFT(id::text, 64)
+WHERE task_code IS NULL;
+ALTER TABLE public.sys_celery
+  ALTER COLUMN task_code SET NOT NULL;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'sys_celery_workspace_id_fk'
+      AND conrelid = 'public.sys_celery'::regclass
+  ) THEN
+    ALTER TABLE public.sys_celery
+      ADD CONSTRAINT sys_celery_workspace_id_fk
+      FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'uq_sys_celery_workspace_task_code'
+      AND conrelid = 'public.sys_celery'::regclass
+  ) THEN
+    ALTER TABLE public.sys_celery
+      ADD CONSTRAINT uq_sys_celery_workspace_task_code UNIQUE (workspace_id, task_code);
+  END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS ix_sys_celery_workspace_id ON public.sys_celery (workspace_id);
-CREATE INDEX IF NOT EXISTS ix_sys_celery_enabled ON public.sys_celery (enabled);
-CREATE INDEX IF NOT EXISTS ix_sys_celery_next_run_at ON public.sys_celery (next_run_at);
+CREATE INDEX IF NOT EXISTS ix_sys_celery_workspace_enabled ON public.sys_celery (workspace_id, enabled);
+CREATE INDEX IF NOT EXISTS ix_sys_celery_enabled_update_at ON public.sys_celery (enabled, update_at);
 COMMENT ON TABLE public.sys_celery IS '定时任务调度';
 COMMENT ON COLUMN public.sys_celery.id IS 'id';
 COMMENT ON COLUMN public.sys_celery.workspace_id IS '工作空间id';
@@ -296,8 +361,8 @@ COMMENT ON COLUMN public.sys_celery."name" IS '名称';
 COMMENT ON COLUMN public.sys_celery.task_code IS '任务编码';
 COMMENT ON COLUMN public.sys_celery.cron IS 'cron';
 COMMENT ON COLUMN public.sys_celery.task IS '任务';
-COMMENT ON COLUMN public.sys_celery.args_json IS '位置参数(JSON字符串)';
-COMMENT ON COLUMN public.sys_celery.kwargs_json IS '关键字参数(JSON字符串)';
+COMMENT ON COLUMN public.sys_celery.args_json IS '位置参数(JSONB)';
+COMMENT ON COLUMN public.sys_celery.kwargs_json IS '关键字参数(JSONB)';
 COMMENT ON COLUMN public.sys_celery.timezone IS '时区';
 COMMENT ON COLUMN public.sys_celery.enabled IS '是否启用';
 COMMENT ON COLUMN public.sys_celery.next_run_at IS '下次执行时间';
