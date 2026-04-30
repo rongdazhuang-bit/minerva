@@ -8,12 +8,14 @@ from typing import Any, Mapping
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.sys.celery.domain.db.models import SysCelery
 from app.sys.celery.service.beat_sync_service import (
     BeatSyncState,
     build_event_identity,
     build_schedule_entry,
     build_schedule_key,
+    reconcile_schedule,
 )
 
 
@@ -69,4 +71,40 @@ async def load_enabled_schedule_state(session: AsyncSession) -> BeatSyncState:
     result = await session.execute(select(SysCelery).where(SysCelery.enabled.is_(True)))
     rows = result.scalars().all()
     return build_state_from_jobs(rows)
+
+
+def run_reconcile_once_if_due(
+    state: BeatSyncState,
+    rows: Iterable[SysCelery | Mapping[str, Any]],
+    *,
+    now_epoch_seconds: float,
+    last_reconcile_epoch_seconds: float | None,
+    interval_seconds: int | None = None,
+) -> tuple[float | None, dict[str, Any]]:
+    """Run one reconcile pass only when interval is due and return reconcile metadata."""
+
+    reconcile_interval = int(interval_seconds or settings.celery_schedule_reconcile_seconds)
+    if (
+        last_reconcile_epoch_seconds is not None
+        and now_epoch_seconds - last_reconcile_epoch_seconds < reconcile_interval
+    ):
+        return last_reconcile_epoch_seconds, {
+            "due": False,
+            "ran": False,
+            "interval_seconds": reconcile_interval,
+            "changes": {"removed": 0, "updated": 0},
+        }
+
+    expected_state = build_state_from_jobs(rows)
+    changes = reconcile_schedule(state, expected_state.schedule)
+    state.job_versions.clear()
+    state.job_versions.update(expected_state.job_versions)
+    state.job_schedule_keys.clear()
+    state.job_schedule_keys.update(expected_state.job_schedule_keys)
+    return now_epoch_seconds, {
+        "due": True,
+        "ran": True,
+        "interval_seconds": reconcile_interval,
+        "changes": changes,
+    }
 
