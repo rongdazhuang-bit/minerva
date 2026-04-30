@@ -128,6 +128,10 @@ async def list_celery_jobs(
     workspace_id: uuid.UUID,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
+    name: str | None = Query(default=None, min_length=1, max_length=64),
+    task_code: str | None = Query(default=None, min_length=1, max_length=64),
+    task: str | None = Query(default=None, min_length=1, max_length=128),
+    enabled: bool | None = Query(default=None),
     _user: User = Depends(get_current_user),
     _workspace: uuid.UUID = Depends(require_workspace_member),
     session: AsyncSession = Depends(get_db),
@@ -139,6 +143,10 @@ async def list_celery_jobs(
         workspace_id=workspace_id,
         page=page,
         page_size=page_size,
+        name=name,
+        task_code=task_code,
+        task=task,
+        enabled=enabled,
     )
     return CeleryJobListPageOut(items=[_to_list_item(r) for r in rows], total=total)
 

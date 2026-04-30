@@ -1,4 +1,10 @@
-"""Celery application wiring and enqueue helper for runtime dispatch."""
+"""Celery application wiring and enqueue helper for runtime dispatch.
+
+Beat process can reuse this module as a stable integration surface:
+- ``bootstrap_beat_runtime(session)`` on startup
+- ``apply_beat_sync_message(...)`` when receiving one schedule sync payload
+- ``run_beat_reconcile_cycle(...)`` in periodic reconcile ticks
+"""
 
 from __future__ import annotations
 
@@ -7,6 +13,12 @@ from typing import Any
 
 from app.config import settings
 from app.exceptions import AppError
+from app.sys.celery.service.beat_runtime import (
+    CeleryBeatRuntimeState,
+    create_beat_runtime_state,
+    process_sync_message_once,
+    run_reconcile_cycle_once,
+)
 
 
 def _build_celery_app() -> Any:
@@ -76,3 +88,37 @@ def enqueue_task(
     except Exception as exc:
         raise _translate_enqueue_error(exc) from exc
     return str(result.id)
+
+
+async def bootstrap_beat_runtime(session: Any) -> CeleryBeatRuntimeState:
+    """Bootstrap beat runtime state from enabled jobs at process startup."""
+
+    return await create_beat_runtime_state(session)
+
+
+def apply_beat_sync_message(
+    runtime: CeleryBeatRuntimeState,
+    payload: dict[str, Any],
+    *,
+    job_payload: dict[str, Any] | None = None,
+) -> bool:
+    """Apply one sync payload message inside a beat event loop tick."""
+
+    return process_sync_message_once(runtime, payload, job_payload=job_payload)
+
+
+def run_beat_reconcile_cycle(
+    runtime: CeleryBeatRuntimeState,
+    rows: list[dict[str, Any]],
+    *,
+    now_epoch_seconds: float,
+    interval_seconds: int | None = None,
+) -> dict[str, Any]:
+    """Run one reconcile cycle; call from beat's periodic maintenance hook."""
+
+    return run_reconcile_cycle_once(
+        runtime,
+        rows,
+        now_epoch_seconds=now_epoch_seconds,
+        interval_seconds=interval_seconds,
+    )

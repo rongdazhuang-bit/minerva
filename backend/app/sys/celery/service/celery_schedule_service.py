@@ -14,6 +14,10 @@ from app.exceptions import AppError
 from app.sys.celery.domain.db.models import SysCelery
 from app.sys.celery.infrastructure import repository as repo
 from app.sys.celery.service import beat_sync_service
+from app.sys.celery.service.task_payload_codec import (
+    normalize_task_args,
+    normalize_task_kwargs,
+)
 
 
 _TASK_CODE_UNIQUE_CONSTRAINT = "uq_sys_celery_workspace_task_code"
@@ -59,25 +63,20 @@ def _translate_integrity_error(exc: IntegrityError) -> AppError:
 def _normalize_task_args(value: Any) -> list[Any]:
     """Convert persisted ``args_json`` payload to Celery positional args."""
 
-    if value is None:
-        return []
-    if isinstance(value, list):
-        return value
-    return [value]
+    return normalize_task_args(value)
 
 
 def _normalize_task_kwargs(value: Any) -> dict[str, Any]:
     """Convert persisted ``kwargs_json`` payload to Celery keyword args."""
 
-    if isinstance(value, dict):
-        return value
-    if value is None:
-        return {}
-    raise AppError(
-        "celery_job.invalid_kwargs_json",
-        "kwargs_json must be an object when running task",
-        422,
-    )
+    try:
+        return normalize_task_kwargs(value)
+    except TypeError as exc:
+        raise AppError(
+            "celery_job.invalid_kwargs_json",
+            "kwargs_json must be an object when running task",
+            422,
+        ) from exc
 
 
 def _normalize_kwargs_payload(value: Any) -> dict[str, Any] | None:
@@ -126,16 +125,31 @@ async def list_jobs_page(
     workspace_id: uuid.UUID,
     page: int,
     page_size: int,
+    name: str | None = None,
+    task_code: str | None = None,
+    task: str | None = None,
+    enabled: bool | None = None,
 ) -> tuple[list[SysCelery], int]:
     """Return one paginated job list page and total count."""
 
-    total = await repo.count_for_workspace(session, workspace_id=workspace_id)
+    total = await repo.count_for_workspace(
+        session,
+        workspace_id=workspace_id,
+        name=name,
+        task_code=task_code,
+        task=task,
+        enabled=enabled,
+    )
     offset = (page - 1) * page_size
     rows = await repo.list_for_workspace_page(
         session,
         workspace_id=workspace_id,
         limit=page_size,
         offset=offset,
+        name=name,
+        task_code=task_code,
+        task=task,
+        enabled=enabled,
     )
     return list(rows), total
 

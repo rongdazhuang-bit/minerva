@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import importlib
+
+import pytest
+
 from app.sys.celery.service.beat_bootstrap import (
     build_state_from_jobs,
     run_reconcile_once_if_due,
 )
 from app.sys.celery.service.beat_sync_service import BeatSyncState, apply_sync_event
+from app.sys.celery.service.celery_schedule_service import _normalize_task_args
 
 
 def test_bootstrap_builds_workspace_task_schedule_key() -> None:
@@ -280,4 +285,48 @@ def test_run_reconcile_once_if_due_wires_interval_gate() -> None:
     assert ran["ran"] is True
     assert state.schedule["ws-001:report.daily"]["cron"] == "*/10 * * * *"
     assert state.job_versions["ws-001:job-001"] == 2
+
+
+def test_beat_runtime_module_exposes_bootstrap_and_cycle_entrypoints() -> None:
+    """Beat runtime module should expose executable bootstrap and cycle entrypoints."""
+
+    runtime_module = importlib.import_module("app.sys.celery.service.beat_runtime")
+    assert hasattr(runtime_module, "create_beat_runtime_state")
+    assert hasattr(runtime_module, "process_sync_message_once")
+    assert hasattr(runtime_module, "run_reconcile_cycle_once")
+
+
+@pytest.mark.parametrize(
+    ("args_json", "expected"),
+    [
+        (["daily", 1], ["daily", 1]),
+        ({"date": "2026-04-30"}, [{"date": "2026-04-30"}]),
+        (None, []),
+    ],
+)
+def test_schedule_entry_args_json_semantics_match_run_now(
+    args_json: object,
+    expected: list[object],
+) -> None:
+    """Beat schedule args semantics should match run-now normalization behavior."""
+
+    entry = build_state_from_jobs(
+        [
+            {
+                "workspace_id": "ws-001",
+                "job_id": "job-001",
+                "task_code": "report.daily",
+                "task": "app.tasks.report_daily",
+                "cron": "0 8 * * *",
+                "args_json": args_json,
+                "kwargs_json": {"force": True},
+                "timezone": "Asia/Shanghai",
+                "enabled": True,
+                "version": 1,
+            }
+        ]
+    ).schedule["ws-001:report.daily"]
+
+    assert _normalize_task_args(args_json) == expected
+    assert entry["args"] == expected
 

@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping, MutableMapping
 
 from app.config import settings
+from app.sys.celery.service.task_payload_codec import normalize_task_args, normalize_task_kwargs
 
 # Redis pub/sub channel for celery beat schedule invalidation events.
 SCHEDULE_CHANGED_EVENT = "schedule_changed"
@@ -30,8 +31,8 @@ def build_schedule_entry(job_payload: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "task": str(job_payload["task"]),
         "cron": job_payload.get("cron"),
-        "args": list(job_payload.get("args_json") or []),
-        "kwargs": dict(job_payload.get("kwargs_json") or {}),
+        "args": normalize_task_args(job_payload.get("args_json")),
+        "kwargs": normalize_task_kwargs(job_payload.get("kwargs_json")),
         "timezone": job_payload.get("timezone") or "Asia/Shanghai",
         "job_id": str(job_payload["job_id"]),
         "workspace_id": str(job_payload["workspace_id"]),

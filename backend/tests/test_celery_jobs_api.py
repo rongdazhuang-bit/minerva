@@ -266,6 +266,44 @@ async def test_celery_job_crud_endpoints(monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 @pytest.mark.asyncio
+async def test_list_celery_jobs_supports_filter_params() -> None:
+    """List endpoint should honor name/task_code/task/enabled filter parameters."""
+
+    await _ensure_celery_table_exists()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        _token, workspace_id, headers = await _register_workspace_user(client)
+        _ = await _create_job(client, workspace_id=workspace_id, headers=headers)
+
+        disabled = await client.get(
+            f"/workspaces/{workspace_id}/celery-jobs?page=1&page_size=10&enabled=false",
+            headers=headers,
+        )
+        assert disabled.status_code == 200, disabled.text
+        assert disabled.json()["total"] == 0
+
+        exact_task_code = await client.get(
+            f"/workspaces/{workspace_id}/celery-jobs?page=1&page_size=10&task_code=report.daily",
+            headers=headers,
+        )
+        assert exact_task_code.status_code == 200, exact_task_code.text
+        assert exact_task_code.json()["total"] == 1
+
+        exact_task = await client.get(
+            f"/workspaces/{workspace_id}/celery-jobs?page=1&page_size=10&task=app.tasks.report_daily",
+            headers=headers,
+        )
+        assert exact_task.status_code == 200, exact_task.text
+        assert exact_task.json()["total"] == 1
+
+        fuzzy_name = await client.get(
+            f"/workspaces/{workspace_id}/celery-jobs?page=1&page_size=10&name=nightly",
+            headers=headers,
+        )
+        assert fuzzy_name.status_code == 200, fuzzy_name.text
+        assert fuzzy_name.json()["total"] == 1
+
+
+@pytest.mark.asyncio
 async def test_duplicate_task_code_returns_conflict_error() -> None:
     """Creating duplicated ``task_code`` in same workspace should return 409 domain error."""
 

@@ -24,6 +24,8 @@ dependencies = [
   "orjson>=3.10",
   "openai>=1.59",
   "boto3>=1.35",
+  "celery",
+  "redis",
 ]
 
 [project.optional-dependencies]
