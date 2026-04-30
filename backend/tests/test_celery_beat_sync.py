@@ -114,6 +114,53 @@ def test_update_event_overrides_cron_entry() -> None:
     assert state.schedule["ws-001:report.daily"]["version"] == 2
 
 
+def test_missing_payload_does_not_advance_version_and_allows_same_version_retry() -> None:
+    """Missing payload should not move version so same-version compensation can apply."""
+
+    state = BeatSyncState(
+        schedule={
+            "ws-001:report.daily": {
+                "task": "app.tasks.report_daily",
+                "cron": "0 8 * * *",
+                "args": [],
+                "kwargs": {},
+                "timezone": "Asia/Shanghai",
+                "job_id": "job-001",
+                "workspace_id": "ws-001",
+                "task_code": "report.daily",
+                "version": 1,
+            }
+        },
+        job_versions={"ws-001:job-001": 1},
+        job_schedule_keys={"ws-001:job-001": "ws-001:report.daily"},
+    )
+
+    skipped = apply_sync_event(
+        state,
+        {"workspace_id": "ws-001", "job_id": "job-001", "op": "update", "version": 2},
+        job_payload=None,
+    )
+    assert skipped is False
+    assert state.job_versions["ws-001:job-001"] == 1
+
+    compensated = apply_sync_event(
+        state,
+        {"workspace_id": "ws-001", "job_id": "job-001", "op": "update", "version": 2},
+        job_payload={
+            "task_code": "report.daily",
+            "task": "app.tasks.report_daily",
+            "cron": "*/15 * * * *",
+            "args_json": [],
+            "kwargs_json": {},
+            "timezone": "Asia/Shanghai",
+            "enabled": True,
+        },
+    )
+    assert compensated is True
+    assert state.job_versions["ws-001:job-001"] == 2
+    assert state.schedule["ws-001:report.daily"]["cron"] == "*/15 * * * *"
+
+
 def test_delete_and_stop_events_remove_schedule() -> None:
     """Delete/stop events should evict schedule entries for the job."""
 

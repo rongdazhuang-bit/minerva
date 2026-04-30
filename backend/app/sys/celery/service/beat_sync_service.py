@@ -108,7 +108,6 @@ def apply_sync_event(
     if version <= previous_version:
         return False
 
-    state.job_versions[identity] = version
     previous_schedule_key = state.job_schedule_keys.get(identity)
     if op in {"delete", "stop"}:
         schedule_key = previous_schedule_key or (
@@ -119,6 +118,7 @@ def apply_sync_event(
         if schedule_key:
             state.schedule.pop(schedule_key, None)
         state.job_schedule_keys.pop(identity, None)
+        state.job_versions[identity] = version
         return True
 
     if job_payload is None:
@@ -127,6 +127,7 @@ def apply_sync_event(
         if previous_schedule_key:
             state.schedule.pop(previous_schedule_key, None)
         state.job_schedule_keys.pop(identity, None)
+        state.job_versions[identity] = version
         return True
 
     schedule_key = build_schedule_key(workspace_id, str(job_payload["task_code"]))
@@ -141,6 +142,7 @@ def apply_sync_event(
         }
     )
     state.job_schedule_keys[identity] = schedule_key
+    state.job_versions[identity] = version
     return True
 
 
