@@ -12,6 +12,7 @@ from app.sys.model_provider.api.router import router as model_providers_router
 from app.file_ocr.api.router import file_router as ocr_files_router
 from app.sys.tool.ocr.api.router import router as ocr_tools_router
 from app.ai_api.api.router import router as ai_router
+from app.sys.celery.api.router import router as celery_jobs_router
 
 api = APIRouter()
 api.include_router(health.router)
@@ -26,3 +27,4 @@ api.include_router(s3_files_router)
 api.include_router(dicts_router)
 api.include_router(rule_base_router)
 api.include_router(rule_config_prompt_router)
+api.include_router(celery_jobs_router)

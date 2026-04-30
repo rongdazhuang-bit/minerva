@@ -1,15 +1,19 @@
-"""Regression test for persisted sys_celery extended fields."""
+"""Integration and persistence tests for workspace celery job APIs."""
 
 from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
 
+import jwt
 import pytest
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 
 import app.domain.identity.models  # noqa: F401
+from app.config import settings
 from app.infrastructure.db.session import async_session_factory, engine
+from app.main import app
 from app.sys.celery.domain.db.models import SysCelery
 
 
@@ -63,6 +67,63 @@ async def _cleanup_workspace(workspace_id: uuid.UUID) -> None:
         )
 
 
+def _workspace_id_from_access_token(access_token: str) -> str:
+    """Decode workspace id claim from access JWT."""
+
+    payload = jwt.decode(access_token, settings.jwt_secret, algorithms=["HS256"])
+    return str(payload["wid"])
+
+
+async def _ensure_celery_table_exists() -> None:
+    """Ensure ``sys_celery`` table exists for API integration tests."""
+
+    async with engine.begin() as conn:
+        await conn.run_sync(SysCelery.__table__.create, checkfirst=True)
+
+
+async def _register_workspace_user(client: AsyncClient) -> tuple[str, str, dict[str, str]]:
+    """Create one user/workspace by register API and return auth context."""
+
+    email = f"celery-api-{uuid.uuid4().hex}@example.com"
+    register = await client.post(
+        "/auth/register",
+        json={"email": email, "password": "secret1234"},
+    )
+    assert register.status_code == 201, register.text
+    token = register.json()["access_token"]
+    workspace_id = _workspace_id_from_access_token(token)
+    return token, workspace_id, {"Authorization": f"Bearer {token}"}
+
+
+async def _create_job(
+    client: AsyncClient,
+    *,
+    workspace_id: str,
+    headers: dict[str, str],
+) -> dict:
+    """Create a job through API and return created row payload."""
+
+    payload = {
+        "name": "nightly-report",
+        "task_code": "report.daily",
+        "task": "app.tasks.report_daily",
+        "cron": "0 8 * * *",
+        "args_json": ["daily"],
+        "kwargs_json": {"force": True},
+        "timezone": "Asia/Shanghai",
+        "enabled": True,
+        "status": "Y",
+        "remark": "nightly run",
+    }
+    created = await client.post(
+        f"/workspaces/{workspace_id}/celery-jobs",
+        headers=headers,
+        json=payload,
+    )
+    assert created.status_code == 201, created.text
+    return created.json()
+
+
 @pytest.mark.asyncio
 async def test_create_job_persists_extended_fields() -> None:
     """Create one schedule job and verify extended sys_celery fields round-trip."""
@@ -108,3 +169,80 @@ async def test_create_job_persists_extended_fields() -> None:
             assert persisted.version == 0
     finally:
         await _cleanup_workspace(workspace_id)
+
+
+@pytest.mark.asyncio
+async def test_stop_and_start_job() -> None:
+    """Stop/start endpoints should toggle ``enabled`` for one job."""
+
+    await _ensure_celery_table_exists()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        _token, workspace_id, headers = await _register_workspace_user(client)
+        job = await _create_job(client, workspace_id=workspace_id, headers=headers)
+        job_id = job["id"]
+
+        stopped = await client.post(
+            f"/workspaces/{workspace_id}/celery-jobs/{job_id}/stop",
+            headers=headers,
+        )
+        assert stopped.status_code == 200, stopped.text
+        assert stopped.json()["enabled"] is False
+
+        started = await client.post(
+            f"/workspaces/{workspace_id}/celery-jobs/{job_id}/start",
+            headers=headers,
+        )
+        assert started.status_code == 200, started.text
+        assert started.json()["enabled"] is True
+
+
+@pytest.mark.asyncio
+async def test_celery_job_crud_endpoints() -> None:
+    """Cover list/create/patch/delete and run-now placeholder behaviors."""
+
+    await _ensure_celery_table_exists()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        _token, workspace_id, headers = await _register_workspace_user(client)
+
+        before = await client.get(f"/workspaces/{workspace_id}/celery-jobs?page=1&page_size=10", headers=headers)
+        assert before.status_code == 200, before.text
+        assert before.json()["total"] == 0
+
+        created = await _create_job(client, workspace_id=workspace_id, headers=headers)
+        job_id = created["id"]
+        assert created["task_code"] == "report.daily"
+        assert created["args_json"] == ["daily"]
+        assert created["kwargs_json"] == {"force": True}
+
+        listed = await client.get(f"/workspaces/{workspace_id}/celery-jobs?page=1&page_size=10", headers=headers)
+        assert listed.status_code == 200, listed.text
+        listed_body = listed.json()
+        assert listed_body["total"] == 1
+        assert listed_body["items"][0]["id"] == job_id
+
+        patched = await client.patch(
+            f"/workspaces/{workspace_id}/celery-jobs/{job_id}",
+            headers=headers,
+            json={"cron": "*/5 * * * *", "remark": "updated"},
+        )
+        assert patched.status_code == 200, patched.text
+        assert patched.json()["cron"] == "*/5 * * * *"
+        assert patched.json()["remark"] == "updated"
+
+        run_now = await client.post(
+            f"/workspaces/{workspace_id}/celery-jobs/{job_id}/run-now",
+            headers=headers,
+        )
+        assert run_now.status_code == 202, run_now.text
+        assert run_now.json()["accepted"] is False
+        assert run_now.json()["reason"] == "run_now_not_implemented_in_task2"
+
+        deleted = await client.delete(
+            f"/workspaces/{workspace_id}/celery-jobs/{job_id}",
+            headers=headers,
+        )
+        assert deleted.status_code == 204, deleted.text
+
+        after = await client.get(f"/workspaces/{workspace_id}/celery-jobs?page=1&page_size=10", headers=headers)
+        assert after.status_code == 200, after.text
+        assert after.json()["total"] == 0
