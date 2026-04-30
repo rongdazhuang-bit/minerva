@@ -52,15 +52,18 @@ import {
   type OcrFileCreateBody,
   type OcrFileListItem,
   type OcrFileListParams,
-} from '@/api/ocrFile'
+} from '@/api/ocrTask'
 import { useAuth } from '@/app/AuthContext'
+import { DictText } from '@/components/dict'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
 import { useCountUp } from '@/hooks/useCountUp'
-import './RulesFileOcrPage.css'
+import { useDictItemTree } from '@/hooks/useDictItemTree'
+import './FileOcrTaskPage.css'
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024
 const MAX_FILE_COUNT = 50
 const ALLOWED_EXTS = new Set(['pdf', 'jpg', 'jpeg', 'png'])
+const OCR_TYPE_DICT_CODE = 'TOOL_OCR'
 
 type OcrTypeValue = 'PADDLE_OCR' | 'MINER_U'
 type OcrTypeOption = { value: OcrTypeValue; label: string; description: string; icon: ReactNode }
@@ -121,7 +124,7 @@ function buildOcrTypeOptions(t: (key: string) => string): OcrTypeOption[] {
   ]
 }
 
-export function RulesFileOcrPage() {
+export function RulesFileOcrOverviewPage() {
   const { t } = useTranslation()
   const { workspaceId } = useAuth()
   const statsQuery = useQuery({
@@ -216,7 +219,7 @@ export function RulesFileOcrPage() {
   )
 }
 
-export function RulesFileOcrTasksPage() {
+export function RulesFileOcrTaskPage() {
   const { t } = useTranslation()
   const { workspaceId } = useAuth()
   const [filterForm] = Form.useForm<FilterFormValues>()
@@ -231,6 +234,18 @@ export function RulesFileOcrTasksPage() {
   const [submitting, setSubmitting] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
   const ocrTypeOptions = useMemo(() => buildOcrTypeOptions(t), [t])
+  const ocrTypeDictQ = useDictItemTree(OCR_TYPE_DICT_CODE)
+  const ocrTypeFilterOptions = useMemo(() => {
+    const dictOptions = (ocrTypeDictQ.data?.flat ?? []).map((item) => ({
+      value: item.code,
+      label: item.name,
+    }))
+    if (dictOptions.length > 0) return dictOptions
+    return [
+      { value: 'PADDLE_OCR', label: 'PaddleOCR' },
+      { value: 'MINER_U', label: 'MinerU' },
+    ]
+  }, [ocrTypeDictQ.data?.flat])
   const listQuery = useQuery({
     queryKey: ['ocrFileTaskList', workspaceId, page, pageSize, filters, refreshTick],
     queryFn: () =>
@@ -279,6 +294,7 @@ export function RulesFileOcrTasksPage() {
         dataIndex: 'ocr_type',
         key: 'ocr_type',
         width: 120,
+        render: (v: string | null) => <DictText dictCode={OCR_TYPE_DICT_CODE} value={v} />,
       },
       {
         title: t('fileOcr.tasks.col.fileSize'),
@@ -491,11 +507,9 @@ export function RulesFileOcrTasksPage() {
           <Form.Item name="ocr_type" label={t('fileOcr.tasks.filter.ocrType')}>
             <Select
               allowClear
+              loading={ocrTypeDictQ.isLoading}
               style={{ minWidth: 140 }}
-              options={[
-                { value: 'PADDLE_OCR', label: 'PaddleOCR' },
-                { value: 'MINER_U', label: 'MinerU' },
-              ]}
+              options={ocrTypeFilterOptions}
             />
           </Form.Item>
           <Form.Item name="status" label={t('fileOcr.tasks.filter.status')}>

@@ -8,7 +8,7 @@
   "nav.rulesManagementList": "规则列表",
   "nav.rulesFileOcr": "文件OCR",
   "nav.rulesFileOcrOverview": "概览",
-  "nav.rulesFileOcrTaskList": "任务列表",
+  "nav.rulesFileOcrTaskList": "OCR任务",
   "nav.rulesConfig": "配置",
   "nav.rulesPromptManagement": "提示词管理",
   "nav.settings": "系统设置",

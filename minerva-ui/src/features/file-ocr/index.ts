@@ -1,1 +1,1 @@
-export { RulesFileOcrPage, RulesFileOcrTasksPage } from './RulesFileOcrPage'
+export { RulesFileOcrOverviewPage, RulesFileOcrTaskPage } from './FileOcrTaskPage'

@@ -229,7 +229,7 @@ html.minerva-auth-page .login-shell {
 .login-card {
   position: relative;
   width: 100%;
-  max-width: 400px;
+  max-width: 480px;
   margin: 0;
   background: var(--minerva-surface, #1a2836);
   border: 1px solid var(--minerva-border, #2a3f58);
