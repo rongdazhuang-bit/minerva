@@ -12,7 +12,7 @@ from app.ai_api.api.schemas import ChatCompletionRequest
 from app.ai_api.domain.models import ChatMessage
 from app.ai_api.service.chat_service import chat_service
 from app.api.deps import get_current_user, require_workspace_member
-from app.domain.identity.models import User
+from app.core.domain.identity.models import User
 
 router = APIRouter(
     prefix="/workspaces/{workspace_id}/ai",

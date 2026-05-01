@@ -6,6 +6,6 @@ import pytest
 @pytest.fixture(autouse=True)
 async def dispose_async_engine_after_test() -> None:
     yield
-    from app.infrastructure.db.session import engine
+    from app.core.infrastructure.db.session import engine
 
     await engine.dispose()

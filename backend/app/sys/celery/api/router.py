@@ -15,7 +15,7 @@ from app.api.deps import (
     require_workspace_owner_or_admin,
 )
 from app.dependencies import get_db
-from app.domain.identity.models import User
+from app.core.domain.identity.models import User
 from app.pagination import DEFAULT_PAGE_SIZE
 from app.sys.celery.api.schemas import (
     CeleryJobCreateIn,

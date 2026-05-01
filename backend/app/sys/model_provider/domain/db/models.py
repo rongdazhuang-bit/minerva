@@ -11,7 +11,7 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, SmallInteger, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.infrastructure.db.base import Base
+from app.core.infrastructure.db.base import Base
 
 
 class SysModel(Base):

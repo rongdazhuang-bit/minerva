@@ -37,6 +37,28 @@ import './FileStoragePage.css'
 const { Paragraph } = Typography
 const STORAGE_TYPE_DICT_CODE = 'STORGE_TYPE'
 
+/** Legacy or alternate auth_type tokens from API/DB, keyed by lower-case. */
+const FILE_STORAGE_AUTH_ALIASES: Record<string, 'NONE' | 'BASIC' | 'API_KEY'> = {
+  none: 'NONE',
+  basic: 'BASIC',
+  api_key: 'API_KEY',
+}
+
+/**
+ * Normalize auth_type to the canonical values used by form Select options.
+ * @param code Raw auth_type from API or database.
+ * @returns Canonical NONE | BASIC | API_KEY when recognized; otherwise trimmed original.
+ */
+function canonicalFileStorageAuthType(code: string | null | undefined): string {
+  if (code == null || code === '') return 'NONE'
+  const trimmed = code.trim()
+  const mapped = FILE_STORAGE_AUTH_ALIASES[trimmed.toLowerCase()]
+  if (mapped) return mapped
+  const upper = trimmed.toUpperCase()
+  if (upper === 'NONE' || upper === 'BASIC' || upper === 'API_KEY') return upper
+  return trimmed
+}
+
 /** Form values used by create/edit file storage drawer. */
 type FileStorageFormValues = {
   name?: string
@@ -139,6 +161,24 @@ export function FileStoragePage() {
     ],
     [t],
   )
+
+  const authTypeLabelByCanon = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const o of authTypeOptions) {
+      m.set(o.value, o.label)
+    }
+    return m
+  }, [authTypeOptions])
+
+  /**
+   * Resolve auth_type code to localized label for table and detail views.
+   * @param code Raw auth_type from list or detail payload.
+   */
+  const resolveAuthTypeLabel = (code: string | null | undefined) => {
+    if (code == null || code.trim() === '') return '—'
+    const canon = canonicalFileStorageAuthType(code)
+    return authTypeLabelByCanon.get(canon) ?? '—'
+  }
   const statusOptions = useMemo(
     () => [
       { value: true, label: t('settings.fileStorageStatusEnabled') },
@@ -165,15 +205,18 @@ export function FileStoragePage() {
     if (!open) return options
     const cur = watchedStorageType?.trim()
     if (cur && !options.some((o) => o.value === cur)) {
-      options.push({ value: cur, label: cur })
+      options.push({
+        value: cur,
+        label: storageTypeLabelByCode.get(cur) ?? t('settings.fileStorageTypeNotInDict'),
+      })
     }
     return options
-  }, [open, storageTypeSelectOptions, watchedStorageType])
+  }, [open, storageTypeSelectOptions, storageTypeLabelByCode, t, watchedStorageType])
 
-  /** Resolve file storage type code to display label from dictionary. */
+  /** Resolve file storage type code to display name from dictionary only (no raw code in UI). */
   const resolveStorageTypeLabel = (code: string | null | undefined) => {
     if (code == null || code === '') return '—'
-    return storageTypeLabelByCode.get(code) ?? code
+    return storageTypeLabelByCode.get(code) ?? t('settings.fileStorageTypeNotInDict')
   }
 
   /** Load paginated file storage list. */
@@ -219,7 +262,7 @@ export function FileStoragePage() {
         name: detail.name ?? '',
         type: detail.type ?? '',
         enabled: detail.enabled,
-        auth_type: detail.auth_type || 'NONE',
+        auth_type: canonicalFileStorageAuthType(detail.auth_type),
         endpoint_url: detail.endpoint_url ?? '',
         api_key: detail.api_key ?? '',
         auth_name: detail.auth_name ?? '',
@@ -345,6 +388,7 @@ export function FileStoragePage() {
       key: 'auth_type',
       width: 160,
       ellipsis: true,
+      render: (v: string | null | undefined) => resolveAuthTypeLabel(v),
     },
     {
       title: t('settings.fileStorageEnabled'),
@@ -535,7 +579,7 @@ export function FileStoragePage() {
                 : t('settings.fileStorageStatusDisabled')}
             </Descriptions.Item>
             <Descriptions.Item label={t('settings.fileStorageAuthType')}>
-              {viewDetail.auth_type}
+              {resolveAuthTypeLabel(viewDetail.auth_type)}
             </Descriptions.Item>
             <Descriptions.Item label={t('settings.fileStorageEndpointUrl')}>
               {renderCopyable(viewDetail.endpoint_url, t)}

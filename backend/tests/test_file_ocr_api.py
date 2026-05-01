@@ -9,7 +9,7 @@ from sqlalchemy import text
 
 from app.config import settings
 from app.file_ocr.api.schemas import OcrFileListItemOut
-from app.infrastructure.db.session import engine
+from app.core.infrastructure.db.session import engine
 from app.main import app
 
 

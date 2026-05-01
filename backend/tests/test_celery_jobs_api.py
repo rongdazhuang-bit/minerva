@@ -10,9 +10,9 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 
-import app.domain.identity.models  # noqa: F401
+import app.core.domain.identity.models  # noqa: F401
 from app.config import settings
-from app.infrastructure.db.session import async_session_factory, engine
+from app.core.infrastructure.db.session import async_session_factory, engine
 from app.main import app
 from app import celery_app as celery_runtime
 from app.sys.celery.domain.db.models import SysCelery
@@ -381,3 +381,135 @@ async def test_run_now_returns_stable_error_when_enqueue_fails(monkeypatch: pyte
         assert run_now.status_code == 503, run_now.text
         body = run_now.json()
         assert body["code"] == "celery.enqueue_unavailable"
+
+
+@pytest.mark.asyncio
+async def test_run_now_maps_redis_connection_error_to_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Redis ``ConnectionError`` must map to 503 (it does not subclass builtin ``ConnectionError``)."""
+
+    await _ensure_celery_table_exists()
+
+    import redis.exceptions as redis_exc
+
+    class _RedisDownCelery:
+        """Fake celery app that mimics Redis refusing broker connections."""
+
+        def send_task(self, *args, **kwargs):
+            """Raise redis transport error."""
+
+            del args, kwargs
+            raise redis_exc.ConnectionError("Error connecting to Redis")
+
+    monkeypatch.setattr(celery_runtime, "celery_app", _RedisDownCelery())
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        _token, workspace_id, headers = await _register_workspace_user(client)
+        created = await _create_job(client, workspace_id=workspace_id, headers=headers)
+        job_id = created["id"]
+        run_now = await client.post(
+            f"/workspaces/{workspace_id}/celery-jobs/{job_id}/run-now",
+            headers=headers,
+        )
+        assert run_now.status_code == 503, run_now.text
+        body = run_now.json()
+        assert body["code"] == "celery.enqueue_unavailable"
+
+
+@pytest.mark.asyncio
+async def test_run_now_maps_redis_authentication_error_to_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Redis AUTH failures surface as ``RedisError`` subclasses and must map to 503."""
+
+    await _ensure_celery_table_exists()
+
+    import redis.exceptions as redis_exc
+
+    class _RedisAuthFailCelery:
+        """Fake celery app that mimics Redis rejecting credentials."""
+
+        def send_task(self, *args, **kwargs):
+            """Raise redis authentication error."""
+
+            del args, kwargs
+            raise redis_exc.AuthenticationError("invalid username-password pair")
+
+    monkeypatch.setattr(celery_runtime, "celery_app", _RedisAuthFailCelery())
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        _token, workspace_id, headers = await _register_workspace_user(client)
+        created = await _create_job(client, workspace_id=workspace_id, headers=headers)
+        job_id = created["id"]
+        run_now = await client.post(
+            f"/workspaces/{workspace_id}/celery-jobs/{job_id}/run-now",
+            headers=headers,
+        )
+        assert run_now.status_code == 503, run_now.text
+        body = run_now.json()
+        assert body["code"] == "celery.enqueue_unavailable"
+
+
+@pytest.mark.asyncio
+async def test_run_now_maps_kombu_broker_connection_error_to_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Kombu/amqp ``ConnectionError`` is not a builtin ``ConnectionError``; map it to 503."""
+
+    await _ensure_celery_table_exists()
+
+    from kombu.exceptions import ConnectionError as KombuConnectionError
+
+    class _AmqpDownCelery:
+        """Fake celery app that mimics AMQP broker connection refusal."""
+
+        def send_task(self, *args, **kwargs):
+            """Raise kombu broker connection error."""
+
+            del args, kwargs
+            raise KombuConnectionError("connection refused")
+
+    monkeypatch.setattr(celery_runtime, "celery_app", _AmqpDownCelery())
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        _token, workspace_id, headers = await _register_workspace_user(client)
+        created = await _create_job(client, workspace_id=workspace_id, headers=headers)
+        job_id = created["id"]
+        run_now = await client.post(
+            f"/workspaces/{workspace_id}/celery-jobs/{job_id}/run-now",
+            headers=headers,
+        )
+        assert run_now.status_code == 503, run_now.text
+        body = run_now.json()
+        assert body["code"] == "celery.enqueue_unavailable"
+
+
+@pytest.mark.asyncio
+async def test_run_now_maps_kombu_encode_error_to_payload_validation(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Non-JSON-serializable task payloads must surface as 422, not mislabeled gateway errors."""
+
+    await _ensure_celery_table_exists()
+
+    from kombu.exceptions import EncodeError
+
+    class _EncodeFailCelery:
+        """Fake celery app whose serializer rejects the outgoing message."""
+
+        def send_task(self, *args, **kwargs):
+            """Raise Kombu JSON encode failure."""
+
+            del args, kwargs
+            raise EncodeError("Object of type object is not JSON serializable")
+
+    monkeypatch.setattr(celery_runtime, "celery_app", _EncodeFailCelery())
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        _token, workspace_id, headers = await _register_workspace_user(client)
+        created = await _create_job(client, workspace_id=workspace_id, headers=headers)
+        job_id = created["id"]
+        run_now = await client.post(
+            f"/workspaces/{workspace_id}/celery-jobs/{job_id}/run-now",
+            headers=headers,
+        )
+        assert run_now.status_code == 422, run_now.text
+        body = run_now.json()
+        assert body["code"] == "celery.payload_not_serializable"

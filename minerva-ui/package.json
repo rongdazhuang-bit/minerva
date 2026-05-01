@@ -14,6 +14,7 @@
     "@tanstack/react-query": "^5.100.5",
     "@xyflow/react": "^12.10.2",
     "antd": "^6.3.6",
+    "cron-parser": "^5.5.0",
     "i18next": "^26.0.6",
     "jwt-decode": "^4.0.0",
     "react": "^18.3.1",

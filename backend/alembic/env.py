@@ -8,9 +8,9 @@ from sqlalchemy import create_engine, pool
 # make `app` importable when running from backend/
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import app.domain.identity.models  # noqa: F401
+import app.core.domain.identity.models  # noqa: F401
 from app.config import settings
-from app.infrastructure.db.base import Base
+from app.core.infrastructure.db.base import Base
 
 config = context.config
 if config.config_file_name is not None:

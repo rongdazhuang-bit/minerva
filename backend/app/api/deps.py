@@ -10,10 +10,10 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
-from app.domain.identity.models import MembershipRole, User
-from app.domain.identity.services import find_workspace_for_user, find_workspace_role_for_user
+from app.core.domain.identity.models import MembershipRole, User
+from app.core.domain.identity.services import find_workspace_for_user, find_workspace_role_for_user
 from app.exceptions import AppError
-from app.infrastructure.security.jwt_tokens import decode_token
+from app.core.infrastructure.security.jwt_tokens import decode_token
 
 # Optional Bearer extractor so routes can return 401 instead of FastAPI's default 403 when absent.
 bearer = HTTPBearer(auto_error=False)

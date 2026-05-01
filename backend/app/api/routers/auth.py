@@ -12,13 +12,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
-from app.domain.identity.models import (
+from app.core.domain.identity.models import (
     Tenant,
     User,
     Workspace,
     WorkspaceMembership,
 )
-from app.domain.identity.services import (
+from app.core.domain.identity.services import (
     authenticate_user,
     get_refresh_by_jti,
     persist_refresh_token,
@@ -26,7 +26,7 @@ from app.domain.identity.services import (
     revoke_refresh_token_row,
 )
 from app.exceptions import AppError
-from app.infrastructure.security.jwt_tokens import (
+from app.core.infrastructure.security.jwt_tokens import (
     create_access_token,
     create_refresh_token,
     decode_token,

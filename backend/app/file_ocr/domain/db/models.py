@@ -9,7 +9,7 @@ from sqlalchemy import BIGINT, DateTime, ForeignKey, Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.infrastructure.db.base import Base
+from app.core.infrastructure.db.base import Base
 
 
 class OcrFile(Base):

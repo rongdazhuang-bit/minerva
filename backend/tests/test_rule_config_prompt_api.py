@@ -8,7 +8,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.config import settings
-from app.infrastructure.db.session import async_session_factory
+from app.core.infrastructure.db.session import async_session_factory
 from app.main import app
 from app.rule.service.rule_config_prompt_service import resolve_rule_config_prompt
 from app.sys.model_provider.domain.db.models import SysModel

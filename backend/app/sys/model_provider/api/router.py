@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, require_workspace_member, require_workspace_owner_or_admin
 from app.dependencies import get_db
-from app.domain.identity.models import User
+from app.core.domain.identity.models import User
 from app.sys.model_provider.api.schemas import (
     ModelProviderCreateIn,
     ModelProviderDetailOut,

@@ -1,10 +1,11 @@
 /** Provides create/edit form modal for one celery job. */
 
-import { Form, Input, Modal, Select } from 'antd'
+import { Button, Drawer, Form, Input, Select, Space, Typography } from 'antd'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CronBuilder } from './CronBuilder'
 import type { CeleryJob, CeleryJobCreateBody, CeleryJobPatchBody } from './types'
+import './CeleryFormModal.css'
 
 type CeleryFormModalMode = 'create' | 'edit'
 
@@ -22,6 +23,14 @@ type CeleryFormValues = {
 
 type CeleryFormSubmitPayload = CeleryJobCreateBody | CeleryJobPatchBody
 
+const { Text } = Typography
+
+/** Default positional-args JSON when opening the create drawer (maps to Celery ``*args``). */
+const DEFAULT_CREATE_ARGS_JSON = JSON.stringify(['minerva'], null, 2)
+
+/** Default keyword-args JSON when opening the create drawer (maps to Celery ``**kwargs``). */
+const DEFAULT_CREATE_KWARGS_JSON = JSON.stringify({ source: 'scheduler' }, null, 2)
+
 type CeleryFormModalProps = {
   open: boolean
   mode: CeleryFormModalMode
@@ -37,12 +46,12 @@ function stringifyJsonField(value: unknown): string {
   return JSON.stringify(value, null, 2)
 }
 
-/** Returns true when cron expression is a basic-valid 5-part cron string. */
+/** Returns true when cron has 5 (legacy) or 6 (with second) space-separated segments. */
 function isValidCronExpression(value: string): boolean {
   const trimmed = value.trim()
   if (trimmed === '') return false
   const parts = trimmed.split(/\s+/)
-  if (parts.length !== 5) return false
+  if (parts.length !== 5 && parts.length !== 6) return false
   return parts.every((part) => part !== '')
 }
 
@@ -101,16 +110,16 @@ export function CeleryFormModal(props: CeleryFormModalProps) {
       name: '',
       task_code: '',
       task: '',
-      cron: '* * * * *',
+      cron: '0 * * * * *',
       timezone: 'Asia/Shanghai',
       enabled: true,
-      args_json: '',
-      kwargs_json: '',
+      args_json: DEFAULT_CREATE_ARGS_JSON,
+      kwargs_json: DEFAULT_CREATE_KWARGS_JSON,
       remark: '',
     })
   }, [form, props.job, props.mode, props.open])
 
-  /** Validates one cron value by checking basic five-space-separated segments. */
+  /** Validates cron as 5-part (legacy) or 6-part (second-first) expression. */
   const validateCron = (_: unknown, value: string | undefined) => {
     const raw = value ?? ''
     if (isValidCronExpression(raw)) return Promise.resolve()
@@ -153,14 +162,22 @@ export function CeleryFormModal(props: CeleryFormModalProps) {
   }
 
   return (
-    <Modal
+    <Drawer
       width={820}
       destroyOnClose
       open={props.open}
-      confirmLoading={props.submitting}
+      placement="right"
       title={props.mode === 'create' ? t('settings.celery.createModalTitle') : t('settings.celery.editModalTitle')}
-      onCancel={props.onCancel}
-      onOk={() => void form.submit()}
+      classNames={{ body: 'minerva-scrollbar-styled' }}
+      onClose={props.onCancel}
+      extra={
+        <Space size="middle">
+          <Button onClick={props.onCancel}>{t('common.cancel')}</Button>
+          <Button type="primary" loading={props.submitting} onClick={() => void form.submit()}>
+            {props.mode === 'create' ? t('settings.celery.drawerSubmitCreate') : t('common.save')}
+          </Button>
+        </Space>
+      }
     >
       <Form<CeleryFormValues> form={form} layout="vertical" onFinish={(values) => void handleFinish(values)}>
         <Form.Item
@@ -185,23 +202,32 @@ export function CeleryFormModal(props: CeleryFormModalProps) {
           <Input allowClear autoComplete="off" />
         </Form.Item>
         <Form.Item
-          name="cron"
           label={t('settings.celery.fieldCron')}
-          rules={[
-            { required: true, message: t('settings.celery.fieldCronRequired') },
-            { validator: validateCron },
-          ]}
+          extra={<Text type="secondary">{t('settings.celery.cronBuilderHint')}</Text>}
         >
-          <Input allowClear autoComplete="off" />
-        </Form.Item>
-        <Form.Item shouldUpdate noStyle>
-          {({ getFieldValue, setFieldValue }) => (
-            <CronBuilder
-              value={getFieldValue('cron')}
-              disabled={props.submitting}
-              onChange={(cronValue) => setFieldValue('cron', cronValue)}
-            />
-          )}
+          <Space.Compact block className="minerva-celery-form-cron-compact">
+            <Form.Item
+              name="cron"
+              noStyle
+              rules={[
+                { required: true, message: t('settings.celery.fieldCronRequired') },
+                { validator: validateCron },
+              ]}
+            >
+              <Input allowClear autoComplete="off" />
+            </Form.Item>
+            <Form.Item shouldUpdate noStyle>
+              {({ getFieldValue, setFieldValue }) => (
+                <CronBuilder
+                  layout="inline"
+                  value={getFieldValue('cron')}
+                  previewTimezone={getFieldValue('timezone')}
+                  disabled={props.submitting}
+                  onChange={(cronValue) => setFieldValue('cron', cronValue)}
+                />
+              )}
+            </Form.Item>
+          </Space.Compact>
         </Form.Item>
         <Form.Item name="timezone" label={t('settings.celery.fieldTimezone')}>
           <Select
@@ -230,20 +256,36 @@ export function CeleryFormModal(props: CeleryFormModalProps) {
             ]}
           />
         </Form.Item>
-        <Form.Item name="args_json" label={t('settings.celery.fieldArgsJson')} rules={[{ validator: validateArgsJson }]}>
-          <Input.TextArea allowClear autoSize={{ minRows: 3, maxRows: 8 }} />
+        <Form.Item
+          name="args_json"
+          label={t('settings.celery.fieldArgsJson')}
+          rules={[{ validator: validateArgsJson }]}
+          extra={<Text type="secondary">{t('settings.celery.fieldArgsJsonExtra')}</Text>}
+        >
+          <Input.TextArea
+            allowClear
+            autoSize={{ minRows: 3, maxRows: 8 }}
+            classNames={{ textarea: 'minerva-scrollbar-styled' }}
+            placeholder={t('settings.celery.fieldArgsJsonPh')}
+          />
         </Form.Item>
         <Form.Item
           name="kwargs_json"
           label={t('settings.celery.fieldKwargsJson')}
           rules={[{ validator: validateKwargsJson }]}
+          extra={<Text type="secondary">{t('settings.celery.fieldKwargsJsonExtra')}</Text>}
         >
-          <Input.TextArea allowClear autoSize={{ minRows: 3, maxRows: 8 }} />
+          <Input.TextArea
+            allowClear
+            autoSize={{ minRows: 3, maxRows: 8 }}
+            classNames={{ textarea: 'minerva-scrollbar-styled' }}
+            placeholder={t('settings.celery.fieldKwargsJsonPh')}
+          />
         </Form.Item>
         <Form.Item name="remark" label={t('settings.celery.fieldRemark')}>
-          <Input.TextArea allowClear autoSize={{ minRows: 2, maxRows: 6 }} />
+          <Input.TextArea allowClear autoSize={{ minRows: 2, maxRows: 6 }} classNames={{ textarea: 'minerva-scrollbar-styled' }} />
         </Form.Item>
       </Form>
-    </Modal>
+    </Drawer>
   )
 }

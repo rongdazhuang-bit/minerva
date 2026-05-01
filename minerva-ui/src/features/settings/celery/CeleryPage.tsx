@@ -1,6 +1,6 @@
 /** Renders workspace celery jobs list page with action column operations. */
 
-import { DeleteOutlined, EditOutlined, PlayCircleOutlined, PlusOutlined, StopOutlined } from '@ant-design/icons'
+import { DeleteOutlined, EditOutlined, FileAddOutlined, PlayCircleOutlined, StopOutlined } from '@ant-design/icons'
 import {
   Alert,
   Button,
@@ -13,6 +13,7 @@ import {
   Space,
   Table,
   Tag,
+  Tooltip,
   message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -33,6 +34,7 @@ import {
 } from './api'
 import { CeleryFormModal } from './CeleryFormModal'
 import type { CeleryJob, CeleryJobCreateBody, CeleryJobListParams, CeleryJobPatchBody } from './types'
+import './CeleryPage.css'
 
 type FilterFormValues = {
   name?: string
@@ -44,18 +46,6 @@ type FilterFormValues = {
 /** Converts UTC/ISO date-time value into user locale string. */
 function formatDateTime(value: string | null | undefined) {
   return value ? new Date(value).toLocaleString(undefined, { hour12: false }) : '—'
-}
-
-/** Renders last execution status with a compact semantic tag. */
-function renderLastStatus(status: string | null | undefined, t: (key: string) => string) {
-  const normalized = status?.trim().toUpperCase() ?? ''
-  if (normalized === '') return '—'
-  if (normalized === 'SUCCESS') return <Tag color="success">{t('settings.celery.statusSuccess')}</Tag>
-  if (normalized === 'FAILED') return <Tag color="error">{t('settings.celery.statusFailed')}</Tag>
-  if (normalized === 'PROCESS' || normalized === 'RUNNING') {
-    return <Tag color="processing">{t('settings.celery.statusRunning')}</Tag>
-  }
-  return <Tag>{normalized}</Tag>
 }
 
 /** Normalizes filter form values into list API query params. */
@@ -257,25 +247,24 @@ export function CeleryPage() {
           ),
       },
       {
-        title: t('settings.celery.colNextRunAt'),
-        dataIndex: 'next_run_at',
-        key: 'next_run_at',
+        title: t('settings.celery.colVersion'),
+        dataIndex: 'version',
+        key: 'version',
+        width: 88,
+      },
+      {
+        title: t('settings.celery.colCreateAt'),
+        dataIndex: 'create_at',
+        key: 'create_at',
         width: 190,
         render: (value: string | null) => formatDateTime(value),
       },
       {
-        title: t('settings.celery.colLastRunAt'),
-        dataIndex: 'last_run_at',
-        key: 'last_run_at',
+        title: t('settings.celery.colUpdateAt'),
+        dataIndex: 'update_at',
+        key: 'update_at',
         width: 190,
         render: (value: string | null) => formatDateTime(value),
-      },
-      {
-        title: t('settings.celery.colLastStatus'),
-        dataIndex: 'last_status',
-        key: 'last_status',
-        width: 140,
-        render: (value: string | null) => renderLastStatus(value, t),
       },
       {
         title: t('settings.celery.colRemark'),
@@ -292,40 +281,52 @@ export function CeleryPage() {
         fixed: 'right',
         render: (_, row) => (
           <Space size={2}>
-            <Button
-              type="text"
-              icon={<EditOutlined />}
-              onClick={() => openEditModal(row)}
-              aria-label={t('settings.celery.actionEdit')}
-            />
-            <Popconfirm
-              title={t('settings.celery.deleteConfirm')}
-              onConfirm={() => void handleDelete(row)}
+            <Tooltip title={t('settings.celery.actionEdit')}>
+              <Button
+                type="text"
+                icon={<EditOutlined />}
+                onClick={() => openEditModal(row)}
+                aria-label={t('settings.celery.actionEdit')}
+              />
+            </Tooltip>
+            <Tooltip title={t('settings.celery.actionDelete')}>
+              <span>
+                <Popconfirm
+                  title={t('settings.celery.deleteConfirm')}
+                  onConfirm={() => void handleDelete(row)}
+                >
+                  <Button
+                    type="text"
+                    danger
+                    loading={Boolean(actionLoadingMap[`${row.id}-delete`])}
+                    icon={<DeleteOutlined />}
+                    aria-label={t('settings.celery.actionDelete')}
+                  />
+                </Popconfirm>
+              </span>
+            </Tooltip>
+            <Tooltip title={t('settings.celery.actionRunNow')}>
+              <Button
+                type="text"
+                icon={<PlayCircleOutlined />}
+                loading={Boolean(actionLoadingMap[`${row.id}-run-now`])}
+                onClick={() => void handleRunNow(row)}
+                aria-label={t('settings.celery.actionRunNow')}
+              />
+            </Tooltip>
+            <Tooltip
+              title={row.enabled ? t('settings.celery.actionStop') : t('settings.celery.actionEnable')}
             >
               <Button
                 type="text"
-                danger
-                loading={Boolean(actionLoadingMap[`${row.id}-delete`])}
-                icon={<DeleteOutlined />}
-                aria-label={t('settings.celery.actionDelete')}
+                icon={<StopOutlined />}
+                loading={Boolean(actionLoadingMap[`${row.id}-toggle`])}
+                onClick={() => void handleToggleEnabled(row)}
+                aria-label={
+                  row.enabled ? t('settings.celery.actionStop') : t('settings.celery.actionEnable')
+                }
               />
-            </Popconfirm>
-            <Button
-              type="text"
-              icon={<PlayCircleOutlined />}
-              loading={Boolean(actionLoadingMap[`${row.id}-run-now`])}
-              onClick={() => void handleRunNow(row)}
-              aria-label={t('settings.celery.actionRunNow')}
-            />
-            <Button
-              type="text"
-              icon={<StopOutlined />}
-              loading={Boolean(actionLoadingMap[`${row.id}-toggle`])}
-              onClick={() => void handleToggleEnabled(row)}
-              aria-label={
-                row.enabled ? t('settings.celery.actionStop') : t('settings.celery.actionEnable')
-              }
-            />
+            </Tooltip>
           </Space>
         ),
       },
@@ -343,69 +344,73 @@ export function CeleryPage() {
 
   return (
     <div className="minerva-celery-page">
-      <Card size="small" variant="borderless">
-        <Form form={filterForm} layout="inline" onFinish={handleSearch}>
-          <Form.Item name="name" label={t('settings.celery.filterName')}>
-            <Input allowClear placeholder={t('settings.celery.filterNamePh')} />
-          </Form.Item>
-          <Form.Item name="task_code" label={t('settings.celery.filterTaskCode')}>
-            <Input allowClear placeholder={t('settings.celery.filterTaskCodePh')} />
-          </Form.Item>
-          <Form.Item name="task" label={t('settings.celery.filterTask')}>
-            <Input allowClear placeholder={t('settings.celery.filterTaskPh')} />
-          </Form.Item>
-          <Form.Item name="enabled" label={t('settings.celery.filterEnabled')}>
-            <Select
-              allowClear
-              style={{ minWidth: 140 }}
-              options={[
-                { value: 'true', label: t('settings.celery.enabledText') },
-                { value: 'false', label: t('settings.celery.disabledText') },
-              ]}
+      <Card size="small" variant="borderless" className="minerva-celery-page__card">
+        <div className="minerva-celery-page__header">
+          <Form form={filterForm} layout="inline" onFinish={handleSearch}>
+            <Form.Item name="name" label={t('settings.celery.filterName')}>
+              <Input allowClear placeholder={t('settings.celery.filterNamePh')} />
+            </Form.Item>
+            <Form.Item name="task_code" label={t('settings.celery.filterTaskCode')}>
+              <Input allowClear placeholder={t('settings.celery.filterTaskCodePh')} />
+            </Form.Item>
+            <Form.Item name="task" label={t('settings.celery.filterTask')}>
+              <Input allowClear placeholder={t('settings.celery.filterTaskPh')} />
+            </Form.Item>
+            <Form.Item name="enabled" label={t('settings.celery.filterEnabled')}>
+              <Select
+                allowClear
+                style={{ minWidth: 140 }}
+                options={[
+                  { value: 'true', label: t('settings.celery.enabledText') },
+                  { value: 'false', label: t('settings.celery.disabledText') },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item>
+              <Space>
+                <Button htmlType="submit" type="primary">
+                  {t('rules.search')}
+                </Button>
+                <Button onClick={handleReset}>{t('rules.resetFilter')}</Button>
+                <Button icon={<FileAddOutlined />} type="dashed" onClick={openCreateModal}>
+                  {t('settings.celery.actionAdd')}
+                </Button>
+              </Space>
+            </Form.Item>
+          </Form>
+
+          {listQuery.error != null && (
+            <Alert
+              type="error"
+              showIcon
+              style={{ marginTop: 12 }}
+              message={listQuery.error instanceof ApiError ? listQuery.error.message : t('common.error')}
             />
-          </Form.Item>
-          <Form.Item>
-            <Space>
-              <Button htmlType="submit" type="primary">
-                {t('rules.search')}
-              </Button>
-              <Button onClick={handleReset}>{t('rules.resetFilter')}</Button>
-              <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
-                {t('settings.celery.actionAdd')}
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
+          )}
+        </div>
 
-        {listQuery.error != null && (
-          <Alert
-            type="error"
-            showIcon
-            style={{ marginTop: 12, marginBottom: 12 }}
-            message={listQuery.error instanceof ApiError ? listQuery.error.message : t('common.error')}
+        <div className="minerva-celery-page__table-wrap">
+          <Table<CeleryJob>
+            rowKey="id"
+            loading={listQuery.isFetching}
+            columns={columns}
+            dataSource={listQuery.data?.items ?? []}
+            className="minerva-card-table-scroll-ocr minerva-celery-page__table"
+            pagination={{
+              current: page,
+              pageSize,
+              total: listQuery.data?.total ?? 0,
+              showSizeChanger: true,
+              pageSizeOptions: [10, 20, 50, 100],
+              onChange: (nextPage, nextPageSize) => {
+                setPage(nextPage)
+                setPageSize(nextPageSize)
+              },
+            }}
+            scroll={{ x: 1740, y: 'calc(100dvh - 380px)' }}
+            sticky
           />
-        )}
-
-        <Table<CeleryJob>
-          rowKey="id"
-          style={{ marginTop: 12 }}
-          loading={listQuery.isFetching}
-          columns={columns}
-          dataSource={listQuery.data?.items ?? []}
-          pagination={{
-            current: page,
-            pageSize,
-            total: listQuery.data?.total ?? 0,
-            showSizeChanger: true,
-            pageSizeOptions: [10, 20, 50, 100],
-            onChange: (nextPage, nextPageSize) => {
-              setPage(nextPage)
-              setPageSize(nextPageSize)
-            },
-          }}
-          scroll={{ x: 1900, y: 'calc(100dvh - 380px)' }}
-          sticky
-        />
+        </div>
       </Card>
 
       <CeleryFormModal

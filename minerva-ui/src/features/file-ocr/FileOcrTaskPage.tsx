@@ -5,8 +5,6 @@ import {
   DownloadOutlined,
   EyeOutlined,
   FileAddOutlined,
-  FileImageOutlined,
-  FileSearchOutlined,
   InboxOutlined,
   LeftOutlined,
   CloseCircleOutlined,
@@ -32,7 +30,6 @@ import {
   Statistic,
   Table,
   Tag,
-  Typography,
   Upload,
   message,
 } from 'antd'
@@ -58,6 +55,8 @@ import { DictText } from '@/components/dict'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
 import { useCountUp } from '@/hooks/useCountUp'
 import { useDictItemTree } from '@/hooks/useDictItemTree'
+import mineruLogo from './assets/mineru-logo.png'
+import paddleOcrLogo from './assets/paddleocr-logo.jpg'
 import './FileOcrTaskPage.css'
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024
@@ -113,13 +112,29 @@ function buildOcrTypeOptions(t: (key: string) => string): OcrTypeOption[] {
       value: 'PADDLE_OCR',
       label: 'PaddleOCR',
       description: t('fileOcr.tasks.wizard.ocrTypePaddleDesc'),
-      icon: <FileImageOutlined />,
+      icon: (
+        <img
+          src={paddleOcrLogo}
+          alt=""
+          className="minerva-file-ocr-tasks__ocr-type-logo"
+          decoding="async"
+          aria-hidden
+        />
+      ),
     },
     {
       value: 'MINER_U',
       label: 'MinerU',
       description: t('fileOcr.tasks.wizard.ocrTypeMinerDesc'),
-      icon: <FileSearchOutlined />,
+      icon: (
+        <img
+          src={mineruLogo}
+          alt=""
+          className="minerva-file-ocr-tasks__ocr-type-logo"
+          decoding="async"
+          aria-hidden
+        />
+      ),
     },
   ]
 }

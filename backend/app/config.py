@@ -128,6 +128,30 @@ class Settings(BaseSettings):
             "celery_schedule_reconcile_seconds",
         ),
     )
+    celery_beat_hot_reload_via_redis: bool = Field(
+        default=True,
+        description=(
+            "When True, celery beat subscribes to celery_schedule_sync_channel and "
+            "reloads Postgres schedules promptly after CRUD/start/stop events."
+        ),
+        validation_alias=AliasChoices(
+            "CELERY_BEAT_HOT_RELOAD_VIA_REDIS",
+            "celery_beat_hot_reload_via_redis",
+        ),
+    )
+    celery_beat_max_loop_seconds: int = Field(
+        default=8,
+        ge=1,
+        le=120,
+        description=(
+            "Upper bound seconds celery beat sleeps between ticks when idle; "
+            "keeps UI-driven schedule changes observable even if Redis events are delayed."
+        ),
+        validation_alias=AliasChoices(
+            "CELERY_BEAT_MAX_LOOP_SECONDS",
+            "celery_beat_max_loop_seconds",
+        ),
+    )
 
 
 # Singleton loaded at import time for ``from app.config import settings``.

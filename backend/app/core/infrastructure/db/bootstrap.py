@@ -8,7 +8,7 @@ from socket import gaierror
 from sqlalchemy.exc import OperationalError
 
 from app.config import settings
-from app.infrastructure.db.base import Base
+from app.core.infrastructure.db.base import Base
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ def _dev_like_env() -> bool:
 
 
 def _import_models() -> None:
-    import app.domain.identity.models  # noqa: F401
+    import app.core.domain.identity.models  # noqa: F401
     import app.sys.dict.domain.db.models  # noqa: F401
     import app.sys.file_storage.domain.db.models  # noqa: F401
     import app.sys.model_provider.domain.db.models  # noqa: F401
@@ -83,7 +83,7 @@ async def create_missing_tables() -> None:
     if not settings.auto_create_tables:
         return
     _import_models()
-    from app.infrastructure.db.session import engine
+    from app.core.infrastructure.db.session import engine
 
     try:
         async with engine.begin() as conn:

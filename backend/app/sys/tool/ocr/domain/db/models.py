@@ -9,7 +9,7 @@ from sqlalchemy import DateTime, ForeignKey, JSON, String, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.infrastructure.db.base import Base
+from app.core.infrastructure.db.base import Base
 
 
 class SysOcrTool(Base):

@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.identity.models import (
+from app.core.domain.identity.models import (
     MembershipRole,
     RefreshToken,
     Tenant,
@@ -19,7 +19,7 @@ from app.domain.identity.models import (
     WorkspaceMembership,
 )
 from app.exceptions import AppError
-from app.infrastructure.security.password import hash_password, verify_password
+from app.core.infrastructure.security.password import hash_password, verify_password
 
 
 @dataclass

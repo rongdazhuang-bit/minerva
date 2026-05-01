@@ -314,6 +314,12 @@ export function AppLayout() {
                       onClick: () => void nav('/app/settings/file-storage'),
                     },
                     {
+                      key: 'settings-celery',
+                      icon: <ClockCircleOutlined />,
+                      label: t('settings.celery'),
+                      onClick: () => void nav('/app/settings/celery'),
+                    },
+                    {
                       key: 'settings-data-sources',
                       icon: <DatabaseOutlined />,
                       label: t('settings.dataSources'),
@@ -342,12 +348,6 @@ export function AppLayout() {
                       icon: <TagsOutlined />,
                       label: t('settings.dictionary'),
                       onClick: () => void nav('/app/settings/dictionary'),
-                    },
-                    {
-                      key: 'settings-celery',
-                      icon: <ClockCircleOutlined />,
-                      label: t('settings.celery'),
-                      onClick: () => void nav('/app/settings/celery'),
                     },
                   ],
                 },

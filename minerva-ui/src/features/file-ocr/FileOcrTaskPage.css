@@ -195,10 +195,23 @@ html.minerva-tone-sunshine .minerva-file-ocr-overview__icon {
 }
 
 .minerva-file-ocr-tasks__ocr-type-icon {
-  font-size: 20px;
-  line-height: 1;
-  margin-bottom: 8px;
-  color: var(--minerva-link, #38bdf8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  margin-bottom: 10px;
+  line-height: 0;
+}
+
+.minerva-file-ocr-tasks__ocr-type-logo {
+  display: block;
+  max-width: min(220px, 100%);
+  height: auto;
+  max-height: 48px;
+  width: auto;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 8px;
 }
 
 .minerva-file-ocr-tasks__ocr-type-desc {
@@ -258,9 +271,6 @@ html.minerva-tone-sunshine .minerva-file-ocr-tasks__ocr-type-card:hover {
   box-shadow: 0 10px 22px rgb(15 23 42 / 10%);
 }
 
-html.minerva-tone-sunshine .minerva-file-ocr-tasks__ocr-type-icon {
-  color: #2563eb;
-}
 
 html.minerva-tone-sunshine .minerva-file-ocr-tasks__upload-rules li {
   color: #475569;

@@ -10,7 +10,7 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.infrastructure.db.base import Base
+from app.core.infrastructure.db.base import Base
 
 
 class SysStorage(Base):

@@ -1,0 +1,38 @@
+/* 与 OCR 设置列表一致：占满主内容区高度，纵向滚动仅发生在表体，避免双滚动条。 */
+.minerva-celery-page {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.minerva-celery-page__card {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.minerva-celery-page__card .ant-card-body {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-celery-page__header {
+  flex-shrink: 0;
+}
+
+.minerva-celery-page__table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: 12px;
+  overflow: hidden;
+}
+
+/* 表体纵向仅 overflow 时出现滚动条；不使用 stable gutter，避免无溢出时出现占位槽。 */
+.minerva-celery-page__table.minerva-card-table-scroll-ocr .ant-table-body {
+  scrollbar-gutter: auto;
+}

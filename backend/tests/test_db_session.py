@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import text
 
 from app.dependencies import get_db
-from app.infrastructure.db.session import async_session_factory
+from app.core.infrastructure.db.session import async_session_factory
 
 
 def _should_skip_db_tests() -> bool:

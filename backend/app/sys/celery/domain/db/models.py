@@ -11,7 +11,7 @@ from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, String, Text, 
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.infrastructure.db.base import Base
+from app.core.infrastructure.db.base import Base
 
 
 class SysCelery(Base):

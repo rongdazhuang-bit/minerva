@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# 在仓库根目录执行：启动 FastAPI 后端（默认 http://0.0.0.0:8000 ）
+# 在仓库根目录执行：启动 FastAPI 后端（默认 http://0.0.0.0:8000 ）；可选后台启动 Celery Worker
 # 环境变量：APP_ENV、MINERVA_BACKEND_PORT（覆盖端口，默认 8000）
+# 可选：MINERVA_SKIP_CELERY_WORKER=1 跳过 Worker；MINERVA_SKIP_CELERY_BEAT=1 跳过 Beat（定时调度依赖 Beat）。
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -22,6 +23,31 @@ else
   exit 1
 fi
 
+CELERY_PID=""
+BEAT_PID=""
+cleanup() {
+  if [[ -n "${BEAT_PID}" ]] && kill -0 "${BEAT_PID}" 2>/dev/null; then
+    kill "${BEAT_PID}" 2>/dev/null || true
+    wait "${BEAT_PID}" 2>/dev/null || true
+  fi
+  if [[ -n "${CELERY_PID}" ]] && kill -0 "${CELERY_PID}" 2>/dev/null; then
+    kill "${CELERY_PID}" 2>/dev/null || true
+    wait "${CELERY_PID}" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT INT TERM
+
 echo "使用: ${PYTHON}"
 echo "目录: ${BACKEND_DIR}  端口: ${PORT}"
-exec "${PYTHON}" -m uvicorn app.main:app --reload --host 0.0.0.0 --port "${PORT}"
+
+if [[ "${MINERVA_SKIP_CELERY_WORKER:-}" != "1" ]]; then
+  "${PYTHON}" -m celery -A app.celery_app:celery_app worker --loglevel=INFO &
+  CELERY_PID=$!
+fi
+
+if [[ "${MINERVA_SKIP_CELERY_BEAT:-}" != "1" ]]; then
+  "${PYTHON}" -m celery -A app.celery_app:celery_app beat --loglevel=INFO &
+  BEAT_PID=$!
+fi
+
+"${PYTHON}" -m uvicorn app.main:app --reload --host 0.0.0.0 --port "${PORT}"
