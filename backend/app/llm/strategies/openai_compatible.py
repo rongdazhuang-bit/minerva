@@ -10,7 +10,7 @@ import orjson
 from httpx import Timeout
 from openai import APIConnectionError, APIStatusError, APITimeoutError, AsyncOpenAI
 
-from app.ai_api.domain.models import ChatCallParams
+from app.llm.domain.models import ChatCallParams
 from app.config import settings
 from app.exceptions import AppError
 

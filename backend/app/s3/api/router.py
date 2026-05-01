@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, File, Query, Response, UploadFile, statu
 from fastapi.responses import RedirectResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, require_workspace_member
+from app.core.api.deps import get_current_user, require_workspace_member
 from app.dependencies import get_db
 from app.core.domain.identity.models import User
 from app.exceptions import AppError

@@ -1,10 +1,10 @@
-"""Pydantic request shapes exposed by ``ai_api`` routers."""
+"""Pydantic request shapes exposed by ``llm`` routers."""
 
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from app.ai_api.domain.models import ProviderKind
+from app.llm.domain.models import ProviderKind
 
 
 class ChatMessageIn(BaseModel):

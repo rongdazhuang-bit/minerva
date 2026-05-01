@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import (
+from app.core.api.deps import (
     get_current_user,
     require_workspace_member,
     require_workspace_owner_or_admin,

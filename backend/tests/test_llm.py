@@ -6,10 +6,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.ai_api.domain.models import ChatCallParams, ChatMessage, ProviderKind
-from app.ai_api.service.chat_service import build_openai_messages, chat_service
-from app.ai_api.strategies import get_strategy
-from app.ai_api.strategies.volcengine_placeholder import VolcenginePlaceholderStrategy
+from app.llm.domain.models import ChatCallParams, ChatMessage, ProviderKind
+from app.llm.service.chat_service import build_openai_messages, chat_service
+from app.llm.strategies import get_strategy
+from app.llm.strategies.volcengine_placeholder import VolcenginePlaceholderStrategy
 from app.exceptions import AppError
 from app.main import app
 
@@ -76,10 +76,10 @@ async def test_openai_compatible_complete_success() -> None:
     mock_cm.__aenter__ = AsyncMock(return_value=mock_client)
     mock_cm.__aexit__ = AsyncMock(return_value=None)
     with patch(
-        "app.ai_api.strategies.openai_compatible.AsyncOpenAI",
+        "app.llm.strategies.openai_compatible.AsyncOpenAI",
         return_value=mock_cm,
     ):
-        from app.ai_api.strategies.openai_compatible import OpenAICompatibleStrategy
+        from app.llm.strategies.openai_compatible import OpenAICompatibleStrategy
 
         strat = OpenAICompatibleStrategy()
         out = await strat.complete(
@@ -108,10 +108,10 @@ async def test_openai_compatible_stream_yields_chunks() -> None:
     mock_cm.__aenter__ = AsyncMock(return_value=mock_client)
     mock_cm.__aexit__ = AsyncMock(return_value=None)
     with patch(
-        "app.ai_api.strategies.openai_compatible.AsyncOpenAI",
+        "app.llm.strategies.openai_compatible.AsyncOpenAI",
         return_value=mock_cm,
     ):
-        from app.ai_api.strategies.openai_compatible import OpenAICompatibleStrategy
+        from app.llm.strategies.openai_compatible import OpenAICompatibleStrategy
 
         strat = OpenAICompatibleStrategy()
         out: list[dict] = []
@@ -142,7 +142,7 @@ async def test_chat_service_complete_retries_on_rate_limit(monkeypatch: pytest.M
         return {"id": "ok"}
 
     with patch(
-        "app.ai_api.service.chat_service.get_strategy",
+        "app.llm.service.chat_service.get_strategy",
         return_value=MagicMock(complete=fake_complete),
     ):
         out = await chat_service.complete(
@@ -161,7 +161,7 @@ async def test_ai_http_chat_completion_requires_auth() -> None:
     ws = uuid.uuid4()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         res = await ac.post(
-            f"/workspaces/{ws}/ai/chat/completions",
+            f"/workspaces/{ws}/llm/chat/completions",
             json={
                 "base_url": "http://localhost:4000/v1",
                 "api_key": "sk",
@@ -178,7 +178,7 @@ async def test_ai_http_stream_headers(monkeypatch: pytest.MonkeyPatch) -> None:
         yield b"data: {}\n\n"
         yield b"data: [DONE]\n\n"
 
-    from app.ai_api.service.chat_service import chat_service as chat_service_singleton
+    from app.llm.service.chat_service import chat_service as chat_service_singleton
 
     monkeypatch.setattr(chat_service_singleton, "stream_sse_lines", fake_sse)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -193,7 +193,7 @@ async def test_ai_http_stream_headers(monkeypatch: pytest.MonkeyPatch) -> None:
         wid = str(payload["wid"])
         headers = {"Authorization": f"Bearer {token}"}
         res = await ac.post(
-            f"/workspaces/{wid}/ai/chat/completions",
+            f"/workspaces/{wid}/llm/chat/completions",
             headers=headers,
             json={
                 "base_url": "http://localhost:4000/v1",

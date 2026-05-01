@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from typing import Any, Protocol
 
-from app.ai_api.domain.models import ChatCallParams
+from app.llm.domain.models import ChatCallParams
 
 
 class ChatCompletionStrategy(Protocol):

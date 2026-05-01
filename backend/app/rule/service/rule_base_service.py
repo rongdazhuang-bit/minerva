@@ -6,8 +6,8 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai_api.domain.models import ChatMessage, ProviderKind
-from app.ai_api.service.chat_service import chat_service
+from app.llm.domain.models import ChatMessage, ProviderKind
+from app.llm.service.chat_service import chat_service
 from app.exceptions import AppError
 from app.rule.domain.db.models import RuleBase
 from app.rule.domain.scope_triple import (

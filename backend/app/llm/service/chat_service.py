@@ -9,8 +9,8 @@ from typing import Any
 
 import orjson
 
-from app.ai_api.domain.models import ChatCallParams, ChatMessage, ProviderKind
-from app.ai_api.strategies import get_strategy
+from app.llm.domain.models import ChatCallParams, ChatMessage, ProviderKind
+from app.llm.strategies import get_strategy
 from app.config import settings
 from app.exceptions import AppError
 

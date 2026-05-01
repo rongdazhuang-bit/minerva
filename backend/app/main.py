@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from app.api.router import api
+from app.core.api.router import api
 from app.config import settings
 from app.errors import register_exception_handlers
 from app.core.infrastructure.db.bootstrap import create_missing_tables

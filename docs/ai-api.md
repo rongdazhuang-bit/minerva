@@ -1,4 +1,4 @@
-# AI 调用模块（`app.ai_api`）内部说明
+# AI 调用模块（`app.llm`）内部说明
 
 面向 **Minerva 服务端内部** 开发者：通过 OpenAI 兼容协议调用上游（含 **LiteLLM** 代理），支持 **阻塞式 JSON** 与 **SSE 流式**。
 
@@ -16,15 +16,15 @@
 
 ## 模块结构
 
-- `app.ai_api.domain`：DTO（`ChatMessage`、`ChatCallParams`、`ProviderKind`）。
-- `app.ai_api.strategies`：`openai_compatible`（默认）、`volcengine` / `aliyun` 占位。
-- `app.ai_api.service.chat_service`：`ChatService` 与单例 `chat_service`。
-- `app.ai_api.api.router`：HTTP 表面（需登录且为 workspace 成员）。
+- `app.llm.domain`：DTO（`ChatMessage`、`ChatCallParams`、`ProviderKind`）。
+- `app.llm.strategies`：`openai_compatible`（默认）、`volcengine` / `aliyun` 占位。
+- `app.llm.service.chat_service`：`ChatService` 与单例 `chat_service`。
+- `app.llm.api.router`：HTTP 表面（需登录且为 workspace 成员）。
 
 ## 在代码中调用（推荐）
 
 ```python
-from app.ai_api import ProviderKind, chat_service
+from app.llm import ProviderKind, chat_service
 
 # 阻塞：返回与 OpenAI Chat Completion 对齐的 dict（SDK model_dump）
 data = await chat_service.complete(
@@ -65,7 +65,7 @@ async for line in chat_service.stream_sse_lines(
 
 ## HTTP（联调 / OpenAPI）
 
-- `POST /workspaces/{workspace_id}/ai/chat/completions`
+- `POST /workspaces/{workspace_id}/llm/chat/completions`
 - 鉴权：`Authorization: Bearer <access_token>`，且用户须为该 workspace 成员。
 - 请求体（节选）：`provider_kind`、`base_url`、`api_key`、`model`、`system_prompt`、`user_prompt`、`messages[]`、`temperature`、`max_tokens`、`stream`。
 - `stream: false`：响应为 JSON，体为上游 completion 的 JSON 形态。

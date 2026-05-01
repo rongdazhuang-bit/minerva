@@ -1,10 +1,10 @@
 """Registers concrete ``ChatCompletionStrategy`` implementations per ``ProviderKind``."""
 
-from app.ai_api.domain.models import ProviderKind
-from app.ai_api.strategies.aliyun_placeholder import AliyunPlaceholderStrategy
-from app.ai_api.strategies.base import ChatCompletionStrategy
-from app.ai_api.strategies.openai_compatible import OpenAICompatibleStrategy
-from app.ai_api.strategies.volcengine_placeholder import VolcenginePlaceholderStrategy
+from app.llm.domain.models import ProviderKind
+from app.llm.strategies.aliyun_placeholder import AliyunPlaceholderStrategy
+from app.llm.strategies.base import ChatCompletionStrategy
+from app.llm.strategies.openai_compatible import OpenAICompatibleStrategy
+from app.llm.strategies.volcengine_placeholder import VolcenginePlaceholderStrategy
 
 __all__ = [
     "AliyunPlaceholderStrategy",

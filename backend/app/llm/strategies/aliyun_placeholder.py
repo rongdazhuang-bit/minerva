@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.ai_api.domain.models import ChatCallParams
+from app.llm.domain.models import ChatCallParams
 from app.exceptions import AppError
 
 

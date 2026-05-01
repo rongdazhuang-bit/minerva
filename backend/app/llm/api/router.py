@@ -1,4 +1,4 @@
-"""Workspace-scoped AI chat completions with optional SSE streaming."""
+"""Workspace-scoped LLM chat completions with optional SSE streaming."""
 
 from __future__ import annotations
 
@@ -8,15 +8,15 @@ from typing import Any
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
-from app.ai_api.api.schemas import ChatCompletionRequest
-from app.ai_api.domain.models import ChatMessage
-from app.ai_api.service.chat_service import chat_service
-from app.api.deps import get_current_user, require_workspace_member
+from app.llm.api.schemas import ChatCompletionRequest
+from app.llm.domain.models import ChatMessage
+from app.llm.service.chat_service import chat_service
+from app.core.api.deps import get_current_user, require_workspace_member
 from app.core.domain.identity.models import User
 
 router = APIRouter(
-    prefix="/workspaces/{workspace_id}/ai",
-    tags=["ai"],
+    prefix="/workspaces/{workspace_id}/llm",
+    tags=["llm"],
 )
 
 
