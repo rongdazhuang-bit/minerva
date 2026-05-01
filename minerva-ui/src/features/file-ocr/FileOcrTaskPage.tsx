@@ -1,6 +1,7 @@
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,
+  CloudUploadOutlined,
   DeleteOutlined,
   DownloadOutlined,
   EyeOutlined,
@@ -23,11 +24,13 @@ import {
   Input,
   Modal,
   Progress,
+  Result,
   Row,
   Select,
   Space,
   Spin,
   Statistic,
+  Steps,
   Table,
   Tag,
   Upload,
@@ -103,6 +106,16 @@ function validateSourceFile(file: File, t: (key: string) => string) {
     return false
   }
   return true
+}
+
+/** Build Steps rows with titles only (no per-node subtitles under the wizard). */
+function buildWizardStepItems(t: (key: string) => string) {
+  return [
+    { title: t('fileOcr.tasks.wizard.stepSelectTool') },
+    { title: t('fileOcr.tasks.wizard.stepSelectFiles') },
+    { title: t('fileOcr.tasks.wizard.stepUpload') },
+    { title: t('fileOcr.tasks.wizard.stepDone') },
+  ]
 }
 
 /** Keeps OCR type cards configuration in one place. */
@@ -234,6 +247,7 @@ export function RulesFileOcrOverviewPage() {
   )
 }
 
+/** Lists OCR tasks and hosts the modal wizard used to enqueue new OCR uploads. */
 export function RulesFileOcrTaskPage() {
   const { t } = useTranslation()
   const { workspaceId } = useAuth()
@@ -242,13 +256,19 @@ export function RulesFileOcrTaskPage() {
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [filters, setFilters] = useState<OcrFileListParams>({})
   const [wizardOpen, setWizardOpen] = useState(false)
-  const [wizardStep, setWizardStep] = useState<1 | 2>(1)
+  /** Wizard pane index: OCR tool, file picker, upload run, or success. */
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4>(1)
   const [ocrType, setOcrType] = useState<OcrTypeValue | null>(null)
   const [uploadList, setUploadList] = useState<UploadFile[]>([])
   const [progressMap, setProgressMap] = useState<Record<string, number>>({})
+  /** Tracks which queue items failed S3/source upload during the wizard submit loop. */
+  const [uploadFailedByUid, setUploadFailedByUid] = useState<Record<string, boolean>>({})
   const [submitting, setSubmitting] = useState(false)
+  /** Task count shown on the post-upload success pane; cleared when reopening the wizard. */
+  const [createdTaskCount, setCreatedTaskCount] = useState<number | null>(null)
   const [refreshTick, setRefreshTick] = useState(0)
   const ocrTypeOptions = useMemo(() => buildOcrTypeOptions(t), [t])
+  const wizardSteps = useMemo(() => buildWizardStepItems(t), [t])
   const ocrTypeDictQ = useDictItemTree(OCR_TYPE_DICT_CODE)
   const ocrTypeFilterOptions = useMemo(() => {
     const dictOptions = (ocrTypeDictQ.data?.flat ?? []).map((item) => ({
@@ -407,12 +427,33 @@ export function RulesFileOcrTaskPage() {
     setOcrType(null)
     setUploadList([])
     setProgressMap({})
+    setUploadFailedByUid({})
+    setCreatedTaskCount(null)
   }
 
   /** Closes wizard only when no upload is running. */
   const closeWizard = () => {
     if (submitting) return
     setWizardOpen(false)
+    setCreatedTaskCount(null)
+  }
+
+  /** Leave the success pane and close the modal. */
+  const closeWizardAfterSuccess = () => {
+    setWizardOpen(false)
+    setWizardStep(1)
+    setOcrType(null)
+    setUploadList([])
+    setProgressMap({})
+    setUploadFailedByUid({})
+    setCreatedTaskCount(null)
+  }
+
+  /** Modal close (X / mask / Esc): block while uploading; reset full wizard after success step. */
+  const cancelWizardModal = () => {
+    if (submitting) return
+    if (wizardStep === 4) closeWizardAfterSuccess()
+    else closeWizard()
   }
 
   /** Transform filter form values into API query params. */
@@ -428,6 +469,14 @@ export function RulesFileOcrTaskPage() {
       params.create_at_end = range[1].endOf('day').toISOString()
     }
     return params
+  }
+
+  const goPickToUploadStep = () => {
+    if (uploadList.length === 0) {
+      void message.warning(t('fileOcr.tasks.upload.empty'))
+      return
+    }
+    setWizardStep(3)
   }
 
   /** Submit current filter values and reload from first page. */
@@ -468,28 +517,33 @@ export function RulesFileOcrTaskPage() {
       return
     }
     setSubmitting(true)
+    setUploadFailedByUid({})
     try {
       const createBody: OcrFileCreateBody = { ocr_type: ocrType, files: [] }
       for (const item of uploadList) {
         const source = item.originFileObj
         if (source == null) continue
         if (!validateSourceFile(source, t)) continue
-        const uploaded = await uploadOcrSourceFile(workspaceId, source, (percent) => {
-          setProgressMap((prev) => ({ ...prev, [item.uid]: percent }))
-        })
-        createBody.files.push({
-          file_name: source.name,
-          file_size: source.size ?? uploaded.size,
-          object_key: uploaded.object_key,
-        })
+        try {
+          const uploaded = await uploadOcrSourceFile(workspaceId, source, (percent) => {
+            setProgressMap((prev) => ({ ...prev, [item.uid]: percent }))
+          })
+          createBody.files.push({
+            file_name: source.name,
+            file_size: source.size ?? uploaded.size,
+            object_key: uploaded.object_key,
+          })
+        } catch {
+          setUploadFailedByUid((prev) => ({ ...prev, [item.uid]: true }))
+        }
       }
       if (createBody.files.length === 0) {
         void message.error(t('fileOcr.tasks.upload.noneSucceeded'))
         return
       }
       await createOcrFiles(workspaceId, createBody)
-      void message.success(t('fileOcr.tasks.createSuccess', { count: createBody.files.length }))
-      setWizardOpen(false)
+      setCreatedTaskCount(createBody.files.length)
+      setWizardStep(4)
       setRefreshTick((n) => n + 1)
     } catch (err) {
       if (err instanceof ApiError) {
@@ -589,72 +643,149 @@ export function RulesFileOcrTaskPage() {
       <Modal
         open={wizardOpen}
         title={t('fileOcr.tasks.wizard.title')}
-        width="40vw"
-        styles={{ body: { minHeight: '28vh' } }}
+        width="42vw"
+        styles={{
+          body: {
+            display: 'flex',
+            flexDirection: 'column',
+            padding: 0,
+            maxHeight: 'calc(100dvh - 120px)',
+            minHeight: 'min(460px, 44vh)',
+          },
+        }}
         footer={null}
-        maskClosable={!submitting}
-        keyboard={!submitting}
-        closable={!submitting}
-        onCancel={closeWizard}
+        maskClosable={wizardStep === 4 || !submitting}
+        keyboard={wizardStep === 4 || !submitting}
+        closable={wizardStep === 4 || !submitting}
+        onCancel={cancelWizardModal}
         destroyOnClose
       >
-        {wizardStep === 1 ? (
-          <div className="minerva-file-ocr-tasks__wizard-content minerva-file-ocr-tasks__wizard-content--type">
-            <div className="minerva-file-ocr-tasks__ocr-type-grid">
-              {ocrTypeOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  className="minerva-file-ocr-tasks__ocr-type-card"
-                  onClick={() => {
-                    setOcrType(option.value)
-                    setWizardStep(2)
-                  }}
-                >
-                  <div className="minerva-file-ocr-tasks__ocr-type-icon">{option.icon}</div>
-                  <div className="minerva-file-ocr-tasks__ocr-type-title">{option.label}</div>
-                  <div className="minerva-file-ocr-tasks__ocr-type-desc">{option.description}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="minerva-file-ocr-tasks__wizard-content">
-            <Upload.Dragger {...uploadProps} className="minerva-file-ocr-tasks__dragger">
-              <p className="ant-upload-drag-icon">
-                <InboxOutlined />
-              </p>
-              <p className="ant-upload-text">{t('fileOcr.tasks.upload.dragTitle')}</p>
-              <ul className="minerva-file-ocr-tasks__upload-rules">
-                <li>{t('fileOcr.tasks.upload.ruleFormats')}</li>
-                <li>{t('fileOcr.tasks.upload.ruleSingleSize')}</li>
-                <li>{t('fileOcr.tasks.upload.ruleMaxCount')}</li>
-              </ul>
-              <p className="ant-upload-hint">{t('fileOcr.tasks.upload.dragHint')}</p>
-            </Upload.Dragger>
-            <div className="minerva-file-ocr-tasks__progress-list">
-              {uploadList.map((item) => (
-                <div key={item.uid} className="minerva-file-ocr-tasks__progress-item">
-                  <div className="minerva-file-ocr-tasks__progress-name">{item.name}</div>
-                  <Progress percent={progressMap[item.uid] ?? 0} />
+        <div className="minerva-file-ocr-tasks__wizard-shell">
+          <div className="minerva-file-ocr-tasks__wizard-scroll">
+            <Steps
+              current={wizardStep - 1}
+              items={wizardSteps}
+              className="minerva-file-ocr-tasks__wizard-steps"
+              titlePlacement="vertical"
+            />
+
+            {wizardStep === 1 ? (
+              <div className="minerva-file-ocr-tasks__wizard-content minerva-file-ocr-tasks__wizard-content--type">
+                <div className="minerva-file-ocr-tasks__ocr-type-grid">
+                  {ocrTypeOptions.map((option) => {
+                    const selected = ocrType === option.value
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={`minerva-file-ocr-tasks__ocr-type-card${selected ? ' minerva-file-ocr-tasks__ocr-type-card--selected' : ''}`}
+                        onClick={() => {
+                          setOcrType(option.value)
+                          setWizardStep(2)
+                        }}
+                      >
+                        <div className="minerva-file-ocr-tasks__ocr-type-icon">{option.icon}</div>
+                        <div className="minerva-file-ocr-tasks__ocr-type-title">{option.label}</div>
+                        <div className="minerva-file-ocr-tasks__ocr-type-desc">{option.description}</div>
+                      </button>
+                    )
+                  })}
                 </div>
-              ))}
-            </div>
-            <div className="minerva-file-ocr-tasks__wizard-footer">
-              <Button icon={<LeftOutlined />} disabled={submitting} onClick={() => setWizardStep(1)}>
-                {t('fileOcr.tasks.wizard.prev')}
-              </Button>
-              <Button
-                type="primary"
-                icon={<CheckCircleOutlined />}
-                loading={submitting}
-                onClick={() => void onFinishCreate()}
-              >
-                {t('fileOcr.tasks.wizard.finish')}
-              </Button>
-            </div>
+              </div>
+            ) : wizardStep === 2 ? (
+              <div className="minerva-file-ocr-tasks__wizard-content">
+                <Upload.Dragger {...uploadProps} className="minerva-file-ocr-tasks__dragger">
+                  <p className="ant-upload-drag-icon">
+                    <InboxOutlined />
+                  </p>
+                  <p className="ant-upload-text">{t('fileOcr.tasks.upload.dragTitle')}</p>
+                  <ul className="minerva-file-ocr-tasks__upload-rules">
+                    <li>{t('fileOcr.tasks.upload.ruleFormats')}</li>
+                    <li>{t('fileOcr.tasks.upload.ruleSingleSize')}</li>
+                    <li>{t('fileOcr.tasks.upload.ruleMaxCount')}</li>
+                  </ul>
+                  <p className="ant-upload-hint">{t('fileOcr.tasks.upload.dragHint')}</p>
+                </Upload.Dragger>
+              </div>
+            ) : wizardStep === 3 ? (
+              <div className="minerva-file-ocr-tasks__wizard-content">
+                <ul className="minerva-file-ocr-tasks__wizard-upload-summary">
+                  {uploadList.map((item) => (
+                    <li key={item.uid}>{item.name}</li>
+                  ))}
+                </ul>
+                {(submitting ||
+                  uploadList.some(
+                    (item) =>
+                      uploadFailedByUid[item.uid] || (progressMap[item.uid] ?? 0) > 0,
+                  )) && (
+                  <div className="minerva-file-ocr-tasks__progress-list">
+                    {uploadList.map((item) => (
+                      <div key={item.uid} className="minerva-file-ocr-tasks__progress-item">
+                        <div className="minerva-file-ocr-tasks__progress-name">{item.name}</div>
+                        <Progress
+                          percent={progressMap[item.uid] ?? 0}
+                          status={uploadFailedByUid[item.uid] ? 'exception' : undefined}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="minerva-file-ocr-tasks__wizard-content minerva-file-ocr-tasks__wizard-content--success">
+                <Result
+                  status="success"
+                  title={t('fileOcr.tasks.wizard.successTitle')}
+                  subTitle={
+                    createdTaskCount != null
+                      ? t('fileOcr.tasks.createSuccess', { count: createdTaskCount })
+                      : ''
+                  }
+                />
+              </div>
+            )}
           </div>
-        )}
+
+          {(wizardStep === 2 || wizardStep === 3 || wizardStep === 4) && (
+            <div className="minerva-file-ocr-tasks__wizard-bar">
+              {wizardStep === 2 && (
+                <>
+                  <Button icon={<LeftOutlined />} disabled={submitting} onClick={() => setWizardStep(1)}>
+                    {t('fileOcr.tasks.wizard.prev')}
+                  </Button>
+                  <Button type="primary" onClick={goPickToUploadStep}>
+                    {t('fileOcr.tasks.wizard.next')}
+                  </Button>
+                </>
+              )}
+              {wizardStep === 3 && (
+                <>
+                  <Button
+                    icon={<LeftOutlined />}
+                    disabled={submitting}
+                    onClick={() => setWizardStep(2)}
+                  >
+                    {t('fileOcr.tasks.wizard.prev')}
+                  </Button>
+                  <Button
+                    type="primary"
+                    icon={<CloudUploadOutlined />}
+                    loading={submitting}
+                    onClick={() => void onFinishCreate()}
+                  >
+                    {t('fileOcr.tasks.wizard.uploadAction')}
+                  </Button>
+                </>
+              )}
+              {wizardStep === 4 && (
+                <Button type="primary" onClick={closeWizardAfterSuccess}>
+                  {t('fileOcr.tasks.wizard.finish')}
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
       </Modal>
     </div>
   )

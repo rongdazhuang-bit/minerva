@@ -146,10 +146,61 @@ html.minerva-tone-sunshine .minerva-file-ocr-overview__icon {
   vertical-align: middle;
 }
 
+.minerva-file-ocr-tasks__wizard-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.minerva-file-ocr-tasks__wizard-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 24px 26px 8px;
+}
+
+.minerva-file-ocr-tasks__wizard-bar {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 26px 4px;
+  border-top: 1px solid var(--minerva-border, #2a3f58);
+  background: transparent;
+}
+
+html.minerva-tone-sunshine .minerva-file-ocr-tasks__wizard-bar {
+  border-top-color: #e2e8f0;
+}
+
+.minerva-file-ocr-tasks__wizard-steps {
+  margin-top: 8px;
+  margin-bottom: 18px;
+  padding-top: 6px;
+}
+
+.minerva-file-ocr-tasks__wizard-steps .ant-steps-item-container {
+  padding-bottom: 2px;
+}
+
+.minerva-file-ocr-tasks__wizard-steps .ant-steps-item-title {
+  line-height: 1.35;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+html.minerva-tone-sunshine .minerva-file-ocr-tasks__wizard-steps .ant-steps-item-title {
+  color: #0f172a;
+}
+
 .minerva-file-ocr-tasks__wizard-content {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .minerva-file-ocr-tasks__ocr-type-grid {
@@ -159,8 +210,12 @@ html.minerva-tone-sunshine .minerva-file-ocr-overview__icon {
 }
 
 .minerva-file-ocr-tasks__wizard-content--type .minerva-file-ocr-tasks__ocr-type-grid {
-  min-height: 220px;
+  min-height: 260px;
   align-content: center;
+}
+
+.minerva-file-ocr-tasks__wizard-content--success .ant-result {
+  padding: 16px 8px 8px;
 }
 
 .minerva-file-ocr-tasks__ocr-type-card {
@@ -186,6 +241,16 @@ html.minerva-tone-sunshine .minerva-file-ocr-overview__icon {
   border-color: var(--minerva-link, #38bdf8);
   box-shadow: 0 8px 20px rgb(0 0 0 / 18%);
   transform: translateY(-1px);
+}
+
+.minerva-file-ocr-tasks__ocr-type-card--selected {
+  border-color: var(--minerva-link, #38bdf8);
+  box-shadow: 0 0 0 1px rgb(56 189 248 / 35%);
+}
+
+html.minerva-tone-sunshine .minerva-file-ocr-tasks__ocr-type-card--selected {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px rgb(37 99 235 / 25%);
 }
 
 .minerva-file-ocr-tasks__ocr-type-title {
@@ -220,10 +285,17 @@ html.minerva-tone-sunshine .minerva-file-ocr-overview__icon {
   line-height: 1.5;
 }
 
-.minerva-file-ocr-tasks__wizard-footer {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 8px;
+  max-height: 200px;
+  overflow: auto;
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--minerva-ink, #e8f0f8);
+  opacity: 0.9;
+}
+
+html.minerva-tone-sunshine .minerva-file-ocr-tasks__wizard-upload-summary {
+  color: #334155;
 }
 
 .minerva-file-ocr-tasks__dragger.ant-upload-wrapper .ant-upload-drag {
