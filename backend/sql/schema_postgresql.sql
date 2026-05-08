@@ -236,11 +236,13 @@ CREATE TABLE public.sys_storage (
 	id uuid NOT NULL,
 	workspace_id uuid NOT NULL,
 	"name" varchar(32) NULL,
+	bucket_name varchar(63) NULL,
 	"type" varchar(16) NULL,
 	enabled bool DEFAULT true NOT NULL,
 	auth_type varchar(64) NOT NULL,
 	endpoint_url varchar(128) NULL,
 	api_key varchar(128) NULL,
+	secret_key varchar(128) NULL,
 	auth_name varchar(64) NULL,
 	auth_passwd varchar(128) NULL,
 	create_at timestamptz NULL,
@@ -251,12 +253,14 @@ CREATE TABLE public.sys_storage (
 COMMENT ON TABLE public.sys_storage IS '文件存储';
 COMMENT ON COLUMN public.sys_storage.id IS 'id';
 COMMENT ON COLUMN public.sys_storage.workspace_id IS '工作空间id';
-COMMENT ON COLUMN public.sys_storage."name" IS '名称';
+COMMENT ON COLUMN public.sys_storage."name" IS '配置显示名称';
+COMMENT ON COLUMN public.sys_storage.bucket_name IS 'S3 桶名（对象接口使用）';
 COMMENT ON COLUMN public.sys_storage."type" IS '存储类型';
 COMMENT ON COLUMN public.sys_storage.enabled IS '状态';
 COMMENT ON COLUMN public.sys_storage.auth_type IS '认证方式';
 COMMENT ON COLUMN public.sys_storage.endpoint_url IS '地址';
 COMMENT ON COLUMN public.sys_storage.api_key IS 'api key';
+COMMENT ON COLUMN public.sys_storage.secret_key IS 'secret key (API_KEY 认证时与 api_key 配对)';
 COMMENT ON COLUMN public.sys_storage.auth_name IS '账号';
 COMMENT ON COLUMN public.sys_storage.auth_passwd IS '密码';
 COMMENT ON COLUMN public.sys_storage.create_at IS '创建时间';

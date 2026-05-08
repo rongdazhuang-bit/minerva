@@ -14,7 +14,11 @@ from app.core.infrastructure.db.base import Base
 
 
 class SysStorage(Base):
-    """File storage endpoint and auth settings bound to one workspace."""
+    """File storage endpoint and auth settings bound to one workspace.
+
+    For ``API_KEY`` auth, ``api_key`` holds the access key id and ``secret_key`` the secret.
+    ``name`` is a workspace display label; ``bucket_name`` is the S3 bucket used by object APIs.
+    """
 
     __tablename__ = "sys_storage"
 
@@ -28,6 +32,7 @@ class SysStorage(Base):
         nullable=False,
     )
     name: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    bucket_name: Mapped[str | None] = mapped_column(String(63), nullable=True)
     type: Mapped[str | None] = mapped_column(String(16), nullable=True)
     enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=sa.true()
@@ -35,6 +40,7 @@ class SysStorage(Base):
     auth_type: Mapped[str] = mapped_column(String(64), nullable=False)
     endpoint_url: Mapped[str | None] = mapped_column(String(128), nullable=True)
     api_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    secret_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
     auth_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
     auth_passwd: Mapped[str | None] = mapped_column(String(128), nullable=True)
     create_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

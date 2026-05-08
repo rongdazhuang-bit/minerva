@@ -9,12 +9,17 @@ from typing import BinaryIO
 
 @dataclass(frozen=True)
 class S3StorageConfig:
-    """Validated workspace S3 storage configuration loaded from ``sys_storage``."""
+    """Validated workspace S3 storage configuration loaded from ``sys_storage``.
+
+    For ``API_KEY`` auth, ``api_key`` / ``secret_key`` become boto3 access key id and secret
+    (empty secret falls back to a placeholder for legacy rows).
+    """
 
     bucket: str
     endpoint_url: str | None
     auth_type: str
     api_key: str | None
+    secret_key: str | None
     auth_name: str | None
     auth_passwd: str | None
 

@@ -21,11 +21,63 @@
   background: var(--ant-color-fill-quaternary, #fafafa);
 }
 
+.minerva-cron-gen-preview__heading {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.minerva-cron-gen-preview__main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+
 .minerva-cron-gen-preview__grid {
   display: grid;
+  flex: 1 1 360px;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 8px 6px;
-  margin-bottom: 12px;
+  min-width: 0;
+}
+
+.minerva-cron-gen-preview__cron {
+  flex: 0 1 260px;
+  min-width: 200px;
+}
+
+.minerva-cron-gen-preview__cron-input {
+  margin-top: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.minerva-cron-gen-every-line__hint {
+  color: var(--ant-color-text-secondary);
+  font-weight: normal;
+}
+
+/* 「指定」单选项与多选下拉同一行，不换行；Select 在 Radio 旁侧而非嵌在 Radio 内。 */
+.minerva-cron-gen-specify-row {
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.minerva-cron-gen-specify-row > .ant-radio-wrapper {
+  flex: 0 0 auto;
+}
+
+.minerva-cron-gen-specify-select {
+  flex: 1 1 auto;
+  min-width: 160px;
+  max-width: 420px;
+}
+
+.minerva-cron-gen-weekday-select {
+  min-width: 112px;
 }
 
 .minerva-cron-gen-preview__cell-label {

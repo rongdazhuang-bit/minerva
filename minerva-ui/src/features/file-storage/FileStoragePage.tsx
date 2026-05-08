@@ -62,11 +62,13 @@ function canonicalFileStorageAuthType(code: string | null | undefined): string {
 /** Form values used by create/edit file storage drawer. */
 type FileStorageFormValues = {
   name?: string
+  bucket_name?: string
   type?: string
   enabled: boolean
   auth_type: string
   endpoint_url?: string
   api_key?: string
+  secret_key?: string
   auth_name?: string
   auth_passwd?: string
 }
@@ -109,13 +111,17 @@ function toPayload(values: FileStorageFormValues): FileStorageCreateBody {
   const authType = values.auth_type.trim()
   const isBasic = authType.toUpperCase() === 'BASIC'
   const isApiKey = authType.toUpperCase() === 'API_KEY'
+  const storageType = values.type?.trim() || null
+  const isS3 = (storageType ?? '').toUpperCase() === 'S3'
   return {
     name: values.name?.trim() || null,
-    type: values.type?.trim() || null,
+    bucket_name: isS3 ? values.bucket_name?.trim() || null : null,
+    type: storageType,
     enabled: values.enabled,
     auth_type: authType,
     endpoint_url: values.endpoint_url?.trim() || null,
     api_key: isApiKey ? values.api_key?.trim() || null : null,
+    secret_key: isApiKey ? values.secret_key?.trim() || null : null,
     auth_name: isBasic ? values.auth_name?.trim() || null : null,
     auth_passwd: isBasic ? values.auth_passwd?.trim() || null : null,
   }
@@ -152,6 +158,7 @@ export function FileStoragePage() {
   const watchedStorageType = Form.useWatch('type', form)
   const showBasicFields = watchedAuthType.toUpperCase() === 'BASIC'
   const showApiKeyField = watchedAuthType.toUpperCase() === 'API_KEY'
+  const showBucketField = (watchedStorageType ?? '').trim().toUpperCase() === 'S3'
 
   const authTypeOptions = useMemo(
     () => [
@@ -260,11 +267,13 @@ export function FileStoragePage() {
       const detail = await getFileStorage(workspaceId, storageId)
       form.setFieldsValue({
         name: detail.name ?? '',
+        bucket_name: detail.bucket_name ?? '',
         type: detail.type ?? '',
         enabled: detail.enabled,
         auth_type: canonicalFileStorageAuthType(detail.auth_type),
         endpoint_url: detail.endpoint_url ?? '',
         api_key: detail.api_key ?? '',
+        secret_key: detail.secret_key ?? '',
         auth_name: detail.auth_name ?? '',
         auth_passwd: detail.auth_passwd ?? '',
       })
@@ -362,7 +371,7 @@ export function FileStoragePage() {
       title: t('settings.fileStorageName'),
       dataIndex: 'name',
       key: 'name',
-      width: 180,
+      width: 160,
       ellipsis: true,
       render: (v: string | null) => v?.trim() || '—',
     },
@@ -373,6 +382,14 @@ export function FileStoragePage() {
       width: 120,
       ellipsis: true,
       render: (v: string | null) => resolveStorageTypeLabel(v),
+    },
+    {
+      title: t('settings.fileStorageBucketName'),
+      dataIndex: 'bucket_name',
+      key: 'bucket_name',
+      width: 160,
+      ellipsis: true,
+      render: (v: string | null) => v?.trim() || '—',
     },
     {
       title: t('settings.fileStorageEndpointUrl'),
@@ -504,7 +521,11 @@ export function FileStoragePage() {
         }
       >
         <Form form={form} layout="vertical" onFinish={(v) => void onSubmit(v)}>
-          <Form.Item name="name" label={t('settings.fileStorageName')}>
+          <Form.Item
+            name="name"
+            label={t('settings.fileStorageName')}
+            rules={[{ required: true, message: t('settings.fileStorageNameRequired') }]}
+          >
             <Input allowClear maxLength={32} />
           </Form.Item>
           <Form.Item name="type" label={t('settings.fileStorageType')}>
@@ -516,6 +537,25 @@ export function FileStoragePage() {
               showSearch
             />
           </Form.Item>
+          {showBucketField ? (
+            <Form.Item
+              name="bucket_name"
+              label={t('settings.fileStorageBucketName')}
+              dependencies={['type']}
+              rules={[
+                {
+                  validator: async (_, value) => {
+                    const st = form.getFieldValue('type') as string | undefined
+                    if ((st ?? '').trim().toUpperCase() !== 'S3') return
+                    if (String(value ?? '').trim()) return
+                    throw new Error(t('settings.fileStorageBucketNameRequired'))
+                  },
+                },
+              ]}
+            >
+              <Input allowClear maxLength={63} />
+            </Form.Item>
+          ) : null}
           <Form.Item name="enabled" label={t('settings.fileStorageEnabled')}>
             <Select options={statusOptions} />
           </Form.Item>
@@ -544,9 +584,32 @@ export function FileStoragePage() {
             </>
           ) : null}
           {showApiKeyField ? (
-            <Form.Item name="api_key" label={t('settings.fileStorageApiKey')}>
-              <Input.Password allowClear maxLength={128} />
-            </Form.Item>
+            <>
+              <Form.Item name="api_key" label={t('settings.fileStorageApiKey')}>
+                <Input.Password allowClear maxLength={128} />
+              </Form.Item>
+              <Form.Item
+                name="secret_key"
+                label={t('settings.fileStorageSecretKey')}
+                dependencies={['auth_type']}
+                rules={
+                  editingId
+                    ? []
+                    : [
+                        {
+                          validator: async (_, value) => {
+                            const at = form.getFieldValue('auth_type') as string | undefined
+                            if ((at ?? '').toUpperCase() !== 'API_KEY') return
+                            if (String(value ?? '').trim()) return
+                            throw new Error(t('settings.fileStorageSecretKeyRequired'))
+                          },
+                        },
+                      ]
+                }
+              >
+                <Input.Password allowClear maxLength={128} />
+              </Form.Item>
+            </>
           ) : null}
         </Form>
       </Drawer>
@@ -573,6 +636,9 @@ export function FileStoragePage() {
             <Descriptions.Item label={t('settings.fileStorageType')}>
               {resolveStorageTypeLabel(viewDetail.type)}
             </Descriptions.Item>
+            <Descriptions.Item label={t('settings.fileStorageBucketName')}>
+              {renderCopyable(viewDetail.bucket_name, t)}
+            </Descriptions.Item>
             <Descriptions.Item label={t('settings.fileStorageEnabled')}>
               {viewDetail.enabled
                 ? t('settings.fileStorageStatusEnabled')
@@ -584,9 +650,16 @@ export function FileStoragePage() {
             <Descriptions.Item label={t('settings.fileStorageEndpointUrl')}>
               {renderCopyable(viewDetail.endpoint_url, t)}
             </Descriptions.Item>
-            <Descriptions.Item label={t('settings.fileStorageApiKey')}>
-              {renderCopyable(viewDetail.api_key, t)}
-            </Descriptions.Item>
+            {canonicalFileStorageAuthType(viewDetail.auth_type) === 'API_KEY' ? (
+              <>
+                <Descriptions.Item label={t('settings.fileStorageApiKey')}>
+                  {renderCopyable(viewDetail.api_key, t)}
+                </Descriptions.Item>
+                <Descriptions.Item label={t('settings.fileStorageSecretKey')}>
+                  {renderCopyable(viewDetail.secret_key, t)}
+                </Descriptions.Item>
+              </>
+            ) : null}
             <Descriptions.Item label={t('settings.fileStorageAuthName')}>
               {renderCopyable(viewDetail.auth_name, t)}
             </Descriptions.Item>

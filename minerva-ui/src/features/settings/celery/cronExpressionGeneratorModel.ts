@@ -3,8 +3,21 @@
  * 「日」「周」同时具体时自动保留「日」、将「周」强制为 *，避免非法组合。
  */
 
-/** 各时间维度在生成器中的配置模式（与常见可视化 Cron 工具的单选分组一致）。 */
-export type CronGenMode = 'every' | 'unspecified' | 'range' | 'interval' | 'list'
+/**
+ * 各时间维度在生成器中的配置模式（与常见可视化 Cron 工具的单选分组一致）。
+ * `dayNearestWeekday` / `dayLast` 仅用于「日」字段，输出 Quartz 风格 `nW` 与 `L`。
+ * `weekNthDow` / `weekLastDow` 仅用于「周」字段，输出 `dow#n`（第 n 个星期几）与 `dowL`（本月最后一个星期几）。
+ */
+export type CronGenMode =
+  | 'every'
+  | 'unspecified'
+  | 'range'
+  | 'interval'
+  | 'list'
+  | 'dayNearestWeekday'
+  | 'dayLast'
+  | 'weekNthDow'
+  | 'weekLastDow'
 
 /** 七个页签对应字段；`year` 仅用于占位说明，不参与输出字符串。 */
 export type CronGenTabKey = 'second' | 'minute' | 'hour' | 'day' | 'month' | 'weekday' | 'year'
@@ -22,6 +35,16 @@ export type CronGenSegmentState = {
   intervalStep: number
   /** `list`：具体取值多选，会去重排序后序列化。 */
   list: number[]
+  /**
+   * 仅「日」`dayNearestWeekday`：当月第 n 号最近的工作日（周一至周五），序列化为 `nW`。
+   */
+  nearestWeekdayDom: number
+  /** 仅「周」`weekNthDow`：第几个（1–5），与 `weekNthDow` 组成 `dow#n`。 */
+  weekNthOrdinal: number
+  /** 仅「周」`weekNthDow`：星期几 0–6（0=周日）。 */
+  weekNthDow: number
+  /** 仅「周」`weekLastDow`：本月最后一个该星期几，序列化为 `dowL`。 */
+  weekLastDow: number
 }
 
 /** 生成器完整状态：`year` 不包含在导出的 cron 串中。 */
@@ -37,15 +60,25 @@ const BOUNDS: Record<Exclude<CronGenTabKey, 'year'>, { min: number; max: number 
 }
 
 /** 新建页签时的默认区间/步长，避免 InputNumber 出现 undefined。 */
-const NUM_DEFAULT = { rangeLo: 0, rangeHi: 1, intervalStart: 0, intervalStep: 1 }
+const NUM_DEFAULT = {
+  rangeLo: 0,
+  rangeHi: 1,
+  intervalStart: 0,
+  intervalStep: 1,
+  nearestWeekdayDom: 1,
+  weekNthOrdinal: 1,
+  weekNthDow: 1,
+  weekLastDow: 1,
+}
 
 /**
- * 返回各字段的初始状态：与表单默认 `0 * * * * *` 一致。
+ * 返回各字段的初始状态：默认六段为「全部每秒」`* * * * * *`（新建任务表单侧常用 `0 * * * * *` 由解析结果覆盖）。
  * `year` 段为「不指定」占位，不写入 Celery 表达式。
  */
 export function getDefaultCronGeneratorState(): CronGeneratorFullState {
   return {
-    second: { mode: 'list', ...NUM_DEFAULT, list: [0] },
+    /** 与可视化工具默认一致：「每秒」为 *，而非指定某一秒。 */
+    second: { mode: 'every', ...NUM_DEFAULT, list: [0] },
     minute: { mode: 'every', ...NUM_DEFAULT, list: [0] },
     hour: { mode: 'every', ...NUM_DEFAULT, list: [0] },
     day: { mode: 'every', ...NUM_DEFAULT, list: [1] },
@@ -98,6 +131,25 @@ export function serializeSegment(tab: Exclude<CronGenTabKey, 'year'>, state: Cro
       const raw = state.list.length > 0 ? state.list : [min]
       const sorted = [...new Set(raw.map((n) => clamp(tab, n)))].sort((a, b) => a - b)
       return sorted.join(',')
+    }
+    case 'dayNearestWeekday': {
+      if (tab !== 'day') return '*'
+      const dom = clamp('day', state.nearestWeekdayDom)
+      return `${dom}W`
+    }
+    case 'dayLast': {
+      if (tab !== 'day') return '*'
+      return 'L'
+    }
+    case 'weekNthDow': {
+      if (tab !== 'weekday') return '*'
+      const ord = Math.min(5, Math.max(1, Math.trunc(state.weekNthOrdinal || 1)))
+      const dow = clamp('weekday', state.weekNthDow)
+      return `${dow}#${ord}`
+    }
+    case 'weekLastDow': {
+      if (tab !== 'weekday') return '*'
+      return `${clamp('weekday', state.weekLastDow)}L`
     }
     default:
       return '*'
@@ -163,6 +215,38 @@ function segmentToState(
   const s = segment.trim()
   if (s === '*' || s === '?') {
     return { ...fallback, mode: s === '?' ? 'unspecified' : 'every' }
+  }
+  if (tab === 'day') {
+    if (s === 'L') {
+      return { ...fallback, mode: 'dayLast' }
+    }
+    const nw = /^(\d+)W$/.exec(s)
+    if (nw) {
+      return {
+        ...fallback,
+        mode: 'dayNearestWeekday',
+        nearestWeekdayDom: clamp('day', parseInt(nw[1], 10)),
+      }
+    }
+  }
+  if (tab === 'weekday') {
+    const lastW = /^(\d+)L$/.exec(s)
+    if (lastW) {
+      return {
+        ...fallback,
+        mode: 'weekLastDow',
+        weekLastDow: clamp('weekday', parseInt(lastW[1], 10)),
+      }
+    }
+    const nth = /^(\d+)#(\d+)$/.exec(s)
+    if (nth) {
+      return {
+        ...fallback,
+        mode: 'weekNthDow',
+        weekNthDow: clamp('weekday', parseInt(nth[1], 10)),
+        weekNthOrdinal: Math.min(5, Math.max(1, parseInt(nth[2], 10))),
+      }
+    }
   }
   const stepBoth = /^(\d+|\*)\/(\d+)$/.exec(s)
   if (stepBoth) {

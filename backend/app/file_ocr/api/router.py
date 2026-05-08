@@ -5,13 +5,14 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api.deps import get_current_user, require_workspace_member
 from app.dependencies import get_db
 from app.core.domain.identity.models import User
+from app.exceptions import AppError
 from app.file_ocr.api.schemas import OcrFileBatchCreateOut
 from app.file_ocr.api.schemas import (
     OcrFileCreateIn,
@@ -134,3 +135,27 @@ async def get_ocr_file_overview_stats(
         success_count=int(row[2] or 0),
         failed_count=int(row[3] or 0),
     )
+
+
+@file_router.delete("/{ocr_file_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
+async def delete_ocr_file(
+    workspace_id: uuid.UUID,
+    ocr_file_id: uuid.UUID,
+    _user: User = Depends(get_current_user),
+    _workspace: uuid.UUID = Depends(require_workspace_member),
+    session: AsyncSession = Depends(get_db),
+) -> Response:
+    """Delete one OCR task row in the current workspace."""
+
+    result = await session.execute(
+        select(OcrFile).where(
+            OcrFile.id == ocr_file_id,
+            OcrFile.workspace_id == workspace_id,
+        )
+    )
+    row = result.scalar_one_or_none()
+    if row is None:
+        raise AppError("ocr_file.not_found", "OCR task not found", 404)
+    await session.delete(row)
+    await session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

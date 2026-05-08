@@ -31,3 +31,5 @@ __pycache__/
 
 # Local git worktrees
 .worktrees/
+/backend/minerva/
+/backend/alembic/

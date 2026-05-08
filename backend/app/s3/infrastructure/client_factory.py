@@ -17,7 +17,8 @@ def create_s3_client(config: S3StorageConfig) -> Any:
         kwargs["endpoint_url"] = config.endpoint_url
     if config.auth_type == "API_KEY":
         kwargs["aws_access_key_id"] = config.api_key
-        kwargs["aws_secret_access_key"] = "-"
+        sk = (config.secret_key or "").strip()
+        kwargs["aws_secret_access_key"] = sk if sk else "-"
     elif config.auth_type == "BASIC":
         kwargs["aws_access_key_id"] = config.auth_name
         kwargs["aws_secret_access_key"] = config.auth_passwd

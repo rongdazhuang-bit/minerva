@@ -26,6 +26,7 @@ import {
   Progress,
   Result,
   Row,
+  Popconfirm,
   Select,
   Space,
   Spin,
@@ -33,19 +34,21 @@ import {
   Steps,
   Table,
   Tag,
+  Tooltip,
   Upload,
   message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { UploadFile, UploadProps } from 'antd/es/upload/interface'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Dayjs } from 'dayjs'
 import type { ReactNode } from 'react'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '@/api/client'
 import {
   createOcrFiles,
+  deleteOcrFile,
   getOcrFileOverviewStats,
   listOcrFiles,
   uploadOcrSourceFile,
@@ -250,6 +253,7 @@ export function RulesFileOcrOverviewPage() {
 /** Lists OCR tasks and hosts the modal wizard used to enqueue new OCR uploads. */
 export function RulesFileOcrTaskPage() {
   const { t } = useTranslation()
+  const queryClient = useQueryClient()
   const { workspaceId } = useAuth()
   const [filterForm] = Form.useForm<FilterFormValues>()
   const [page, setPage] = useState(1)
@@ -313,6 +317,23 @@ export function RulesFileOcrTaskPage() {
   const onPendingAction = (nameKey: string) => {
     void message.info(t('fileOcr.tasks.actionPending', { action: t(nameKey) }))
   }
+
+  /** Delete one task row and refresh list plus overview KPI cache. */
+  const handleDeleteOcrTask = useCallback(
+    async (ocrFileId: string) => {
+      if (!workspaceId) return
+      try {
+        await deleteOcrFile(workspaceId, ocrFileId)
+        void message.success(t('fileOcr.tasks.deleteSuccess'))
+        void queryClient.invalidateQueries({ queryKey: ['ocrFileOverviewStats', workspaceId] })
+        setRefreshTick((n) => n + 1)
+      } catch (e) {
+        if (e instanceof ApiError) void message.error(e.message)
+        else void message.error(t('common.error'))
+      }
+    },
+    [queryClient, t, workspaceId],
+  )
 
   const columns: ColumnsType<OcrFileListItem> = useMemo(
     () => [
@@ -380,44 +401,62 @@ export function RulesFileOcrTaskPage() {
         fixed: 'right',
         render: (_, row) => (
           <Space size={4}>
-            <Button
-              type="text"
-              icon={<EyeOutlined />}
-              onClick={() => onPendingAction('fileOcr.tasks.action.view')}
-              aria-label={t('fileOcr.tasks.action.view')}
-            />
-            <Button
-              type="text"
-              icon={<RedoOutlined />}
-              onClick={() => onPendingAction('fileOcr.tasks.action.retry')}
-              aria-label={t('fileOcr.tasks.action.retry')}
-            />
-            <Button
-              type="text"
-              icon={<DownloadOutlined />}
-              disabled={row.status !== 'SUCCESS'}
-              onClick={() => onPendingAction('fileOcr.tasks.action.download')}
-              aria-label={t('fileOcr.tasks.action.download')}
-            />
-            <Button
-              type="text"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={() => onPendingAction('fileOcr.tasks.action.delete')}
-              aria-label={t('fileOcr.tasks.action.delete')}
-            />
-            <Button
-              type="text"
-              icon={<StopOutlined />}
-              disabled={row.status !== 'PROCESS'}
-              onClick={() => onPendingAction('fileOcr.tasks.action.cancel')}
-              aria-label={t('fileOcr.tasks.action.cancel')}
-            />
+            <Tooltip title={t('fileOcr.tasks.action.view')}>
+              <Button
+                type="text"
+                icon={<EyeOutlined />}
+                onClick={() => onPendingAction('fileOcr.tasks.action.view')}
+                aria-label={t('fileOcr.tasks.action.view')}
+              />
+            </Tooltip>
+            <Tooltip title={t('fileOcr.tasks.action.retry')}>
+              <Button
+                type="text"
+                icon={<RedoOutlined />}
+                onClick={() => onPendingAction('fileOcr.tasks.action.retry')}
+                aria-label={t('fileOcr.tasks.action.retry')}
+              />
+            </Tooltip>
+            <Tooltip title={t('fileOcr.tasks.action.download')}>
+              <span style={{ display: 'inline-flex' }}>
+                <Button
+                  type="text"
+                  icon={<DownloadOutlined />}
+                  disabled={row.status !== 'SUCCESS'}
+                  onClick={() => onPendingAction('fileOcr.tasks.action.download')}
+                  aria-label={t('fileOcr.tasks.action.download')}
+                />
+              </span>
+            </Tooltip>
+            <Popconfirm
+              title={t('fileOcr.tasks.deleteConfirm')}
+              onConfirm={() => void handleDeleteOcrTask(row.id)}
+            >
+              <Tooltip title={t('fileOcr.tasks.action.delete')}>
+                <Button
+                  type="text"
+                  danger
+                  icon={<DeleteOutlined />}
+                  aria-label={t('fileOcr.tasks.action.delete')}
+                />
+              </Tooltip>
+            </Popconfirm>
+            <Tooltip title={t('fileOcr.tasks.action.cancel')}>
+              <span style={{ display: 'inline-flex' }}>
+                <Button
+                  type="text"
+                  icon={<StopOutlined />}
+                  disabled={row.status !== 'PROCESS'}
+                  onClick={() => onPendingAction('fileOcr.tasks.action.cancel')}
+                  aria-label={t('fileOcr.tasks.action.cancel')}
+                />
+              </span>
+            </Tooltip>
           </Space>
         ),
       },
     ],
-    [t],
+    [handleDeleteOcrTask, t],
   )
 
   /** Reset wizard states before opening create flow. */

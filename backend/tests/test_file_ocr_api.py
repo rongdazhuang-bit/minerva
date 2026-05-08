@@ -116,3 +116,38 @@ async def test_ocr_file_list_supports_filters_and_pagination() -> None:
         assert len(body["items"]) == 2
         assert all(item["status"] == "INIT" for item in body["items"])
         assert all(str(item["file_name"]).endswith(".pdf") for item in body["items"])
+
+
+@pytest.mark.asyncio
+async def test_delete_ocr_file_removes_row() -> None:
+    """DELETE should remove the task when id belongs to the workspace."""
+
+    await _ensure_ocr_file_columns()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        email = f"fo-del-{uuid.uuid4().hex}@example.com"
+        reg = await ac.post("/auth/register", json={"email": email, "password": "secret1234"})
+        assert reg.status_code == 201, reg.text
+        token = reg.json()["access_token"]
+        workspace_id = _workspace_id_from_access_token(token)
+        headers = {"Authorization": f"Bearer {token}"}
+        payload = {
+            "ocr_type": "PADDLE_OCR",
+            "files": [
+                {"file_name": "a.pdf", "file_size": 10, "object_key": "ocr_file/2026/04/a.pdf"},
+            ],
+        }
+        create = await ac.post(f"/workspaces/{workspace_id}/ocr-files", headers=headers, json=payload)
+        assert create.status_code == 201, create.text
+        ocr_id = create.json()["items"][0]["id"]
+
+        deleted = await ac.delete(
+            f"/workspaces/{workspace_id}/ocr-files/{ocr_id}",
+            headers=headers,
+        )
+        assert deleted.status_code == 204, deleted.text
+
+        again = await ac.delete(
+            f"/workspaces/{workspace_id}/ocr-files/{ocr_id}",
+            headers=headers,
+        )
+        assert again.status_code == 404, again.text

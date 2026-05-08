@@ -98,6 +98,13 @@ export function createOcrFiles(workspaceId: string, body: OcrFileCreateBody) {
   })
 }
 
+/** Delete one OCR file task row by id. */
+export function deleteOcrFile(workspaceId: string, ocrFileId: string) {
+  return apiJson<null>(ocrFilePath(workspaceId, `/${ocrFileId}`), {
+    method: 'DELETE',
+  })
+}
+
 export function uploadOcrSourceFile(
   workspaceId: string,
   file: File,

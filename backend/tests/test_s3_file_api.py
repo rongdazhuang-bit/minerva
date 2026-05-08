@@ -131,7 +131,8 @@ async def test_s3_file_upload_list_download_delete_and_isolation() -> None:
             f"/workspaces/{workspace1}/file-storages",
             headers=headers1,
             json={
-                "name": "bucket-ws1",
+                "name": "ws1-s3",
+                "bucket_name": "bucket-ws1",
                 "type": "S3",
                 "enabled": True,
                 "auth_type": "BASIC",

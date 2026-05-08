@@ -17,7 +17,9 @@
 /* Shell + in-page: visible track + contrast thumb (transparent track was effectively invisible on dark UI). */
 .minerva-app-sider-scroll,
 .minerva-app-main-scroll,
-.minerva-scrollbar-styled {
+.minerva-scrollbar-styled,
+/* Cron 生成器等：Ant Select 下拉虚拟列表滚动容器（popupClassName 挂在根上，实际滚动在 holder）。 */
+.minerva-cron-gen-select-dropdown .rc-virtual-list-holder {
   /* Firefox: thin ≈ 与 WebKit 5px 细条同量级 */
   scrollbar-width: thin;
   scrollbar-color: rgb(148 163 184 / 0.7) rgba(0, 0, 0, 0.22);
@@ -31,14 +33,16 @@
 
 .minerva-app-sider-scroll::-webkit-scrollbar,
 .minerva-app-main-scroll::-webkit-scrollbar,
-.minerva-scrollbar-styled::-webkit-scrollbar {
+.minerva-scrollbar-styled::-webkit-scrollbar,
+.minerva-cron-gen-select-dropdown .rc-virtual-list-holder::-webkit-scrollbar {
   width: 5px;
   height: 5px;
 }
 
 .minerva-app-sider-scroll::-webkit-scrollbar-track,
 .minerva-app-main-scroll::-webkit-scrollbar-track,
-.minerva-scrollbar-styled::-webkit-scrollbar-track {
+.minerva-scrollbar-styled::-webkit-scrollbar-track,
+.minerva-cron-gen-select-dropdown .rc-virtual-list-holder::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
   margin: 1px 0;
@@ -46,7 +50,8 @@
 
 .minerva-app-sider-scroll::-webkit-scrollbar-thumb,
 .minerva-app-main-scroll::-webkit-scrollbar-thumb,
-.minerva-scrollbar-styled::-webkit-scrollbar-thumb {
+.minerva-scrollbar-styled::-webkit-scrollbar-thumb,
+.minerva-cron-gen-select-dropdown .rc-virtual-list-holder::-webkit-scrollbar-thumb {
   min-height: 16px;
   background: linear-gradient(180deg, rgb(148 163 184 / 0.55) 0%, rgb(100 116 139 / 0.75) 100%);
   border: 1px solid rgba(15, 23, 42, 0.35);
@@ -56,7 +61,8 @@
 
 .minerva-app-sider-scroll::-webkit-scrollbar-thumb:hover,
 .minerva-app-main-scroll::-webkit-scrollbar-thumb:hover,
-.minerva-scrollbar-styled::-webkit-scrollbar-thumb:hover {
+.minerva-scrollbar-styled::-webkit-scrollbar-thumb:hover,
+.minerva-cron-gen-select-dropdown .rc-virtual-list-holder::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, rgb(56 189 248 / 0.65) 0%, rgb(14 165 233 / 0.85) 100%);
   border-color: rgba(12, 74, 110, 0.45);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.15);
@@ -64,19 +70,26 @@
 
 html.minerva-tone-sunshine .minerva-app-sider-scroll,
 html.minerva-tone-sunshine .minerva-app-main-scroll,
-html.minerva-tone-sunshine .minerva-scrollbar-styled {
+html.minerva-tone-sunshine .minerva-scrollbar-styled,
+html.minerva-tone-sunshine .minerva-cron-gen-select-dropdown .rc-virtual-list-holder {
   scrollbar-color: rgb(100 116 139 / 0.8) rgba(15, 23, 42, 0.08);
 }
 
 html.minerva-tone-sunshine .minerva-app-sider-scroll::-webkit-scrollbar-track,
 html.minerva-tone-sunshine .minerva-app-main-scroll::-webkit-scrollbar-track,
-html.minerva-tone-sunshine .minerva-scrollbar-styled::-webkit-scrollbar-track {
+html.minerva-tone-sunshine .minerva-scrollbar-styled::-webkit-scrollbar-track,
+html.minerva-tone-sunshine
+  .minerva-cron-gen-select-dropdown
+  .rc-virtual-list-holder::-webkit-scrollbar-track {
   background: rgba(15, 23, 42, 0.08);
 }
 
 html.minerva-tone-sunshine .minerva-app-sider-scroll::-webkit-scrollbar-thumb,
 html.minerva-tone-sunshine .minerva-app-main-scroll::-webkit-scrollbar-thumb,
-html.minerva-tone-sunshine .minerva-scrollbar-styled::-webkit-scrollbar-thumb {
+html.minerva-tone-sunshine .minerva-scrollbar-styled::-webkit-scrollbar-thumb,
+html.minerva-tone-sunshine
+  .minerva-cron-gen-select-dropdown
+  .rc-virtual-list-holder::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, rgb(100 116 139 / 0.45) 0%, rgb(71 85 105 / 0.65) 100%);
   border: 1px solid rgb(15 23 42 / 0.12);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35);
@@ -84,7 +97,10 @@ html.minerva-tone-sunshine .minerva-scrollbar-styled::-webkit-scrollbar-thumb {
 
 html.minerva-tone-sunshine .minerva-app-sider-scroll::-webkit-scrollbar-thumb:hover,
 html.minerva-tone-sunshine .minerva-app-main-scroll::-webkit-scrollbar-thumb:hover,
-html.minerva-tone-sunshine .minerva-scrollbar-styled::-webkit-scrollbar-thumb:hover {
+html.minerva-tone-sunshine .minerva-scrollbar-styled::-webkit-scrollbar-thumb:hover,
+html.minerva-tone-sunshine
+  .minerva-cron-gen-select-dropdown
+  .rc-virtual-list-holder::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, rgb(59 130 246 / 0.5) 0%, rgb(37 99 235 / 0.7) 100%);
   border-color: rgb(30 64 175 / 0.25);
 }
@@ -92,7 +108,8 @@ html.minerva-tone-sunshine .minerva-scrollbar-styled::-webkit-scrollbar-thumb:ho
 /* Where vertical + horizontal meet */
 .minerva-app-sider-scroll::-webkit-scrollbar-corner,
 .minerva-app-main-scroll::-webkit-scrollbar-corner,
-.minerva-scrollbar-styled::-webkit-scrollbar-corner {
+.minerva-scrollbar-styled::-webkit-scrollbar-corner,
+.minerva-cron-gen-select-dropdown .rc-virtual-list-holder::-webkit-scrollbar-corner {
   background: transparent;
 }
 

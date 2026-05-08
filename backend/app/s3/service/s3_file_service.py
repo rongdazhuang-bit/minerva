@@ -173,15 +173,20 @@ class S3FileService:
         ):
             raise AppError("s3.auth_invalid", "BASIC auth requires auth_name/auth_passwd", 422)
 
-        bucket = (row.name or "").strip()
+        bucket = (row.bucket_name or "").strip() or (row.name or "").strip()
         if not bucket:
-            raise AppError("s3.request_failed", "S3 bucket is required in sys_storage.name", 502)
+            raise AppError(
+                "s3.request_failed",
+                "S3 bucket is required in sys_storage.bucket_name",
+                502,
+            )
         endpoint_url = (row.endpoint_url or "").strip() or None
         return S3StorageConfig(
             bucket=bucket,
             endpoint_url=endpoint_url,
             auth_type=auth_type,
             api_key=(row.api_key or "").strip() or None,
+            secret_key=(row.secret_key or "").strip() or None,
             auth_name=(row.auth_name or "").strip() or None,
             auth_passwd=(row.auth_passwd or "").strip() or None,
         )

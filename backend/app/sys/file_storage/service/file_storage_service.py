@@ -44,10 +44,35 @@ def _normalize_nullable_str(value: str | None) -> str | None:
     return trimmed or None
 
 
+def _is_s3_storage(storage_type: str | None) -> bool:
+    """Return True when storage type is S3 (case-insensitive)."""
+
+    return (storage_type or "").strip().upper() == "S3"
+
+
+def _assert_identity_fields(
+    *,
+    name: str | None,
+    bucket_name: str | None,
+    storage_type: str | None,
+) -> None:
+    """Require display ``name``; require ``bucket_name`` when type is S3."""
+
+    if not (name or "").strip():
+        raise AppError("file_storage.name_required", "name is required", 422)
+    if _is_s3_storage(storage_type) and not (bucket_name or "").strip():
+        raise AppError(
+            "file_storage.bucket_name_required",
+            "bucket_name is required for S3 storage",
+            422,
+        )
+
+
 def _assert_auth_fields(
     *,
     auth_type: str,
     api_key: str | None,
+    secret_key: str | None,
     auth_name: str | None,
     auth_passwd: str | None,
     strict: bool,
@@ -56,7 +81,21 @@ def _assert_auth_fields(
 
     tag = _normalize_auth_type(auth_type)
     if tag == "API_KEY":
-        if strict and not (api_key or "").strip():
+        if strict:
+            if not (api_key or "").strip():
+                raise AppError(
+                    "file_storage.api_key_required",
+                    "api_key is required for API_KEY auth",
+                    422,
+                )
+            if not (secret_key or "").strip():
+                raise AppError(
+                    "file_storage.secret_key_required",
+                    "secret_key is required for API_KEY auth",
+                    422,
+                )
+            return
+        if not (api_key or "").strip():
             raise AppError(
                 "file_storage.api_key_required",
                 "api_key is required for API_KEY auth",
@@ -118,15 +157,23 @@ async def create_storage(
 
     normalized_auth_type = _normalize_auth_type(str(data["auth_type"]))
     name = _normalize_nullable_str(data.get("name"))
+    bucket_name = _normalize_nullable_str(data.get("bucket_name"))
     storage_type = _normalize_nullable_str(data.get("type"))
     endpoint_url = _normalize_nullable_str(data.get("endpoint_url"))
     api_key = _normalize_nullable_str(data.get("api_key"))
+    secret_key = _normalize_nullable_str(data.get("secret_key"))
     auth_name = _normalize_nullable_str(data.get("auth_name"))
     auth_passwd = _normalize_nullable_str(data.get("auth_passwd"))
 
+    _assert_identity_fields(
+        name=name,
+        bucket_name=bucket_name,
+        storage_type=storage_type,
+    )
     _assert_auth_fields(
         auth_type=normalized_auth_type,
         api_key=api_key,
+        secret_key=secret_key,
         auth_name=auth_name,
         auth_passwd=auth_passwd,
         strict=True,
@@ -135,11 +182,13 @@ async def create_storage(
     row = SysStorage(
         workspace_id=workspace_id,
         name=name,
+        bucket_name=bucket_name,
         type=storage_type,
         enabled=bool(data.get("enabled", True)),
         auth_type=normalized_auth_type,
         endpoint_url=endpoint_url,
         api_key=api_key,
+        secret_key=secret_key,
         auth_name=auth_name,
         auth_passwd=auth_passwd,
         create_at=now,
@@ -165,14 +214,29 @@ async def update_storage(
         if key == "auth_type" and isinstance(value, str):
             setattr(row, key, _normalize_auth_type(value))
             continue
-        if key in {"name", "type", "endpoint_url", "api_key", "auth_name", "auth_passwd"}:
+        if key in {
+            "name",
+            "bucket_name",
+            "type",
+            "endpoint_url",
+            "api_key",
+            "secret_key",
+            "auth_name",
+            "auth_passwd",
+        }:
             setattr(row, key, _normalize_nullable_str(value))
             continue
         setattr(row, key, value)
 
+    _assert_identity_fields(
+        name=row.name,
+        bucket_name=row.bucket_name,
+        storage_type=row.type,
+    )
     _assert_auth_fields(
         auth_type=row.auth_type,
         api_key=row.api_key,
+        secret_key=row.secret_key,
         auth_name=row.auth_name,
         auth_passwd=row.auth_passwd,
         strict=False,

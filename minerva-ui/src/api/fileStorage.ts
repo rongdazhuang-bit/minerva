@@ -5,6 +5,7 @@ export type FileStorageListItem = {
   id: string
   workspace_id: string
   name: string | null
+  bucket_name: string | null
   type: string | null
   enabled: boolean
   auth_type: string
@@ -21,11 +22,13 @@ export type FileStorageDetail = {
   id: string
   workspace_id: string
   name: string | null
+  bucket_name: string | null
   type: string | null
   enabled: boolean
   auth_type: string
   endpoint_url: string | null
   api_key: string | null
+  secret_key: string | null
   auth_name: string | null
   auth_passwd: string | null
   create_at: string | null
@@ -41,11 +44,13 @@ export type FileStorageListPage = {
 /** Create payload for file storage rows. */
 export type FileStorageCreateBody = {
   name?: string | null
+  bucket_name?: string | null
   type?: string | null
   enabled?: boolean
   auth_type: string
   endpoint_url?: string | null
   api_key?: string | null
+  secret_key?: string | null
   auth_name?: string | null
   auth_passwd?: string | null
 }
@@ -53,11 +58,13 @@ export type FileStorageCreateBody = {
 /** Partial update payload for file storage rows. */
 export type FileStoragePatchBody = Partial<{
   name: string | null
+  bucket_name: string | null
   type: string | null
   enabled: boolean
   auth_type: string
   endpoint_url: string | null
   api_key: string | null
+  secret_key: string | null
   auth_name: string | null
   auth_passwd: string | null
 }>
