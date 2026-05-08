@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.ocr.paddleocr.pruned_result import PrunedResult
+
 # Flexible JSON fragments allowed by upstream for layout-related knobs.
 LayoutThreshold = float | int | dict[str, Any] | list[Any]
 LayoutUnclipRatio = float | int | dict[str, Any] | list[Any]
@@ -72,7 +74,7 @@ class LayoutParsingPageResult(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
-    pruned_result: dict[str, Any] = Field(default_factory=dict, alias="prunedResult")
+    pruned_result: PrunedResult | None = Field(default=None, alias="prunedResult")
     markdown: MarkdownResult | None = None
     output_images: dict[str, str] | None = Field(default=None, alias="outputImages")
     input_image: str | None = Field(default=None, alias="inputImage")
@@ -106,7 +108,7 @@ class RestructurePageItem(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
-    pruned_result: dict[str, Any] = Field(default_factory=dict, alias="prunedResult")
+    pruned_result: PrunedResult = Field(alias="prunedResult")
     markdown_images: dict[str, str] | None = Field(default=None, alias="markdownImages")
 
 
