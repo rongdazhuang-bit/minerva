@@ -1,0 +1,160 @@
+"""Tests for PaddleOCR-VL HTTP client (mocked transport, no real serving stack)."""
+
+from __future__ import annotations
+
+import json
+
+import httpx
+import pytest
+
+from app.ocr.paddleocr import LayoutParsingRequest
+from app.ocr.paddleocr import PaddleOcrVlApiError
+from app.ocr.paddleocr import PaddleOcrVlParseError
+from app.ocr.paddleocr import PaddleOcrVlTransportError
+from app.ocr.paddleocr import RestructurePageItem
+from app.ocr.paddleocr import RestructurePagesRequest
+from app.ocr.paddleocr import layout_parsing_body
+from app.ocr.paddleocr import post_layout_parsing
+from app.ocr.paddleocr import post_restructure_pages
+
+
+def _success_envelope() -> dict:
+    """Minimal valid success payload matching PaddleOCR-VL 4.3."""
+    return {
+        "logId": "test-log",
+        "errorCode": 0,
+        "errorMsg": "Success",
+        "result": {
+            "layoutParsingResults": [
+                {
+                    "prunedResult": {"blocks": []},
+                    "markdown": {"text": "# Hi", "images": {}},
+                }
+            ],
+            "dataInfo": {},
+        },
+    }
+
+
+@pytest.mark.asyncio
+async def test_post_layout_parsing_serializes_camel_case() -> None:
+    """Request JSON uses camelCase aliases; URL path is not rewritten by the client."""
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["url"] = str(request.url)
+        captured["body"] = json.loads(request.content.decode("utf-8"))
+        return httpx.Response(200, json=_success_envelope())
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as ac:
+        req = LayoutParsingRequest(file="YmFzZTY0", file_type=1)
+        out = await post_layout_parsing(
+            "http://paddle.example.com:8080/layout-parsing",
+            req,
+            client=ac,
+        )
+
+    assert captured["url"] == "http://paddle.example.com:8080/layout-parsing"
+    assert captured["body"]["file"] == "YmFzZTY0"
+    assert captured["body"]["fileType"] == 1
+    assert out.result is not None
+    assert len(out.result.layout_parsing_results) == 1
+    assert out.result.layout_parsing_results[0].markdown is not None
+    assert out.result.layout_parsing_results[0].markdown.text == "# Hi"
+
+
+@pytest.mark.asyncio
+async def test_layout_parsing_api_error_raises() -> None:
+    """Non-zero errorCode yields PaddleOcrVlApiError with log metadata."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "logId": "bad",
+                "errorCode": 400,
+                "errorMsg": "bad request",
+                "result": None,
+            },
+        )
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as ac:
+        with pytest.raises(PaddleOcrVlApiError) as exc_info:
+            await post_layout_parsing(
+                "http://x/layout-parsing",
+                LayoutParsingRequest(file="x"),
+                client=ac,
+            )
+    err = exc_info.value
+    assert err.log_id == "bad"
+    assert err.error_code == 400
+    assert err.error_msg == "bad request"
+
+
+@pytest.mark.asyncio
+async def test_transport_error_on_http_status() -> None:
+    """HTTP failure maps to PaddleOcrVlTransportError."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(503, text="upstream")
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as ac:
+        with pytest.raises(PaddleOcrVlTransportError) as exc_info:
+            await post_layout_parsing(
+                "http://x/layout-parsing",
+                LayoutParsingRequest(file="x"),
+                client=ac,
+            )
+    assert exc_info.value.status_code == 503
+    assert "upstream" in (exc_info.value.body_snippet or "")
+
+
+@pytest.mark.asyncio
+async def test_parse_error_on_invalid_json() -> None:
+    """Invalid JSON maps to PaddleOcrVlParseError."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text="not-json")
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as ac:
+        with pytest.raises(PaddleOcrVlParseError):
+            await post_layout_parsing(
+                "http://x/layout-parsing",
+                LayoutParsingRequest(file="x"),
+                client=ac,
+            )
+
+
+@pytest.mark.asyncio
+async def test_post_restructure_pages_round_trip() -> None:
+    """Restructure endpoint uses the same envelope and serializes ``pages``."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content.decode("utf-8"))
+        assert body["concatenatePages"] is True
+        assert len(body["pages"]) == 1
+        assert body["pages"][0]["prunedResult"] == {"a": 1}
+        return httpx.Response(200, json=_success_envelope())
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as ac:
+        await post_restructure_pages(
+            "http://paddle.example.com:8080/restructure-pages",
+            RestructurePagesRequest(
+                pages=[RestructurePageItem(pruned_result={"a": 1})],
+                concatenate_pages=True,
+            ),
+            client=ac,
+        )
+
+
+def test_layout_parsing_body_exclude_none() -> None:
+    """Optional fields omitted when None and exclude_none is True."""
+    body = LayoutParsingRequest(file="Zg==")
+    d = layout_parsing_body(body, exclude_none=True)
+    assert d == {"file": "Zg=="}
+    assert "fileType" not in d
