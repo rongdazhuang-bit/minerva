@@ -752,9 +752,9 @@ export function ModelProvidersPage() {
                 ]}
                 extra={editingId ? t('settings.modelProvidersSecretKeepHint') : undefined}
               >
-                <Input.Password
+                <Input
                   allowClear
-                  autoComplete="new-password"
+                  autoComplete="off"
                   placeholder={editingId ? t('settings.modelProvidersPasswordPlaceholder') : undefined}
                 />
               </Form.Item>
@@ -767,9 +767,9 @@ export function ModelProvidersPage() {
               rules={[{ required: !editingId, message: t('settings.ocrToolsApiKeyRequired') }]}
               extra={editingId ? t('settings.modelProvidersSecretKeepHint') : undefined}
             >
-              <Input.Password
+              <Input
                 allowClear
-                autoComplete="new-password"
+                autoComplete="off"
                 placeholder={editingId ? t('settings.modelProvidersApiKeyPlaceholder') : undefined}
               />
             </Form.Item>

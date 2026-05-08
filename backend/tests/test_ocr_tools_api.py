@@ -131,3 +131,43 @@ async def test_ocr_auth_type_legacy_alias_normalized() -> None:
         )
         assert patch.status_code == 200, patch.text
         assert patch.json()["auth_type"] == "API_KEY"
+
+
+@pytest.mark.asyncio
+async def test_ocr_tool_api_key_max_length_1024() -> None:
+    """创建 OCR 工具时 api_key 最长 1024，超长请求应返回 422。"""
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as ac:
+        email = f"ocr-keylen-{uuid.uuid4().hex}@example.com"
+        reg = await ac.post("/auth/register", json={"email": email, "password": "secret1234"})
+        assert reg.status_code == 201, reg.text
+        token = reg.json()["access_token"]
+        wid = _workspace_id_from_access_token(token)
+        h = {"Authorization": f"Bearer {token}"}
+
+        key_ok = "k" * 1024
+        create_ok = await ac.post(
+            f"/workspaces/{wid}/ocr-tools",
+            headers=h,
+            json={
+                "name": "long-key",
+                "url": "http://ocr.example/v1",
+                "auth_type": "API_KEY",
+                "api_key": key_ok,
+            },
+        )
+        assert create_ok.status_code == 201, create_ok.text
+
+        create_bad = await ac.post(
+            f"/workspaces/{wid}/ocr-tools",
+            headers=h,
+            json={
+                "name": "too-long-key",
+                "url": "http://ocr.example/v2",
+                "auth_type": "API_KEY",
+                "api_key": "k" * 1025,
+            },
+        )
+        assert create_bad.status_code == 422

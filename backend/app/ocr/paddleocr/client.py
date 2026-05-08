@@ -24,7 +24,7 @@ _JSON_HEADERS = {"Content-Type": "application/json", "Accept": "application/json
 # Default per-phase timeouts when the caller does not inject an ``AsyncClient``.
 # Write is generous for large Base64 payloads; read for slow VLM inference.
 _DEFAULT_CONNECT_S = 10.0
-_DEFAULT_READ_S = 120.0
+_DEFAULT_READ_S = 300.0
 _DEFAULT_WRITE_S = 300.0
 _DEFAULT_POOL_S = 5.0
 

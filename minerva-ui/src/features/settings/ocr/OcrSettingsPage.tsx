@@ -571,7 +571,7 @@ export function OcrSettingsPage() {
                 label={t('settings.ocrToolsPassword')}
                 rules={[{ required: true, message: t('settings.ocrToolsPasswordRequired') }]}
               >
-                <Input.Password allowClear maxLength={128} />
+                <Input allowClear maxLength={128} autoComplete="off" />
               </Form.Item>
             </>
           ) : null}
@@ -581,7 +581,7 @@ export function OcrSettingsPage() {
               label={t('settings.ocrToolsApiKey')}
               rules={[{ required: true, message: t('settings.ocrToolsApiKeyRequired') }]}
             >
-              <Input.Password allowClear maxLength={128} />
+              <Input allowClear maxLength={1024} autoComplete="off" />
             </Form.Item>
           ) : null}
           <Form.Item name="remark" label={t('settings.ocrToolsRemark')}>

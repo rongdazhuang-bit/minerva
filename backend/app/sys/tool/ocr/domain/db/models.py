@@ -31,7 +31,7 @@ class SysOcrTool(Base):
     auth_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
     user_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
     user_passwd: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    api_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    api_key: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     remark: Mapped[str | None] = mapped_column(String(128), nullable=True)
     ocr_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
     ocr_config: Mapped[dict | None] = mapped_column(JSON, nullable=True)

@@ -579,14 +579,14 @@ export function FileStoragePage() {
                 <Input allowClear maxLength={64} />
               </Form.Item>
               <Form.Item name="auth_passwd" label={t('settings.fileStorageAuthPasswd')}>
-                <Input.Password allowClear maxLength={128} />
+                <Input allowClear maxLength={128} autoComplete="off" />
               </Form.Item>
             </>
           ) : null}
           {showApiKeyField ? (
             <>
               <Form.Item name="api_key" label={t('settings.fileStorageApiKey')}>
-                <Input.Password allowClear maxLength={128} />
+                <Input allowClear maxLength={128} autoComplete="off" />
               </Form.Item>
               <Form.Item
                 name="secret_key"
@@ -607,7 +607,7 @@ export function FileStoragePage() {
                       ]
                 }
               >
-                <Input.Password allowClear maxLength={128} />
+                <Input allowClear maxLength={128} autoComplete="off" />
               </Form.Item>
             </>
           ) : null}

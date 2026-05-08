@@ -15,7 +15,7 @@ class OcrToolCreateIn(BaseModel):
     auth_type: str | None = Field(default=None, max_length=64)
     user_name: str | None = Field(default=None, max_length=64)
     user_passwd: str | None = Field(default=None, max_length=128)
-    api_key: str | None = Field(default=None, max_length=128)
+    api_key: str | None = Field(default=None, max_length=1024)
     remark: str | None = Field(default=None, max_length=128)
     ocr_type: str | None = Field(default=None, max_length=64)
     ocr_config: dict[str, Any] | None = None
@@ -27,7 +27,7 @@ class OcrToolPatchIn(BaseModel):
     auth_type: str | None = Field(default=None, max_length=64)
     user_name: str | None = Field(default=None, max_length=64)
     user_passwd: str | None = Field(default=None, max_length=128)
-    api_key: str | None = Field(default=None, max_length=128)
+    api_key: str | None = Field(default=None, max_length=1024)
     remark: str | None = Field(default=None, max_length=128)
     ocr_type: str | None = Field(default=None, max_length=64)
     ocr_config: dict[str, Any] | None = None
