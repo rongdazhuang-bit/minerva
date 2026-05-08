@@ -14,6 +14,7 @@ from app.ocr.paddleocr import PaddleOcrVlTransportError
 from app.ocr.paddleocr import RestructurePageItem
 from app.ocr.paddleocr import RestructurePagesRequest
 from app.ocr.paddleocr import layout_parsing_body
+from app.ocr.paddleocr import paddleocr_default_timeout
 from app.ocr.paddleocr import post_layout_parsing
 from app.ocr.paddleocr import post_restructure_pages
 
@@ -158,3 +159,29 @@ def test_layout_parsing_body_exclude_none() -> None:
     d = layout_parsing_body(body, exclude_none=True)
     assert d == {"file": "Zg=="}
     assert "fileType" not in d
+
+
+def test_paddleocr_default_timeout_splits_read_and_write() -> None:
+    """Defaults use distinct read vs write limits (large uploads vs slow inference)."""
+    t = paddleocr_default_timeout()
+    assert t.connect == 10.0
+    assert t.read == 120.0
+    assert t.write == 300.0
+    assert t.pool == 5.0
+
+
+@pytest.mark.asyncio
+async def test_post_layout_parsing_custom_httpx_timeout_object() -> None:
+    """Callers may pass ``httpx.Timeout`` for fine-grained control."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=_success_envelope())
+
+    transport = httpx.MockTransport(handler)
+    custom = httpx.Timeout(connect=1.0, read=2.0, write=3.0, pool=4.0)
+    async with httpx.AsyncClient(transport=transport, timeout=custom) as ac:
+        await post_layout_parsing(
+            "http://x/layout-parsing",
+            LayoutParsingRequest(file="x"),
+            client=ac,
+        )

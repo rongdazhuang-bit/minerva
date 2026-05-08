@@ -1,6 +1,7 @@
 """PaddleOCR-VL serving HTTP client and Pydantic schemas (decoupled from business modules)."""
 
 from app.ocr.paddleocr.client import layout_parsing_body
+from app.ocr.paddleocr.client import paddleocr_default_timeout
 from app.ocr.paddleocr.client import post_layout_parsing
 from app.ocr.paddleocr.client import post_restructure_pages
 from app.ocr.paddleocr.client import restructure_pages_body
@@ -29,6 +30,7 @@ __all__ = [
     "RestructurePageItem",
     "RestructurePagesRequest",
     "layout_parsing_body",
+    "paddleocr_default_timeout",
     "post_layout_parsing",
     "post_restructure_pages",
     "restructure_pages_body",

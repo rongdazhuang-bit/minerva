@@ -21,6 +21,46 @@ _BODY_SNIPPET_LEN = 4096
 
 _JSON_HEADERS = {"Content-Type": "application/json", "Accept": "application/json"}
 
+# Default per-phase timeouts when the caller does not inject an ``AsyncClient``.
+# Write is generous for large Base64 payloads; read for slow VLM inference.
+_DEFAULT_CONNECT_S = 10.0
+_DEFAULT_READ_S = 120.0
+_DEFAULT_WRITE_S = 300.0
+_DEFAULT_POOL_S = 5.0
+
+
+def paddleocr_default_timeout(
+    *,
+    connect: float = _DEFAULT_CONNECT_S,
+    read: float = _DEFAULT_READ_S,
+    write: float = _DEFAULT_WRITE_S,
+    pool: float = _DEFAULT_POOL_S,
+) -> httpx.Timeout:
+    """
+    Return httpx timeouts suited to PaddleOCR-VL JSON calls (upload + long inference).
+
+    Callers may pass this to ``httpx.AsyncClient(timeout=...)`` or rely on ``post_*``
+    defaults when ``client`` is omitted.
+    """
+    return httpx.Timeout(connect=connect, read=read, write=write, pool=pool)
+
+
+def _resolve_internal_client_timeout(
+    timeout: httpx.Timeout | float | None,
+) -> httpx.Timeout:
+    """Normalize ``timeout`` for a short-lived ``AsyncClient`` created inside ``post_*``."""
+    if timeout is None:
+        return paddleocr_default_timeout()
+    if isinstance(timeout, httpx.Timeout):
+        return timeout
+    value = float(timeout)
+    return httpx.Timeout(
+        connect=_DEFAULT_CONNECT_S,
+        read=value,
+        write=value,
+        pool=_DEFAULT_POOL_S,
+    )
+
 
 def _merge_headers(extra: Mapping[str, str] | None) -> dict[str, str]:
     """Merge default JSON headers with caller overrides (caller wins on key clash)."""
@@ -135,10 +175,16 @@ async def post_layout_parsing(
     Call layout-parsing (infer) at the exact ``url`` provided by the caller.
 
     ``url`` must already include the path (e.g. ``.../layout-parsing``).
+
+    When ``client`` is omitted, ``timeout`` controls a new ``AsyncClient``: ``None``
+    uses :func:`paddleocr_default_timeout` (separate connect/read/write/pool); a
+    ``float`` sets the same value for **read** and **write** while keeping default
+    connect/pool; pass ``httpx.Timeout(...)`` for full control. An injected
+    ``client`` ignores ``timeout`` (configure the client instead).
     """
     payload = layout_parsing_body(body, exclude_none=exclude_none)
     if client is None:
-        t = timeout if timeout is not None else 120.0
+        t = _resolve_internal_client_timeout(timeout)
         async with httpx.AsyncClient(timeout=t) as ac:
             return await _post_envelope(url, payload, client=ac, headers=headers)
     return await _post_envelope(url, payload, client=client, headers=headers)
@@ -157,10 +203,12 @@ async def post_restructure_pages(
     Call restructure-pages at the exact ``url`` provided by the caller.
 
     ``url`` must already include the path (e.g. ``.../restructure-pages``).
+
+    Timeout behavior matches :func:`post_layout_parsing`.
     """
     payload = restructure_pages_body(body, exclude_none=exclude_none)
     if client is None:
-        t = timeout if timeout is not None else 120.0
+        t = _resolve_internal_client_timeout(timeout)
         async with httpx.AsyncClient(timeout=t) as ac:
             return await _post_envelope(url, payload, client=ac, headers=headers)
     return await _post_envelope(url, payload, client=client, headers=headers)
