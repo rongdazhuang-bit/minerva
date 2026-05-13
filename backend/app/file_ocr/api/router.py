@@ -26,6 +26,7 @@ from app.file_ocr.api.schemas import (
 from app.file_ocr.domain.db.models import OcrFile
 from app.file_ocr.domain.db.models_log import OcrFileLog
 from app.file_ocr.service.markdown_pages import get_ocr_file_markdown_pages
+from app.file_ocr.service.result_row_cleanup import delete_ocr_file_engine_result_rows
 from app.pagination import DEFAULT_PAGE_SIZE
 
 file_router = APIRouter(prefix="/workspaces/{workspace_id}/ocr-files", tags=["ocr-files"])
@@ -230,6 +231,12 @@ async def retry_ocr_file(
             "Cannot retry while the task is PROCESS; cancel or wait for completion",
             409,
         )
+    await delete_ocr_file_engine_result_rows(
+        session,
+        workspace_id=workspace_id,
+        file_id=ocr_file_id,
+        ocr_type=row.ocr_type,
+    )
     now = datetime.now(UTC)
     row.status = "INIT"
     row.page_count = None
