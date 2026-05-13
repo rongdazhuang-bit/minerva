@@ -381,3 +381,46 @@ COMMENT ON COLUMN public.sys_celery.remark IS '备注';
 COMMENT ON COLUMN public.sys_celery.create_at IS '创建时间';
 COMMENT ON COLUMN public.sys_celery.update_at IS '更新时间';
 
+CREATE TABLE public.ocr_file_paddleocr (
+   id uuid NOT NULL, -- id
+   workspace_id uuid NOT NULL, -- 工作空间id
+   file_id uuid NOT NULL, -- ocr_file.id
+   page_index int2 NULL, -- 页面序号
+   markdown_text text NULL, -- markdown文本
+   markdown_images text NULL, -- markdown图片
+   create_at timestamptz NULL, -- 创建日期
+   update_at timestamptz NULL, -- 更新日期
+   CONSTRAINT ocr_file_paddleocr_pk PRIMARY KEY (id)
+);
+COMMENT ON TABLE public.ocr_file_paddleocr IS 'PaddleOCR结果';
+COMMENT ON COLUMN public.ocr_file_paddleocr.id IS 'id';
+COMMENT ON COLUMN public.ocr_file_paddleocr.workspace_id IS '工作空间id';
+COMMENT ON COLUMN public.ocr_file_paddleocr.file_id IS 'ocr_file.id';
+COMMENT ON COLUMN public.ocr_file_paddleocr.page_index IS '页面序号';
+COMMENT ON COLUMN public.ocr_file_paddleocr.markdown_text IS 'markdown文本';
+COMMENT ON COLUMN public.ocr_file_paddleocr.markdown_images IS 'markdown图片';
+COMMENT ON COLUMN public.ocr_file_paddleocr.create_at IS '创建日期';
+COMMENT ON COLUMN public.ocr_file_paddleocr.update_at IS '更新日期';
+
+CREATE TABLE public.ocr_file_mineru (
+    id uuid NOT NULL, -- id
+    workspace_id uuid NOT NULL, -- 工作空间id
+    file_id uuid NOT NULL, -- ocr_file.id
+    markdown_text text NULL, -- markdown文本
+    markdown_images text NULL, -- markdown图片
+    page_index int2 NULL, -- 页面序号
+    create_at timestamptz NULL, -- 创建日期
+    update_at timestamptz NULL, -- 更新日期
+    CONSTRAINT ocr_file_mineru_pk PRIMARY KEY (id)
+);
+CREATE INDEX ocr_file_mineru_file_id_idx ON public.ocr_file_mineru USING btree (file_id);
+CREATE INDEX ocr_file_mineru_workspace_id_idx ON public.ocr_file_mineru USING btree (workspace_id);
+COMMENT ON TABLE public.ocr_file_mineru IS 'mineru结果';
+COMMENT ON COLUMN public.ocr_file_mineru.id IS 'id';
+COMMENT ON COLUMN public.ocr_file_mineru.workspace_id IS '工作空间id';
+COMMENT ON COLUMN public.ocr_file_mineru.file_id IS 'ocr_file.id';
+COMMENT ON COLUMN public.ocr_file_mineru.markdown_text IS 'markdown文本';
+COMMENT ON COLUMN public.ocr_file_mineru.markdown_images IS 'markdown图片';
+COMMENT ON COLUMN public.ocr_file_mineru.page_index IS '页面序号';
+COMMENT ON COLUMN public.ocr_file_mineru.create_at IS '创建日期';
+COMMENT ON COLUMN public.ocr_file_mineru.update_at IS '更新日期';

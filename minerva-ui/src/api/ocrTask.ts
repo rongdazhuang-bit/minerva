@@ -36,7 +36,7 @@ export type OcrFileListParams = {
 }
 
 export type OcrFileCreateBody = {
-  ocr_type: 'PADDLE_OCR' | 'MINER_U'
+  ocr_type: 'PADDLE_OCR' | 'MINERU'
   files: Array<{
     file_name: string
     file_size: number

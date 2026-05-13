@@ -51,7 +51,7 @@ class OcrFileCreateFileIn(BaseModel):
 class OcrFileCreateIn(BaseModel):
     """Batch create payload for OCR tasks."""
 
-    ocr_type: Literal["PADDLE_OCR", "MINER_U"] = Field()
+    ocr_type: Literal["PADDLE_OCR", "MINERU"] = Field()
     files: list[OcrFileCreateFileIn] = Field(min_length=1, max_length=50)
 
 

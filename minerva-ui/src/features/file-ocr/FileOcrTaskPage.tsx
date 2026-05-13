@@ -70,7 +70,7 @@ const MAX_FILE_COUNT = 50
 const ALLOWED_EXTS = new Set(['pdf', 'jpg', 'jpeg', 'png'])
 const OCR_TYPE_DICT_CODE = 'TOOL_OCR'
 
-type OcrTypeValue = 'PADDLE_OCR' | 'MINER_U'
+type OcrTypeValue = 'PADDLE_OCR' | 'MINERU'
 type OcrTypeOption = { value: OcrTypeValue; label: string; description: string; icon: ReactNode }
 type FilterFormValues = {
   file_name?: string
@@ -139,7 +139,7 @@ function buildOcrTypeOptions(t: (key: string) => string): OcrTypeOption[] {
       ),
     },
     {
-      value: 'MINER_U',
+      value: 'MINERU',
       label: 'MinerU',
       description: t('fileOcr.tasks.wizard.ocrTypeMinerDesc'),
       icon: (
@@ -282,7 +282,7 @@ export function RulesFileOcrTaskPage() {
     if (dictOptions.length > 0) return dictOptions
     return [
       { value: 'PADDLE_OCR', label: 'PaddleOCR' },
-      { value: 'MINER_U', label: 'MinerU' },
+      { value: 'MINERU', label: 'MinerU' },
     ]
   }, [ocrTypeDictQ.data?.flat])
   const listQuery = useQuery({
