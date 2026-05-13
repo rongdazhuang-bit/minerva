@@ -967,12 +967,14 @@ export function RulesFileOcrTaskPage() {
                   <h2 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 12px' }}>
                     {t('fileOcr.tasks.detail.pageTitle', { n })}
                   </h2>
-                  <div className="file-ocr-task-md">
-                    {md.trim() === '' ? (
-                      <span style={{ opacity: 0.65 }}>{t('fileOcr.tasks.detail.pageEmpty')}</span>
-                    ) : (
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{md}</ReactMarkdown>
-                    )}
+                  <div className="file-ocr-task-md-wrap">
+                    <div className="file-ocr-task-md">
+                      {md.trim() === '' ? (
+                        <span style={{ opacity: 0.65 }}>{t('fileOcr.tasks.detail.pageEmpty')}</span>
+                      ) : (
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{md}</ReactMarkdown>
+                      )}
+                    </div>
                   </div>
                 </section>
               )
