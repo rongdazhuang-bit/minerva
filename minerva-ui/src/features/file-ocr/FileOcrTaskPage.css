@@ -404,3 +404,8 @@ html.minerva-tone-sunshine .minerva-file-ocr-tasks__ocr-type-card:hover {
 html.minerva-tone-sunshine .minerva-file-ocr-tasks__upload-rules li {
   color: #475569;
 }
+
+/* 任务列表 Drawer：与规则页 minerva-rules-drawer 一致，避免宽屏/小窗下溢出 */
+.minerva-file-ocr-tasks-drawer .ant-drawer-content-wrapper {
+  max-width: 100vw;
+}

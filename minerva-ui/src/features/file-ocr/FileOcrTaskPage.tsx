@@ -901,6 +901,7 @@ export function RulesFileOcrTaskPage() {
     </div>
 
       <Drawer
+        className="minerva-file-ocr-tasks-drawer"
         title={t('fileOcr.tasks.logDrawer.title', {
           file: logTarget?.file_name?.trim() || t('fileOcr.tasks.logDrawer.unnamedFile'),
         })}
@@ -911,6 +912,16 @@ export function RulesFileOcrTaskPage() {
           setLogTarget(null)
         }}
         destroyOnClose
+        classNames={{ body: 'minerva-scrollbar-styled' }}
+        styles={{
+          body: {
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 0,
+            overflow: 'auto',
+            paddingBottom: 8,
+          },
+        }}
       >
         {logQuery.error != null && (
           <Alert
@@ -938,6 +949,7 @@ export function RulesFileOcrTaskPage() {
       </Drawer>
 
       <Drawer
+        className="minerva-file-ocr-tasks-drawer"
         title={
           detailTarget?.file_name?.trim()
             ? `${detailTarget.file_name.trim()} — ${t('fileOcr.tasks.action.view')}`
@@ -947,6 +959,16 @@ export function RulesFileOcrTaskPage() {
         open={detailDrawerOpen}
         onClose={closeDetailDrawer}
         destroyOnClose
+        classNames={{ body: 'minerva-scrollbar-styled' }}
+        styles={{
+          body: {
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 0,
+            overflow: 'auto',
+            paddingBottom: 8,
+          },
+        }}
       >
         {detailError != null && (
           <Alert type="error" showIcon style={{ marginBottom: 12 }} message={detailError} />
