@@ -7,20 +7,18 @@ import json
 import logging
 import uuid
 from datetime import UTC, datetime
-from typing import Any, ClassVar
+from typing import ClassVar
 
-from pydantic import ValidationError
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.file_ocr.domain.db.models import OcrFile
 from app.file_ocr.domain.db.models_result import OcrFilePaddleocr
 from app.file_ocr.service.ocr_http_headers import build_ocr_tool_http_headers
+from app.file_ocr.service.paddle_ocr_request import build_layout_parsing_request_for_tool
 from app.file_ocr.service.s3_object_bytes import read_workspace_object_bytes
 from app.ocr.paddleocr.client import post_layout_parsing
-from app.ocr.paddleocr.schemas import LayoutParsingRequest
 from app.sys.tool.ocr.domain.db.models import SysOcrTool
-from app.sys.tool.ocr.service.ocr_tool_service import normalize_ocr_config_from_db
 
 from .base import FileOcrEngineStrategy
 
@@ -31,40 +29,6 @@ def _utc_now() -> datetime:
     """Return timezone-aware UTC ``datetime`` for ORM timestamps."""
 
     return datetime.now(UTC)
-
-
-def _infer_layout_file_type(file_name: str | None, object_key: str) -> int | None:
-    """Map filename/object key to Paddle ``fileType`` when inferrable (0=PDF, 1=image)."""
-
-    name = (file_name or "").strip().lower()
-    if not name:
-        name = (object_key or "").strip().lower()
-    if name.endswith(".pdf"):
-        return 0
-    if name.endswith((".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff")):
-        return 1
-    return None
-
-
-def _build_layout_request(
-    *,
-    file_b64: str,
-    file_name: str | None,
-    object_key: str,
-    tool: SysOcrTool,
-) -> LayoutParsingRequest:
-    """Merge persisted ``ocr_config`` JSON with required ``file`` / ``fileType`` fields."""
-
-    raw_cfg = normalize_ocr_config_from_db(tool.ocr_config)
-    payload: dict[str, Any] = dict(raw_cfg) if raw_cfg else {}
-    payload["file"] = file_b64
-    ft = _infer_layout_file_type(file_name, object_key)
-    if ft is not None:
-        payload["fileType"] = ft
-    try:
-        return LayoutParsingRequest.model_validate(payload)
-    except ValidationError as exc:
-        raise ValueError(f"Invalid Paddle ocr_config merged into request: {exc}") from exc
 
 
 class PaddleOcrFileStrategy(FileOcrEngineStrategy):
@@ -90,7 +54,7 @@ class PaddleOcrFileStrategy(FileOcrEngineStrategy):
             object_key=ocr_file.object_key,
         )
         file_b64 = base64.standard_b64encode(raw).decode("ascii")
-        body = _build_layout_request(
+        body = build_layout_parsing_request_for_tool(
             file_b64=file_b64,
             file_name=ocr_file.file_name,
             object_key=ocr_file.object_key,
