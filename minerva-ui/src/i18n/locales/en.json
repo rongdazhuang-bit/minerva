@@ -119,6 +119,7 @@
   "fileOcr.tasks.action.download": "Download result",
   "fileOcr.tasks.action.delete": "Delete task",
   "fileOcr.tasks.action.cancel": "Cancel running",
+  "fileOcr.tasks.action.more": "More",
   "fileOcr.tasks.deleteConfirm": "Delete this OCR task?",
   "fileOcr.tasks.deleteSuccess": "Task deleted",
   "fileOcr.tasks.actionPending": "{{action}} is not available yet.",

@@ -119,6 +119,7 @@
   "fileOcr.tasks.action.download": "下载结果",
   "fileOcr.tasks.action.delete": "删除任务",
   "fileOcr.tasks.action.cancel": "取消处理中",
+  "fileOcr.tasks.action.more": "更多",
   "fileOcr.tasks.deleteConfirm": "确定删除该 OCR 任务？",
   "fileOcr.tasks.deleteSuccess": "已删除任务",
   "fileOcr.tasks.actionPending": "{{action}}暂未开放",

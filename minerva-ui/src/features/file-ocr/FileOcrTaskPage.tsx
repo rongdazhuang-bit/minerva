@@ -4,12 +4,12 @@ import {
   CloudUploadOutlined,
   DeleteOutlined,
   DownloadOutlined,
-  EyeOutlined,
   FileAddOutlined,
   InboxOutlined,
   LeftOutlined,
   CloseCircleOutlined,
   LoadingOutlined,
+  MoreOutlined,
   RedoOutlined,
   StopOutlined,
 } from '@ant-design/icons'
@@ -19,6 +19,7 @@ import {
   Card,
   Col,
   DatePicker,
+  Dropdown,
   Empty,
   Form,
   Input,
@@ -26,7 +27,6 @@ import {
   Progress,
   Result,
   Row,
-  Popconfirm,
   Select,
   Space,
   Spin,
@@ -34,16 +34,16 @@ import {
   Steps,
   Table,
   Tag,
-  Tooltip,
   Upload,
   message,
 } from 'antd'
+import type { MenuProps } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { UploadFile, UploadProps } from 'antd/es/upload/interface'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Dayjs } from 'dayjs'
 import type { ReactNode } from 'react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '@/api/client'
 import {
@@ -69,6 +69,9 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024
 const MAX_FILE_COUNT = 50
 const ALLOWED_EXTS = new Set(['pdf', 'jpg', 'jpeg', 'png'])
 const OCR_TYPE_DICT_CODE = 'TOOL_OCR'
+
+/** Space for table header row, pagination bar, and borders when deriving ``scroll.y`` from the flex pane. */
+const FILE_OCR_TASK_TABLE_SCROLL_GUTTER_PX = 112
 
 type OcrTypeValue = 'PADDLE_OCR' | 'MINERU'
 type OcrTypeOption = { value: OcrTypeValue; label: string; description: string; icon: ReactNode }
@@ -271,6 +274,8 @@ export function RulesFileOcrTaskPage() {
   /** Task count shown on the post-upload success pane; cleared when reopening the wizard. */
   const [createdTaskCount, setCreatedTaskCount] = useState<number | null>(null)
   const [refreshTick, setRefreshTick] = useState(0)
+  const tableWrapRef = useRef<HTMLDivElement | null>(null)
+  const [tableBodyScrollY, setTableBodyScrollY] = useState(420)
   const ocrTypeOptions = useMemo(() => buildOcrTypeOptions(t), [t])
   const wizardSteps = useMemo(() => buildWizardStepItems(t), [t])
   const ocrTypeDictQ = useDictItemTree(OCR_TYPE_DICT_CODE)
@@ -296,6 +301,21 @@ export function RulesFileOcrTaskPage() {
     enabled: Boolean(workspaceId),
   })
 
+  useLayoutEffect(() => {
+    const wrap = tableWrapRef.current
+    if (wrap == null) return
+    const measure = () => {
+      const h = wrap.getBoundingClientRect().height
+      setTableBodyScrollY(Math.max(160, Math.floor(h - FILE_OCR_TASK_TABLE_SCROLL_GUTTER_PX)))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(wrap)
+    return () => {
+      ro.disconnect()
+    }
+  }, [workspaceId, wizardOpen, listQuery.data?.items?.length, listQuery.error, pageSize])
+
   /** Convert status code into localized text. */
   const statusText = (status: string) => {
     if (status === 'INIT') return t('fileOcr.tasks.status.INIT')
@@ -314,9 +334,9 @@ export function RulesFileOcrTaskPage() {
   }
 
   /** Build one disabled placeholder action callback. */
-  const onPendingAction = (nameKey: string) => {
+  const onPendingAction = useCallback((nameKey: string) => {
     void message.info(t('fileOcr.tasks.actionPending', { action: t(nameKey) }))
-  }
+  }, [t])
 
   /** Delete one task row and refresh list plus overview KPI cache. */
   const handleDeleteOcrTask = useCallback(
@@ -397,66 +417,69 @@ export function RulesFileOcrTaskPage() {
       {
         title: t('fileOcr.tasks.col.actions'),
         key: 'actions',
-        width: 230,
+        width: 168,
         fixed: 'right',
-        render: (_, row) => (
-          <Space size={4}>
-            <Tooltip title={t('fileOcr.tasks.action.view')}>
-              <Button
-                type="text"
-                icon={<EyeOutlined />}
-                onClick={() => onPendingAction('fileOcr.tasks.action.view')}
-                aria-label={t('fileOcr.tasks.action.view')}
-              />
-            </Tooltip>
-            <Tooltip title={t('fileOcr.tasks.action.retry')}>
-              <Button
-                type="text"
-                icon={<RedoOutlined />}
-                onClick={() => onPendingAction('fileOcr.tasks.action.retry')}
-                aria-label={t('fileOcr.tasks.action.retry')}
-              />
-            </Tooltip>
-            <Tooltip title={t('fileOcr.tasks.action.download')}>
-              <span style={{ display: 'inline-flex' }}>
-                <Button
-                  type="text"
-                  icon={<DownloadOutlined />}
-                  disabled={row.status !== 'SUCCESS'}
-                  onClick={() => onPendingAction('fileOcr.tasks.action.download')}
-                  aria-label={t('fileOcr.tasks.action.download')}
-                />
-              </span>
-            </Tooltip>
-            <Popconfirm
-              title={t('fileOcr.tasks.deleteConfirm')}
-              onConfirm={() => void handleDeleteOcrTask(row.id)}
-            >
-              <Tooltip title={t('fileOcr.tasks.action.delete')}>
-                <Button
-                  type="text"
-                  danger
-                  icon={<DeleteOutlined />}
-                  aria-label={t('fileOcr.tasks.action.delete')}
-                />
-              </Tooltip>
-            </Popconfirm>
-            <Tooltip title={t('fileOcr.tasks.action.cancel')}>
-              <span style={{ display: 'inline-flex' }}>
-                <Button
-                  type="text"
-                  icon={<StopOutlined />}
-                  disabled={row.status !== 'PROCESS'}
-                  onClick={() => onPendingAction('fileOcr.tasks.action.cancel')}
-                  aria-label={t('fileOcr.tasks.action.cancel')}
-                />
-              </span>
-            </Tooltip>
-          </Space>
-        ),
+        render: (_, row) => {
+          const moreMenuItems: MenuProps['items'] = [
+            {
+              key: 'retry',
+              icon: <RedoOutlined />,
+              label: t('fileOcr.tasks.action.retry'),
+              onClick: () => onPendingAction('fileOcr.tasks.action.retry'),
+            },
+            {
+              key: 'download',
+              icon: <DownloadOutlined />,
+              label: t('fileOcr.tasks.action.download'),
+              disabled: row.status !== 'SUCCESS',
+              onClick: () => {
+                if (row.status !== 'SUCCESS') return
+                onPendingAction('fileOcr.tasks.action.download')
+              },
+            },
+            {
+              key: 'cancel',
+              icon: <StopOutlined />,
+              label: t('fileOcr.tasks.action.cancel'),
+              disabled: row.status !== 'PROCESS',
+              onClick: () => {
+                if (row.status !== 'PROCESS') return
+                onPendingAction('fileOcr.tasks.action.cancel')
+              },
+            },
+            { type: 'divider' },
+            {
+              key: 'delete',
+              danger: true,
+              icon: <DeleteOutlined />,
+              label: t('fileOcr.tasks.action.delete'),
+              onClick: () => {
+                Modal.confirm({
+                  title: t('fileOcr.tasks.deleteConfirm'),
+                  okText: t('common.yes'),
+                  cancelText: t('common.cancel'),
+                  okButtonProps: { danger: true },
+                  onOk: () => void handleDeleteOcrTask(row.id),
+                })
+              },
+            },
+          ]
+          return (
+            <Space size="small" wrap>
+              <Button type="link" size="small" onClick={() => onPendingAction('fileOcr.tasks.action.view')}>
+                {t('fileOcr.tasks.action.view')}
+              </Button>
+              <Dropdown menu={{ items: moreMenuItems }} trigger={['click']}>
+                <Button type="link" size="small" icon={<MoreOutlined />} aria-label={t('fileOcr.tasks.action.more')}>
+                  {t('fileOcr.tasks.action.more')}
+                </Button>
+              </Dropdown>
+            </Space>
+          )
+        },
       },
     ],
-    [handleDeleteOcrTask, t],
+    [handleDeleteOcrTask, onPendingAction, t],
   )
 
   /** Reset wizard states before opening create flow. */
@@ -599,16 +622,17 @@ export function RulesFileOcrTaskPage() {
 
   if (!workspaceId) {
     return (
-      <div className="minerva-file-ocr-tasks">
+      <div className="minerva-file-ocr-tasks-page minerva-file-ocr-tasks-page--empty">
         <Empty description={t('settings.ocrNoWorkspace')} style={{ color: 'var(--minerva-ink)' }} />
       </div>
     )
   }
 
   return (
-    <div className="minerva-file-ocr-tasks">
-      <Card size="small" variant="borderless" className="minerva-file-ocr-tasks__card">
-        <Form form={filterForm} layout="inline" onFinish={onSearch} className="minerva-file-ocr-tasks__filter">
+    <>
+      <div className="minerva-file-ocr-tasks-page">
+        <Card size="small" variant="borderless" className="minerva-file-ocr-tasks__card" style={{ minHeight: 0 }}>
+          <Form form={filterForm} layout="inline" onFinish={onSearch} className="minerva-file-ocr-tasks__filter">
           <Form.Item name="file_name" label={t('fileOcr.tasks.filter.fileName')}>
             <Input allowClear placeholder={t('fileOcr.tasks.filter.fileNamePh')} />
           </Form.Item>
@@ -649,35 +673,39 @@ export function RulesFileOcrTaskPage() {
         </Form>
 
         {listQuery.error != null && (
-          <Alert
-            type="error"
-            showIcon
-            style={{ marginBottom: 12 }}
-            message={listQuery.error instanceof ApiError ? listQuery.error.message : t('common.error')}
-          />
+          <div className="minerva-file-ocr-tasks__alert">
+            <Alert
+              type="error"
+              showIcon
+              message={listQuery.error instanceof ApiError ? listQuery.error.message : t('common.error')}
+            />
+          </div>
         )}
 
-        <Table<OcrFileListItem>
-          rowKey="id"
-          loading={listQuery.isFetching}
-          columns={columns}
-          dataSource={listQuery.data?.items ?? []}
-          pagination={{
-            current: page,
-            pageSize,
-            total: listQuery.data?.total ?? 0,
-            showSizeChanger: true,
-            pageSizeOptions: [10, 20, 50, 100],
-            onChange: (p, ps) => {
-              setPage(p)
-              setPageSize(ps)
-            },
-          }}
-          className="minerva-card-table-scroll-ocr minerva-file-ocr-tasks__table"
-          scroll={{ x: true, y: 'calc(100dvh - 420px)' }}
-          sticky
-        />
+        <div ref={tableWrapRef} className="minerva-file-ocr-tasks__table-wrap">
+          <Table<OcrFileListItem>
+            rowKey="id"
+            loading={listQuery.isFetching}
+            columns={columns}
+            dataSource={listQuery.data?.items ?? []}
+            pagination={{
+              current: page,
+              pageSize,
+              total: listQuery.data?.total ?? 0,
+              showSizeChanger: true,
+              pageSizeOptions: [10, 20, 50, 100],
+              onChange: (p, ps) => {
+                setPage(p)
+                setPageSize(ps)
+              },
+            }}
+            className="minerva-card-table-scroll-ocr minerva-file-ocr-tasks__table"
+            scroll={{ x: true, y: tableBodyScrollY }}
+            sticky
+          />
+        </div>
       </Card>
+    </div>
 
       <Modal
         open={wizardOpen}
@@ -826,6 +854,6 @@ export function RulesFileOcrTaskPage() {
           )}
         </div>
       </Modal>
-    </div>
+    </>
   )
 }

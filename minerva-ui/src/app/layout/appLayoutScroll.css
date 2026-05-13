@@ -29,6 +29,9 @@
 /* Main: reserve space for the vertical bar (only this pane, not the sider/inner). */
 .minerva-app-main-scroll {
   scrollbar-gutter: stable;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .minerva-app-sider-scroll::-webkit-scrollbar,

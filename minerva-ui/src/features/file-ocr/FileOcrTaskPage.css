@@ -128,20 +128,6 @@ html.minerva-tone-sunshine .minerva-file-ocr-overview__icon {
   color: var(--minerva-file-ocr-overview-accent, var(--minerva-link, #2563eb));
 }
 
-.minerva-file-ocr-tasks {
-  width: 100%;
-}
-
-.minerva-file-ocr-tasks__card {
-  width: 100%;
-}
-
-.minerva-file-ocr-tasks__filter {
-  display: flex;
-  gap: 8px 0;
-  margin-bottom: 12px;
-}
-
 .minerva-file-ocr-tasks__table .ant-table-cell {
   vertical-align: middle;
 }
@@ -285,6 +271,77 @@ html.minerva-tone-sunshine .minerva-file-ocr-tasks__ocr-type-card--selected {
   line-height: 1.5;
 }
 
+/* Task list page: fill main content height; table body scrolls inside bordered frame. */
+.minerva-file-ocr-tasks-page {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.minerva-file-ocr-tasks-page--empty {
+  align-items: center;
+  justify-content: center;
+}
+
+.minerva-file-ocr-tasks__card {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--minerva-surface, #1a2836) !important;
+  border: 1px solid var(--minerva-border, #2a3f58) !important;
+  border-radius: 12px;
+  box-shadow: 0 6px 16px rgb(0 0 0 / 14%);
+}
+
+html.minerva-tone-sunshine .minerva-file-ocr-tasks__card {
+  background: var(--minerva-surface, #fff) !important;
+  box-shadow: 0 6px 16px rgb(15 23 42 / 8%);
+}
+
+.minerva-file-ocr-tasks__card .ant-card-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-file-ocr-tasks__filter {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.minerva-file-ocr-tasks__alert {
+  flex-shrink: 0;
+  margin-bottom: 12px;
+}
+
+.minerva-file-ocr-tasks__table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-file-ocr-tasks__table-wrap .minerva-file-ocr-tasks__table.ant-table-wrapper,
+.minerva-file-ocr-tasks__table-wrap .minerva-file-ocr-tasks__table.ant-table-wrapper .ant-spin-nested-loading,
+.minerva-file-ocr-tasks__table-wrap .minerva-file-ocr-tasks__table.ant-table-wrapper .ant-spin-container,
+.minerva-file-ocr-tasks__table-wrap .minerva-file-ocr-tasks__table.ant-table-wrapper .ant-table {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+.minerva-file-ocr-tasks__wizard-upload-summary {
   max-height: 200px;
   overflow: auto;
   margin: 0;
