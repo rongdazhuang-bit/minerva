@@ -1,0 +1,36 @@
+/* Markdown body inside file OCR task detail drawer */
+.file-ocr-task-md {
+  color: var(--minerva-ink, #e8f0f8);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.file-ocr-task-md :first-child {
+  margin-top: 0;
+}
+
+.file-ocr-task-md :last-child {
+  margin-bottom: 0;
+}
+
+.file-ocr-task-md p {
+  margin: 0.5em 0;
+}
+
+.file-ocr-task-md h1,
+.file-ocr-task-md h2,
+.file-ocr-task-md h3,
+.file-ocr-task-md h4 {
+  margin: 0.75em 0 0.4em;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.file-ocr-task-md img {
+  max-width: 100%;
+  height: auto;
+}
+
+html.minerva-tone-sunshine .file-ocr-task-md {
+  color: var(--minerva-ink, #0f172a);
+}

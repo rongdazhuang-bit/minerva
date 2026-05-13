@@ -4,7 +4,9 @@ import {
   CloudUploadOutlined,
   DeleteOutlined,
   DownloadOutlined,
+  EyeOutlined,
   FileAddOutlined,
+  HistoryOutlined,
   InboxOutlined,
   LeftOutlined,
   CloseCircleOutlined,
@@ -19,6 +21,7 @@ import {
   Card,
   Col,
   DatePicker,
+  Drawer,
   Dropdown,
   Empty,
   Form,
@@ -34,6 +37,7 @@ import {
   Steps,
   Table,
   Tag,
+  Tooltip,
   Upload,
   message,
 } from 'antd'
@@ -44,17 +48,24 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Dayjs } from 'dayjs'
 import type { ReactNode } from 'react'
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '@/api/client'
 import {
   createOcrFiles,
   deleteOcrFile,
+  getOcrFileMarkdownPages,
   getOcrFileOverviewStats,
+  listOcrFileLogs,
   listOcrFiles,
+  retryOcrFile,
   uploadOcrSourceFile,
   type OcrFileCreateBody,
   type OcrFileListItem,
   type OcrFileListParams,
+  type OcrFileLogItem,
+  type OcrFileMarkdownPages,
 } from '@/api/ocrTask'
 import { useAuth } from '@/app/AuthContext'
 import { DictText } from '@/components/dict'
@@ -63,6 +74,8 @@ import { useCountUp } from '@/hooks/useCountUp'
 import { useDictItemTree } from '@/hooks/useDictItemTree'
 import mineruLogo from './assets/mineru-logo.png'
 import paddleOcrLogo from './assets/paddleocr-logo.jpg'
+import { applyOcrMarkdownImagePlaceholders } from './applyOcrMarkdownImagePlaceholders'
+import './FileOcrTaskMarkdown.css'
 import './FileOcrTaskPage.css'
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024
@@ -274,6 +287,17 @@ export function RulesFileOcrTaskPage() {
   /** Task count shown on the post-upload success pane; cleared when reopening the wizard. */
   const [createdTaskCount, setCreatedTaskCount] = useState<number | null>(null)
   const [refreshTick, setRefreshTick] = useState(0)
+  /** OCR run log drawer: which task is selected and whether the drawer is visible. */
+  const [logDrawerOpen, setLogDrawerOpen] = useState(false)
+  const [logTarget, setLogTarget] = useState<{ id: string; file_name: string | null } | null>(null)
+  const [logPage, setLogPage] = useState(1)
+  /** Markdown detail drawer for SUCCESS tasks (per-page OCR output). */
+  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false)
+  const [detailTarget, setDetailTarget] = useState<OcrFileListItem | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState<string | null>(null)
+  const [detailData, setDetailData] = useState<OcrFileMarkdownPages | null>(null)
+  const detailAbortRef = useRef<AbortController | null>(null)
   const tableWrapRef = useRef<HTMLDivElement | null>(null)
   const [tableBodyScrollY, setTableBodyScrollY] = useState(420)
   const ocrTypeOptions = useMemo(() => buildOcrTypeOptions(t), [t])
@@ -301,6 +325,16 @@ export function RulesFileOcrTaskPage() {
     enabled: Boolean(workspaceId),
   })
 
+  const logQuery = useQuery({
+    queryKey: ['ocrFileLogs', workspaceId, logTarget?.id, logPage],
+    queryFn: () =>
+      listOcrFileLogs(workspaceId!, logTarget!.id, {
+        page: logPage,
+        page_size: DEFAULT_PAGE_SIZE,
+      }),
+    enabled: logDrawerOpen && Boolean(workspaceId) && Boolean(logTarget?.id),
+  })
+
   useLayoutEffect(() => {
     const wrap = tableWrapRef.current
     if (wrap == null) return
@@ -317,21 +351,24 @@ export function RulesFileOcrTaskPage() {
   }, [workspaceId, wizardOpen, listQuery.data?.items?.length, listQuery.error, pageSize])
 
   /** Convert status code into localized text. */
-  const statusText = (status: string) => {
-    if (status === 'INIT') return t('fileOcr.tasks.status.INIT')
-    if (status === 'PROCESS') return t('fileOcr.tasks.status.PROCESS')
-    if (status === 'SUCCESS') return t('fileOcr.tasks.status.SUCCESS')
-    if (status === 'FAILED') return t('fileOcr.tasks.status.FAILED')
-    return status
-  }
+  const statusText = useCallback(
+    (status: string) => {
+      if (status === 'INIT') return t('fileOcr.tasks.status.INIT')
+      if (status === 'PROCESS') return t('fileOcr.tasks.status.PROCESS')
+      if (status === 'SUCCESS') return t('fileOcr.tasks.status.SUCCESS')
+      if (status === 'FAILED') return t('fileOcr.tasks.status.FAILED')
+      return status
+    },
+    [t],
+  )
 
   /** Convert status code into tag color token. */
-  const statusColor = (status: string) => {
+  const statusColor = useCallback((status: string) => {
     if (status === 'SUCCESS') return 'success'
     if (status === 'FAILED') return 'error'
     if (status === 'PROCESS') return 'processing'
     return 'default'
-  }
+  }, [])
 
   /** Build one disabled placeholder action callback. */
   const onPendingAction = useCallback((nameKey: string) => {
@@ -353,6 +390,129 @@ export function RulesFileOcrTaskPage() {
       }
     },
     [queryClient, t, workspaceId],
+  )
+
+  /** Re-queue one OCR task for the worker by resetting its status to INIT. */
+  const handleRetryOcrTask = useCallback(
+    async (ocrFileId: string) => {
+      if (!workspaceId) return
+      try {
+        await retryOcrFile(workspaceId, ocrFileId)
+        void message.success(t('fileOcr.tasks.retrySuccess'))
+        void queryClient.invalidateQueries({ queryKey: ['ocrFileOverviewStats', workspaceId] })
+        setRefreshTick((n) => n + 1)
+      } catch (e) {
+        if (e instanceof ApiError) void message.error(e.message)
+        else void message.error(t('common.error'))
+      }
+    },
+    [queryClient, t, workspaceId],
+  )
+
+  /** Open the run-log drawer for one task row and reset pagination to the first page. */
+  const openLogDrawer = useCallback((row: OcrFileListItem) => {
+    setLogTarget({ id: row.id, file_name: row.file_name ?? null })
+    setLogPage(1)
+    setLogDrawerOpen(true)
+  }, [])
+
+  /** Close markdown detail drawer and cancel in-flight fetch. */
+  const closeDetailDrawer = useCallback(() => {
+    detailAbortRef.current?.abort()
+    detailAbortRef.current = null
+    setDetailDrawerOpen(false)
+    setDetailTarget(null)
+    setDetailData(null)
+    setDetailError(null)
+    setDetailLoading(false)
+  }, [])
+
+  /** Open markdown detail drawer and load pages for a SUCCESS task. */
+  const openDetailDrawer = useCallback(
+    async (row: OcrFileListItem) => {
+      if (row.status !== 'SUCCESS' || workspaceId == null) return
+      detailAbortRef.current?.abort()
+      const ac = new AbortController()
+      detailAbortRef.current = ac
+      setDetailTarget(row)
+      setDetailDrawerOpen(true)
+      setDetailError(null)
+      setDetailData(null)
+      setDetailLoading(true)
+      try {
+        const data = await getOcrFileMarkdownPages(workspaceId, row.id, { signal: ac.signal })
+        setDetailData(data)
+      } catch (e) {
+        const isAbort =
+          (e instanceof DOMException && e.name === 'AbortError') ||
+          (e instanceof Error && e.name === 'AbortError')
+        if (isAbort) {
+          return
+        }
+        if (e instanceof ApiError) {
+          if (e.code === 'ocr_file.detail_requires_success') {
+            setDetailError(t('fileOcr.tasks.detail.err409'))
+          } else if (e.code === 'ocr_file.unsupported_detail_type') {
+            setDetailError(t('fileOcr.tasks.detail.err422'))
+          } else {
+            setDetailError(e.message)
+          }
+        } else {
+          setDetailError(t('common.error'))
+        }
+      } finally {
+        if (!ac.signal.aborted) {
+          setDetailLoading(false)
+        }
+      }
+    },
+    [t, workspaceId],
+  )
+
+  const logColumns: ColumnsType<OcrFileLogItem> = useMemo(
+    () => [
+      {
+        title: t('fileOcr.tasks.logCol.createAt'),
+        dataIndex: 'create_at',
+        key: 'create_at',
+        width: 180,
+        render: (v: string) => formatDateTime(v),
+      },
+      {
+        title: t('fileOcr.tasks.logCol.updateAt'),
+        dataIndex: 'update_at',
+        key: 'update_at',
+        width: 180,
+        render: (v: string | null) => formatDateTime(v),
+      },
+      {
+        title: t('fileOcr.tasks.logCol.status'),
+        dataIndex: 'status',
+        key: 'status',
+        width: 120,
+        render: (v: string) => {
+          const label =
+            v === 'RUNNING'
+              ? t('fileOcr.tasks.logStatus.RUNNING')
+              : v === 'SUCCESS'
+                ? t('fileOcr.tasks.logStatus.SUCCESS')
+                : v === 'FAILED'
+                  ? t('fileOcr.tasks.logStatus.FAILED')
+                  : v
+          const color =
+            v === 'SUCCESS' ? 'success' : v === 'FAILED' ? 'error' : v === 'RUNNING' ? 'processing' : 'default'
+          return <Tag color={color}>{label}</Tag>
+        },
+      },
+      {
+        title: t('fileOcr.tasks.logCol.remark'),
+        dataIndex: 'remark',
+        key: 'remark',
+        ellipsis: true,
+        render: (v: string | null) => v?.trim() || '—',
+      },
+    ],
+    [t],
   )
 
   const columns: ColumnsType<OcrFileListItem> = useMemo(
@@ -417,15 +577,25 @@ export function RulesFileOcrTaskPage() {
       {
         title: t('fileOcr.tasks.col.actions'),
         key: 'actions',
-        width: 168,
+        width: 100,
         fixed: 'right',
         render: (_, row) => {
           const moreMenuItems: MenuProps['items'] = [
             {
+              key: 'runLogs',
+              icon: <HistoryOutlined />,
+              label: t('fileOcr.tasks.action.runLogs'),
+              onClick: () => openLogDrawer(row),
+            },
+            {
               key: 'retry',
               icon: <RedoOutlined />,
               label: t('fileOcr.tasks.action.retry'),
-              onClick: () => onPendingAction('fileOcr.tasks.action.retry'),
+              disabled: row.status === 'INIT' || row.status === 'PROCESS',
+              onClick: () => {
+                if (row.status === 'INIT' || row.status === 'PROCESS') return
+                void handleRetryOcrTask(row.id)
+              },
             },
             {
               key: 'download',
@@ -465,21 +635,44 @@ export function RulesFileOcrTaskPage() {
             },
           ]
           return (
-            <Space size="small" wrap>
-              <Button type="link" size="small" onClick={() => onPendingAction('fileOcr.tasks.action.view')}>
-                {t('fileOcr.tasks.action.view')}
-              </Button>
+            <Space size={4} wrap={false}>
+              <Tooltip
+                title={
+                  row.status === 'SUCCESS'
+                    ? t('fileOcr.tasks.action.view')
+                    : t('fileOcr.tasks.action.viewDisabledHint')
+                }
+              >
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<EyeOutlined />}
+                  disabled={row.status !== 'SUCCESS'}
+                  onClick={() => {
+                    if (row.status !== 'SUCCESS') return
+                    void openDetailDrawer(row)
+                  }}
+                  aria-label={t('fileOcr.tasks.action.view')}
+                />
+              </Tooltip>
               <Dropdown menu={{ items: moreMenuItems }} trigger={['click']}>
-                <Button type="link" size="small" icon={<MoreOutlined />} aria-label={t('fileOcr.tasks.action.more')}>
-                  {t('fileOcr.tasks.action.more')}
-                </Button>
+                <span style={{ display: 'inline-flex' }}>
+                  <Tooltip title={t('fileOcr.tasks.action.more')}>
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<MoreOutlined />}
+                      aria-label={t('fileOcr.tasks.action.more')}
+                    />
+                  </Tooltip>
+                </span>
               </Dropdown>
             </Space>
           )
         },
       },
     ],
-    [handleDeleteOcrTask, onPendingAction, t],
+    [handleDeleteOcrTask, handleRetryOcrTask, onPendingAction, openDetailDrawer, openLogDrawer, statusColor, statusText, t],
   )
 
   /** Reset wizard states before opening create flow. */
@@ -706,6 +899,87 @@ export function RulesFileOcrTaskPage() {
         </div>
       </Card>
     </div>
+
+      <Drawer
+        title={t('fileOcr.tasks.logDrawer.title', {
+          file: logTarget?.file_name?.trim() || t('fileOcr.tasks.logDrawer.unnamedFile'),
+        })}
+        width={720}
+        open={logDrawerOpen}
+        onClose={() => {
+          setLogDrawerOpen(false)
+          setLogTarget(null)
+        }}
+        destroyOnClose
+      >
+        {logQuery.error != null && (
+          <Alert
+            type="error"
+            showIcon
+            style={{ marginBottom: 12 }}
+            message={logQuery.error instanceof ApiError ? logQuery.error.message : t('common.error')}
+          />
+        )}
+        <Table<OcrFileLogItem>
+          rowKey="id"
+          size="small"
+          loading={logQuery.isFetching}
+          columns={logColumns}
+          dataSource={logQuery.data?.items ?? []}
+          scroll={{ x: true }}
+          pagination={{
+            current: logPage,
+            pageSize: DEFAULT_PAGE_SIZE,
+            total: logQuery.data?.total ?? 0,
+            showSizeChanger: false,
+            onChange: (p) => setLogPage(p),
+          }}
+        />
+      </Drawer>
+
+      <Drawer
+        title={
+          detailTarget?.file_name?.trim()
+            ? `${detailTarget.file_name.trim()} — ${t('fileOcr.tasks.action.view')}`
+            : t('fileOcr.tasks.detail.titleFallback')
+        }
+        width="80%"
+        open={detailDrawerOpen}
+        onClose={closeDetailDrawer}
+        destroyOnClose
+      >
+        {detailError != null && (
+          <Alert type="error" showIcon style={{ marginBottom: 12 }} message={detailError} />
+        )}
+        {detailLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
+            <Spin />
+          </div>
+        ) : detailError != null ? null : detailData != null && detailData.pages.length === 0 ? (
+          <Empty description={t('fileOcr.tasks.detail.empty')} />
+        ) : detailData != null ? (
+          <div>
+            {detailData.pages.map((page, idx) => {
+              const n = typeof page.page_index === 'number' ? page.page_index + 1 : idx + 1
+              const md = applyOcrMarkdownImagePlaceholders(page.markdown_text, page.images)
+              return (
+                <section key={`${n}-${idx}`} style={{ marginBottom: 28 }}>
+                  <h2 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 12px' }}>
+                    {t('fileOcr.tasks.detail.pageTitle', { n })}
+                  </h2>
+                  <div className="file-ocr-task-md">
+                    {md.trim() === '' ? (
+                      <span style={{ opacity: 0.65 }}>{t('fileOcr.tasks.detail.pageEmpty')}</span>
+                    ) : (
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{md}</ReactMarkdown>
+                    )}
+                  </div>
+                </section>
+              )
+            })}
+          </div>
+        ) : null}
+      </Drawer>
 
       <Modal
         open={wizardOpen}

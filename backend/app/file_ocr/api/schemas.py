@@ -60,3 +60,36 @@ class OcrFileBatchCreateOut(BaseModel):
 
     items: list[OcrFileListItemOut]
     total: int = Field(ge=0)
+
+
+class OcrFileLogItemOut(BaseModel):
+    """One ``ocr_file_log`` row for the task drawer (DB uses ``start_at``/``finish_at``)."""
+
+    id: uuid.UUID
+    create_at: datetime
+    update_at: datetime | None
+    status: str
+    remark: str | None
+
+
+class OcrFileLogListPageOut(BaseModel):
+    """Paginated OCR run logs for a single ``ocr_file``."""
+
+    items: list[OcrFileLogItemOut]
+    total: int = Field(ge=0)
+
+
+class OcrFileMarkdownPageOut(BaseModel):
+    """One OCR result page returned for the task detail drawer."""
+
+    page_index: int | None = None
+    markdown_text: str | None = None
+    images: dict[str, str] | None = None
+
+
+class OcrFileMarkdownPagesOut(BaseModel):
+    """Full markdown-pages payload for one ``ocr_file`` row."""
+
+    file_id: uuid.UUID
+    ocr_type: str
+    pages: list[OcrFileMarkdownPageOut]

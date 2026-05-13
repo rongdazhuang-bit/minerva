@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy import case, func, select
@@ -18,9 +18,14 @@ from app.file_ocr.api.schemas import (
     OcrFileCreateIn,
     OcrFileListItemOut,
     OcrFileListPageOut,
+    OcrFileLogItemOut,
+    OcrFileLogListPageOut,
+    OcrFileMarkdownPagesOut,
     OcrFileOverviewStatsOut,
 )
 from app.file_ocr.domain.db.models import OcrFile
+from app.file_ocr.domain.db.models_log import OcrFileLog
+from app.file_ocr.service.markdown_pages import get_ocr_file_markdown_pages
 from app.pagination import DEFAULT_PAGE_SIZE
 
 file_router = APIRouter(prefix="/workspaces/{workspace_id}/ocr-files", tags=["ocr-files"])
@@ -135,6 +140,104 @@ async def get_ocr_file_overview_stats(
         success_count=int(row[2] or 0),
         failed_count=int(row[3] or 0),
     )
+
+
+def _to_log_item(row: OcrFileLog) -> OcrFileLogItemOut:
+    """Map ORM ``start_at``/``finish_at`` to API ``create_at``/``update_at`` for list display."""
+
+    return OcrFileLogItemOut(
+        id=row.id,
+        create_at=row.start_at,
+        update_at=row.finish_at,
+        status=row.status,
+        remark=row.remark,
+    )
+
+
+@file_router.get("/{ocr_file_id}/logs", response_model=OcrFileLogListPageOut)
+async def list_ocr_file_logs(
+    workspace_id: uuid.UUID,
+    ocr_file_id: uuid.UUID,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
+    _user: User = Depends(get_current_user),
+    _workspace: uuid.UUID = Depends(require_workspace_member),
+    session: AsyncSession = Depends(get_db),
+) -> OcrFileLogListPageOut:
+    """Return paginated OCR run logs for one task in the workspace."""
+
+    exists = await session.scalar(
+        select(OcrFile.id).where(
+            OcrFile.id == ocr_file_id,
+            OcrFile.workspace_id == workspace_id,
+        )
+    )
+    if exists is None:
+        raise AppError("ocr_file.not_found", "OCR task not found", 404)
+    stmt = select(OcrFileLog).where(
+        OcrFileLog.ocr_file_id == ocr_file_id,
+        OcrFileLog.workspace_id == workspace_id,
+    )
+    total_stmt = select(func.count()).select_from(stmt.subquery())
+    total = await session.scalar(total_stmt)
+    rows = (
+        await session.execute(
+            stmt.order_by(OcrFileLog.start_at.desc(), OcrFileLog.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+    ).scalars().all()
+    return OcrFileLogListPageOut(items=[_to_log_item(r) for r in rows], total=int(total or 0))
+
+
+@file_router.get("/{ocr_file_id}/markdown-pages", response_model=OcrFileMarkdownPagesOut)
+async def get_ocr_file_markdown_pages_endpoint(
+    workspace_id: uuid.UUID,
+    ocr_file_id: uuid.UUID,
+    _user: User = Depends(get_current_user),
+    _workspace: uuid.UUID = Depends(require_workspace_member),
+    session: AsyncSession = Depends(get_db),
+) -> OcrFileMarkdownPagesOut:
+    """Return per-page markdown and parsed image maps for a SUCCESS OCR task."""
+
+    return await get_ocr_file_markdown_pages(
+        session=session, workspace_id=workspace_id, ocr_file_id=ocr_file_id
+    )
+
+
+@file_router.post("/{ocr_file_id}/retry", response_model=OcrFileListItemOut)
+async def retry_ocr_file(
+    workspace_id: uuid.UUID,
+    ocr_file_id: uuid.UUID,
+    _user: User = Depends(get_current_user),
+    _workspace: uuid.UUID = Depends(require_workspace_member),
+    session: AsyncSession = Depends(get_db),
+) -> OcrFileListItemOut:
+    """Reset a finished or failed task to INIT so the OCR worker can pick it up again."""
+
+    result = await session.execute(
+        select(OcrFile).where(
+            OcrFile.id == ocr_file_id,
+            OcrFile.workspace_id == workspace_id,
+        )
+    )
+    row = result.scalar_one_or_none()
+    if row is None:
+        raise AppError("ocr_file.not_found", "OCR task not found", 404)
+    if row.status == "PROCESS":
+        raise AppError(
+            "ocr_file.retry_conflict",
+            "Cannot retry while the task is PROCESS; cancel or wait for completion",
+            409,
+        )
+    now = datetime.now(UTC)
+    row.status = "INIT"
+    row.page_count = None
+    row.remark = None
+    row.update_at = now
+    await session.commit()
+    await session.refresh(row)
+    return _to_list_item(row)
 
 
 @file_router.delete("/{ocr_file_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)

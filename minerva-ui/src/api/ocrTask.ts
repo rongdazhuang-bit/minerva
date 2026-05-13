@@ -49,6 +49,39 @@ export type OcrFileBatchCreateOut = {
   total: number
 }
 
+/** One row from ``ocr_file_log`` (API maps ``start_at`` → ``create_at``, ``finish_at`` → ``update_at``). */
+export type OcrFileLogItem = {
+  id: string
+  create_at: string
+  update_at: string | null
+  status: string
+  remark: string | null
+}
+
+export type OcrFileLogListPage = {
+  items: OcrFileLogItem[]
+  total: number
+}
+
+export type OcrFileLogListParams = {
+  page?: number
+  page_size?: number
+}
+
+/** One page row from ``GET .../markdown-pages`` (images already JSON-parsed server-side). */
+export type OcrFileMarkdownPage = {
+  page_index: number | null
+  markdown_text: string | null
+  images: Record<string, string> | null
+}
+
+/** Markdown detail payload for one SUCCESS OCR task. */
+export type OcrFileMarkdownPages = {
+  file_id: string
+  ocr_type: string
+  pages: OcrFileMarkdownPage[]
+}
+
 export type OcrS3UploadOut = {
   object_key: string
   file_name: string
@@ -103,6 +136,39 @@ export function deleteOcrFile(workspaceId: string, ocrFileId: string) {
   return apiJson<null>(ocrFilePath(workspaceId, `/${ocrFileId}`), {
     method: 'DELETE',
   })
+}
+
+/** Reset task to INIT so the background OCR scanner can process it again. */
+export function retryOcrFile(workspaceId: string, ocrFileId: string) {
+  return apiJson<OcrFileListItem>(ocrFilePath(workspaceId, `/${ocrFileId}/retry`), {
+    method: 'POST',
+  })
+}
+
+/** Load per-page markdown and image maps for a SUCCESS OCR task. */
+export function getOcrFileMarkdownPages(
+  workspaceId: string,
+  ocrFileId: string,
+  init?: RequestInit,
+) {
+  return apiJson<OcrFileMarkdownPages>(
+    ocrFilePath(workspaceId, `/${ocrFileId}/markdown-pages`),
+    init,
+  )
+}
+
+/** Paginated OCR run logs for one task (worker attempts). */
+export function listOcrFileLogs(
+  workspaceId: string,
+  ocrFileId: string,
+  params?: OcrFileLogListParams,
+) {
+  const sp = new URLSearchParams()
+  if (params?.page != null) sp.set('page', String(params.page))
+  if (params?.page_size != null) sp.set('page_size', String(params.page_size))
+  const q = sp.toString()
+  const suffix = q ? `/${ocrFileId}/logs?${q}` : `/${ocrFileId}/logs`
+  return apiJson<OcrFileLogListPage>(ocrFilePath(workspaceId, suffix))
 }
 
 export function uploadOcrSourceFile(
