@@ -42,6 +42,16 @@ import {
   Upload,
   message,
 } from 'antd'
+import {
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import type { MenuProps } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { UploadFile, UploadProps } from 'antd/es/upload/interface'
@@ -61,6 +71,7 @@ import {
   createOcrFiles,
   deleteOcrFile,
   getOcrFileMarkdownPages,
+  getOcrFileOverviewLogDailyStats,
   getOcrFileOverviewStats,
   listOcrFileLogs,
   listOcrFiles,
@@ -250,10 +261,21 @@ export function RulesFileOcrOverviewPage() {
     queryFn: () => getOcrFileOverviewStats(workspaceId!),
     enabled: Boolean(workspaceId),
   })
+  const dailyStatsQuery = useQuery({
+    queryKey: ['ocrFileOverviewLogDailyStats', workspaceId],
+    queryFn: () => getOcrFileOverviewLogDailyStats(workspaceId!),
+    enabled: Boolean(workspaceId),
+  })
 
   const pending = statsQuery.isPending
   const err = statsQuery.error
   const stats = statsQuery.data
+
+  const chartPending = dailyStatsQuery.isPending
+  const dailyErr = dailyStatsQuery.error
+  const dailyStats = dailyStatsQuery.data
+
+  const chartData = useMemo(() => dailyStats?.items ?? [], [dailyStats])
 
   const hasStats = Boolean(stats)
   const displayInit = useCountUp(stats?.init_count ?? 0, { enabled: hasStats })
@@ -275,62 +297,143 @@ export function RulesFileOcrOverviewPage() {
         {stats == null ? (
           <Empty description={t('placeholders.rulesFileOcr')} style={{ color: 'var(--minerva-ink)' }} />
         ) : (
-          <div className="minerva-file-ocr-overview__stats-scroll">
-            <Row wrap={false} gutter={[18, 0]} className="minerva-file-ocr-overview__stats">
-              <Col flex="1 1 0" className="minerva-file-ocr-overview__stat-col">
-                <Card
-                  size="small"
-                  className="minerva-file-ocr-overview__card minerva-file-ocr-overview__card--init"
-                  variant="borderless"
-                >
-                  <Statistic
-                    title={t('fileOcr.overview.kpiInit')}
-                    value={displayInit}
-                    prefix={<ClockCircleOutlined className="minerva-file-ocr-overview__icon" aria-hidden />}
-                  />
-                </Card>
-              </Col>
-              <Col flex="1 1 0" className="minerva-file-ocr-overview__stat-col">
-                <Card
-                  size="small"
-                  className="minerva-file-ocr-overview__card minerva-file-ocr-overview__card--process"
-                  variant="borderless"
-                >
-                  <Statistic
-                    title={t('fileOcr.overview.kpiProcess')}
-                    value={displayProcess}
-                    prefix={<LoadingOutlined className="minerva-file-ocr-overview__icon" aria-hidden />}
-                  />
-                </Card>
-              </Col>
-              <Col flex="1 1 0" className="minerva-file-ocr-overview__stat-col">
-                <Card
-                  size="small"
-                  className="minerva-file-ocr-overview__card minerva-file-ocr-overview__card--success"
-                  variant="borderless"
-                >
-                  <Statistic
-                    title={t('fileOcr.overview.kpiSuccess')}
-                    value={displaySuccess}
-                    prefix={<CheckCircleOutlined className="minerva-file-ocr-overview__icon" aria-hidden />}
-                  />
-                </Card>
-              </Col>
-              <Col flex="1 1 0" className="minerva-file-ocr-overview__stat-col">
-                <Card
-                  size="small"
-                  className="minerva-file-ocr-overview__card minerva-file-ocr-overview__card--failed"
-                  variant="borderless"
-                >
-                  <Statistic
-                    title={t('fileOcr.overview.kpiFailed')}
-                    value={displayFailed}
-                    prefix={<CloseCircleOutlined className="minerva-file-ocr-overview__icon" aria-hidden />}
-                  />
-                </Card>
-              </Col>
-            </Row>
-          </div>
+          <>
+            <div className="minerva-file-ocr-overview__stats-scroll">
+              <Row wrap={false} gutter={[18, 0]} className="minerva-file-ocr-overview__stats">
+                <Col flex="1 1 0" className="minerva-file-ocr-overview__stat-col">
+                  <Card
+                    size="small"
+                    className="minerva-file-ocr-overview__card minerva-file-ocr-overview__card--init"
+                    variant="borderless"
+                  >
+                    <Statistic
+                      title={t('fileOcr.overview.kpiInit')}
+                      value={displayInit}
+                      prefix={<ClockCircleOutlined className="minerva-file-ocr-overview__icon" aria-hidden />}
+                    />
+                  </Card>
+                </Col>
+                <Col flex="1 1 0" className="minerva-file-ocr-overview__stat-col">
+                  <Card
+                    size="small"
+                    className="minerva-file-ocr-overview__card minerva-file-ocr-overview__card--process"
+                    variant="borderless"
+                  >
+                    <Statistic
+                      title={t('fileOcr.overview.kpiProcess')}
+                      value={displayProcess}
+                      prefix={<LoadingOutlined className="minerva-file-ocr-overview__icon" aria-hidden />}
+                    />
+                  </Card>
+                </Col>
+                <Col flex="1 1 0" className="minerva-file-ocr-overview__stat-col">
+                  <Card
+                    size="small"
+                    className="minerva-file-ocr-overview__card minerva-file-ocr-overview__card--success"
+                    variant="borderless"
+                  >
+                    <Statistic
+                      title={t('fileOcr.overview.kpiSuccess')}
+                      value={displaySuccess}
+                      prefix={<CheckCircleOutlined className="minerva-file-ocr-overview__icon" aria-hidden />}
+                    />
+                  </Card>
+                </Col>
+                <Col flex="1 1 0" className="minerva-file-ocr-overview__stat-col">
+                  <Card
+                    size="small"
+                    className="minerva-file-ocr-overview__card minerva-file-ocr-overview__card--failed"
+                    variant="borderless"
+                  >
+                    <Statistic
+                      title={t('fileOcr.overview.kpiFailed')}
+                      value={displayFailed}
+                      prefix={<CloseCircleOutlined className="minerva-file-ocr-overview__icon" aria-hidden />}
+                    />
+                  </Card>
+                </Col>
+              </Row>
+            </div>
+            <Card
+              size="small"
+              variant="borderless"
+              className="minerva-file-ocr-overview__chart-card"
+              title={t('fileOcr.overview.logDailyChartTitle')}
+            >
+              {dailyErr != null && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  message={dailyErr instanceof ApiError ? dailyErr.message : t('common.error')}
+                  style={{ marginBottom: 12 }}
+                />
+              )}
+              <Spin spinning={chartPending}>
+                {chartData.length > 0 && (
+                  <div className="minerva-file-ocr-overview__chart-wrap">
+                    <ResponsiveContainer width="100%" height={320}>
+                      <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--minerva-border, #2a3f58)" opacity={0.45} />
+                        <XAxis
+                          dataKey="date"
+                          tickFormatter={(v) => (typeof v === 'string' && v.length >= 10 ? v.slice(5) : String(v))}
+                          tick={{ fill: 'var(--minerva-ink-muted, #94a3b8)', fontSize: 11 }}
+                        />
+                        <YAxis
+                          width={44}
+                          allowDecimals={false}
+                          tick={{ fill: 'var(--minerva-ink-muted, #94a3b8)', fontSize: 11 }}
+                        />
+                        <RechartsTooltip
+                          contentStyle={{
+                            background: 'var(--minerva-surface, #1a2836)',
+                            borderColor: 'var(--minerva-border, #2a3f58)',
+                          }}
+                        />
+                        <Legend wrapperStyle={{ fontSize: 12 }} />
+                        <Line
+                          type="monotone"
+                          dataKey="paddle_success"
+                          name={t('fileOcr.overview.seriesPaddleSuccess')}
+                          stroke="#22c55e"
+                          strokeWidth={2}
+                          dot={false}
+                          isAnimationActive={false}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="paddle_failed"
+                          name={t('fileOcr.overview.seriesPaddleFailed')}
+                          stroke="#ef4444"
+                          strokeWidth={2}
+                          dot={false}
+                          isAnimationActive={false}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="mineru_success"
+                          name={t('fileOcr.overview.seriesMineruSuccess')}
+                          stroke="#38bdf8"
+                          strokeWidth={2}
+                          dot={false}
+                          isAnimationActive={false}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="mineru_failed"
+                          name={t('fileOcr.overview.seriesMineruFailed')}
+                          stroke="#f97316"
+                          strokeWidth={2}
+                          dot={false}
+                          isAnimationActive={false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </Spin>
+            </Card>
+          </>
         )}
       </Spin>
     </div>

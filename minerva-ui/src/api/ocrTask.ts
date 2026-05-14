@@ -7,6 +7,19 @@ export type OcrFileOverviewStats = {
   failed_count: number
 }
 
+/** One local calendar day in ``GET .../overview-log-daily-stats`` (30 rows). */
+export type OcrFileOverviewLogDailyStatItem = {
+  date: string
+  paddle_success: number
+  paddle_failed: number
+  mineru_success: number
+  mineru_failed: number
+}
+
+export type OcrFileOverviewLogDailyStats = {
+  items: OcrFileOverviewLogDailyStatItem[]
+}
+
 export type OcrFileListItem = {
   id: string
   workspace_id: string
@@ -105,6 +118,11 @@ function resolveApiBaseUrl(): string {
 
 export function getOcrFileOverviewStats(workspaceId: string) {
   return apiJson<OcrFileOverviewStats>(ocrFilePath(workspaceId, '/overview-stats'))
+}
+
+/** Last 30 local days of OCR log success/fail counts by engine (``ocr_file_log``). */
+export function getOcrFileOverviewLogDailyStats(workspaceId: string) {
+  return apiJson<OcrFileOverviewLogDailyStats>(ocrFilePath(workspaceId, '/overview-log-daily-stats'))
 }
 
 export function listOcrFiles(workspaceId: string, params?: OcrFileListParams) {

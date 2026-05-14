@@ -18,6 +18,22 @@ class OcrFileOverviewStatsOut(BaseModel):
     failed_count: int = Field(ge=0)
 
 
+class OcrFileOverviewLogDailyStatItemOut(BaseModel):
+    """One calendar day bucket for the file OCR overview log chart."""
+
+    date: str = Field(min_length=10, max_length=10)
+    paddle_success: int = Field(ge=0)
+    paddle_failed: int = Field(ge=0)
+    mineru_success: int = Field(ge=0)
+    mineru_failed: int = Field(ge=0)
+
+
+class OcrFileOverviewLogDailyStatsOut(BaseModel):
+    """Fixed window of daily OCR log success/fail counts (see service ``DAY_COUNT``)."""
+
+    items: list[OcrFileOverviewLogDailyStatItemOut] = Field(min_length=30, max_length=30)
+
+
 class OcrFileListItemOut(BaseModel):
     """One task row rendered in file OCR task list."""
 

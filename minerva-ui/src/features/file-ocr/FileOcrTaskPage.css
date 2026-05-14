@@ -128,6 +128,29 @@ html.minerva-tone-sunshine .minerva-file-ocr-overview__icon {
   color: var(--minerva-file-ocr-overview-accent, var(--minerva-link, #2563eb));
 }
 
+.minerva-file-ocr-overview__chart-card {
+  margin-top: 18px;
+  background: var(--minerva-surface, #1a2836) !important;
+  border: 1px solid var(--minerva-border, #2a3f58) !important;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 18%);
+}
+
+.minerva-file-ocr-overview__chart-card .ant-card-head-title {
+  color: var(--minerva-ink, #e8f0f8);
+  font-weight: 600;
+}
+
+.minerva-file-ocr-overview__chart-wrap {
+  width: 100%;
+  min-height: 320px;
+}
+
+html.minerva-tone-sunshine .minerva-file-ocr-overview__chart-card {
+  background: var(--minerva-surface, #fff) !important;
+  box-shadow: 0 4px 14px rgb(15 23 42 / 7%);
+}
+
 .minerva-file-ocr-tasks__table .ant-table-cell {
   vertical-align: middle;
 }

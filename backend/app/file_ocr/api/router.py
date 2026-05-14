@@ -21,11 +21,13 @@ from app.file_ocr.api.schemas import (
     OcrFileLogItemOut,
     OcrFileLogListPageOut,
     OcrFileMarkdownPagesOut,
+    OcrFileOverviewLogDailyStatsOut,
     OcrFileOverviewStatsOut,
 )
 from app.file_ocr.domain.db.models import OcrFile
 from app.file_ocr.domain.db.models_log import OcrFileLog
 from app.file_ocr.service.markdown_pages import get_ocr_file_markdown_pages
+from app.file_ocr.service.overview_log_daily_stats import compute_overview_log_daily_stats
 from app.file_ocr.service.result_row_cleanup import delete_ocr_file_engine_result_rows
 from app.pagination import DEFAULT_PAGE_SIZE
 
@@ -148,6 +150,18 @@ async def get_ocr_file_overview_stats(
         success_count=int(row[2] or 0),
         failed_count=int(row[3] or 0),
     )
+
+
+@file_router.get("/overview-log-daily-stats", response_model=OcrFileOverviewLogDailyStatsOut)
+async def get_ocr_file_overview_log_daily_stats(
+    workspace_id: uuid.UUID,
+    _user: User = Depends(get_current_user),
+    _workspace: uuid.UUID = Depends(require_workspace_member),
+    session: AsyncSession = Depends(get_db),
+) -> OcrFileOverviewLogDailyStatsOut:
+    """Return last 30 local days of OCR log success/fail counts by engine."""
+
+    return await compute_overview_log_daily_stats(session, workspace_id)
 
 
 def _to_log_item(row: OcrFileLog) -> OcrFileLogItemOut:
