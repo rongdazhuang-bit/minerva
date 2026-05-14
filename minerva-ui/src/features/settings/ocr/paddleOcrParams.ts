@@ -15,11 +15,13 @@ export const PADDLE_DEFAULT_LAYOUT_UNCLIP_TEXT = '1.0'
 export const PADDLE_DEFAULT_MERGE_BBOXES_MODE = 'large'
 
 const TRISTATE_BOOL_KEYS = [
+  'mergeLayoutBlocks',
   'useDocOrientationClassify',
   'useDocUnwarping',
   'useLayoutDetection',
   'useChartRecognition',
   'layoutNms',
+  'formatBlockContent',
   'visualize',
 ] as const
 
@@ -78,7 +80,6 @@ export function ocrConfigToPaddleFormValues(
     out.showFormulaNumber = raw.showFormulaNumber === true
   }
 
-  if (typeof raw.fileType === 'number') out.fileType = raw.fileType
   for (const k of TRISTATE_BOOL_KEYS) {
     if (raw[k] === true || raw[k] === false) out[k] = raw[k]
   }
@@ -110,10 +111,6 @@ export function paddleFormValuesToOcrConfig(
 ): Record<string, unknown> | null {
   if (!paddle || typeof paddle !== 'object') return null
   const out: Record<string, unknown> = {}
-
-  if (typeof paddle.fileType === 'number' && !Number.isNaN(paddle.fileType)) {
-    out.fileType = paddle.fileType
-  }
 
   for (const k of TRISTATE_BOOL_KEYS) {
     const v = paddle[k]

@@ -119,17 +119,11 @@ export function PaddleOcrParamsFields({ t }: PaddleFieldsProps) {
     <Row gutter={[16, 0]}>
         <Col xs={24} sm={12}>
           <Form.Item
-            name={['paddle', 'fileType']}
-            label={t('settings.ocrPaddle.fileType')}
-            tooltip={t('settings.ocrPaddle.fileTypeHint')}
+            name={['paddle', 'mergeLayoutBlocks']}
+            label={t('settings.ocrPaddle.mergeLayoutBlocks')}
+            tooltip={t('settings.ocrPaddle.mergeLayoutBlocksHint')}
           >
-            <Select
-              allowClear
-              options={[
-                { value: 0, label: t('settings.ocrPaddle.fileTypePdf') },
-                { value: 1, label: t('settings.ocrPaddle.fileTypeImage') },
-              ]}
-            />
+            {triBoolSelect(t)}
           </Form.Item>
         </Col>
         {(
@@ -137,7 +131,6 @@ export function PaddleOcrParamsFields({ t }: PaddleFieldsProps) {
             ['useDocOrientationClassify', 'settings.ocrPaddle.useDocOrientationClassify'],
             ['useDocUnwarping', 'settings.ocrPaddle.useDocUnwarping'],
             ['useLayoutDetection', 'settings.ocrPaddle.useLayoutDetection'],
-            ['useChartRecognition', 'settings.ocrPaddle.useChartRecognition'],
           ] as const
         ).map(([field, labelKey]) => (
           <Col xs={24} sm={12} key={field}>
@@ -160,6 +153,24 @@ export function PaddleOcrParamsFields({ t }: PaddleFieldsProps) {
             name={['paddle', 'layoutNms']}
             label={t('settings.ocrPaddle.layoutNms')}
             tooltip={t('settings.ocrPaddle.layoutNmsHint')}
+          >
+            {triBoolSelect(t)}
+          </Form.Item>
+        </Col>
+        <Col xs={24} sm={12}>
+          <Form.Item
+            name={['paddle', 'formatBlockContent']}
+            label={t('settings.ocrPaddle.formatBlockContent')}
+            tooltip={t('settings.ocrPaddle.formatBlockContentHint')}
+          >
+            {triBoolSelect(t)}
+          </Form.Item>
+        </Col>
+        <Col xs={24} sm={12}>
+          <Form.Item
+            name={['paddle', 'useChartRecognition']}
+            label={t('settings.ocrPaddle.useChartRecognition')}
+            tooltip={t('settings.ocrPaddle.useChartRecognitionHint')}
           >
             {triBoolSelect(t)}
           </Form.Item>
@@ -381,7 +392,6 @@ export function PaddleOcrParamsReadonly({
     ['useDocOrientationClassify', 'settings.ocrPaddle.useDocOrientationClassify'],
     ['useDocUnwarping', 'settings.ocrPaddle.useDocUnwarping'],
     ['useLayoutDetection', 'settings.ocrPaddle.useLayoutDetection'],
-    ['useChartRecognition', 'settings.ocrPaddle.useChartRecognition'],
   ] as const
   const numberFields = [
     'repetitionPenalty',
@@ -392,14 +402,9 @@ export function PaddleOcrParamsReadonly({
   ] as const
   const items: ReadonlyParamItem[] = [
     {
-      key: 'fileType',
-      label: t('settings.ocrPaddle.fileType'),
-      value:
-        values.fileType === 0
-          ? t('settings.ocrPaddle.fileTypePdf')
-          : values.fileType === 1
-            ? t('settings.ocrPaddle.fileTypeImage')
-            : undefined,
+      key: 'mergeLayoutBlocks',
+      label: t('settings.ocrPaddle.mergeLayoutBlocks'),
+      value: values.mergeLayoutBlocks,
     },
     ...boolFields.map(([key, labelKey]) => ({ key, label: t(labelKey), value: values[key] })),
     {
@@ -408,6 +413,16 @@ export function PaddleOcrParamsReadonly({
       value: values.layoutThresholdText,
     },
     { key: 'layoutNms', label: t('settings.ocrPaddle.layoutNms'), value: values.layoutNms },
+    {
+      key: 'formatBlockContent',
+      label: t('settings.ocrPaddle.formatBlockContent'),
+      value: values.formatBlockContent,
+    },
+    {
+      key: 'useChartRecognition',
+      label: t('settings.ocrPaddle.useChartRecognition'),
+      value: values.useChartRecognition,
+    },
     {
       key: 'layoutUnclipRatioText',
       label: t('settings.ocrPaddle.layoutUnclipRatio'),

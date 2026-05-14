@@ -13,3 +13,8 @@ FILE_OCR_SUPPORTED_SCAN_OCR_TYPES: frozenset[str] = frozenset({"PADDLE_OCR"})
 
 # Bound persisted failure text on ``ocr_file.remark`` for worker safety.
 FILE_OCR_REMARK_MAX_LEN = 4000
+
+# Values for ``ocr_file_log.status`` while and after one worker pass.
+FILE_OCR_LOG_STATUS_RUNNING = "RUNNING"
+FILE_OCR_LOG_STATUS_SUCCESS = "SUCCESS"
+FILE_OCR_LOG_STATUS_FAILED = "FAILED"

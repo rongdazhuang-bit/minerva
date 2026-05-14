@@ -90,6 +90,12 @@ def _build_celery_app() -> Any:
 celery_app = _build_celery_app()
 
 if celery_app is not None:
+    # Workers never run FastAPI lifespan ``create_missing_tables``; without importing the
+    # same ORM modules, ``Base.metadata`` lacks FK targets such as ``workspaces``, and
+    # flush raises ``NoReferencedTableError`` for models like ``OcrFile``.
+    from app.core.infrastructure.db.bootstrap import _import_models
+
+    _import_models()
     # Registers ``shared_task`` symbols (e.g. ``demo.default_job``) on this app for workers.
     import app.file_ocr.task.scan_init_job  # noqa: F401
     import app.sys.celery.demo.default_job  # noqa: F401

@@ -110,6 +110,8 @@ async def test_create_ocr_files_sets_init_status_and_null_page_count() -> None:
         assert row["page_count"] is None
         assert row["file_size"] == 1024
         assert row["object_key"] == "ocr_file/2026/04/a.pdf"
+        assert row["create_at"] is not None
+        assert row["update_at"] is not None
 
 
 @pytest.mark.asyncio

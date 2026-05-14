@@ -9,12 +9,16 @@ from app.ocr.paddleocr.errors import PaddleOcrVlApiError
 from app.ocr.paddleocr.errors import PaddleOcrVlError
 from app.ocr.paddleocr.errors import PaddleOcrVlParseError
 from app.ocr.paddleocr.errors import PaddleOcrVlTransportError
+from app.ocr.paddleocr.pruned_result import DocPreprocessorModelSettings
+from app.ocr.paddleocr.pruned_result import DocPreprocessorRes
 from app.ocr.paddleocr.pruned_result import LayoutDetBox
 from app.ocr.paddleocr.pruned_result import LayoutDetRes
 from app.ocr.paddleocr.pruned_result import ParsingResBlock
 from app.ocr.paddleocr.pruned_result import PrunedModelSettings
 from app.ocr.paddleocr.pruned_result import PrunedResult
+from app.ocr.paddleocr.schemas import DataInfoPageMeta
 from app.ocr.paddleocr.schemas import LayoutParsingApiResponse
+from app.ocr.paddleocr.schemas import LayoutParsingDataInfo
 from app.ocr.paddleocr.schemas import LayoutParsingPageResult
 from app.ocr.paddleocr.schemas import LayoutParsingRequest
 from app.ocr.paddleocr.schemas import LayoutParsingResultPayload
@@ -23,9 +27,13 @@ from app.ocr.paddleocr.schemas import RestructurePageItem
 from app.ocr.paddleocr.schemas import RestructurePagesRequest
 
 __all__ = [
+    "DataInfoPageMeta",
+    "DocPreprocessorModelSettings",
+    "DocPreprocessorRes",
     "LayoutDetBox",
     "LayoutDetRes",
     "LayoutParsingApiResponse",
+    "LayoutParsingDataInfo",
     "LayoutParsingPageResult",
     "LayoutParsingRequest",
     "LayoutParsingResultPayload",

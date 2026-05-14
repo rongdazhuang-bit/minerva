@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class PrunedModelSettings(BaseModel):
@@ -36,6 +38,23 @@ class ParsingResBlock(BaseModel):
     global_group_id: int
     block_polygon_points: list[list[float]] = Field(default_factory=list)
 
+    @model_validator(mode="before")
+    @classmethod
+    def fill_missing_global_ids(cls, data: Any) -> Any:
+        """
+        Some serving builds omit ``global_block_id`` / ``global_group_id``; align with page-local ids.
+
+        Hosted or older stacks may only echo ``block_id`` and ``group_id`` per block.
+        """
+        if not isinstance(data, dict):
+            return data
+        out = dict(data)
+        if "global_block_id" not in out and "block_id" in out:
+            out["global_block_id"] = out["block_id"]
+        if "global_group_id" not in out and "group_id" in out:
+            out["global_group_id"] = out["group_id"]
+        return out
+
 
 class LayoutDetBox(BaseModel):
     """Single layout-detection box under ``layout_det_res.boxes``."""
@@ -58,6 +77,26 @@ class LayoutDetRes(BaseModel):
     boxes: list[LayoutDetBox] = Field(default_factory=list)
 
 
+class DocPreprocessorModelSettings(BaseModel):
+    """Orientation / unwarp flags nested under ``doc_preprocessor_res.model_settings``."""
+
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
+    use_doc_orientation_classify: bool | None = Field(
+        default=None, alias="useDocOrientationClassify"
+    )
+    use_doc_unwarping: bool | None = Field(default=None, alias="useDocUnwarping")
+
+
+class DocPreprocessorRes(BaseModel):
+    """Optional ``doc_preprocessor_res`` on each ``prunedResult`` (angle and preprocessor flags)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    model_settings: DocPreprocessorModelSettings | None = None
+    angle: int | None = None
+
+
 class PrunedResult(BaseModel):
     """
     PaddleOCR-VL ``prunedResult`` payload (page geometry, settings, blocks, layout boxes).
@@ -73,3 +112,15 @@ class PrunedResult(BaseModel):
     model_settings: PrunedModelSettings
     parsing_res_list: list[ParsingResBlock] = Field(default_factory=list)
     layout_det_res: LayoutDetRes
+    doc_preprocessor_res: DocPreprocessorRes | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def default_layout_det_when_absent(cls, data: Any) -> Any:
+        """Hosted responses may omit ``layout_det_res``; normalize to an empty detector list."""
+        if not isinstance(data, dict):
+            return data
+        out = dict(data)
+        if out.get("layout_det_res") is None:
+            out["layout_det_res"] = {"boxes": []}
+        return out

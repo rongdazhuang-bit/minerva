@@ -7,7 +7,9 @@ import json
 import httpx
 import pytest
 
+from app.ocr.paddleocr import LayoutParsingApiResponse
 from app.ocr.paddleocr import LayoutParsingRequest
+from app.ocr.paddleocr import LayoutParsingResultPayload
 from app.ocr.paddleocr import PaddleOcrVlApiError
 from app.ocr.paddleocr import PaddleOcrVlParseError
 from app.ocr.paddleocr import PaddleOcrVlTransportError
@@ -119,6 +121,11 @@ async def test_layout_parsing_api_error_raises() -> None:
     assert err.log_id == "bad"
     assert err.error_code == 400
     assert err.error_msg == "bad request"
+    detail = str(err)
+    assert "PaddleOCR-VL API error: bad request" in detail
+    assert "log_id=bad" in detail
+    assert "error_code=400" in detail
+    assert "body=" in detail
 
 
 @pytest.mark.asyncio
@@ -136,8 +143,13 @@ async def test_transport_error_on_http_status() -> None:
                 LayoutParsingRequest(file="x"),
                 client=ac,
             )
-    assert exc_info.value.status_code == 503
-    assert "upstream" in (exc_info.value.body_snippet or "")
+    err = exc_info.value
+    assert err.status_code == 503
+    assert "upstream" in (err.body_snippet or "")
+    assert str(err) == (
+        "PaddleOCR-VL response url=http://x/layout-parsing "
+        "http_status=503 body=upstream"
+    )
 
 
 @pytest.mark.asyncio
@@ -149,12 +161,13 @@ async def test_parse_error_on_invalid_json() -> None:
 
     transport = httpx.MockTransport(handler)
     async with httpx.AsyncClient(transport=transport) as ac:
-        with pytest.raises(PaddleOcrVlParseError):
+        with pytest.raises(PaddleOcrVlParseError) as exc_info:
             await post_layout_parsing(
                 "http://x/layout-parsing",
                 LayoutParsingRequest(file="x"),
                 client=ac,
             )
+    assert "body=not-json" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -162,7 +175,7 @@ async def test_post_restructure_pages_round_trip() -> None:
     """Restructure endpoint uses the same envelope and serializes ``pages``."""
 
     minimal = PrunedResult.model_validate(_minimal_pruned_result_dict())
-    expected_pruned = minimal.model_dump(mode="json")
+    expected_pruned = minimal.model_dump(mode="json", exclude_none=True)
 
     def handler(request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content.decode("utf-8"))
@@ -254,6 +267,153 @@ def test_pruned_result_parses_service_like_payload() -> None:
     assert pr.layout_det_res.boxes[1].order is None
 
 
+def test_pruned_result_accepts_blocks_without_global_ids() -> None:
+    """Hosted APIs may omit ``global_block_id`` / ``global_group_id``; they mirror local ids."""
+    raw = {
+        "page_count": 1,
+        "width": 100,
+        "height": 100,
+        "model_settings": {
+            "use_doc_preprocessor": False,
+            "use_layout_detection": True,
+            "use_chart_recognition": False,
+            "use_seal_recognition": False,
+            "use_ocr_for_image_block": False,
+            "format_block_content": True,
+            "merge_layout_blocks": True,
+            "markdown_ignore_labels": [],
+            "return_layout_polygon_points": False,
+        },
+        "parsing_res_list": [
+            {
+                "block_label": "ocr",
+                "block_content": "x",
+                "block_bbox": [0.0, 0.0, 1.0, 1.0],
+                "block_id": 3,
+                "block_order": 1,
+                "group_id": 0,
+            },
+        ],
+        "layout_det_res": {"boxes": []},
+    }
+    pr = PrunedResult.model_validate(raw)
+    assert pr.parsing_res_list[0].global_block_id == 3
+    assert pr.parsing_res_list[0].global_group_id == 0
+
+
+def test_layout_parsing_api_response_matches_official_like_shape() -> None:
+    """Parse a Baidu-style envelope: ``dataInfo``, ``preprocessedImages``, pruned without ``layout_det_res``."""
+    model_settings = {
+        "use_doc_preprocessor": True,
+        "use_layout_detection": False,
+        "use_chart_recognition": True,
+        "use_seal_recognition": False,
+        "use_ocr_for_image_block": False,
+        "format_block_content": False,
+        "merge_layout_blocks": True,
+        "markdown_ignore_labels": [],
+        "return_layout_polygon_points": True,
+    }
+    env = LayoutParsingApiResponse.model_validate(
+        {
+            "logId": "433e1124-c24f-4e10-9866-26656d396566",
+            "errorCode": 0,
+            "errorMsg": "Success",
+            "result": {
+                "layoutParsingResults": [
+                    {
+                        "prunedResult": {
+                            "page_count": 1,
+                            "width": 1191,
+                            "height": 1684,
+                            "model_settings": model_settings,
+                            "parsing_res_list": [
+                                {
+                                    "block_label": "ocr",
+                                    "block_content": "x",
+                                    "block_bbox": [0, 0, 1191, 1684],
+                                    "block_id": 0,
+                                    "block_order": 1,
+                                    "group_id": 0,
+                                },
+                            ],
+                            "doc_preprocessor_res": {
+                                "model_settings": {
+                                    "use_doc_orientation_classify": True,
+                                    "use_doc_unwarping": True,
+                                },
+                                "angle": 0,
+                            },
+                        },
+                        "markdown": {"text": "hello", "images": {}},
+                        "inputImage": "https://example.com/in.jpg",
+                    },
+                ],
+                "preprocessedImages": ["https://example.com/pre.jpg"],
+                "dataInfo": {
+                    "type": "pdf",
+                    "numPages": 31,
+                    "pages": [{"width": 1191, "height": 1684}],
+                },
+            },
+        },
+    )
+    assert env.result is not None
+    assert env.result.data_info is not None
+    assert env.result.data_info.type == "pdf"
+    assert env.result.data_info.num_pages == 31
+    assert len(env.result.data_info.pages) == 1
+    assert env.result.data_info.pages[0].width == 1191
+    assert len(env.result.preprocessed_images) == 1
+    assert env.result.effective_page_count() == 31
+    pr = env.result.layout_parsing_results[0].pruned_result
+    assert pr is not None
+    assert pr.layout_det_res.boxes == []
+    assert pr.doc_preprocessor_res is not None
+    assert pr.doc_preprocessor_res.angle == 0
+    assert pr.doc_preprocessor_res.model_settings is not None
+    assert pr.doc_preprocessor_res.model_settings.use_doc_orientation_classify is True
+
+
+def test_layout_parsing_result_payload_effective_page_count_prefers_data_info() -> None:
+    """``effective_page_count`` uses ``dataInfo.numPages`` when the API publishes a PDF total."""
+    payload = LayoutParsingResultPayload.model_validate(
+        {
+            "layoutParsingResults": [
+                {"markdown": {"text": "p1"}},
+                {"markdown": {"text": "p2"}},
+            ],
+            "dataInfo": {"type": "pdf", "numPages": 31},
+        }
+    )
+    assert payload.effective_page_count() == 31
+
+
+def test_layout_parsing_result_payload_effective_page_count_snake_case_num_pages() -> None:
+    """Accept ``dataInfo.num_pages`` as an alternate key for the same value."""
+    payload = LayoutParsingResultPayload.model_validate(
+        {
+            "layoutParsingResults": [{"markdown": {"text": "x"}}],
+            "dataInfo": {"num_pages": 7},
+        }
+    )
+    assert payload.effective_page_count() == 7
+
+
+def test_layout_parsing_result_payload_effective_page_count_fallback() -> None:
+    """Without a usable ``numPages``, fall back to the number of layout result cards."""
+    payload = LayoutParsingResultPayload.model_validate(
+        {
+            "layoutParsingResults": [
+                {"markdown": {"text": "a"}},
+                {"markdown": {"text": "b"}},
+            ],
+            "dataInfo": {},
+        }
+    )
+    assert payload.effective_page_count() == 2
+
+
 def test_layout_parsing_body_exclude_none() -> None:
     """Optional fields omitted when None and exclude_none is True."""
     body = LayoutParsingRequest(file="Zg==")
@@ -266,7 +426,7 @@ def test_paddleocr_default_timeout_splits_read_and_write() -> None:
     """Defaults use distinct read vs write limits (large uploads vs slow inference)."""
     t = paddleocr_default_timeout()
     assert t.connect == 10.0
-    assert t.read == 120.0
+    assert t.read == 300.0
     assert t.write == 300.0
     assert t.pool == 5.0
 

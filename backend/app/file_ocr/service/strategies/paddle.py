@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.file_ocr.domain.db.models import OcrFile
 from app.file_ocr.domain.db.models_result import OcrFilePaddleocr
 from app.file_ocr.service.ocr_http_headers import build_ocr_tool_http_headers
+from app.file_ocr.service.paddle_markdown_images import inline_http_markdown_images_to_data_uris
 from app.file_ocr.service.paddle_ocr_request import build_layout_parsing_request_for_tool
 from app.file_ocr.service.s3_object_bytes import read_workspace_object_bytes
 from app.ocr.paddleocr.client import post_layout_parsing
@@ -64,6 +65,7 @@ class PaddleOcrFileStrategy(FileOcrEngineStrategy):
         envelope = await post_layout_parsing(url, body, headers=headers or None)
         result = envelope.result
         pages = list(result.layout_parsing_results) if result and result.layout_parsing_results else []
+        page_total = result.effective_page_count() if result else len(pages)
 
         await session.execute(
             delete(OcrFilePaddleocr).where(
@@ -76,6 +78,8 @@ class PaddleOcrFileStrategy(FileOcrEngineStrategy):
             md = page.markdown
             text = md.text if md else None
             images = md.images if md else {}
+            if images:
+                images = await inline_http_markdown_images_to_data_uris(images)
             images_json = json.dumps(images, ensure_ascii=False) if images else None
             session.add(
                 OcrFilePaddleocr(
@@ -89,13 +93,14 @@ class PaddleOcrFileStrategy(FileOcrEngineStrategy):
                     update_at=now,
                 )
             )
-        ocr_file.page_count = len(pages)
+        ocr_file.page_count = page_total
         ocr_file.status = "SUCCESS"
         ocr_file.remark = None
         ocr_file.update_at = now
         _LOGGER.info(
-            "paddle ocr success file_id=%s pages=%s log_id=%s",
+            "paddle ocr success file_id=%s layout_cards=%s page_count=%s log_id=%s",
             ocr_file.id,
             len(pages),
+            page_total,
             envelope.log_id,
         )

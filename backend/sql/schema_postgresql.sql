@@ -424,3 +424,24 @@ COMMENT ON COLUMN public.ocr_file_mineru.markdown_images IS 'markdown图片';
 COMMENT ON COLUMN public.ocr_file_mineru.page_index IS '页面序号';
 COMMENT ON COLUMN public.ocr_file_mineru.create_at IS '创建日期';
 COMMENT ON COLUMN public.ocr_file_mineru.update_at IS '更新日期';
+
+CREATE TABLE public.ocr_file_log (
+     id uuid NOT NULL, -- id
+     workspace_id uuid NOT NULL, -- 工作空间id
+     ocr_file_id uuid NOT NULL, -- ocr_file.id
+     status varchar NULL, -- 状态(Y-成功，N-失败，P-运行中)
+     remark text NULL, -- 备注，记录错误日志信息
+     create_at timestamptz NULL, -- 创建时间
+     update_at timestamptz NULL, -- 更新时间
+     CONSTRAINT ocr_file_log_pk PRIMARY KEY (id)
+);
+CREATE INDEX ocr_file_log_ocr_file_id_idx ON public.ocr_file_log USING btree (ocr_file_id);
+CREATE INDEX ocr_file_log_workspace_id_idx ON public.ocr_file_log USING btree (workspace_id);
+COMMENT ON TABLE public.ocr_file_log IS 'OCR执行日志';
+COMMENT ON COLUMN public.ocr_file_log.id IS 'id';
+COMMENT ON COLUMN public.ocr_file_log.workspace_id IS '工作空间id';
+COMMENT ON COLUMN public.ocr_file_log.ocr_file_id IS 'ocr_file.id';
+COMMENT ON COLUMN public.ocr_file_log.status IS '状态(Y-成功，N-失败，P-运行中)';
+COMMENT ON COLUMN public.ocr_file_log.remark IS '备注，记录错误日志信息';
+COMMENT ON COLUMN public.ocr_file_log.create_at IS '创建时间';
+COMMENT ON COLUMN public.ocr_file_log.update_at IS '更新时间';

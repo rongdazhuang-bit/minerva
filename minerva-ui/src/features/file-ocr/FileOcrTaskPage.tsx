@@ -38,6 +38,7 @@ import {
   Table,
   Tag,
   Tooltip,
+  Typography,
   Upload,
   message,
 } from 'antd'
@@ -48,8 +49,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Dayjs } from 'dayjs'
 import type { ReactNode } from 'react'
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import ReactMarkdown from 'react-markdown'
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown'
+import rehypeKatex from 'rehype-katex'
+import rehypeRaw from 'rehype-raw'
+import rehypeSanitize, { defaultSchema, type Options } from 'rehype-sanitize'
 import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '@/api/client'
 import {
@@ -74,9 +79,55 @@ import { useCountUp } from '@/hooks/useCountUp'
 import { useDictItemTree } from '@/hooks/useDictItemTree'
 import mineruLogo from './assets/mineru-logo.png'
 import paddleOcrLogo from './assets/paddleocr-logo.jpg'
-import { applyOcrMarkdownImagePlaceholders } from './applyOcrMarkdownImagePlaceholders'
+import {
+  applyOcrMarkdownImagePlaceholders,
+  normalizeDisplayMathFencesForRemarkMath,
+  normalizeLooseInlineMathDelimiters,
+  promoteInlineMathContainingTagToDisplay,
+} from './applyOcrMarkdownImagePlaceholders'
+import {
+  buildOcrMarkdownDocumentForExport,
+  sanitizeMarkdownDownloadBasename,
+  triggerMarkdownFileDownload,
+} from './buildOcrMarkdownExport'
+import 'katex/dist/katex.min.css'
 import './FileOcrTaskMarkdown.css'
 import './FileOcrTaskPage.css'
+
+/** GitHub-style defaults plus table caption/col/colgroup, KaTeX ``span`` styling, and ``data:`` on ``img``. */
+const PADDLE_OCR_MARKDOWN_SANITIZE_SCHEMA: Options = {
+  ...defaultSchema,
+  tagNames: [...(defaultSchema.tagNames ?? []), 'caption', 'col', 'colgroup'],
+  ancestors: {
+    ...defaultSchema.ancestors,
+    caption: ['table'],
+    col: ['colgroup', 'table'],
+    colgroup: ['table'],
+  },
+  protocols: {
+    ...defaultSchema.protocols,
+    /** Explicit allowlist: remote URLs and Paddle-inlined ``data:image/...`` URIs. */
+    src: ['http', 'https', 'data'],
+  },
+  attributes: {
+    ...defaultSchema.attributes,
+    /** KaTeX (``output: 'html'``) uses nested spans with ``className`` and inline ``style``. */
+    span: ['className', 'style', 'ariaHidden', 'title'],
+  },
+}
+
+/**
+ * Keeps ``http``/``https`` (and relative) URLs while allowing ``data:image/...`` for inlined OCR assets.
+ *
+ * ``react-markdown``'s ``defaultUrlTransform`` strips unknown schemes, which removes ``data:`` from ``img`` src.
+ */
+function fileOcrMarkdownUrlTransform(url: string): string {
+  const v = url.trim()
+  if (v.toLowerCase().startsWith('data:image/')) {
+    return v
+  }
+  return defaultUrlTransform(url)
+}
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024
 const MAX_FILE_COUNT = 50
@@ -85,6 +136,26 @@ const OCR_TYPE_DICT_CODE = 'TOOL_OCR'
 
 /** Space for table header row, pagination bar, and borders when deriving ``scroll.y`` from the flex pane. */
 const FILE_OCR_TASK_TABLE_SCROLL_GUTTER_PX = 112
+
+/** Sum of column ``width`` values so ``scroll.x`` keeps a stable layout (long names ellipsize instead of stretching). */
+const FILE_OCR_TASK_TABLE_SCROLL_X =
+  200 + 120 + 132 + 240 + 88 + 112 + 172 + 172 + 100
+
+/**
+ * Renders a single-line table cell: fixed width column + ellipsis; hover shows full text when not a placeholder dash.
+ */
+function renderEllipsisTableCell(display: string) {
+  const showTip = display.trim() !== '' && display !== '—'
+  return (
+    <Typography.Text
+      className="minerva-file-ocr-tasks__cell-ellipsis"
+      ellipsis={showTip ? { tooltip: display } : true}
+      style={{ width: '100%', marginBottom: 0 }}
+    >
+      {display}
+    </Typography.Text>
+  )
+}
 
 type OcrTypeValue = 'PADDLE_OCR' | 'MINERU'
 type OcrTypeOption = { value: OcrTypeValue; label: string; description: string; icon: ReactNode }
@@ -427,6 +498,41 @@ export function RulesFileOcrTaskPage() {
     setDetailLoading(false)
   }, [])
 
+  /** Fetch markdown pages and save one ``.md`` file with inlined images (same pipeline as the detail drawer). */
+  const handleDownloadOcrMarkdown = useCallback(
+    async (row: OcrFileListItem) => {
+      if (row.status !== 'SUCCESS' || workspaceId == null) return
+      const hideLoading = message.loading(t('fileOcr.tasks.downloadPreparing'), 0)
+      try {
+        const data = await getOcrFileMarkdownPages(workspaceId, row.id)
+        const docTitle = row.file_name?.trim() || t('fileOcr.tasks.detail.titleFallback')
+        const body = buildOcrMarkdownDocumentForExport(data, {
+          documentTitle: docTitle,
+          pageTitle: (n) => t('fileOcr.tasks.detail.pageTitle', { n }),
+          pageEmpty: t('fileOcr.tasks.detail.pageEmpty'),
+        })
+        const base = sanitizeMarkdownDownloadBasename(row.file_name?.trim() || 'ocr-result')
+        triggerMarkdownFileDownload(body, `${base}.md`)
+        hideLoading()
+        void message.success(t('fileOcr.tasks.downloadSuccess'))
+      } catch (e) {
+        hideLoading()
+        if (e instanceof ApiError) {
+          if (e.code === 'ocr_file.detail_requires_success') {
+            void message.error(t('fileOcr.tasks.detail.err409'))
+          } else if (e.code === 'ocr_file.unsupported_detail_type') {
+            void message.error(t('fileOcr.tasks.detail.err422'))
+          } else {
+            void message.error(e.message)
+          }
+        } else {
+          void message.error(t('common.error'))
+        }
+      }
+    },
+    [t, workspaceId],
+  )
+
   /** Open markdown detail drawer and load pages for a SUCCESS task. */
   const openDetailDrawer = useCallback(
     async (row: OcrFileListItem) => {
@@ -521,9 +627,8 @@ export function RulesFileOcrTaskPage() {
         title: t('fileOcr.tasks.col.fileName'),
         dataIndex: 'file_name',
         key: 'file_name',
-        width: 220,
-        ellipsis: true,
-        render: (v: string | null) => v?.trim() || '—',
+        width: 200,
+        render: (v: string | null) => renderEllipsisTableCell(v?.trim() || '—'),
       },
       {
         title: t('fileOcr.tasks.col.ocrType'),
@@ -536,42 +641,42 @@ export function RulesFileOcrTaskPage() {
         title: t('fileOcr.tasks.col.fileSize'),
         dataIndex: 'file_size',
         key: 'file_size',
-        width: 140,
+        width: 132,
         render: (v: number | null) => formatFileSize(v),
       },
       {
         title: t('fileOcr.tasks.col.objectKey'),
         dataIndex: 'object_key',
         key: 'object_key',
-        width: 280,
-        ellipsis: true,
+        width: 240,
+        render: (v: string) => renderEllipsisTableCell(v?.trim() || '—'),
       },
       {
         title: t('fileOcr.tasks.col.pageCount'),
         dataIndex: 'page_count',
         key: 'page_count',
-        width: 100,
+        width: 88,
         render: (v: number | null) => (v == null ? '—' : v),
       },
       {
         title: t('fileOcr.tasks.col.status'),
         dataIndex: 'status',
         key: 'status',
-        width: 120,
+        width: 112,
         render: (v: string) => <Tag color={statusColor(v)}>{statusText(v)}</Tag>,
       },
       {
         title: t('fileOcr.tasks.col.createAt'),
         dataIndex: 'create_at',
         key: 'create_at',
-        width: 180,
+        width: 172,
         render: (v: string | null) => formatDateTime(v),
       },
       {
         title: t('fileOcr.tasks.col.updateAt'),
         dataIndex: 'update_at',
         key: 'update_at',
-        width: 180,
+        width: 172,
         render: (v: string | null) => formatDateTime(v),
       },
       {
@@ -604,7 +709,7 @@ export function RulesFileOcrTaskPage() {
               disabled: row.status !== 'SUCCESS',
               onClick: () => {
                 if (row.status !== 'SUCCESS') return
-                onPendingAction('fileOcr.tasks.action.download')
+                void handleDownloadOcrMarkdown(row)
               },
             },
             {
@@ -672,7 +777,17 @@ export function RulesFileOcrTaskPage() {
         },
       },
     ],
-    [handleDeleteOcrTask, handleRetryOcrTask, onPendingAction, openDetailDrawer, openLogDrawer, statusColor, statusText, t],
+    [
+      handleDeleteOcrTask,
+      handleDownloadOcrMarkdown,
+      handleRetryOcrTask,
+      onPendingAction,
+      openDetailDrawer,
+      openLogDrawer,
+      statusColor,
+      statusText,
+      t,
+    ],
   )
 
   /** Reset wizard states before opening create flow. */
@@ -893,7 +1008,8 @@ export function RulesFileOcrTaskPage() {
               },
             }}
             className="minerva-card-table-scroll-ocr minerva-file-ocr-tasks__table"
-            scroll={{ x: true, y: tableBodyScrollY }}
+            scroll={{ x: FILE_OCR_TASK_TABLE_SCROLL_X, y: tableBodyScrollY }}
+            tableLayout="fixed"
             sticky
           />
         </div>
@@ -983,7 +1099,13 @@ export function RulesFileOcrTaskPage() {
           <div>
             {detailData.pages.map((page, idx) => {
               const n = typeof page.page_index === 'number' ? page.page_index + 1 : idx + 1
-              const md = applyOcrMarkdownImagePlaceholders(page.markdown_text, page.images)
+              const md = normalizeDisplayMathFencesForRemarkMath(
+                promoteInlineMathContainingTagToDisplay(
+                  normalizeLooseInlineMathDelimiters(
+                    applyOcrMarkdownImagePlaceholders(page.markdown_text, page.images),
+                  ),
+                ),
+              )
               return (
                 <section key={`${n}-${idx}`} style={{ marginBottom: 28 }}>
                   <h2 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 12px' }}>
@@ -994,7 +1116,17 @@ export function RulesFileOcrTaskPage() {
                       {md.trim() === '' ? (
                         <span style={{ opacity: 0.65 }}>{t('fileOcr.tasks.detail.pageEmpty')}</span>
                       ) : (
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{md}</ReactMarkdown>
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm, remarkMath]}
+                          rehypePlugins={[
+                            rehypeRaw,
+                            [rehypeKatex, { output: 'html', strict: 'ignore', throwOnError: false }],
+                            [rehypeSanitize, PADDLE_OCR_MARKDOWN_SANITIZE_SCHEMA],
+                          ]}
+                          urlTransform={fileOcrMarkdownUrlTransform}
+                        >
+                          {md}
+                        </ReactMarkdown>
                       )}
                     </div>
                   </div>

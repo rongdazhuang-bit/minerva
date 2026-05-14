@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Mapping
 from typing import Any
 
@@ -19,7 +20,14 @@ from app.ocr.paddleocr.schemas import RestructurePagesRequest
 # Cap stored error text to keep logs and exceptions bounded.
 _BODY_SNIPPET_LEN = 4096
 
+# Long scalar strings in request JSON (beyond layout ``file``) are truncated for INFO logs.
+_LOG_STRING_PREVIEW = 512
+# Cap serialized request preview after redaction (defensive).
+_LOG_JSON_MAX_LEN = 65536
+
 _JSON_HEADERS = {"Content-Type": "application/json", "Accept": "application/json"}
+
+_LOGGER = logging.getLogger(__name__)
 
 # Default per-phase timeouts when the caller does not inject an ``AsyncClient``.
 # Write is generous for large Base64 payloads; read for slow VLM inference.
@@ -75,6 +83,118 @@ def _snippet(text: str, max_len: int = _BODY_SNIPPET_LEN) -> str:
     if len(text) <= max_len:
         return text
     return text[:max_len] + "…"
+
+
+def _redact_paddleocr_wire_payload_for_log(value: Any, *, _depth: int = 0) -> Any:
+    """
+    Return a JSON-serializable copy of PaddleOCR-VL request/response data safe for INFO logs.
+
+    Strips or shortens huge Base64 blobs (``file``, ``inputImage``), ``prunedResult`` trees,
+    image maps (``markdownImages``, ``markdown.images``, ``outputImages``), and long text fields.
+    """
+    if _depth > 24:
+        return "<max_depth>"
+    if isinstance(value, dict):
+        out: dict[str, Any] = {}
+        for key, raw in value.items():
+            ks = str(key)
+            if ks == "file" and isinstance(raw, str):
+                out[key] = f"<redacted base64 len={len(raw)}>"
+            elif ks in ("inputImage", "input_image") and isinstance(raw, str):
+                out[key] = (
+                    f"<redacted base64 len={len(raw)}>"
+                    if len(raw) > _LOG_STRING_PREVIEW
+                    else raw
+                )
+            elif ks == "markdown" and isinstance(raw, dict):
+                mout: dict[str, Any] = {}
+                for mk, mv in raw.items():
+                    mks = str(mk)
+                    if mks == "text" and isinstance(mv, str) and len(mv) > _LOG_STRING_PREVIEW:
+                        mout[mk] = (
+                            f"{mv[:_LOG_STRING_PREVIEW]}…(truncated total_len={len(mv)})"
+                        )
+                    elif mks == "images" and isinstance(mv, dict):
+                        mout[mk] = {
+                            ik: (
+                                f"<redacted b64 len={len(iv)}>"
+                                if isinstance(iv, str) and len(iv) > _LOG_STRING_PREVIEW
+                                else _redact_paddleocr_wire_payload_for_log(
+                                    iv, _depth=_depth + 1
+                                )
+                            )
+                            for ik, iv in mv.items()
+                        }
+                    else:
+                        mout[mk] = _redact_paddleocr_wire_payload_for_log(
+                            mv, _depth=_depth + 1
+                        )
+                out[key] = mout
+            elif ks in ("outputImages", "output_images") and isinstance(raw, dict):
+                out[key] = {
+                    ik: (
+                        f"<redacted b64 len={len(iv)}>"
+                        if isinstance(iv, str) and len(iv) > _LOG_STRING_PREVIEW
+                        else _redact_paddleocr_wire_payload_for_log(iv, _depth=_depth + 1)
+                    )
+                    for ik, iv in raw.items()
+                }
+            elif ks in ("prunedResult", "pruned_result") and isinstance(raw, (dict, list)):
+                approx = len(json.dumps(raw, default=str))
+                out[key] = f"<redacted prunedResult json_len={approx}>"
+            elif ks in ("preprocessedImages", "preprocessed_images") and isinstance(raw, list):
+                out[key] = [
+                    (
+                        f"<url len={len(item)}>"
+                        if isinstance(item, str) and len(item) > _LOG_STRING_PREVIEW
+                        else _redact_paddleocr_wire_payload_for_log(item, _depth=_depth + 1)
+                    )
+                    for item in raw
+                ]
+            elif ks == "markdownImages" and isinstance(raw, dict):
+                out[key] = {
+                    ik: (
+                        f"<redacted b64 len={len(iv)}>"
+                        if isinstance(iv, str) and len(iv) > _LOG_STRING_PREVIEW
+                        else _redact_paddleocr_wire_payload_for_log(iv, _depth=_depth + 1)
+                    )
+                    for ik, iv in raw.items()
+                }
+            elif isinstance(raw, str) and len(raw) > _LOG_STRING_PREVIEW:
+                out[key] = (
+                    f"{raw[:_LOG_STRING_PREVIEW]}…(truncated total_len={len(raw)})"
+                )
+            else:
+                out[key] = _redact_paddleocr_wire_payload_for_log(raw, _depth=_depth + 1)
+        return out
+    if isinstance(value, list):
+        return [
+            _redact_paddleocr_wire_payload_for_log(item, _depth=_depth + 1)
+            for item in value
+        ]
+    return value
+
+
+def _request_json_for_log(payload: dict[str, Any]) -> str:
+    """Serialize a redacted PaddleOCR-VL request body for a single log line."""
+    safe = _redact_paddleocr_wire_payload_for_log(payload)
+    text = json.dumps(safe, ensure_ascii=False, default=str)
+    if len(text) > _LOG_JSON_MAX_LEN:
+        return text[:_LOG_JSON_MAX_LEN] + f"…(truncated log json_len={len(text)})"
+    return text
+
+
+def _response_json_for_log(raw_text: str) -> str:
+    """Serialize a redacted PaddleOCR-VL HTTP response body for a single log line."""
+    try:
+        parsed: Any = json.loads(raw_text)
+    except json.JSONDecodeError:
+        return _snippet(raw_text, max_len=_LOG_JSON_MAX_LEN)
+    safe = _redact_paddleocr_wire_payload_for_log(parsed)
+    text = json.dumps(safe, ensure_ascii=False, default=str)
+    if len(text) > _LOG_JSON_MAX_LEN:
+        return text[:_LOG_JSON_MAX_LEN] + f"…(truncated log json_len={len(text)})"
+    return text
 
 
 def layout_parsing_body(
@@ -140,6 +260,11 @@ async def _post_envelope(
 ) -> LayoutParsingApiResponse:
     """POST JSON to ``url`` and return a validated envelope."""
     hdrs = _merge_headers(headers)
+    _LOGGER.info(
+        "PaddleOCR-VL request url=%s body=%s",
+        url,
+        _request_json_for_log(payload),
+    )
     try:
         response = await client.post(url, json=payload, headers=hdrs)
     except httpx.RequestError as exc:
@@ -149,6 +274,12 @@ async def _post_envelope(
         ) from exc
 
     raw_text = response.text
+    _LOGGER.info(
+        "PaddleOCR-VL response url=%s http_status=%s body=%s",
+        str(response.request.url),
+        response.status_code,
+        raw_text,
+    )
     if not response.is_success:
         raise PaddleOcrVlTransportError(
             f"PaddleOCR-VL HTTP {response.status_code}",

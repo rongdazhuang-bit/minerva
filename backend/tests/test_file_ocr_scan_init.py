@@ -12,7 +12,9 @@ from sqlalchemy import delete, select
 
 from app.config import settings
 from app.core.infrastructure.db.session import async_session_factory
+from app.file_ocr.constants import FILE_OCR_LOG_STATUS_FAILED, FILE_OCR_LOG_STATUS_SUCCESS
 from app.file_ocr.domain.db.models import OcrFile
+from app.file_ocr.domain.db.models_log import OcrFileLog
 from app.file_ocr.domain.db.models_result import OcrFilePaddleocr
 from app.file_ocr.service.ocr_http_headers import build_ocr_tool_http_headers
 from app.file_ocr.service.scan_init import run_file_ocr_scan_tick
@@ -112,6 +114,14 @@ async def test_scan_marks_failed_when_no_paddle_tool() -> None:
     assert row.status == "FAILED"
     assert row.remark is not None
     assert "no_sys_ocr_tool" in row.remark
+    async with async_session_factory() as session:
+        log_rows = (
+            await session.execute(select(OcrFileLog).where(OcrFileLog.ocr_file_id == ocr_id))
+        ).scalars().all()
+    assert len(log_rows) == 1
+    assert log_rows[0].status == FILE_OCR_LOG_STATUS_FAILED
+    assert log_rows[0].finish_at is not None
+    assert log_rows[0].remark is not None
 
 
 @pytest.mark.asyncio
@@ -144,7 +154,7 @@ async def test_scan_paddle_success_with_mocks(monkeypatch: pytest.MonkeyPatch) -
                     "layoutParsingResults": [
                         {"markdown": {"text": "# Title", "images": {"a": "b"}}},
                     ],
-                    "dataInfo": {},
+                    "dataInfo": {"numPages": 12},
                 },
             }
         )
@@ -203,7 +213,7 @@ async def test_scan_paddle_success_with_mocks(monkeypatch: pytest.MonkeyPatch) -
             await run_file_ocr_scan_tick(session)
     assert row is not None
     assert row.status == "SUCCESS"
-    assert row.page_count == 1
+    assert row.page_count == 12
     async with async_session_factory() as session:
         res = await session.execute(
             select(OcrFilePaddleocr).where(OcrFilePaddleocr.file_id == ocr_id)
@@ -211,6 +221,14 @@ async def test_scan_paddle_success_with_mocks(monkeypatch: pytest.MonkeyPatch) -
         pages = list(res.scalars().all())
     assert len(pages) == 1
     assert pages[0].markdown_text == "# Title"
+    async with async_session_factory() as session:
+        log_rows = (
+            await session.execute(select(OcrFileLog).where(OcrFileLog.ocr_file_id == ocr_id))
+        ).scalars().all()
+    assert len(log_rows) == 1
+    assert log_rows[0].status == FILE_OCR_LOG_STATUS_SUCCESS
+    assert log_rows[0].page_count == 12
+    assert log_rows[0].finish_at is not None
 
 
 @pytest.mark.asyncio

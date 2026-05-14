@@ -11,11 +11,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.file_ocr.constants import (
+    FILE_OCR_LOG_STATUS_FAILED,
+    FILE_OCR_LOG_STATUS_RUNNING,
+    FILE_OCR_LOG_STATUS_SUCCESS,
     FILE_OCR_REMARK_MAX_LEN,
     FILE_OCR_SCAN_BATCH_SIZE,
     FILE_OCR_SUPPORTED_SCAN_OCR_TYPES,
 )
 from app.file_ocr.domain.db.models import OcrFile
+from app.file_ocr.domain.db.models_log import OcrFileLog
 from app.file_ocr.service.ocr_tool_pick import select_default_ocr_tool
 from app.file_ocr.service.strategies.registry import get_file_ocr_strategy
 
@@ -35,6 +39,26 @@ def _truncate_remark(text: str) -> str:
     if len(t) <= FILE_OCR_REMARK_MAX_LEN:
         return t
     return t[: FILE_OCR_REMARK_MAX_LEN - 1] + "…"
+
+
+def _finalize_ocr_file_log(
+    run_log: OcrFileLog,
+    *,
+    status: str,
+    remark: str | None = None,
+    page_count: int | None = None,
+) -> None:
+    """Set terminal fields on one ``OcrFileLog`` row inside the active transaction."""
+
+    now = _utc_now()
+    run_log.status = status
+    run_log.finish_at = now
+    if status == FILE_OCR_LOG_STATUS_SUCCESS:
+        run_log.page_count = page_count
+        run_log.remark = None
+    else:
+        run_log.page_count = None
+        run_log.remark = _truncate_remark(remark) if remark else None
 
 
 async def _claim_init_batch(session: AsyncSession) -> list[uuid.UUID]:
@@ -69,6 +93,20 @@ async def _process_one_claimed(session: AsyncSession, *, ocr_file_id: uuid.UUID)
             return "missing"
         if row.status != "PROCESS":
             return "skip"
+        started = _utc_now()
+        run_log = OcrFileLog(
+            id=uuid.uuid4(),
+            workspace_id=row.workspace_id,
+            ocr_file_id=row.id,
+            ocr_type=row.ocr_type,
+            status=FILE_OCR_LOG_STATUS_RUNNING,
+            page_count=None,
+            remark=None,
+            start_at=started,
+            finish_at=None,
+        )
+        session.add(run_log)
+        await session.flush()
         tool = await select_default_ocr_tool(
             session,
             workspace_id=row.workspace_id,
@@ -78,11 +116,21 @@ async def _process_one_claimed(session: AsyncSession, *, ocr_file_id: uuid.UUID)
             row.status = "FAILED"
             row.remark = _truncate_remark("file_ocr:no_sys_ocr_tool")
             row.update_at = _utc_now()
+            _finalize_ocr_file_log(
+                run_log,
+                status=FILE_OCR_LOG_STATUS_FAILED,
+                remark=row.remark,
+            )
             return "no_tool"
         if not (tool.url or "").strip():
             row.status = "FAILED"
             row.remark = _truncate_remark("file_ocr:empty_tool_url")
             row.update_at = _utc_now()
+            _finalize_ocr_file_log(
+                run_log,
+                status=FILE_OCR_LOG_STATUS_FAILED,
+                remark=row.remark,
+            )
             return "bad_tool"
         strategy = get_file_ocr_strategy(row.ocr_type)
         try:
@@ -92,7 +140,17 @@ async def _process_one_claimed(session: AsyncSession, *, ocr_file_id: uuid.UUID)
             row.status = "FAILED"
             row.remark = _truncate_remark(f"file_ocr:{exc.__class__.__name__}:{exc}")
             row.update_at = _utc_now()
+            _finalize_ocr_file_log(
+                run_log,
+                status=FILE_OCR_LOG_STATUS_FAILED,
+                remark=row.remark,
+            )
             return "error"
+        _finalize_ocr_file_log(
+            run_log,
+            status=FILE_OCR_LOG_STATUS_SUCCESS,
+            page_count=row.page_count,
+        )
         return "ok"
 
 

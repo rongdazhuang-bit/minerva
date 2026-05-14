@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 from app.ocr.paddleocr.pruned_result import PrunedResult
 
@@ -69,6 +69,28 @@ class MarkdownResult(BaseModel):
     images: dict[str, str] = Field(default_factory=dict)
 
 
+class DataInfoPageMeta(BaseModel):
+    """One element of ``dataInfo.pages`` (per-page dimensions from serving)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    width: int | None = None
+    height: int | None = None
+
+
+class LayoutParsingDataInfo(BaseModel):
+    """``dataInfo`` on layout-parsing ``result`` (document type, total pages, page size list)."""
+
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
+    type: str | None = None
+    num_pages: int | None = Field(
+        default=None,
+        validation_alias=AliasChoices("numPages", "num_pages"),
+    )
+    pages: list[DataInfoPageMeta] = Field(default_factory=list)
+
+
 class LayoutParsingPageResult(BaseModel):
     """Single element of ``layoutParsingResults``."""
 
@@ -89,7 +111,33 @@ class LayoutParsingResultPayload(BaseModel):
     layout_parsing_results: list[LayoutParsingPageResult] = Field(
         default_factory=list, alias="layoutParsingResults"
     )
-    data_info: dict[str, Any] | None = Field(default=None, alias="dataInfo")
+    preprocessed_images: list[str] = Field(default_factory=list, alias="preprocessedImages")
+    data_info: LayoutParsingDataInfo | None = Field(default=None, alias="dataInfo")
+
+    def _coerce_document_num_pages_from_data_info(self) -> int | None:
+        """Parse ``dataInfo.numPages`` into a positive page total when the serving value is usable."""
+        info = self.data_info
+        if info is None or info.num_pages is None:
+            return None
+        try:
+            n = int(info.num_pages)
+        except (TypeError, ValueError):
+            return None
+        if n >= 1:
+            return n
+        return None
+
+    def effective_page_count(self) -> int:
+        """
+        Return the document page count for ``ocr_file.page_count``.
+
+        Prefer ``result.dataInfo.numPages`` from PaddleOCR-VL (PDF total pages). When absent
+        or invalid, use the length of ``layoutParsingResults`` as a coarse fallback.
+        """
+        from_data = self._coerce_document_num_pages_from_data_info()
+        if from_data is not None:
+            return from_data
+        return len(self.layout_parsing_results)
 
 
 class LayoutParsingApiResponse(BaseModel):

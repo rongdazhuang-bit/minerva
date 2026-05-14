@@ -13,6 +13,27 @@
   margin-bottom: 0;
 }
 
+.file-ocr-task-md .katex {
+  color: inherit;
+  font-size: 1em;
+}
+
+.file-ocr-task-md .katex-display {
+  display: block;
+  margin: 0.65em 0;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.file-ocr-task-md .katex-error {
+  color: #f87171;
+}
+
+html.minerva-tone-sunshine .file-ocr-task-md .katex-error {
+  color: #dc2626;
+}
+
+
 .file-ocr-task-md p {
   margin: 0.5em 0;
 }
@@ -51,6 +72,14 @@
   border-bottom: 1px solid var(--minerva-border, #2a3f58);
 }
 
+.file-ocr-task-md caption {
+  caption-side: top;
+  text-align: start;
+  font-weight: 600;
+  padding: 0.35em 0.5em 0.5em;
+  color: color-mix(in srgb, var(--minerva-ink, #e8f0f8) 88%, transparent);
+}
+
 .file-ocr-task-md th,
 .file-ocr-task-md td {
   border: 1px solid var(--minerva-border, #2a3f58);
@@ -74,6 +103,10 @@ html.minerva-tone-sunshine .file-ocr-task-md {
 
 html.minerva-tone-sunshine .file-ocr-task-md thead {
   border-bottom-color: #e2e8f0;
+}
+
+html.minerva-tone-sunshine .file-ocr-task-md caption {
+  color: color-mix(in srgb, var(--minerva-ink, #0f172a) 85%, transparent);
 }
 
 html.minerva-tone-sunshine .file-ocr-task-md th,

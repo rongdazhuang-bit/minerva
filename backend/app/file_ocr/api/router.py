@@ -86,8 +86,13 @@ async def create_ocr_files(
     _workspace: uuid.UUID = Depends(require_workspace_member),
     session: AsyncSession = Depends(get_db),
 ) -> OcrFileBatchCreateOut:
-    """Create INIT OCR task rows after source files were uploaded to S3."""
+    """Create INIT OCR task rows after source files were uploaded to S3.
 
+    Initializes ``create_at`` and ``update_at`` to the same UTC instant so list
+    ordering and UI columns are populated even when the DB column has no default.
+    """
+
+    now = datetime.now(UTC)
     rows: list[OcrFile] = []
     for file in body.files:
         row = OcrFile(
@@ -98,6 +103,8 @@ async def create_ocr_files(
             ocr_type=body.ocr_type,
             status="INIT",
             page_count=None,
+            create_at=now,
+            update_at=now,
         )
         session.add(row)
         rows.append(row)

@@ -132,6 +132,13 @@ html.minerva-tone-sunshine .minerva-file-ocr-overview__icon {
   vertical-align: middle;
 }
 
+/* 文件名 / 对象键：列宽固定，超长单行省略，悬停见全文（由 Typography ellipsis.tooltip 提供） */
+.minerva-file-ocr-tasks__table .minerva-file-ocr-tasks__cell-ellipsis.ant-typography {
+  display: block;
+  margin-bottom: 0 !important;
+  max-width: 100%;
+}
+
 .minerva-file-ocr-tasks__wizard-shell {
   display: flex;
   flex-direction: column;
