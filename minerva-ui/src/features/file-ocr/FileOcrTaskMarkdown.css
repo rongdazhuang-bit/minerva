@@ -16,13 +16,31 @@
 .file-ocr-task-md .katex {
   color: inherit;
   font-size: 1em;
+  overflow: visible;
+  max-height: none;
 }
 
+/*
+ * Do not use ``overflow-x: auto`` alone on display math: per CSS overflow rules, the other axis
+ * then resolves to ``auto`` as well, which creates tiny vertical scrollbars beside ``\\tag`` numbers.
+ * Horizontal overflow is handled by ``.file-ocr-task-md-wrap``; allow the block to grow vertically.
+ */
 .file-ocr-task-md .katex-display {
   display: block;
-  margin: 0.65em 0;
-  overflow-x: auto;
+  margin: 0.85em 0;
+  padding: 0.35em 0;
+  overflow: visible;
   max-width: 100%;
+  max-height: none;
+}
+
+.file-ocr-task-md .katex-display > .katex {
+  display: block;
+}
+
+.file-ocr-task-md .katex-html {
+  max-height: none !important;
+  overflow: visible !important;
 }
 
 .file-ocr-task-md .katex-error {
@@ -57,6 +75,13 @@ html.minerva-tone-sunshine .file-ocr-task-md .katex-error {
   max-width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  padding: 2px 6px 8px 2px;
+}
+
+/* OCR HTML may wrap KaTeX in a div with a small max-height; let formulas expand vertically. */
+.file-ocr-task-md-wrap div:has(.katex) {
+  max-height: none !important;
+  overflow: visible !important;
 }
 
 .file-ocr-task-md table {
