@@ -143,6 +143,12 @@ html.minerva-tone-sunshine .minerva-file-ocr-overview__icon {
 
 .minerva-file-ocr-overview__chart-wrap {
   width: 100%;
+  min-width: 240px;
+  min-height: 320px;
+}
+
+.minerva-file-ocr-overview__chart-measure {
+  width: 100%;
   min-height: 320px;
 }
 

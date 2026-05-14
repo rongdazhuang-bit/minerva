@@ -47,7 +47,6 @@ import {
   Legend,
   Line,
   LineChart,
-  ResponsiveContainer,
   Tooltip as RechartsTooltip,
   XAxis,
   YAxis,
@@ -82,6 +81,7 @@ import {
   type OcrFileListParams,
   type OcrFileLogItem,
   type OcrFileMarkdownPages,
+  type OcrFileOverviewLogDailyStatItem,
 } from '@/api/ocrTask'
 import { useAuth } from '@/app/AuthContext'
 import { DictText } from '@/components/dict'
@@ -151,6 +151,24 @@ const FILE_OCR_TASK_TABLE_SCROLL_GUTTER_PX = 112
 /** Sum of column ``width`` values so ``scroll.x`` keeps a stable layout (long names ellipsize instead of stretching). */
 const FILE_OCR_TASK_TABLE_SCROLL_X =
   200 + 120 + 132 + 240 + 88 + 112 + 172 + 172 + 100
+
+/** Coerce API row fields so charts stay numeric even if JSON shape drifts. */
+function normalizeOcrLogDailyChartRow(r: OcrFileOverviewLogDailyStatItem): {
+  date: string
+  paddle_success: number
+  paddle_failed: number
+  mineru_success: number
+  mineru_failed: number
+} {
+  const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
+  return {
+    date: r.date,
+    paddle_success: n(r.paddle_success),
+    paddle_failed: n(r.paddle_failed),
+    mineru_success: n(r.mineru_success),
+    mineru_failed: n(r.mineru_failed),
+  }
+}
 
 /**
  * Renders a single-line table cell: fixed width column + ellipsis; hover shows full text when not a placeholder dash.
@@ -256,6 +274,8 @@ function buildOcrTypeOptions(t: (key: string) => string): OcrTypeOption[] {
 export function RulesFileOcrOverviewPage() {
   const { t } = useTranslation()
   const { workspaceId } = useAuth()
+  const chartBoxRef = useRef<HTMLDivElement | null>(null)
+  const [chartBoxW, setChartBoxW] = useState(0)
   const statsQuery = useQuery({
     queryKey: ['ocrFileOverviewStats', workspaceId],
     queryFn: () => getOcrFileOverviewStats(workspaceId!),
@@ -275,7 +295,30 @@ export function RulesFileOcrOverviewPage() {
   const dailyErr = dailyStatsQuery.error
   const dailyStats = dailyStatsQuery.data
 
-  const chartData = useMemo(() => dailyStats?.items ?? [], [dailyStats])
+  const chartData = useMemo(() => {
+    const raw = dailyStats?.items
+    if (raw == null || raw.length === 0) return []
+    return raw.map((row) => normalizeOcrLogDailyChartRow(row))
+  }, [dailyStats])
+
+  useLayoutEffect(() => {
+    if (chartData.length === 0) {
+      setChartBoxW(0)
+      return
+    }
+    const el = chartBoxRef.current
+    if (el == null) return
+    const measure = () => {
+      const w = Math.floor(el.getBoundingClientRect().width)
+      setChartBoxW(w > 0 ? w : 0)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => {
+      ro.disconnect()
+    }
+  }, [workspaceId, stats, chartData.length])
 
   const hasStats = Boolean(stats)
   const displayInit = useCountUp(stats?.init_count ?? 0, { enabled: hasStats })
@@ -369,10 +412,15 @@ export function RulesFileOcrOverviewPage() {
                 />
               )}
               <Spin spinning={chartPending}>
-                {chartData.length > 0 && (
-                  <div className="minerva-file-ocr-overview__chart-wrap">
-                    <ResponsiveContainer width="100%" height={320}>
-                      <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                {!chartPending && dailyErr == null && chartData.length > 0 && (
+                  <div ref={chartBoxRef} className="minerva-file-ocr-overview__chart-wrap">
+                    {chartBoxW > 0 ? (
+                      <LineChart
+                        width={chartBoxW}
+                        height={320}
+                        data={chartData}
+                        margin={{ top: 8, right: 16, left: 0, bottom: 8 }}
+                      >
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--minerva-border, #2a3f58)" opacity={0.45} />
                         <XAxis
                           dataKey="date"
@@ -428,8 +476,17 @@ export function RulesFileOcrOverviewPage() {
                           isAnimationActive={false}
                         />
                       </LineChart>
-                    </ResponsiveContainer>
+                    ) : (
+                      <div className="minerva-file-ocr-overview__chart-measure" aria-hidden />
+                    )}
                   </div>
+                )}
+                {!chartPending && dailyErr == null && chartData.length === 0 && (
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description={t('fileOcr.overview.logDailyChartEmpty')}
+                    style={{ margin: '24px 0' }}
+                  />
                 )}
               </Spin>
             </Card>
