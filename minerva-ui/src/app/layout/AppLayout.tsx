@@ -107,12 +107,12 @@ const contentScrollStyle: CSSProperties = {
   padding: 20,
 }
 
-/** 智能体路由：顶/底留白由 AgentsPage 的 --agents-chrome-inset 承担，此处仅保留与面包屑一致的左右 20px，避免与页内顶距叠加。 */
+/** 智能体路由：顶/底由页内承担；左缘略收紧使对话区向左靠，右缘保持 20px 与面包屑/滚动条习惯一致。 */
 function contentScrollStyleForPath(pathname: string): CSSProperties {
   if (pathname.startsWith('/app/agents')) {
     return {
       ...contentScrollStyle,
-      padding: '0 20px 0 20px',
+      padding: '0 20px 0 10px',
     }
   }
   return contentScrollStyle

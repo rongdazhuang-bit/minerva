@@ -1,19 +1,18 @@
 /**
  * 工作区「智能体」对话页：Kimi 式布局；模型仅从已配置的模型提供商中选择，发送前拉取详情以连接上游。
  */
-import { PlusOutlined, RobotOutlined, SendOutlined } from '@ant-design/icons'
+import { CopyOutlined, RobotOutlined, SendOutlined } from '@ant-design/icons'
 import {
   Alert,
   Button,
-  Card,
   Collapse,
-  Divider,
   Flex,
   Input,
   Select,
   Spin,
   Typography,
   message as antdMessage,
+  type InputRef,
 } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -23,15 +22,15 @@ import { createAgentSession, streamAgentRun, type AgentSseEvent } from '@/api/ag
 import { ApiError } from '@/api/client'
 import { getModelProvider, listModelProviders, type ModelProviderListItem } from '@/api/modelProviders'
 import { useAuth } from '@/app/AuthContext'
+import { AgentAssistantMarkdown } from '@/features/workspace/AgentAssistantMarkdown'
 import './AgentsPage.css'
 
-const { Text, Paragraph, Title } = Typography
+const { Text, Title } = Typography
 
 const UI_PREFS_KEY = 'minerva-agent-ui-v2'
 
 type UiPrefs = {
   selectedModelId: string | null
-  skillIdsCsv: string
 }
 
 function loadPrefs(): UiPrefs {
@@ -41,22 +40,14 @@ function loadPrefs(): UiPrefs {
     const j = JSON.parse(raw) as Partial<UiPrefs>
     return {
       selectedModelId: typeof j.selectedModelId === 'string' ? j.selectedModelId : null,
-      skillIdsCsv: typeof j.skillIdsCsv === 'string' ? j.skillIdsCsv : 'example_echo',
     }
   } catch {
-    return { selectedModelId: null, skillIdsCsv: 'example_echo' }
+    return { selectedModelId: null }
   }
 }
 
 function savePrefs(p: UiPrefs) {
   sessionStorage.setItem(UI_PREFS_KEY, JSON.stringify(p))
-}
-
-function parseSkillIds(csv: string): string[] {
-  return csv
-    .split(/[,，\s]+/)
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean)
 }
 
 /** 将后台 ``model_type`` 粗映射为 Agent run 的 ``provider_kind``。 */
@@ -71,6 +62,8 @@ type ChatMsg = {
   id: string
   role: 'user' | 'assistant'
   content: string
+  /** 助手气泡内：运行/工具/日志等可追溯行 */
+  processLog?: string[]
 }
 
 /** 工作区智能体对话主界面（类 Kimi：侧栏 + 主区 + 底部合成器，右侧选模型）。 */
@@ -80,11 +73,16 @@ export function AgentsPage() {
   const [prefs, setPrefs] = useState<UiPrefs>(() => loadPrefs())
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMsg[]>([])
-  const [processLines, setProcessLines] = useState<string[]>([])
   const [draft, setDraft] = useState('')
   const [streaming, setStreaming] = useState(false)
+  /** 当前轮助手气泡内「运行/思考」折叠：有正文输出后自动收起 */
+  const [traceOpenKeys, setTraceOpenKeys] = useState<string[]>([])
   const abortRef = useRef<AbortController | null>(null)
   const listEndRef = useRef<HTMLDivElement | null>(null)
+  /** Composer ``Input.TextArea`` ref for refocus after a run finishes. */
+  const draftInputRef = useRef<InputRef | null>(null)
+  /** Tracks previous ``streaming`` to detect assistant run completion. */
+  const wasStreamingRef = useRef(false)
 
   const modelsQuery = useQuery({
     queryKey: ['agent-model-providers', workspaceId],
@@ -118,17 +116,34 @@ export function AgentsPage() {
     })
   }, [])
 
-  const setSkillIdsCsv = useCallback((csv: string) => {
-    setPrefs((p) => {
-      const next = { ...p, skillIdsCsv: csv }
-      savePrefs(next)
-      return next
-    })
-  }, [])
+  /** 将单条消息正文写入剪贴板（助手为原始 Markdown）。 */
+  const copyMessageBody = useCallback(
+    async (text: string) => {
+      try {
+        await navigator.clipboard.writeText(text)
+        antdMessage.success(t('agents.copySuccess'))
+      } catch {
+        antdMessage.error(t('agents.copyFailed'))
+      }
+    },
+    [t],
+  )
 
   useEffect(() => {
     listEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, processLines, streaming])
+  }, [messages, streaming])
+
+  /** When assistant streaming ends, focus the draft field so the user can type the next message. */
+  useEffect(() => {
+    if (wasStreamingRef.current && !streaming) {
+      const id = window.requestAnimationFrame(() => {
+        draftInputRef.current?.focus({ preventScroll: true })
+      })
+      wasStreamingRef.current = streaming
+      return () => window.cancelAnimationFrame(id)
+    }
+    wasStreamingRef.current = streaming
+  }, [streaming])
 
   const canSend = useMemo(() => {
     if (!workspaceId || streaming) return false
@@ -141,14 +156,10 @@ export function AgentsPage() {
     abortRef.current = null
     setSessionId(null)
     setMessages([])
-    setProcessLines([])
+    setTraceOpenKeys([])
     setStreaming(false)
     antdMessage.info(t('agents.newChatHint'))
   }, [t])
-
-  const appendProcess = useCallback((line: string) => {
-    setProcessLines((prev) => [...prev.slice(-200), line])
-  }, [])
 
   const onSend = useCallback(async () => {
     if (!workspaceId) {
@@ -169,10 +180,20 @@ export function AgentsPage() {
     setDraft('')
     setMessages((m) => [...m, userMsg, asstMsg])
     setStreaming(true)
-    setProcessLines([])
+    setTraceOpenKeys(['trace'])
 
     const ac = new AbortController()
     abortRef.current = ac
+
+    const pushAsstLog = (line: string) => {
+      setMessages((prev) =>
+        prev.map((row) =>
+          row.id === asstId && row.role === 'assistant'
+            ? { ...row, processLog: [...(row.processLog ?? []).slice(-199), line] }
+            : row,
+        ),
+      )
+    }
 
     let sid = sessionId
     try {
@@ -187,10 +208,9 @@ export function AgentsPage() {
         const s = await createAgentSession(workspaceId, { title: t('agents.defaultSessionTitle') })
         sid = s.id
         setSessionId(sid)
-        appendProcess(`[session] ${sid}`)
+        pushAsstLog(`[session] ${sid}`)
       }
 
-      const skillIds = parseSkillIds(prefs.skillIdsCsv)
       const maxTok =
         detail.max_tokens_to_sample != null && Number.isFinite(detail.max_tokens_to_sample)
           ? detail.max_tokens_to_sample
@@ -203,7 +223,7 @@ export function AgentsPage() {
         sid,
         {
           user_message: text,
-          skill_ids: skillIds,
+          skill_ids: [],
           provider_kind: pk,
           base_url: baseUrl,
           api_key: apiKey,
@@ -214,49 +234,52 @@ export function AgentsPage() {
         (evt: AgentSseEvent) => {
           const typ = String(evt.type)
           if (typ === 'run_started') {
-            appendProcess(`[run_started] ${evt.run_id}`)
+            pushAsstLog(`[run_started] ${evt.run_id}`)
             return
           }
           if (typ === 'assistant_delta' && typeof evt.text === 'string') {
+            const chunk = evt.text
+            if (chunk.length > 0) {
+              setTraceOpenKeys([])
+            }
             setMessages((prev) =>
               prev.map((m) =>
-                m.id === asstId ? { ...m, content: m.content + evt.text } : m,
+                m.id === asstId ? { ...m, content: m.content + chunk } : m,
               ),
             )
             return
           }
           if (typ === 'log' || typ === 'step') {
             const body = typeof evt.message === 'string' ? evt.message : JSON.stringify(evt)
-            appendProcess(`[${typ}] ${body}`)
+            pushAsstLog(`[${typ}] ${body}`)
             return
           }
           if (typ === 'tool_start' || typ === 'tool_result') {
-            appendProcess(`[${typ}] ${JSON.stringify(evt)}`)
+            pushAsstLog(`[${typ}] ${JSON.stringify(evt)}`)
             return
           }
           if (typ === 'error') {
             const code = typeof evt.code === 'string' ? evt.code : 'error'
             const msg = typeof evt.message === 'string' ? evt.message : ''
-            appendProcess(`[error] ${code}: ${msg}`)
+            pushAsstLog(`[error] ${code}: ${msg}`)
             antdMessage.error(msg || code)
             return
           }
           if (typ === 'run_finished') {
-            appendProcess(`[run_finished] ${String(evt.status ?? '')}`)
+            pushAsstLog(`[run_finished] ${String(evt.status ?? '')}`)
           }
         },
         ac.signal,
       )
-      antdMessage.success(t('agents.runComplete'))
     } catch (e) {
       if ((e as Error).name === 'AbortError') {
-        appendProcess('[aborted]')
+        pushAsstLog('[aborted]')
       } else if (e instanceof ApiError) {
         antdMessage.error(e.message)
-        appendProcess(`[api] ${e.code}: ${e.message}`)
+        pushAsstLog(`[api] ${e.code}: ${e.message}`)
       } else {
         antdMessage.error(String(e))
-        appendProcess(`[error] ${String(e)}`)
+        pushAsstLog(`[error] ${String(e)}`)
       }
     } finally {
       setStreaming(false)
@@ -267,8 +290,6 @@ export function AgentsPage() {
     sessionId,
     draft,
     prefs.selectedModelId,
-    prefs.skillIdsCsv,
-    appendProcess,
     t,
   ])
 
@@ -282,6 +303,53 @@ export function AgentsPage() {
     [usableModels],
   )
 
+  const lastMessageId = useMemo(() => messages[messages.length - 1]?.id, [messages])
+
+  const assistantTraceBelowRobot = useCallback(
+    (m: ChatMsg) => {
+      if (m.role !== 'assistant') return null
+      const logs = m.processLog ?? []
+      const isLatestAssistantCard = m.id === lastMessageId
+      const showTrace = (streaming && isLatestAssistantCard) || logs.length > 0
+      if (!showTrace) return null
+      return (
+        <Collapse
+          className="agents-page__trace"
+          size="small"
+          ghost
+          bordered={false}
+          expandIconPosition="start"
+          style={{ marginTop: 6, marginBottom: 4 }}
+          items={[
+            {
+              key: 'trace',
+              label: <span style={{ fontSize: 12 }}>{t('agents.assistantTrace')}</span>,
+              children: (
+                <div className="agents-page__process">
+                  {logs.length === 0 ? (
+                    <Text type="secondary">{t('agents.processEmpty')}</Text>
+                  ) : (
+                    logs.map((line, i) => (
+                      <div key={`${m.id}-${i}-${line.slice(0, 48)}`}>{line}</div>
+                    ))
+                  )}
+                </div>
+              ),
+            },
+          ]}
+          {...(isLatestAssistantCard
+            ? {
+                activeKey: traceOpenKeys,
+                onChange: (k: string | string[]) =>
+                  setTraceOpenKeys(Array.isArray(k) ? k : k ? [k] : []),
+              }
+            : { defaultActiveKey: [] as string[] })}
+        />
+      )
+    },
+    [lastMessageId, streaming, traceOpenKeys, t],
+  )
+
   return (
     <div className="agents-page">
       <aside className="agents-page__sider">
@@ -291,37 +359,10 @@ export function AgentsPage() {
         <Text type="secondary" style={{ fontSize: 12 }}>
           {t('agents.sidebarHint')}
         </Text>
-        <Divider style={{ margin: '8px 0' }} />
-        <Collapse
-          size="small"
-          ghost
-          items={[
-            {
-              key: 'proc',
-              label: (
-                <span style={{ fontSize: 12 }}>
-                  <PlusOutlined style={{ marginRight: 6 }} />
-                  {t('agents.processPanel')}
-                </span>
-              ),
-              children: (
-                <div className="agents-page__process">
-                  {processLines.length === 0 ? (
-                    <Text type="secondary">{t('agents.processEmpty')}</Text>
-                  ) : (
-                    processLines.map((line, i) => (
-                      <div key={`${i}-${line.slice(0, 48)}`}>{line}</div>
-                    ))
-                  )}
-                </div>
-              ),
-            },
-          ]}
-        />
       </aside>
 
       <div className="agents-page__main">
-        <div className="agents-page__scroll">
+        <div className="agents-page__scroll minerva-scrollbar-styled">
           {!workspaceId ? (
             <Alert type="warning" message={t('agents.noWorkspace')} showIcon />
           ) : modelsQuery.isLoading ? (
@@ -359,29 +400,63 @@ export function AgentsPage() {
                   marginBottom: 12,
                 }}
               >
-                <Card
-                  size="small"
-                  style={{
-                    maxWidth: '85%',
-                    background:
-                      m.role === 'user'
-                        ? 'var(--minerva-primary-dim, rgba(56,189,248,0.12))'
-                        : 'var(--minerva-surface, #1b2838)',
-                    borderColor: 'var(--minerva-border, #2d3f55)',
-                  }}
-                >
-                  <Text type="secondary" style={{ fontSize: 11 }}>
-                    {m.role === 'user' ? t('agents.roleUser') : t('agents.roleAssistant')}
-                  </Text>
+                <div className="agents-page__msg">
+                  <div
+                    style={{
+                      marginBottom: 6,
+                      textAlign: m.role === 'user' ? 'right' : 'left',
+                    }}
+                  >
+                    {m.role === 'user' ? (
+                      <Text type="secondary" style={{ fontSize: 11 }}>
+                        {t('agents.roleUser')}
+                      </Text>
+                    ) : (
+                      <RobotOutlined
+                        aria-label={t('agents.roleAssistant')}
+                        title={t('agents.roleAssistant')}
+                        style={{
+                          fontSize: 13,
+                          color: 'var(--minerva-ink-muted, #a8b8cc)',
+                        }}
+                      />
+                    )}
+                  </div>
+                  {assistantTraceBelowRobot(m)}
                   <Flex align="flex-start" gap={8}>
                     {streaming && m.role === 'assistant' && !m.content ? (
                       <Spin size="small" style={{ marginTop: 4 }} />
                     ) : null}
-                    <Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap', flex: 1 }}>
-                      {m.content || '\u00a0'}
-                    </Paragraph>
+                    {m.role === 'assistant' ? (
+                      <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                        <AgentAssistantMarkdown markdown={m.content} />
+                      </div>
+                    ) : (
+                      <div className="agents-page__md-user-wrap" style={{ flex: 1, minWidth: 0 }}>
+                        <AgentAssistantMarkdown markdown={m.content} />
+                      </div>
+                    )}
                   </Flex>
-                </Card>
+                  {(m.content ?? '').trim().length > 0 ? (
+                    <div
+                      className="agents-page__msg-copy"
+                      style={{
+                        display: 'flex',
+                        justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start',
+                      }}
+                    >
+                      <Button
+                        type="text"
+                        size="small"
+                        className="agents-page__msg-copy-btn"
+                        icon={<CopyOutlined />}
+                        aria-label={t('agents.copyMessage')}
+                        title={t('agents.copyMessage')}
+                        onClick={() => void copyMessageBody(m.content)}
+                      />
+                    </div>
+                  ) : null}
+                </div>
               </div>
             ))
           )}
@@ -391,6 +466,7 @@ export function AgentsPage() {
         <div className="agents-page__composer-wrap">
           <div className="agents-page__composer">
             <Input.TextArea
+              ref={draftInputRef}
               allowClear
               variant="borderless"
               autoSize={{ minRows: 2, maxRows: 8 }}
@@ -406,21 +482,11 @@ export function AgentsPage() {
               disabled={!workspaceId || streaming || usableModels.length === 0}
             />
             <div className="agents-page__composer-footer">
-              <Flex align="center" gap={8} style={{ flex: 1, minWidth: 0 }}>
-                <Text type="secondary" style={{ flexShrink: 0, fontSize: 12 }}>
-                  {t('agents.skillIdsShort')}
-                </Text>
-                <Input
-                  allowClear
-                  size="small"
-                  style={{ maxWidth: 220 }}
-                  value={prefs.skillIdsCsv}
-                  onChange={(e) => setSkillIdsCsv(e.target.value)}
-                  placeholder="example_echo"
-                  disabled={streaming}
-                />
-              </Flex>
-              <Flex align="center" gap={10}>
+              <Flex
+                align="center"
+                gap={10}
+                style={{ flex: 1, minWidth: 0, width: '100%', justifyContent: 'flex-end' }}
+              >
                 <Select
                   showSearch
                   optionFilterProp="label"

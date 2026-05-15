@@ -5,7 +5,7 @@
   display: flex;
   flex: 1;
   min-height: calc(100vh - 148px);
-  gap: var(--agents-chrome-inset);
+  gap: 6px;
   padding: var(--agents-chrome-inset) 0;
   color: var(--minerva-ink, #e8f0f8);
 }
@@ -32,11 +32,35 @@
   min-height: 0;
 }
 
+/* 单条对话：无圆角卡片、不铺底，与右侧主区背景一致 */
+.agents-page__msg {
+  max-width: 85%;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 4px 0;
+}
+
+.agents-page__msg-copy {
+  margin-top: 2px;
+}
+
+.agents-page__msg-copy-btn {
+  color: var(--minerva-ink-muted, #a8b8cc) !important;
+  padding-inline: 6px !important;
+}
+
+.agents-page__msg-copy-btn:hover {
+  color: var(--minerva-primary, #38bdf8) !important;
+}
+
 .agents-page__scroll {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: var(--agents-chrome-inset) 32px var(--agents-chrome-inset);
+  /* 上 右 下 左：左侧收紧，对话与助手气泡向左靠 */
+  padding: var(--agents-chrome-inset) 14px var(--agents-chrome-inset) 4px;
 }
 
 .agents-page__hero {
@@ -92,6 +116,31 @@
   line-height: 1.45;
   color: var(--minerva-ink-muted, #a8b8cc);
   padding: 8px;
-  border-radius: 8px;
+  border-radius: 0;
   background: rgba(0, 0, 0, 0.2);
+}
+
+/* 助手气泡内折叠：与机器人图标区视觉紧凑 */
+.agents-page__trace.ant-collapse-ghost > .ant-collapse-item {
+  border: none;
+}
+
+.agents-page__trace .ant-collapse-header {
+  padding: 4px 0 !important;
+  align-items: center;
+}
+
+/* 展开箭头紧跟「运行与思考过程」文案左侧，避免默认大间距 */
+.agents-page__trace .ant-collapse-expand-icon {
+  margin-inline-end: 6px !important;
+  padding-inline-end: 0 !important;
+}
+
+.agents-page__trace .ant-collapse-header-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.agents-page__trace .ant-collapse-content-box {
+  padding-block: 0 4px !important;
 }

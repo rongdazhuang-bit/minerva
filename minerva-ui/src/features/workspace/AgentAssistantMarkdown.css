@@ -1,0 +1,230 @@
+/* 智能体助手气泡内 Markdown：公式、表格、Mermaid 与正文排版 */
+.agents-page__md-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.agents-page__md {
+  color: var(--minerva-ink, #e8f0f8);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.agents-page__md :first-child {
+  margin-top: 0;
+}
+
+.agents-page__md :last-child {
+  margin-bottom: 0;
+}
+
+.agents-page__md .katex {
+  color: inherit;
+  font-size: 1em;
+  overflow: visible;
+  max-height: none;
+}
+
+.agents-page__md .katex-display {
+  display: block;
+  margin: 0.85em 0;
+  padding: 0.35em 0;
+  overflow: visible;
+  max-width: 100%;
+  max-height: none;
+}
+
+.agents-page__md .katex-display > .katex {
+  display: block;
+}
+
+.agents-page__md .katex-html {
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.agents-page__md .katex-error {
+  color: #f87171;
+}
+
+html.minerva-tone-sunshine .agents-page__md .katex-error {
+  color: #dc2626;
+}
+
+.agents-page__md p {
+  margin: 0.5em 0;
+}
+
+.agents-page__md h1,
+.agents-page__md h2,
+.agents-page__md h3,
+.agents-page__md h4 {
+  margin: 0.75em 0 0.4em;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.agents-page__md img {
+  max-width: 100%;
+  height: auto;
+}
+
+.agents-page__md table {
+  border-collapse: collapse;
+  margin: 0.6em 0;
+  font-size: 0.95em;
+  table-layout: auto;
+  width: max-content;
+  max-width: none;
+}
+
+.agents-page__md thead {
+  border-bottom: 1px solid var(--minerva-border, #2a3f58);
+}
+
+.agents-page__md caption {
+  caption-side: top;
+  text-align: start;
+  font-weight: 600;
+  padding: 0.35em 0.5em 0.5em;
+  color: color-mix(in srgb, var(--minerva-ink, #e8f0f8) 88%, transparent);
+}
+
+.agents-page__md th,
+.agents-page__md td {
+  border: 1px solid var(--minerva-border, #2a3f58);
+  padding: 0.4em 0.65em;
+  text-align: start;
+  vertical-align: top;
+}
+
+.agents-page__md th {
+  background: color-mix(in srgb, var(--minerva-surface-2, #121c28) 75%, transparent);
+  font-weight: 600;
+}
+
+.agents-page__md blockquote {
+  margin: 0.55em 0;
+  padding: 0.35em 0.85em;
+  border-left: 3px solid var(--minerva-primary, #38bdf8);
+  background: rgba(56, 189, 248, 0.08);
+  color: color-mix(in srgb, var(--minerva-ink, #e8f0f8) 92%, transparent);
+}
+
+
+.agents-page__md pre.agents-page__md-pre {
+  margin: 0.55em 0;
+  padding: 0.65em 0.85em;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--minerva-border, #2a3f58);
+  overflow-x: auto;
+  font-size: 0.88em;
+  line-height: 1.45;
+}
+
+.agents-page__md pre.agents-page__md-pre code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  white-space: pre;
+}
+
+.agents-page__md :not(pre) > code {
+  padding: 0.12em 0.4em;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  font-size: 0.9em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.agents-page__md-mermaid {
+  margin: 0.55em 0;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.agents-page__md-mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Prism 代码块外层：承载角标复制按钮 */
+.agents-page__md-syntax-host {
+  position: relative;
+  margin: 0.55em 0;
+  /* Keep top/bottom copy buttons separated when the snippet is very short. */
+  min-height: 4.75rem;
+}
+
+.agents-page__md-syntax-copy {
+  position: absolute;
+  z-index: 2;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid var(--minerva-border, #2a3f58);
+  background: color-mix(in srgb, var(--minerva-surface-2, #121c28) 88%, #000 12%);
+  color: color-mix(in srgb, var(--minerva-ink, #e8f0f8) 92%, transparent);
+  cursor: pointer;
+  opacity: 0.82;
+  font-size: 13px;
+  line-height: 1;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.agents-page__md-syntax-copy:hover {
+  opacity: 1;
+  color: var(--minerva-ink, #e8f0f8);
+  background: color-mix(in srgb, var(--minerva-surface-2, #121c28) 70%, var(--minerva-primary, #38bdf8) 18%);
+}
+
+.agents-page__md-syntax-copy:focus-visible {
+  outline: 2px solid var(--minerva-primary, #38bdf8);
+  outline-offset: 2px;
+}
+
+.agents-page__md-syntax-copy--tr {
+  top: 6px;
+  right: 6px;
+}
+
+.agents-page__md-syntax-copy--br {
+  bottom: 6px;
+  right: 6px;
+}
+
+/* Prism 代码块容器（与 oneDark 搭配，保证长行可横向滚动） */
+.agents-page__md-syntax {
+  max-width: 100%;
+  overflow-x: auto !important;
+}
+
+.agents-page__md-syntax-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+}
+
+/* 用户消息：整体右对齐，代码块/Mermaid 仍左对齐便于阅读 */
+.agents-page__md-user-wrap {
+  text-align: right;
+}
+
+.agents-page__md-user-wrap .agents-page__md-syntax-host,
+.agents-page__md-user-wrap .agents-page__md-syntax,
+.agents-page__md-user-wrap .agents-page__md-mermaid,
+.agents-page__md-user-wrap .agents-page__md-pre {
+  text-align: left;
+  direction: ltr;
+}
+
+.agents-page__md-empty {
+  display: inline-block;
+}
