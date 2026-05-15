@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -23,14 +24,21 @@ class ChatMessage(BaseModel):
 
 
 class ChatCallParams(BaseModel):
-    """Normalized call parameters passed to a completion strategy."""
+    """Normalized call parameters passed to a completion strategy.
+
+    ``messages`` follows the OpenAI Chat Completions shape (e.g. ``role`` + ``content``,
+    or ``tool_calls`` / ``tool`` roles). ``tools`` and ``tool_choice`` are optional and
+    omitted by legacy callers.
+    """
 
     base_url: str = Field(description="OpenAI-compatible root, e.g. https://host/v1 for LiteLLM.")
     api_key: str
     model: str
-    messages: list[dict[str, str]] = Field(
+    messages: list[dict[str, Any]] = Field(
         default_factory=list,
-        description="OpenAI-style messages: list of {role, content}.",
+        description="OpenAI-style chat messages (plain or tool-calling shapes).",
     )
     temperature: float | None = None
     max_tokens: int | None = None
+    tools: list[dict[str, Any]] | None = None
+    tool_choice: str | dict[str, Any] | None = None

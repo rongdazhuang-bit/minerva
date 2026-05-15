@@ -10,6 +10,8 @@ import {
   FolderOpenOutlined,
   IdcardOutlined,
   MenuOutlined,
+  ReadOutlined,
+  RobotOutlined,
   ScanOutlined,
   SettingOutlined,
   SlidersOutlined,
@@ -105,6 +107,17 @@ const contentScrollStyle: CSSProperties = {
   padding: 20,
 }
 
+/** 智能体路由：顶/底留白由 AgentsPage 的 --agents-chrome-inset 承担，此处仅保留与面包屑一致的左右 20px，避免与页内顶距叠加。 */
+function contentScrollStyleForPath(pathname: string): CSSProperties {
+  if (pathname.startsWith('/app/agents')) {
+    return {
+      ...contentScrollStyle,
+      padding: '0 20px 0 20px',
+    }
+  }
+  return contentScrollStyle
+}
+
 function menuKeyForPath(pathname: string): string {
   if (pathname.startsWith('/app/file-ocr/overview')) return 'file-ocr-overview'
   if (pathname.startsWith('/app/file-ocr/tasks')) return 'file-ocr-tasks'
@@ -118,6 +131,8 @@ function menuKeyForPath(pathname: string): string {
   if (pathname.startsWith('/app/settings/dictionary')) return 'settings-dictionary'
   if (pathname.startsWith('/app/settings/celery')) return 'settings-celery'
   if (pathname.startsWith('/app/settings')) return 'settings-models'
+  if (pathname.startsWith('/app/agents')) return 'agents'
+  if (pathname.startsWith('/app/knowledge-base')) return 'knowledge-base'
   if (pathname.startsWith('/app/smart-review')) return 'smart-review'
   if (pathname.startsWith('/app/file-ocr')) return 'file-ocr-overview'
   if (pathname.startsWith('/app/rules/config/config-prompts')) return 'rules-config-config-prompts'
@@ -137,6 +152,11 @@ export function AppLayout() {
   const { rowRef, siderWidth, onResizeStart } = useResizableSiderWidth()
 
   const selectedKeys = useMemo(() => [menuKeyForPath(pathname)], [pathname])
+
+  const mainScrollStyle = useMemo(
+    () => contentScrollStyleForPath(pathname),
+    [pathname],
+  )
 
   const [menuOpenKeys, setMenuOpenKeys] = useState<string[]>([])
 
@@ -232,6 +252,18 @@ export function AppLayout() {
                   icon: <BarChartOutlined />,
                   label: t('nav.overview'),
                   onClick: () => void nav('/app/overview'),
+                },
+                {
+                  key: 'agents',
+                  icon: <RobotOutlined />,
+                  label: t('nav.agents'),
+                  onClick: () => void nav('/app/agents'),
+                },
+                {
+                  key: 'knowledge-base',
+                  icon: <ReadOutlined />,
+                  label: t('nav.knowledgeBase'),
+                  onClick: () => void nav('/app/knowledge-base'),
                 },
                 {
                   key: 'smart-review',
@@ -376,7 +408,7 @@ export function AppLayout() {
               <AppBreadcrumb />
             </div>
           ) : null}
-          <div className="minerva-app-main-scroll" style={contentScrollStyle}>
+          <div className="minerva-app-main-scroll" style={mainScrollStyle}>
             <Outlet />
           </div>
         </Content>

@@ -61,6 +61,12 @@ export function AppBreadcrumb() {
   const items: ItemType[] = useMemo(() => {
     const home: ItemType = { title: <Link to="/app/overview">{t('breadcrumb.home')}</Link> }
 
+    if (pathname.startsWith('/app/agents')) {
+      return [home, { title: t('nav.agents') }]
+    }
+    if (pathname.startsWith('/app/knowledge-base')) {
+      return [home, { title: t('nav.knowledgeBase') }]
+    }
     if (pathname.startsWith('/app/smart-review')) {
       return [home, { title: t('nav.smartReview') }]
     }

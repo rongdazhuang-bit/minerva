@@ -1,5 +1,5 @@
 -- Minerva 表结构（PostgreSQL），与 Alembic 迁移链一致：
--- 3552a1daa5cc (identity) -> 947e36be8860 (rules) -> bbec5fe9111a (executions)
+-- 3552a1daa5cc (identity) -> 947e36be8860 (rules) -> bbec5fe9111a (executions)；并含 Agent 智能体相关表。
 --
 -- 使用: psql -U minerva -d minerva -f schema_postgresql.sql
 -- 推荐仍用: cd backend && alembic upgrade head
@@ -445,3 +445,144 @@ COMMENT ON COLUMN public.ocr_file_log.status IS '状态(Y-成功，N-失败，P-
 COMMENT ON COLUMN public.ocr_file_log.remark IS '备注，记录错误日志信息';
 COMMENT ON COLUMN public.ocr_file_log.create_at IS '创建时间';
 COMMENT ON COLUMN public.ocr_file_log.update_at IS '更新时间';
+
+-- ---------------------------------------------------------------------------
+-- Agent（智能体）：会话、单次 run、消息历史、细粒度运行节点（与 ORM 一致）
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.agent_session (
+  id uuid NOT NULL,
+  workspace_id uuid NOT NULL,
+  created_by uuid NULL,
+  title varchar(200) NULL,
+  agent_key varchar(64) NULL,
+  status varchar(16) NOT NULL DEFAULT 'active',
+  meta_json jsonb NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NULL,
+  PRIMARY KEY (id),
+  CONSTRAINT agent_session_workspace_id_fk FOREIGN KEY (workspace_id) REFERENCES public.workspaces (id) ON DELETE CASCADE,
+  CONSTRAINT agent_session_created_by_fk FOREIGN KEY (created_by) REFERENCES public.users (id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS ix_agent_session_workspace_id ON public.agent_session (workspace_id);
+CREATE INDEX IF NOT EXISTS ix_agent_session_workspace_updated ON public.agent_session (workspace_id, updated_at);
+CREATE INDEX IF NOT EXISTS ix_agent_session_created_by ON public.agent_session (created_by);
+COMMENT ON TABLE public.agent_session IS '智能体会话容器';
+COMMENT ON COLUMN public.agent_session.id IS '会话主键';
+COMMENT ON COLUMN public.agent_session.workspace_id IS '工作空间 id';
+COMMENT ON COLUMN public.agent_session.created_by IS '创建人（用户 id）';
+COMMENT ON COLUMN public.agent_session.title IS '展示标题';
+COMMENT ON COLUMN public.agent_session.agent_key IS '智能体配置/技能组合键';
+COMMENT ON COLUMN public.agent_session.status IS '会话状态，如 active / archived';
+COMMENT ON COLUMN public.agent_session.meta_json IS '扩展元数据(JSONB)';
+COMMENT ON COLUMN public.agent_session.created_at IS '创建时间';
+COMMENT ON COLUMN public.agent_session.updated_at IS '更新时间';
+
+CREATE TABLE IF NOT EXISTS public.agent_run (
+  id uuid NOT NULL,
+  session_id uuid NOT NULL,
+  workspace_id uuid NOT NULL,
+  triggered_by uuid NULL,
+  status varchar(16) NOT NULL DEFAULT 'running',
+  started_at timestamptz NOT NULL,
+  finished_at timestamptz NULL,
+  model varchar(128) NOT NULL,
+  provider_kind varchar(32) NULL,
+  error_code varchar(64) NULL,
+  error_message text NULL,
+  usage_json jsonb NULL,
+  request_meta_json jsonb NULL,
+  PRIMARY KEY (id),
+  CONSTRAINT agent_run_session_id_fk FOREIGN KEY (session_id) REFERENCES public.agent_session (id) ON DELETE CASCADE,
+  CONSTRAINT agent_run_workspace_id_fk FOREIGN KEY (workspace_id) REFERENCES public.workspaces (id) ON DELETE CASCADE,
+  CONSTRAINT agent_run_triggered_by_fk FOREIGN KEY (triggered_by) REFERENCES public.users (id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS ix_agent_run_session_id ON public.agent_run (session_id);
+CREATE INDEX IF NOT EXISTS ix_agent_run_workspace_id ON public.agent_run (workspace_id);
+CREATE INDEX IF NOT EXISTS ix_agent_run_triggered_by ON public.agent_run (triggered_by);
+CREATE INDEX IF NOT EXISTS ix_agent_run_session_started ON public.agent_run (session_id, started_at);
+COMMENT ON TABLE public.agent_run IS '单次智能体运行（与 SSE run_id 一致）';
+COMMENT ON COLUMN public.agent_run.id IS 'run 主键，即对外 run_id';
+COMMENT ON COLUMN public.agent_run.session_id IS '所属会话';
+COMMENT ON COLUMN public.agent_run.workspace_id IS '冗余工作空间，便于鉴权与查询';
+COMMENT ON COLUMN public.agent_run.triggered_by IS '触发用户';
+COMMENT ON COLUMN public.agent_run.status IS 'running / success / failed / cancelled';
+COMMENT ON COLUMN public.agent_run.started_at IS '开始时间';
+COMMENT ON COLUMN public.agent_run.finished_at IS '结束时间';
+COMMENT ON COLUMN public.agent_run.model IS '本次调用模型快照';
+COMMENT ON COLUMN public.agent_run.provider_kind IS '上游策略类型快照';
+COMMENT ON COLUMN public.agent_run.error_code IS '失败时业务错误码';
+COMMENT ON COLUMN public.agent_run.error_message IS '失败时说明';
+COMMENT ON COLUMN public.agent_run.usage_json IS 'token 等用量(JSONB)';
+COMMENT ON COLUMN public.agent_run.request_meta_json IS '请求侧非密钥元数据(JSONB)';
+
+CREATE TABLE IF NOT EXISTS public.agent_message (
+  id uuid NOT NULL,
+  session_id uuid NOT NULL,
+  seq int NOT NULL,
+  role varchar(16) NOT NULL,
+  content text NULL,
+  tool_calls_json jsonb NULL,
+  tool_call_id varchar(64) NULL,
+  tool_name varchar(128) NULL,
+  meta_json jsonb NULL,
+  run_id uuid NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (id),
+  CONSTRAINT uq_agent_message_session_seq UNIQUE (session_id, seq),
+  CONSTRAINT agent_message_session_id_fk FOREIGN KEY (session_id) REFERENCES public.agent_session (id) ON DELETE CASCADE,
+  CONSTRAINT agent_message_run_id_fk FOREIGN KEY (run_id) REFERENCES public.agent_run (id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS ix_agent_message_session_id ON public.agent_message (session_id);
+CREATE INDEX IF NOT EXISTS ix_agent_message_session_seq ON public.agent_message (session_id, seq);
+CREATE INDEX IF NOT EXISTS ix_agent_message_run_id ON public.agent_message (run_id);
+COMMENT ON TABLE public.agent_message IS '会话消息（OpenAI 角色含 tool/tool_calls）';
+COMMENT ON COLUMN public.agent_message.id IS '消息主键';
+COMMENT ON COLUMN public.agent_message.session_id IS '所属会话';
+COMMENT ON COLUMN public.agent_message.seq IS '会话内顺序号';
+COMMENT ON COLUMN public.agent_message.role IS 'system / user / assistant / tool';
+COMMENT ON COLUMN public.agent_message.content IS '文本内容';
+COMMENT ON COLUMN public.agent_message.tool_calls_json IS 'assistant 的 tool_calls(JSONB)';
+COMMENT ON COLUMN public.agent_message.tool_call_id IS 'tool 消息关联的调用 id';
+COMMENT ON COLUMN public.agent_message.tool_name IS '工具名冗余';
+COMMENT ON COLUMN public.agent_message.meta_json IS '扩展(JSONB)';
+COMMENT ON COLUMN public.agent_message.run_id IS '产生该条的 run（可空）';
+COMMENT ON COLUMN public.agent_message.created_at IS '创建时间';
+
+CREATE TABLE IF NOT EXISTS public.agent_run_node (
+  id uuid NOT NULL,
+  run_id uuid NOT NULL,
+  parent_node_id uuid NULL,
+  sequence_idx int NOT NULL,
+  node_type varchar(32) NOT NULL,
+  node_name varchar(128) NOT NULL,
+  status varchar(16) NOT NULL DEFAULT 'pending',
+  inputs_json jsonb NULL,
+  outputs_json jsonb NULL,
+  error_code varchar(64) NULL,
+  error_message text NULL,
+  started_at timestamptz NULL,
+  finished_at timestamptz NULL,
+  meta_json jsonb NULL,
+  PRIMARY KEY (id),
+  CONSTRAINT agent_run_node_run_id_fk FOREIGN KEY (run_id) REFERENCES public.agent_run (id) ON DELETE CASCADE,
+  CONSTRAINT agent_run_node_parent_node_id_fk FOREIGN KEY (parent_node_id) REFERENCES public.agent_run_node (id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS ix_agent_run_node_run_id ON public.agent_run_node (run_id);
+CREATE INDEX IF NOT EXISTS ix_agent_run_node_parent_node_id ON public.agent_run_node (parent_node_id);
+CREATE INDEX IF NOT EXISTS ix_agent_run_node_run_parent_seq ON public.agent_run_node (run_id, parent_node_id, sequence_idx);
+COMMENT ON TABLE public.agent_run_node IS '单次 run 的细粒度节点树';
+COMMENT ON COLUMN public.agent_run_node.id IS '节点主键';
+COMMENT ON COLUMN public.agent_run_node.run_id IS '所属 run';
+COMMENT ON COLUMN public.agent_run_node.parent_node_id IS '父节点（树形）';
+COMMENT ON COLUMN public.agent_run_node.sequence_idx IS '同级排序序号';
+COMMENT ON COLUMN public.agent_run_node.node_type IS '节点类型，如 llm.round / tool.execute';
+COMMENT ON COLUMN public.agent_run_node.node_name IS '展示名称';
+COMMENT ON COLUMN public.agent_run_node.status IS 'pending / running / success / failed / skipped';
+COMMENT ON COLUMN public.agent_run_node.inputs_json IS '输入快照(JSONB)';
+COMMENT ON COLUMN public.agent_run_node.outputs_json IS '输出快照(JSONB)';
+COMMENT ON COLUMN public.agent_run_node.error_code IS '错误码';
+COMMENT ON COLUMN public.agent_run_node.error_message IS '错误说明';
+COMMENT ON COLUMN public.agent_run_node.started_at IS '开始时间';
+COMMENT ON COLUMN public.agent_run_node.finished_at IS '结束时间';
+COMMENT ON COLUMN public.agent_run_node.meta_json IS '扩展(JSONB)';

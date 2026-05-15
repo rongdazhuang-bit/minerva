@@ -5,6 +5,8 @@ import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom'
 import { AppThemedLayout } from '@/app/AppThemedLayout'
 import { AppLayout } from '@/app/layout/AppLayout'
 import { RulesFileOcrOverviewPage, RulesFileOcrTaskPage } from '@/features/file-ocr'
+import { AgentsPage } from '@/features/workspace/AgentsPage'
+import { KnowledgeBasePage } from '@/features/workspace/KnowledgeBasePage'
 import { OverviewPage } from '@/features/workspace/OverviewPage'
 import { SmartReviewPage } from '@/features/workspace/SmartReviewPage'
 import {
@@ -52,6 +54,8 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to="overview" replace /> },
           { path: 'overview', element: <OverviewPage /> },
+          { path: 'agents', element: <AgentsPage /> },
+          { path: 'knowledge-base', element: <KnowledgeBasePage /> },
           { path: 'smart-review', element: <SmartReviewPage /> },
           {
             path: 'rules',

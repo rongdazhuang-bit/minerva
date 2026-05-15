@@ -15,6 +15,11 @@ function resolveApiBaseUrl(): string {
 
 const base = resolveApiBaseUrl()
 
+/** API 根地址（无尾部斜杠），供 SSE 等非 JSON 请求与 ``apiJson`` 共用。 */
+export function apiOrigin(): string {
+  return base
+}
+
 export class ApiError extends Error {
   constructor(
     public code: string,

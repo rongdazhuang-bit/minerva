@@ -50,6 +50,10 @@ def _completion_kwargs(params: ChatCallParams, *, stream: bool) -> dict[str, Any
         kwargs["temperature"] = params.temperature
     if params.max_tokens is not None:
         kwargs["max_tokens"] = params.max_tokens
+    if params.tools is not None:
+        kwargs["tools"] = params.tools
+    if params.tool_choice is not None:
+        kwargs["tool_choice"] = params.tool_choice
     return kwargs
 
 

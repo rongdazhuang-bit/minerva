@@ -1,0 +1,97 @@
+/* Kimi 风格：左侧圆角侧栏 + 主栏铺满 + 底部合成器；间距以「左侧栏顶缘距内容区顶」为唯一尺度 */
+.agents-page {
+  /* 与面包屑下沿至左侧栏顶缘的视觉间距一致，页内底、栏间距、侧栏内边距等同值 */
+  --agents-chrome-inset: 10px;
+  display: flex;
+  flex: 1;
+  min-height: calc(100vh - 148px);
+  gap: var(--agents-chrome-inset);
+  padding: var(--agents-chrome-inset) 0;
+  color: var(--minerva-ink, #e8f0f8);
+}
+
+.agents-page__sider {
+  width: 220px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--minerva-border, #2d3f55);
+  border-radius: 16px;
+  padding: var(--agents-chrome-inset);
+  display: flex;
+  flex-direction: column;
+  gap: var(--agents-chrome-inset);
+  background: var(--minerva-surface, #1b2838);
+  overflow: hidden;
+}
+
+.agents-page__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.agents-page__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--agents-chrome-inset) 32px var(--agents-chrome-inset);
+}
+
+.agents-page__hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+  text-align: center;
+  gap: var(--agents-chrome-inset);
+}
+
+.agents-page__hero-title {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin: 0;
+  color: var(--minerva-ink, #e8f0f8);
+}
+
+.agents-page__composer-wrap {
+  flex-shrink: 0;
+  padding: var(--agents-chrome-inset) 0 0;
+  border-top: 1px solid var(--minerva-border, #2d3f55);
+  background: var(--minerva-bg, #121a21);
+}
+
+.agents-page__composer {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--minerva-border, #2d3f55);
+  border-radius: 16px;
+  padding: 12px 14px 10px;
+  background: var(--minerva-surface, #1b2838);
+}
+
+.agents-page__composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.agents-page__process {
+  max-height: 160px;
+  overflow: auto;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--minerva-ink-muted, #a8b8cc);
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+}
