@@ -6,10 +6,12 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.domain.db.models import AgentMessage, AgentRun, AgentRunNode, AgentSession
+
+RECENT_AGENT_SESSIONS_DEFAULT_LIMIT: int = 20
 
 
 async def get_agent_session(
@@ -24,6 +26,80 @@ async def get_agent_session(
     return (await session.execute(stmt)).scalar_one_or_none()
 
 
+async def delete_agent_session(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    session_id: uuid.UUID,
+) -> bool:
+    """删除会话；依赖库表 FK ``ON DELETE CASCADE`` 级联删除 message / run / run_node。"""
+
+    row = await get_agent_session(
+        session, workspace_id=workspace_id, session_id=session_id
+    )
+    if row is None:
+        return False
+    await session.delete(row)
+    await session.flush()
+    return True
+
+
+def _title_from_first_user_message(content: str) -> str:
+    """Derive a single-line session title from the first user question."""
+
+    line = " ".join(content.strip().split())
+    return line[:200] if line else ""
+
+
+async def touch_agent_session(
+    session: AsyncSession,
+    *,
+    session_id: uuid.UUID,
+    title_hint: str | None = None,
+) -> None:
+    """Bump ``updated_at`` and set title from the first user message when still unset."""
+
+    row = await session.get(AgentSession, session_id)
+    if row is None:
+        return
+    row.updated_at = datetime.now(timezone.utc)
+    if title_hint and not (row.title or "").strip():
+        derived = _title_from_first_user_message(title_hint)
+        if derived:
+            row.title = derived
+    await session.flush()
+
+
+async def list_agent_sessions_recent(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    limit: int = RECENT_AGENT_SESSIONS_DEFAULT_LIMIT,
+) -> list[tuple[AgentSession, str | None]]:
+    """Return recent sessions with optional last user-message preview text."""
+
+    cap = max(1, min(limit, 50))
+    preview_subq = (
+        select(AgentMessage.content)
+        .where(
+            AgentMessage.session_id == AgentSession.id,
+            AgentMessage.role == "user",
+        )
+        .order_by(AgentMessage.seq.desc())
+        .limit(1)
+        .correlate(AgentSession)
+        .scalar_subquery()
+    )
+    stmt = (
+        select(AgentSession, preview_subq.label("preview"))
+        .where(AgentSession.workspace_id == workspace_id)
+        .order_by(desc(func.coalesce(AgentSession.updated_at, AgentSession.created_at)))
+        .limit(cap)
+    )
+    rows = await session.execute(stmt)
+    return [(row[0], row[1]) for row in rows.all()]
+
+
 async def create_agent_session(
     session: AsyncSession,
     *,
@@ -35,14 +111,22 @@ async def create_agent_session(
 ) -> AgentSession:
     """插入一条会话记录并 ``flush`` 以便获得主键。"""
 
+    stored_title: str | None = None
+    if title and title.strip():
+        derived = _title_from_first_user_message(title)
+        if derived:
+            stored_title = derived
+
     row = AgentSession(
         workspace_id=workspace_id,
         created_by=created_by,
-        title=title,
+        title=stored_title,
         agent_key=agent_key,
         meta_json=meta_json,
     )
     session.add(row)
+    await session.flush()
+    row.updated_at = datetime.now(timezone.utc)
     await session.flush()
     return row
 
@@ -116,6 +200,23 @@ async def append_agent_message(
     )
     session.add(row)
     await session.flush()
+    if role == "user" and content:
+        prior_user_count = (
+            await session.execute(
+                select(func.count())
+                .select_from(AgentMessage)
+                .where(
+                    AgentMessage.session_id == session_id,
+                    AgentMessage.role == "user",
+                )
+            )
+        ).scalar_one()
+        if int(prior_user_count) == 1:
+            await touch_agent_session(session, session_id=session_id, title_hint=content)
+        else:
+            await touch_agent_session(session, session_id=session_id)
+    else:
+        await touch_agent_session(session, session_id=session_id)
     return row
 
 

@@ -4,4 +4,4 @@
 
 ## 子技能列表
 
-- `example_echo`：示例占位技能（开发与联调时可选用）。
+- `system_datetime`：获取当前系统时间（UTC/本地）。

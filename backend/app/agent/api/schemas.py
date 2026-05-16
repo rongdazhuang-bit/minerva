@@ -26,6 +26,53 @@ class AgentSessionOut(BaseModel):
     agent_key: str | None
     status: str
     created_at: datetime
+    updated_at: datetime | None = None
+
+
+class AgentSessionListItemOut(BaseModel):
+    """Sidebar row for a recent agent session."""
+
+    id: UUID
+    title: str | None
+    preview: str | None
+    created_at: datetime
+    updated_at: datetime | None
+
+
+class AgentSessionListOut(BaseModel):
+    """Recent sessions for the workspace agent UI."""
+
+    sessions: list[AgentSessionListItemOut]
+
+
+class AgentMessageOut(BaseModel):
+    """One persisted chat message for session restore."""
+
+    id: UUID
+    role: str
+    content: str | None
+    seq: int
+    created_at: datetime
+
+
+class AgentSessionDetailOut(BaseModel):
+    """Session metadata plus ordered messages."""
+
+    session: AgentSessionOut
+    messages: list[AgentMessageOut]
+
+
+class AgentSkillItemOut(BaseModel):
+    """One skill entry from INDEX.md."""
+
+    id: str
+    description: str
+
+
+class AgentSkillListOut(BaseModel):
+    """List of skills available in the workspace agent UI."""
+
+    skills: list[AgentSkillItemOut]
 
 
 class AgentRunCreateIn(BaseModel):

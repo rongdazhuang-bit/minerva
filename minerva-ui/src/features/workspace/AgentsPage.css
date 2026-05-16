@@ -22,6 +22,106 @@
   gap: var(--agents-chrome-inset);
   background: var(--minerva-surface, #1b2838);
   overflow: hidden;
+  min-height: 0;
+}
+
+.agents-page__sider-history {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agents-page__sider-history-title {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+
+.agents-page__sider-history-empty {
+  font-size: 12px;
+  text-align: left;
+}
+
+.agents-page__sider-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.agents-page__session-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  border-radius: 8px;
+}
+
+.agents-page__session-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.agents-page__session-row--active {
+  background: rgba(56, 189, 248, 0.14);
+}
+
+.agents-page__session-row:hover .agents-page__session-item-menu,
+.agents-page__session-row--active .agents-page__session-item-menu {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.agents-page__session-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--minerva-ink, #e8f0f8);
+  text-align: left;
+  cursor: pointer;
+}
+
+.agents-page__session-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.agents-page__session-item-menu {
+  flex-shrink: 0;
+  align-self: center;
+  margin-right: 2px;
+  opacity: 0;
+  pointer-events: none;
+  color: var(--minerva-ink-muted, #a8b8cc) !important;
+}
+
+.agents-page__session-item-menu:hover:not(:disabled) {
+  color: var(--minerva-primary, #38bdf8) !important;
+  background: transparent !important;
+}
+
+.agents-page__session-item-title {
+  font-size: 13px;
+  line-height: 1.35;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agents-page__session-item-time {
+  font-size: 11px;
+  opacity: 0.65;
+  margin-top: 2px;
 }
 
 .agents-page__main {
@@ -97,6 +197,66 @@
   border-radius: 16px;
   padding: 12px 14px 10px;
   background: var(--minerva-surface, #1b2838);
+}
+
+.agents-page__skill-menu {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--minerva-surface-raised, rgba(255, 255, 255, 0.04));
+  max-height: 200px;
+  overflow-y: auto;
+  text-align: left;
+}
+
+.agents-page__skill-menu-title {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 6px;
+  text-align: left;
+}
+
+.agents-page__skill-menu-list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  gap: 2px;
+}
+
+.agents-page__skill-item {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: flex-start;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--minerva-ink, #e8f0f8);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agents-page__skill-item:hover,
+.agents-page__skill-item--active {
+  background: rgba(56, 189, 248, 0.12);
+}
+
+.agents-page__skill-item-id {
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+.agents-page__skill-item-desc {
+  margin-left: 8px;
+  font-size: 12px;
+  opacity: 0.75;
+  text-align: left;
 }
 
 .agents-page__composer-footer {

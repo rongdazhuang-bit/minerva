@@ -47,6 +47,11 @@ class ToolRegistry:
 
         return name in self._entries
 
+    def tool_names(self) -> list[str]:
+        """Return registered tool names in insertion order."""
+
+        return list(self._entries.keys())
+
     async def invoke(self, name: str, arguments_json: str) -> str:
         """Parse JSON arguments and await the handler; stringifies non-str results."""
 

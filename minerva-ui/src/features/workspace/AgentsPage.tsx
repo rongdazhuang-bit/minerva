@@ -1,24 +1,50 @@
 /**
  * 工作区「智能体」对话页：Kimi 式布局；模型仅从已配置的模型提供商中选择，发送前拉取详情以连接上游。
  */
-import { CopyOutlined, RobotOutlined, SendOutlined } from '@ant-design/icons'
+import { CopyOutlined, MoreOutlined, RobotOutlined, SendOutlined } from '@ant-design/icons'
 import {
   Alert,
   Button,
   Collapse,
+  Dropdown,
   Flex,
   Input,
+  Modal,
   Select,
   Spin,
   Typography,
   message as antdMessage,
   type InputRef,
+  type MenuProps,
 } from 'antd'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { createAgentSession, streamAgentRun, type AgentSseEvent } from '@/api/agent'
+import {
+  createAgentSession,
+  deleteAgentSession,
+  getAgentSessionDetail,
+  listAgentSessions,
+  listAgentSkills,
+  streamAgentRun,
+  type AgentSessionListItem,
+  type AgentSkillListItem,
+  type AgentStreamEvent,
+} from '@/api/agent'
+import {
+  agentMessagesToChat,
+  buildDisplayUserMessage,
+  formatSessionListDate,
+  sessionListLabel,
+  stripSkillPrefixFromDraft,
+  titleFromFirstQuestion,
+} from '@/features/workspace/agentSkillUi'
+import {
+  deltaReasoningText,
+  formatMinervaTraceLine,
+  isMinervaChunkExtension,
+} from '@/api/openai-stream'
 import { ApiError } from '@/api/client'
 import { getModelProvider, listModelProviders, type ModelProviderListItem } from '@/api/modelProviders'
 import { useAuth } from '@/app/AuthContext'
@@ -62,18 +88,25 @@ type ChatMsg = {
   id: string
   role: 'user' | 'assistant'
   content: string
-  /** 助手气泡内：运行/工具/日志等可追溯行 */
+  /** 模型推理 token 流（与正文分离展示） */
+  reasoning?: string
+  /** 助手气泡内：编排轨迹（minerva 事件） */
   processLog?: string[]
 }
 
 /** 工作区智能体对话主界面（类 Kimi：侧栏 + 主区 + 底部合成器，右侧选模型）。 */
 export function AgentsPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const queryClient = useQueryClient()
   const { workspaceId } = useAuth()
   const [prefs, setPrefs] = useState<UiPrefs>(() => loadPrefs())
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [draft, setDraft] = useState('')
+  /** Explicitly selected skill id for the next outgoing message (from ``/`` menu). */
+  const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null)
+  /** Highlighted row in the ``/`` skill menu (keyboard or hover). */
+  const [skillHighlightIndex, setSkillHighlightIndex] = useState(0)
   const [streaming, setStreaming] = useState(false)
   /** 当前轮助手气泡内「运行/思考」折叠：有正文输出后自动收起 */
   const [traceOpenKeys, setTraceOpenKeys] = useState<string[]>([])
@@ -87,6 +120,18 @@ export function AgentsPage() {
   const modelsQuery = useQuery({
     queryKey: ['agent-model-providers', workspaceId],
     queryFn: () => listModelProviders(workspaceId!),
+    enabled: Boolean(workspaceId),
+  })
+
+  const skillsQuery = useQuery({
+    queryKey: ['agent-skills', workspaceId],
+    queryFn: () => listAgentSkills(workspaceId!),
+    enabled: Boolean(workspaceId),
+  })
+
+  const sessionsQuery = useQuery({
+    queryKey: ['agent-sessions', workspaceId],
+    queryFn: () => listAgentSessions(workspaceId!),
     enabled: Boolean(workspaceId),
   })
 
@@ -145,11 +190,83 @@ export function AgentsPage() {
     wasStreamingRef.current = streaming
   }, [streaming])
 
+  /** Open only while picking; closes after a skill is selected (``selectedSkillId`` set). */
+  const skillMenuOpen = draft.startsWith('/') && !streaming && selectedSkillId === null
+
+  const filteredSkills = useMemo(() => {
+    const list = skillsQuery.data?.skills ?? []
+    if (!skillMenuOpen) return []
+    const q = draft.slice(1).trim().toLowerCase()
+    if (!q) return list
+    return list.filter(
+      (s: AgentSkillListItem) =>
+        s.id.toLowerCase().includes(q) || s.description.toLowerCase().includes(q),
+    )
+  }, [draft, skillMenuOpen, skillsQuery.data?.skills])
+
+  const skillItemRefs = useRef<(HTMLButtonElement | null)[]>([])
+
+  const applySkillSelection = useCallback((s: AgentSkillListItem) => {
+    setSelectedSkillId(s.id)
+    setDraft(`/${s.id} `)
+    window.requestAnimationFrame(() => {
+      draftInputRef.current?.focus({ preventScroll: true })
+    })
+  }, [])
+
+  /** Allow reopening the picker when the user edits away from the chosen ``/skill_id`` prefix. */
+  useEffect(() => {
+    if (!selectedSkillId) return
+    const prefix = `/${selectedSkillId}`
+    if (!draft.startsWith(prefix)) {
+      setSelectedSkillId(null)
+    }
+  }, [draft, selectedSkillId])
+
+  useEffect(() => {
+    if (!skillMenuOpen) return
+    setSkillHighlightIndex(0)
+  }, [skillMenuOpen, filteredSkills])
+
+  useEffect(() => {
+    if (skillHighlightIndex >= filteredSkills.length && filteredSkills.length > 0) {
+      setSkillHighlightIndex(filteredSkills.length - 1)
+    }
+  }, [filteredSkills.length, skillHighlightIndex])
+
+  useEffect(() => {
+    skillItemRefs.current[skillHighlightIndex]?.scrollIntoView({ block: 'nearest' })
+  }, [skillHighlightIndex, filteredSkills])
+
+  const handleDraftKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (!skillMenuOpen || filteredSkills.length === 0) return
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setSkillHighlightIndex((i) => (i + 1) % filteredSkills.length)
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setSkillHighlightIndex((i) => (i - 1 + filteredSkills.length) % filteredSkills.length)
+        return
+      }
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        const picked = filteredSkills[skillHighlightIndex]
+        if (picked) applySkillSelection(picked)
+      }
+    },
+    [skillMenuOpen, filteredSkills, skillHighlightIndex, applySkillSelection],
+  )
+
   const canSend = useMemo(() => {
     if (!workspaceId || streaming) return false
     if (!prefs.selectedModelId) return false
-    return draft.trim().length > 0
-  }, [workspaceId, streaming, prefs.selectedModelId, draft])
+    const apiBody = stripSkillPrefixFromDraft(draft, selectedSkillId)
+    return apiBody.length > 0 || Boolean(selectedSkillId)
+  }, [workspaceId, streaming, prefs.selectedModelId, draft, selectedSkillId])
 
   const handleNewChat = useCallback(() => {
     abortRef.current?.abort()
@@ -158,8 +275,88 @@ export function AgentsPage() {
     setMessages([])
     setTraceOpenKeys([])
     setStreaming(false)
+    setSelectedSkillId(null)
     antdMessage.info(t('agents.newChatHint'))
   }, [t])
+
+  const loadSession = useCallback(
+    async (id: string) => {
+      if (!workspaceId || streaming) return
+      if (id === sessionId) return
+      abortRef.current?.abort()
+      abortRef.current = null
+      setStreaming(false)
+      setTraceOpenKeys([])
+      setSelectedSkillId(null)
+      setDraft('')
+      try {
+        const detail = await getAgentSessionDetail(workspaceId, id)
+        setSessionId(detail.session.id)
+        setMessages(agentMessagesToChat(detail.messages))
+      } catch (e) {
+        if (e instanceof ApiError) antdMessage.error(e.message)
+        else antdMessage.error(String(e))
+      }
+    },
+    [workspaceId, streaming, sessionId],
+  )
+
+  const formatSessionTime = useCallback(
+    (iso: string | null | undefined) => formatSessionListDate(iso, i18n.language),
+    [i18n.language],
+  )
+
+  const handleDeleteSession = useCallback(
+    async (targetSessionId: string) => {
+      if (!workspaceId) return
+      if (streaming) {
+        antdMessage.warning(t('agents.deleteSessionWhileStreaming'))
+        return
+      }
+      try {
+        await deleteAgentSession(workspaceId, targetSessionId)
+        antdMessage.success(t('agents.deleteSessionSuccess'))
+        if (sessionId === targetSessionId) {
+          handleNewChat()
+        }
+        void queryClient.invalidateQueries({ queryKey: ['agent-sessions', workspaceId] })
+      } catch (e) {
+        if (e instanceof ApiError) antdMessage.error(e.message)
+        else antdMessage.error(String(e))
+      }
+    },
+    [workspaceId, sessionId, streaming, handleNewChat, queryClient, t],
+  )
+
+  const confirmDeleteSession = useCallback(
+    (targetSessionId: string) => {
+      Modal.confirm({
+        title: t('agents.deleteSessionConfirm'),
+        okText: t('agents.deleteSession'),
+        okButtonProps: { danger: true },
+        cancelText: t('common.cancel'),
+        onOk: () => handleDeleteSession(targetSessionId),
+      })
+    },
+    [t, handleDeleteSession],
+  )
+
+  const buildSessionRowMenu = useCallback(
+    (targetSessionId: string): MenuProps => ({
+      items: [
+        {
+          key: 'delete',
+          label: t('agents.deleteSession'),
+          danger: true,
+          onClick: ({ domEvent }) => {
+            domEvent.stopPropagation()
+            confirmDeleteSession(targetSessionId)
+          },
+        },
+      ],
+    }),
+    [t, confirmDeleteSession],
+  )
 
   const onSend = useCallback(async () => {
     if (!workspaceId) {
@@ -171,13 +368,16 @@ export function AgentsPage() {
       antdMessage.warning(t('agents.pickModel'))
       return
     }
-    const text = draft.trim()
-    if (!text) return
+    const skillIdForRun = selectedSkillId
+    const apiBody = stripSkillPrefixFromDraft(draft, skillIdForRun)
+    const displayContent = buildDisplayUserMessage(apiBody, skillIdForRun)
+    if (!apiBody && !skillIdForRun) return
 
-    const userMsg: ChatMsg = { id: `u-${Date.now()}`, role: 'user', content: text }
+    const userMsg: ChatMsg = { id: `u-${Date.now()}`, role: 'user', content: displayContent }
     const asstId = `a-${Date.now()}`
-    const asstMsg: ChatMsg = { id: asstId, role: 'assistant', content: '' }
+    const asstMsg: ChatMsg = { id: asstId, role: 'assistant', content: '', reasoning: '' }
     setDraft('')
+    setSelectedSkillId(null)
     setMessages((m) => [...m, userMsg, asstMsg])
     setStreaming(true)
     setTraceOpenKeys(['trace'])
@@ -205,10 +405,15 @@ export function AgentsPage() {
       }
 
       if (!sid) {
-        const s = await createAgentSession(workspaceId, { title: t('agents.defaultSessionTitle') })
+        const sessionTitle = titleFromFirstQuestion(apiBody || displayContent)
+        const s = await createAgentSession(
+          workspaceId,
+          sessionTitle ? { title: sessionTitle } : {},
+        )
         sid = s.id
         setSessionId(sid)
         pushAsstLog(`[session] ${sid}`)
+        void queryClient.invalidateQueries({ queryKey: ['agent-sessions', workspaceId] })
       }
 
       const maxTok =
@@ -218,12 +423,12 @@ export function AgentsPage() {
 
       const pk = mapProviderKind(detail.model_type)
 
-      await streamAgentRun(
+      const { runId } = await streamAgentRun(
         workspaceId,
         sid,
         {
-          user_message: text,
-          skill_ids: [],
+          user_message: apiBody || displayContent,
+          skill_ids: skillIdForRun ? [skillIdForRun] : [],
           provider_kind: pk,
           base_url: baseUrl,
           api_key: apiKey,
@@ -231,46 +436,49 @@ export function AgentsPage() {
           temperature: null,
           max_tokens: maxTok,
         },
-        (evt: AgentSseEvent) => {
-          const typ = String(evt.type)
-          if (typ === 'run_started') {
-            pushAsstLog(`[run_started] ${evt.run_id}`)
-            return
-          }
-          if (typ === 'assistant_delta' && typeof evt.text === 'string') {
-            const chunk = evt.text
-            if (chunk.length > 0) {
-              setTraceOpenKeys([])
-            }
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === asstId ? { ...m, content: m.content + chunk } : m,
-              ),
-            )
-            return
-          }
-          if (typ === 'log' || typ === 'step') {
-            const body = typeof evt.message === 'string' ? evt.message : JSON.stringify(evt)
-            pushAsstLog(`[${typ}] ${body}`)
-            return
-          }
-          if (typ === 'tool_start' || typ === 'tool_result') {
-            pushAsstLog(`[${typ}] ${JSON.stringify(evt)}`)
-            return
-          }
-          if (typ === 'error') {
-            const code = typeof evt.code === 'string' ? evt.code : 'error'
-            const msg = typeof evt.message === 'string' ? evt.message : ''
+        (evt: AgentStreamEvent) => {
+          if (evt.kind === 'done') return
+          if (evt.kind === 'error') {
+            const code = evt.error.code ?? 'error'
+            const msg = evt.error.message ?? ''
             pushAsstLog(`[error] ${code}: ${msg}`)
             antdMessage.error(msg || code)
             return
           }
-          if (typ === 'run_finished') {
-            pushAsstLog(`[run_finished] ${String(evt.status ?? '')}`)
+          const chunk = evt.chunk
+          const minerva = chunk.minerva
+          if (minerva && isMinervaChunkExtension(minerva)) {
+            pushAsstLog(formatMinervaTraceLine(minerva))
+            return
+          }
+          const choice = chunk.choices?.[0]
+          const delta = choice?.delta
+          if (!delta) return
+          const reasoningPiece = deltaReasoningText(delta)
+          if (reasoningPiece.length > 0) {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === asstId
+                  ? { ...m, reasoning: (m.reasoning ?? '') + reasoningPiece }
+                  : m,
+              ),
+            )
+          }
+          const contentPiece = typeof delta.content === 'string' ? delta.content : ''
+          if (contentPiece.length > 0) {
+            setTraceOpenKeys([])
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === asstId ? { ...m, content: m.content + contentPiece } : m,
+              ),
+            )
           }
         },
         ac.signal,
       )
+      if (runId) {
+        pushAsstLog(`[run] ${runId}`)
+      }
     } catch (e) {
       if ((e as Error).name === 'AbortError') {
         pushAsstLog('[aborted]')
@@ -284,12 +492,15 @@ export function AgentsPage() {
     } finally {
       setStreaming(false)
       abortRef.current = null
+      void queryClient.invalidateQueries({ queryKey: ['agent-sessions', workspaceId] })
     }
   }, [
     workspaceId,
     sessionId,
     draft,
+    selectedSkillId,
     prefs.selectedModelId,
+    queryClient,
     t,
   ])
 
@@ -304,6 +515,33 @@ export function AgentsPage() {
   )
 
   const lastMessageId = useMemo(() => messages[messages.length - 1]?.id, [messages])
+
+  const assistantReasoningBelowRobot = useCallback(
+    (m: ChatMsg) => {
+      if (m.role !== 'assistant') return null
+      const text = (m.reasoning ?? '').trim()
+      if (!text) return null
+      return (
+        <Collapse
+          className="agents-page__trace"
+          size="small"
+          ghost
+          bordered={false}
+          expandIconPosition="start"
+          style={{ marginTop: 6, marginBottom: 4 }}
+          items={[
+            {
+              key: 'reasoning',
+              label: <span style={{ fontSize: 12 }}>{t('agents.modelReasoning')}</span>,
+              children: <div className="agents-page__process">{text}</div>,
+            },
+          ]}
+          defaultActiveKey={[]}
+        />
+      )
+    },
+    [t],
+  )
 
   const assistantTraceBelowRobot = useCallback(
     (m: ChatMsg) => {
@@ -356,9 +594,61 @@ export function AgentsPage() {
         <Button type="primary" block onClick={handleNewChat}>
           {t('agents.newChat')}
         </Button>
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {t('agents.sidebarHint')}
-        </Text>
+        <div className="agents-page__sider-history minerva-scrollbar-styled">
+          <Text type="secondary" className="agents-page__sider-history-title">
+            {t('agents.recentChats')}
+          </Text>
+          {sessionsQuery.isLoading ? (
+            <Flex justify="center" style={{ padding: '12px 0' }}>
+              <Spin size="small" />
+            </Flex>
+          ) : (sessionsQuery.data?.sessions ?? []).length === 0 ? (
+            <Text type="secondary" className="agents-page__sider-history-empty">
+              {t('agents.noRecentChats')}
+            </Text>
+          ) : (
+            <div className="agents-page__sider-history-list">
+              {(sessionsQuery.data?.sessions ?? []).map((s: AgentSessionListItem) => {
+                const active = sessionId === s.id
+                return (
+                  <div
+                    key={s.id}
+                    className={
+                      active
+                        ? 'agents-page__session-row agents-page__session-row--active'
+                        : 'agents-page__session-row'
+                    }
+                  >
+                    <button
+                      type="button"
+                      className="agents-page__session-item"
+                      onClick={() => void loadSession(s.id)}
+                      disabled={streaming}
+                    >
+                      <span className="agents-page__session-item-title">
+                        {sessionListLabel(s, t('agents.defaultSessionTitle'))}
+                      </span>
+                      <span className="agents-page__session-item-time">
+                        {formatSessionTime(s.updated_at ?? s.created_at)}
+                      </span>
+                    </button>
+                    <Dropdown menu={buildSessionRowMenu(s.id)} trigger={['click']}>
+                      <Button
+                        type="text"
+                        size="small"
+                        className="agents-page__session-item-menu"
+                        icon={<MoreOutlined />}
+                        aria-label={t('agents.sessionMenu')}
+                        disabled={streaming}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </Dropdown>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       </aside>
 
       <div className="agents-page__main">
@@ -422,9 +712,13 @@ export function AgentsPage() {
                       />
                     )}
                   </div>
+                  {assistantReasoningBelowRobot(m)}
                   {assistantTraceBelowRobot(m)}
                   <Flex align="flex-start" gap={8}>
-                    {streaming && m.role === 'assistant' && !m.content ? (
+                    {streaming &&
+                    m.role === 'assistant' &&
+                    !m.content &&
+                    !(m.reasoning ?? '').trim() ? (
                       <Spin size="small" style={{ marginTop: 4 }} />
                     ) : null}
                     {m.role === 'assistant' ? (
@@ -465,15 +759,63 @@ export function AgentsPage() {
 
         <div className="agents-page__composer-wrap">
           <div className="agents-page__composer">
+            {skillMenuOpen ? (
+              <div className="agents-page__skill-menu" role="listbox" aria-label={t('agents.skillPickerTitle')}>
+                <Text type="secondary" className="agents-page__skill-menu-title">
+                  {t('agents.skillPickerTitle')}
+                </Text>
+                {skillsQuery.isLoading ? (
+                  <Text type="secondary" style={{ fontSize: 12, textAlign: 'left' }}>
+                    {t('agents.skillLoading')}
+                  </Text>
+                ) : filteredSkills.length === 0 ? (
+                  <Text type="secondary" style={{ fontSize: 12, textAlign: 'left' }}>
+                    {t('agents.skillPickerEmpty')}
+                  </Text>
+                ) : (
+                  <div className="agents-page__skill-menu-list">
+                    {filteredSkills.map((s, idx) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        role="option"
+                        aria-selected={idx === skillHighlightIndex}
+                        ref={(el) => {
+                          skillItemRefs.current[idx] = el
+                        }}
+                        className={
+                          idx === skillHighlightIndex
+                            ? 'agents-page__skill-item agents-page__skill-item--active'
+                            : 'agents-page__skill-item'
+                        }
+                        onMouseEnter={() => setSkillHighlightIndex(idx)}
+                        onClick={() => applySkillSelection(s)}
+                      >
+                        <span className="agents-page__skill-item-id">/{s.id}</span>
+                        <span className="agents-page__skill-item-desc">{s.description}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : null}
             <Input.TextArea
               ref={draftInputRef}
               allowClear
               variant="borderless"
               autoSize={{ minRows: 2, maxRows: 8 }}
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value
+                setDraft(v)
+                if (selectedSkillId && !v.startsWith(`/${selectedSkillId}`)) {
+                  setSelectedSkillId(null)
+                }
+              }}
+              onKeyDown={handleDraftKeyDown}
               onPressEnter={(e) => {
                 if (!e.shiftKey) {
+                  if (skillMenuOpen && filteredSkills.length > 0) return
                   e.preventDefault()
                   if (canSend) void onSend()
                 }

@@ -37,6 +37,33 @@ def parse_skill_ids_from_index(index_text: str) -> list[str]:
     return ids
 
 
+def parse_skill_descriptions_from_index(index_text: str) -> dict[str, str]:
+    """Parse ``- `id`：description`` bullets into a map."""
+
+    out: dict[str, str] = {}
+    for raw in index_text.splitlines():
+        line = raw.strip()
+        m = re.match(r"^[-*]\s+`?([a-z0-9_]+)`?\s*[：:]\s*(.+)$", line, re.I)
+        if m:
+            out[m.group(1).lower()] = m.group(2).strip()
+    return out
+
+
+def list_indexed_skills() -> list[dict[str, str]]:
+    """Return skills from INDEX that have an on-disk ``SKILL.md``."""
+
+    index_text = load_index_text()
+    ids = parse_skill_ids_from_index(index_text)
+    desc_map = parse_skill_descriptions_from_index(index_text)
+    items: list[dict[str, str]] = []
+    for sid in ids:
+        skill_md = _SKILLS_ROOT / sid / "SKILL.md"
+        if not skill_md.is_file():
+            continue
+        items.append({"id": sid, "description": desc_map.get(sid) or sid})
+    return items
+
+
 def load_skill_markdown(skill_id: str) -> str:
     """Return ``SKILL.md`` contents for ``skill_id`` subdirectory."""
 
