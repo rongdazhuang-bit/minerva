@@ -21,6 +21,7 @@ from app.agent.domain.sse_minerva import (
 from app.agent.domain.db.models import AgentMessage
 from app.agent.infrastructure import repository as agent_repo
 from app.agent.infrastructure import skill_loader, skill_resolver, skill_tools
+from app.agent.infrastructure.skill_tool_context import SkillToolContext
 from app.agent.infrastructure.redaction import redact_json
 from app.agent.infrastructure.sse_chunk_emitter import (
     SSE_DONE_LINE,
@@ -319,7 +320,10 @@ class AgentRunService:
                 model=model,
             )
 
-            registry = skill_tools.load_tools_for_skills(effective_skill_ids)
+            registry = skill_tools.load_tools_for_skills(
+                effective_skill_ids,
+                ctx=SkillToolContext(workspace_id=workspace_id),
+            )
             tools_payload = registry.get_openai_tools_payload()
             tools_arg: list[dict[str, Any]] | None = tools_payload if tools_payload else None
             tool_choice = "auto" if tools_arg else None

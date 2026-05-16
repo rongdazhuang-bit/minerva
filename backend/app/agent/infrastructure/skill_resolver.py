@@ -18,6 +18,28 @@ SKILL_KEYWORDS: dict[str, list[str]] = {
         "date",
         "datetime",
     ],
+    "file": [
+        "文件",
+        "目录",
+        "文件夹",
+        "读取",
+        "写入",
+        "保存",
+        "删除",
+        "创建",
+        "重命名",
+        "移动",
+        "列出",
+        "list",
+        "read",
+        "write",
+        "mkdir",
+        "delete",
+        "move",
+        "file",
+        "folder",
+        "directory",
+    ],
 }
 
 

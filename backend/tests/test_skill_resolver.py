@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from app.agent.infrastructure import skill_resolver
 
-INDEX_IDS = ["example_echo", "system_datetime"]
+INDEX_IDS = ["example_echo", "system_datetime", "file"]
 
 
 def test_explicit_mode_only_requested() -> None:
@@ -49,3 +49,14 @@ def test_auto_empty_for_unrelated() -> None:
         index_skill_ids=INDEX_IDS,
     )
     assert out == []
+
+
+def test_auto_matches_file() -> None:
+    """File-related message auto-selects file skill."""
+
+    out = skill_resolver.resolve_effective_skill_ids(
+        user_message="请读取 notes/readme.md",
+        requested_skill_ids=[],
+        index_skill_ids=INDEX_IDS,
+    )
+    assert out == ["file"]

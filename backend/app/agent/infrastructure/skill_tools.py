@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import importlib.util
+import inspect
 import logging
 import re
 
 from app.agent.infrastructure.skill_loader import skills_root
+from app.agent.infrastructure.skill_tool_context import SkillToolContext
 from app.agent.infrastructure.tool_registry import ToolRegistry
 from app.exceptions import AppError
 
@@ -15,8 +17,12 @@ log = logging.getLogger(__name__)
 _SKILL_ID_RE = re.compile(r"^[a-z0-9_]+$")
 
 
-def load_tools_for_skills(skill_ids: list[str]) -> ToolRegistry:
-    """Import each skill's ``tools.py`` and call ``register(registry)``."""
+def load_tools_for_skills(
+    skill_ids: list[str],
+    *,
+    ctx: SkillToolContext | None = None,
+) -> ToolRegistry:
+    """Import each skill's ``tools.py`` and call ``register(registry[, ctx])``."""
 
     registry = ToolRegistry()
     root = skills_root()
@@ -44,7 +50,11 @@ def load_tools_for_skills(skill_ids: list[str]) -> ToolRegistry:
             continue
         before = set(registry.tool_names())
         try:
-            register_fn(registry)
+            params = inspect.signature(register_fn).parameters
+            if len(params) >= 2:
+                register_fn(registry, ctx)
+            else:
+                register_fn(registry)
         except AppError:
             raise
         except Exception as e:

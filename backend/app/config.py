@@ -206,6 +206,26 @@ class Settings(BaseSettings):
             "agent_tool_timeout_seconds",
         ),
     )
+    agent_files_root: str = Field(
+        default="",
+        description="Agent 工作区文件沙箱根目录；空则使用 backend/data/agent-files。",
+        validation_alias=AliasChoices("AGENT_FILES_ROOT", "agent_files_root"),
+    )
+    agent_file_max_bytes: int = Field(
+        default=524288,
+        ge=1024,
+        description="Agent file 技能单文件读/写最大字节数。",
+        validation_alias=AliasChoices("AGENT_FILE_MAX_BYTES", "agent_file_max_bytes"),
+    )
+
+
+def resolve_agent_files_root() -> Path:
+    """Return configured agent files root, defaulting to ``backend/data/agent-files``."""
+
+    raw = (settings.agent_files_root or "").strip()
+    if raw:
+        return Path(raw).resolve()
+    return (_BACKEND_DIR / "data" / "agent-files").resolve()
 
 
 # Singleton loaded at import time for ``from app.config import settings``.

@@ -588,6 +588,12 @@ export function AgentsPage() {
     [lastMessageId, streaming, traceOpenKeys, t],
   )
 
+  const showHero =
+    Boolean(workspaceId) &&
+    !modelsQuery.isLoading &&
+    usableModels.length > 0 &&
+    messages.length === 0
+
   return (
     <div className="agents-page">
       <aside className="agents-page__sider">
@@ -652,7 +658,9 @@ export function AgentsPage() {
       </aside>
 
       <div className="agents-page__main">
-        <div className="agents-page__scroll minerva-scrollbar-styled">
+        <div
+          className={`agents-page__scroll minerva-scrollbar-styled${showHero ? ' agents-page__scroll--hero' : ''}`}
+        >
           {!workspaceId ? (
             <Alert type="warning" message={t('agents.noWorkspace')} showIcon />
           ) : modelsQuery.isLoading ? (
@@ -673,12 +681,16 @@ export function AgentsPage() {
               }
             />
           ) : messages.length === 0 ? (
-            <div className="agents-page__hero">
-              <RobotOutlined style={{ fontSize: 48, opacity: 0.35 }} />
-              <Title level={2} className="agents-page__hero-title">
-                {t('agents.heroTitle')}
-              </Title>
-              <Text type="secondary">{t('agents.heroHint')}</Text>
+            <div className="agents-page__hero-wrap">
+              <div className="agents-page__hero">
+                <RobotOutlined style={{ fontSize: 48, opacity: 0.35 }} />
+                <Title level={2} className="agents-page__hero-title">
+                  {t('agents.heroTitle')}
+                </Title>
+                <Text type="secondary" className="agents-page__hero-hint">
+                  {t('agents.heroHint')}
+                </Text>
+              </div>
             </div>
           ) : (
             messages.map((m) => (
@@ -754,7 +766,7 @@ export function AgentsPage() {
               </div>
             ))
           )}
-          <div ref={listEndRef} />
+          {messages.length > 0 ? <div ref={listEndRef} /> : null}
         </div>
 
         <div className="agents-page__composer-wrap">

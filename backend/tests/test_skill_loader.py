@@ -35,3 +35,18 @@ def test_list_indexed_skills_includes_system_datetime() -> None:
     items = skill_loader.list_indexed_skills()
     ids = [x["id"] for x in items]
     assert "system_datetime" in ids
+
+
+def test_parse_skill_ids_finds_file() -> None:
+    """INDEX lists ``file``."""
+
+    text = skill_loader.load_index_text()
+    ids = skill_loader.parse_skill_ids_from_index(text)
+    assert "file" in ids
+
+
+def test_load_skill_markdown_file() -> None:
+    """``file/SKILL.md`` loads non-empty."""
+
+    body = skill_loader.load_skill_markdown("file")
+    assert len(body.strip()) > 0
