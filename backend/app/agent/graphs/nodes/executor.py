@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import uuid
 
+from langchain_core.runnables import RunnableConfig
+
 from app.agent.capabilities.datetime.agent import build_datetime_react_agent
 from app.agent.capabilities.file.agent import build_file_react_agent
 from app.agent.capabilities.general.agent import build_general_react_agent
@@ -26,7 +28,7 @@ def _get_subagent(deps: GraphDeps, capability: str):
     return build_general_react_agent(deps.model)
 
 
-async def executor_node(state: AgentGraphState, config: dict) -> dict:
+async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
     """Execute the current plan step with the matching sub-agent."""
 
     deps: GraphDeps = config["configurable"]["deps"]

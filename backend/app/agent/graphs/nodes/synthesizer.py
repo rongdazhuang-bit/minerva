@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
 
 from app.agent.domain.sse_v2 import AgentSseEventType, build_sse_event
 from app.agent.graphs.deps import GraphDeps
@@ -30,7 +31,7 @@ async def _stream_model_text(deps: GraphDeps, messages: list) -> str:
     return "".join(parts)
 
 
-async def synthesizer_node(state: AgentGraphState, config: dict) -> dict:
+async def synthesizer_node(state: AgentGraphState, config: RunnableConfig) -> dict:
     """Produce final_answer from step results or direct model reply."""
 
     deps: GraphDeps = config["configurable"]["deps"]

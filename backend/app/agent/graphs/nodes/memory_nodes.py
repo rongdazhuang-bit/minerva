@@ -6,6 +6,7 @@ import logging
 import uuid
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
 
 from app.agent.domain.memory_extract import MemoryExtract
 from app.agent.domain.sse_v2 import AgentSseEventType, build_sse_event
@@ -15,7 +16,7 @@ from app.agent.graphs.state import AgentGraphState
 log = logging.getLogger(__name__)
 
 
-async def memory_retrieve_node(state: AgentGraphState, config: dict) -> dict:
+async def memory_retrieve_node(state: AgentGraphState, config: RunnableConfig) -> dict:
     """Load long-term memory hits into graph state."""
 
     deps: GraphDeps = config["configurable"]["deps"]
@@ -40,7 +41,7 @@ async def memory_retrieve_node(state: AgentGraphState, config: dict) -> dict:
     return {"retrieved_memories": hits, "current_step_index": 0, "subagent_results": []}
 
 
-async def memory_persist_node(state: AgentGraphState, config: dict) -> dict:
+async def memory_persist_node(state: AgentGraphState, config: RunnableConfig) -> dict:
     """Extract summary/facts via LLM and persist to long-term memory."""
 
     deps: GraphDeps = config["configurable"]["deps"]

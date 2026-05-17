@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
 
 from app.agent.domain.plan import Plan, PlanStep
 from app.agent.domain.sse_v2 import AgentSseEventType, build_sse_event
@@ -21,7 +22,7 @@ PLANNER_SYSTEM = """你是任务规划器。根据用户请求拆分为若干步
 只输出符合 schema 的计划，步数不超过 {max_steps}。简单问候只需一步 general。"""
 
 
-async def planner_node(state: AgentGraphState, config: dict) -> dict:
+async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:
     """Produce a structured Plan and persist it."""
 
     deps: GraphDeps = config["configurable"]["deps"]
