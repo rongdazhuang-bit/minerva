@@ -41,6 +41,8 @@ class AgentSessionListOut(BaseModel):
     """Recent sessions for the workspace agent UI."""
 
     sessions: list[AgentSessionListItemOut]
+    has_more: bool = False
+    next_cursor: str | None = None
 
 
 class AgentMessageOut(BaseModel):

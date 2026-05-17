@@ -70,7 +70,7 @@ class Settings(BaseSettings):
     jwt_secret: str = Field(
         default="change_me_dev_only_32_bytes_minimum_please",
     )
-    jwt_access_ttl_minutes: int = 15
+    jwt_access_ttl_minutes: int = 60
     jwt_refresh_ttl_days: int = 7
     bcrypt_rounds: int = 12
     auto_create_tables: bool = Field(

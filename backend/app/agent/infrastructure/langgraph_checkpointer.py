@@ -52,12 +52,13 @@ async def get_langgraph_checkpointer() -> BaseCheckpointSaver | None:
                 "prepare_threshold": 0,
                 "row_factory": dict_row,
             },
+            check=AsyncConnectionPool.check_connection,
         )
         await _pool.open()
         saver = AsyncPostgresSaver(conn=_pool)
         await saver.setup()
         _checkpointer = saver
-        log.info("LangGraph AsyncPostgresSaver ready (connection pool)")
+        log.info("LangGraph AsyncPostgresSaver ready (pool with connection pre-check)")
     except Exception as e:
         log.warning("LangGraph checkpoint disabled: %s", e)
         _checkpointer = None
@@ -69,3 +70,19 @@ async def get_langgraph_checkpointer() -> BaseCheckpointSaver | None:
             _pool = None
     _setup_done = True
     return _checkpointer
+
+
+async def close_langgraph_checkpointer() -> None:
+    """Close the shared checkpoint pool on application shutdown."""
+
+    global _checkpointer, _pool, _setup_done
+    _checkpointer = None
+    _setup_done = False
+    if _pool is None:
+        return
+    try:
+        await _pool.close()
+    except Exception as e:
+        log.warning("LangGraph checkpoint pool close failed: %s", e)
+    finally:
+        _pool = None

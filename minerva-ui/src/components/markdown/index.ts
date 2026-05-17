@@ -7,9 +7,14 @@ export {
 } from '@/components/markdown/markdownPlugins'
 export { minervaMarkdownUrlTransform } from '@/components/markdown/markdownUrlTransform'
 export { copyTextToClipboard } from '@/components/markdown/copyToClipboard'
-export { normalizePrismLanguage } from '@/components/markdown/prismLanguages'
+export {
+  formatCodeBlockLanguageLabel,
+  normalizePrismLanguage,
+} from '@/components/markdown/prismLanguages'
 export {
   balanceExtraClosingBraces,
+  convertLatexBracketMathDelimiters,
+  unwrapInlineMathFromBoldSpans,
   isProseLikeMathBody,
   repairMissingInlineMathClosers,
   mapOutsideFencedCodeBlocks,
@@ -22,6 +27,7 @@ export {
   ensureBlankLineBeforeDisplayMathFences,
   unindentDisplayMathFenceLines,
   unindentIndentedListContinuations,
+  wrapBareLatexTextCommands,
   wrapBareTexInParentheses,
   wrapCjkInMathBody,
 } from '@/components/markdown/normalizeMarkdownMath'

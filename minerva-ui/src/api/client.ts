@@ -1,24 +1,12 @@
-/**
- * 未设置 VITE_API_BASE_URL 时，生产构建用同源相对路径；
- * 开发环境默认连本机 FastAPI，避免把 /auth 等误发到 Vite（5173）而 404。
- */
-function resolveApiBaseUrl(): string {
-  const v = import.meta.env.VITE_API_BASE_URL
-  if (v != null && String(v).trim() !== '') {
-    return String(v).replace(/\/$/, '')
-  }
-  if (import.meta.env.DEV) {
-    return 'http://127.0.0.1:8000'
-  }
-  return ''
-}
+import { resolveApiBaseUrl } from '@/api/config'
+import {
+  forceLogoutOnAuthFailure,
+  getAccessToken,
+  isAuthApiPath,
+  refreshTokens,
+} from '@/api/tokenSession'
 
-const base = resolveApiBaseUrl()
-
-/** API 根地址（无尾部斜杠），供 SSE 等非 JSON 请求与 ``apiJson`` 共用。 */
-export function apiOrigin(): string {
-  return base
-}
+export { apiOrigin, resolveApiBaseUrl } from '@/api/config'
 
 export class ApiError extends Error {
   constructor(
@@ -30,33 +18,42 @@ export class ApiError extends Error {
   }
 }
 
+const base = resolveApiBaseUrl()
+
+/**
+ * 带 Bearer 的 ``fetch``：临近过期主动 refresh；401 时 refresh 并重试一次。
+ */
+export async function authFetch(url: string, init?: RequestInit): Promise<Response> {
+  const attempt = async (retried: boolean): Promise<Response> => {
+    const token = await getAccessToken()
+    const headers = new Headers(init?.headers)
+    if (token) headers.set('Authorization', `Bearer ${token}`)
+    const res = await fetch(url, { ...init, headers })
+    if (res.status !== 401 || isAuthApiPath(url)) {
+      return res
+    }
+    if (retried) {
+      forceLogoutOnAuthFailure()
+      return res
+    }
+    const ok = await refreshTokens()
+    if (!ok) {
+      forceLogoutOnAuthFailure()
+      return res
+    }
+    return attempt(true)
+  }
+  return attempt(false)
+}
+
 export async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers)
-  const token = localStorage.getItem('access_token')
-  if (token) headers.set('Authorization', `Bearer ${token}`)
   const hasBody = init?.body !== undefined
   if (hasBody && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
-  const res = await fetch(`${base}${path}`, { ...init, headers })
+  const res = await authFetch(`${base}${path}`, { ...init, headers })
   const text = await res.text()
-  if (res.status === 401) {
-    if (!path.startsWith('/auth/')) {
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('refresh_token')
-      const p = window.location.pathname
-      const onAuthUi =
-        p === '/login' ||
-        p === '/auth/login' ||
-        p.startsWith('/auth/login/') ||
-        p === '/register' ||
-        p === '/auth/register' ||
-        p.startsWith('/auth/register/')
-      if (!onAuthUi) {
-        window.location.assign('/login')
-      }
-    }
-  }
   if (!res.ok) {
     try {
       const j = JSON.parse(text) as { code?: string; message?: string }

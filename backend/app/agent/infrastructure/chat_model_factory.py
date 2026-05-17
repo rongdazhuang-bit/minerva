@@ -43,8 +43,11 @@ class ChatModelFactory:
         }
         if temperature is not None:
             kwargs["temperature"] = temperature
-        if max_tokens is not None:
-            kwargs["max_tokens"] = max_tokens
+        effective_max = max_tokens
+        if effective_max is None and row.max_tokens_to_sample is not None:
+            effective_max = row.max_tokens_to_sample
+        if effective_max is not None:
+            kwargs["max_tokens"] = effective_max
         return ChatOpenAI(**kwargs)
 
     @staticmethod

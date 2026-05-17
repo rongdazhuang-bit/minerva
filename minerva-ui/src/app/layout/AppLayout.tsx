@@ -113,6 +113,8 @@ function contentScrollStyleForPath(pathname: string): CSSProperties {
     return {
       ...contentScrollStyle,
       padding: '0 20px 0 10px',
+      /* 历史侧栏与主区各自滚动，避免滚轮被外层主内容区抢走 */
+      overflow: 'hidden',
     }
   }
   return contentScrollStyle

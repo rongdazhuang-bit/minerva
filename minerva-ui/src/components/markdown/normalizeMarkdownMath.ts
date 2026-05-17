@@ -15,6 +15,223 @@ const LATEX_MATH_COMMAND_RE =
 /** Parenthesized TeX that models often emit without ``$`` delimiters. */
 const BARE_TEX_IN_PARENS_RE = /([（(])\s*(\\[a-zA-Z][^）)\n]*?)\s*([）)])/g
 
+/** Strip redundant ``\\(...\\)`` wrappers inside a display-math body (already in math mode). */
+const REDUNDANT_INLINE_BRACKET_IN_DISPLAY_RE = /\\\(([\s\S]*?)\\\)/g
+
+/** Bare ``\\text{...}`` outside ``$`` / ``\\(...\\)`` (models often omit math fences). */
+const BARE_LATEX_TEXT_CMD_RE = /\\text\{([^{}]*)\}/g
+
+/**
+ * End index of an inline ``\\(...\\)`` body (exclusive); stops before nested ``\\(``, ``\\)``, or ``\\，``/``\\,`` prose.
+ */
+function findInlineBracketBodyEnd(text: string, bodyStart: number): number {
+  let j = bodyStart
+  const n = text.length
+
+  while (j < n) {
+    if (text.startsWith('\\)', j) || text.startsWith('\\(', j)) {
+      return j
+    }
+    if (text[j] === '\\' && j + 1 < n) {
+      const next = text[j + 1]
+      if (next === '，') {
+        const after = text[j + 2] ?? ''
+        if (after === '\\') {
+          j++
+          continue
+        }
+        if (after === '' || /\s/.test(after) || /[\u4e00-\u9fff]/.test(after)) {
+          return j
+        }
+      }
+      if (next === ',') {
+        const after = text[j + 2] ?? ''
+        if (after === '\\') {
+          j++
+          continue
+        }
+        if (after === '' || /\s/.test(after) || /[\u4e00-\u9fff]/.test(after)) {
+          return j
+        }
+      }
+    }
+    j++
+  }
+  return n
+}
+
+/**
+ * Wrap bare ``\\text{...}`` spans in ``$...$`` when not already inside math delimiters.
+ */
+export function wrapBareLatexTextCommands(text: string): string {
+  return mapOutsideDisplayMathFences(text, (chunk) =>
+    mapOutsideInlineMathFences(chunk, (prose) =>
+      prose.replace(BARE_LATEX_TEXT_CMD_RE, (_match, inner: string) => `$\\text{${inner}}$`),
+    ),
+  )
+}
+
+/**
+ * Convert LaTeX-style ``\\[...\\]`` / ``\\(...\\)`` delimiters to remark-math ``$$`` / ``$`` fences.
+ */
+export function convertLatexBracketMathDelimiters(text: string): string {
+  let out = ''
+  let i = 0
+  const n = text.length
+
+  const emitBracketMathBody = (rawBody: string) => {
+    const body = rawBody.trim().replace(/\\，/g, '\\,')
+    if (!body) return
+    out += `$${wrapCjkInMathBody(balanceExtraClosingBraces(body))}$`
+  }
+
+  while (i < n) {
+    if (text.startsWith('\\[', i)) {
+      const close = text.indexOf('\\]', i + 2)
+      if (close === -1) {
+        out += text.slice(i)
+        break
+      }
+      const rawBody = text.slice(i + 2, close)
+      const body = rawBody
+        .replace(REDUNDANT_INLINE_BRACKET_IN_DISPLAY_RE, '$1')
+        .trim()
+      out += body ? `$$\n${body}\n$$` : '$$\n$$'
+      i = close + 2
+      continue
+    }
+
+    if (text.startsWith('\\(', i)) {
+      const bodyStart = i + 2
+      const end = findInlineBracketBodyEnd(text, bodyStart)
+      emitBracketMathBody(text.slice(bodyStart, end))
+      if (end < n && text.startsWith('\\)', end)) {
+        i = end + 2
+        continue
+      }
+      if (end < n && text.startsWith('\\(', end)) {
+        i = end
+        continue
+      }
+      if (end < n && text[end] === '\\' && text[end + 1] === '，') {
+        out += '，'
+        i = end + 2
+        continue
+      }
+      if (end < n && text[end] === '\\' && text[end + 1] === ',') {
+        const after = text[end + 2] ?? ''
+        if (after !== '\\') {
+          out += ','
+          i = end + 2
+          continue
+        }
+      }
+      i = end
+      continue
+    }
+
+    out += text[i]
+    i++
+  }
+
+  return out
+}
+
+/** Whether ``**...**`` is a short bare TeX fragment (e.g. ``**F(\\omega)**``) that must render outside strong. */
+function isBareTexBoldBody(inner: string): boolean {
+  const t = inner.trim()
+  if (!t || t.length > 64) return false
+  if (/[\u4e00-\u9fff]/.test(t) && !/\\[a-zA-Z]/.test(t)) return false
+  if (/\\[a-zA-Z]+/.test(t)) return true
+  if (/[A-Za-z]\s*\([^)]+\)/.test(t) && /[_^\\]/.test(t)) return true
+  return false
+}
+
+/**
+ * Rebuild a bold span so ``$...$`` / ``$$`` sit outside ``**`` (remark-math does not parse math inside strong).
+ */
+export function unwrapInlineMathFromBoldSpans(text: string): string {
+  let out = ''
+  let i = 0
+  const n = text.length
+
+  while (i < n) {
+    if (text[i] === '$' && i + 1 < n && text[i + 1] === '$') {
+      const closeBlock = text.indexOf('$$', i + 2)
+      if (closeBlock === -1) {
+        out += text.slice(i)
+        break
+      }
+      out += text.slice(i, closeBlock + 2)
+      i = closeBlock + 2
+      continue
+    }
+
+    if (text.startsWith('**', i)) {
+      const close = text.indexOf('**', i + 2)
+      if (close === -1) {
+        out += text.slice(i)
+        break
+      }
+      const inner = text.slice(i + 2, close)
+      const processed =
+        inner.includes('\\(') || inner.includes('\\[')
+          ? convertLatexBracketMathDelimiters(inner)
+          : inner
+      if (processed.includes('$')) {
+        out += rebuildBoldSegmentWithExternalMath(processed)
+        i = close + 2
+        continue
+      }
+      if (isBareTexBoldBody(inner)) {
+        const body = wrapCjkInMathBody(balanceExtraClosingBraces(inner.trim()))
+        out += `$${body}$`
+        i = close + 2
+        continue
+      }
+      out += text.slice(i, close + 2)
+      i = close + 2
+      continue
+    }
+
+    out += text[i]
+    i++
+  }
+
+  return out
+}
+
+/**
+ * Split ``inner`` (bold body) into alternating ``**text**`` and bare ``$...$`` spans.
+ */
+function rebuildBoldSegmentWithExternalMath(inner: string): string {
+  let segment = inner
+  let result = ''
+
+  while (segment.length > 0) {
+    const open = indexOfUnescapedDollar(segment, 0)
+    if (open < 0) {
+      result += `**${segment}**`
+      break
+    }
+
+    const close = indexOfUnescapedDollar(segment, open + 1)
+    if (close < 0) {
+      const prose = segment.slice(0, open)
+      if (prose) result += `**${prose}**`
+      result += segment.slice(open)
+      break
+    }
+
+    const prose = segment.slice(0, open)
+    if (prose) result += `**${prose}**`
+    result += segment.slice(open, close + 1)
+    segment = segment.slice(close + 1)
+  }
+
+  return result
+}
+
 /**
  * Return the index of the first unescaped ``$`` in ``s`` at or after ``from``, or ``-1``.
  */
@@ -190,11 +407,13 @@ function trySplitMathBodyAtCjkContinuation(
  * Wrap ``(\\vec{...})`` / ``（\\vec{...}）`` fragments in ``$...$`` when the model omits math fences.
  */
 export function wrapBareTexInParentheses(text: string): string {
-  return text.replace(BARE_TEX_IN_PARENS_RE, (match, open: string, tex: string, close: string) => {
-    if (tex.includes('$')) return match
-    const inner = wrapCjkInMathBody(balanceExtraClosingBraces(tex.trim()))
-    return `${open}$${inner}$${close}`
-  })
+  return mapOutsideInlineMathFences(text, (chunk) =>
+    chunk.replace(BARE_TEX_IN_PARENS_RE, (match, open: string, tex: string, close: string) => {
+      if (tex.includes('$')) return match
+      const inner = wrapCjkInMathBody(balanceExtraClosingBraces(tex.trim()))
+      return `${open}$${inner}$${close}`
+    }),
+  )
 }
 
 /**
@@ -288,6 +507,52 @@ export function mapOutsideDisplayMathFences(text: string, transform: (chunk: str
   return out
 }
 
+/**
+ * Apply ``transform`` only outside single-dollar ``$...$`` spans (skips ``$$`` blocks).
+ */
+export function mapOutsideInlineMathFences(text: string, transform: (chunk: string) => string): string {
+  let out = ''
+  let i = 0
+  const n = text.length
+
+  while (i < n) {
+    if (text[i] === '$' && i + 1 < n && text[i + 1] === '$') {
+      const closeBlock = text.indexOf('$$', i + 2)
+      if (closeBlock === -1) {
+        out += text.slice(i)
+        break
+      }
+      out += text.slice(i, closeBlock + 2)
+      i = closeBlock + 2
+      continue
+    }
+
+    if (text[i] === '$') {
+      const open = i
+      const close = indexOfUnescapedDollar(text, open + 1)
+      if (close < 0) {
+        out += text.slice(open)
+        break
+      }
+      out += text.slice(open, close + 1)
+      i = close + 1
+      continue
+    }
+
+    const nextInline = indexOfUnescapedDollar(text, i)
+    const nextDisplay = text.indexOf('$$', i)
+    let end = n
+    if (nextInline >= 0) end = Math.min(end, nextInline)
+    if (nextDisplay >= 0) end = Math.min(end, nextDisplay)
+    if (end > i) {
+      out += transform(text.slice(i, end))
+    }
+    i = end
+  }
+
+  return out
+}
+
 /** Whether ``line`` is a Markdown list marker (``*`` / ``-`` / ``1.``). */
 function isListMarkerLine(line: string): boolean {
   return /^\s{0,3}([-*+]|\d+\.)\s+/.test(line)
@@ -318,6 +583,42 @@ export function unindentIndentedListContinuations(text: string): string {
       if (cont.trim() === '') {
         out.push(cont)
         i++
+        continue
+      }
+
+      if (/^\s{2,}\$\$/.test(cont)) {
+        if (out[out.length - 1]?.trim() !== '') {
+          out.push('')
+        }
+        const block: string[] = []
+        if (/^\s*\$\$\s*$/.test(cont.trim()) && cont.trim() === '$$') {
+          block.push('$$')
+        } else {
+          const sameLine = /^\s+\$\$(.*)$/.exec(cont)
+          block.push(sameLine ? `$$${sameLine[1]}` : '$$')
+        }
+        let j = i + 1
+        while (j < lines.length) {
+          const lj = lines[j]
+          if (/^\s*\$\$\s*$/.test(lj)) {
+            block.push('$$')
+            j++
+            break
+          }
+          if (lj.trim() === '') {
+            block.push('')
+            j++
+            continue
+          }
+          if (/^\s{2,}/.test(lj)) {
+            block.push(lj.replace(/^\s+/, ''))
+            j++
+            continue
+          }
+          break
+        }
+        out.push(...block)
+        i = j
         continue
       }
 
@@ -507,7 +808,13 @@ export function mapOutsideGfmTableRows(text: string, transform: (chunk: string) 
 export function normalizeMarkdownForAgent(markdown: string): string {
   return mapOutsideFencedCodeBlocks(markdown, (chunk) => {
     const base = ensureBlankLineBeforeDisplayMathFences(
-      unindentDisplayMathFenceLines(unindentIndentedListContinuations(chunk)),
+      unindentDisplayMathFenceLines(
+        unindentIndentedListContinuations(
+          unwrapInlineMathFromBoldSpans(
+            wrapBareLatexTextCommands(convertLatexBracketMathDelimiters(chunk)),
+          ),
+        ),
+      ),
     )
     return mapOutsideGfmTableRows(base, (nonTable) =>
       normalizeSelectiveDisplayMathFencesForRemarkMath(
@@ -535,7 +842,13 @@ export function normalizeMarkdownForOcr(
 ): string {
   return normalizeDisplayMathFencesForRemarkMath(
     promoteInlineMathContainingTagToDisplay(
-      normalizeLooseInlineMathDelimiters(applyOcrMarkdownImagePlaceholders(markdown, images)),
+      normalizeLooseInlineMathDelimiters(
+        unwrapInlineMathFromBoldSpans(
+          wrapBareLatexTextCommands(
+            convertLatexBracketMathDelimiters(applyOcrMarkdownImagePlaceholders(markdown, images)),
+          ),
+        ),
+      ),
     ),
   )
 }

@@ -1,5 +1,5 @@
 /**
- * 工作区「智能体」对话页：Kimi 式布局；模型仅从已配置的模型提供商中选择，发送前拉取详情以连接上游。
+ * 工作区「智能体」对话页：Kimi 式布局；模型仅从已配置的模型提供商列表中选择（运行由后端按 model_id 加载）。
  */
 import { CopyOutlined, MoreOutlined, RobotOutlined, SendOutlined } from '@ant-design/icons'
 import {
@@ -17,7 +17,7 @@ import {
   type InputRef,
   type MenuProps,
 } from 'antd'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
@@ -25,6 +25,7 @@ import {
   createAgentSession,
   deleteAgentSession,
   getAgentSessionDetail,
+  AGENT_SESSIONS_PAGE_SIZE,
   listAgentSessions,
   streamAgentRun,
   type AgentSessionListItem,
@@ -38,7 +39,7 @@ import {
   titleFromFirstQuestion,
 } from '@/features/workspace/agentSkillUi'
 import { ApiError } from '@/api/client'
-import { getModelProvider, listModelProviders, type ModelProviderListItem } from '@/api/modelProviders'
+import { listModelProviders, type ModelProviderListItem } from '@/api/modelProviders'
 import { useAuth } from '@/app/AuthContext'
 import { AgentAssistantMarkdown } from '@/features/workspace/AgentAssistantMarkdown'
 import './AgentsPage.css'
@@ -85,6 +86,8 @@ export function AgentsPage() {
   const { workspaceId } = useAuth()
   const [prefs, setPrefs] = useState<UiPrefs>(() => loadPrefs())
   const [sessionId, setSessionId] = useState<string | null>(null)
+  /** Session id being loaded after a sidebar click (detail fetch in flight). */
+  const [sessionLoadingId, setSessionLoadingId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [draft, setDraft] = useState('')
   const [streaming, setStreaming] = useState(false)
@@ -92,6 +95,10 @@ export function AgentsPage() {
   const [traceOpenKeys, setTraceOpenKeys] = useState<string[]>([])
   const abortRef = useRef<AbortController | null>(null)
   const listEndRef = useRef<HTMLDivElement | null>(null)
+  /** Sidebar history list scroll container (infinite session pagination). */
+  const historyScrollRef = useRef<HTMLDivElement | null>(null)
+  /** Sentinel at list bottom for IntersectionObserver-based pagination. */
+  const historyLoadMoreRef = useRef<HTMLDivElement | null>(null)
   /** Composer ``Input.TextArea`` ref for refocus after a run finishes. */
   const draftInputRef = useRef<InputRef | null>(null)
   /** Tracks previous ``streaming`` to detect assistant run completion. */
@@ -103,11 +110,111 @@ export function AgentsPage() {
     enabled: Boolean(workspaceId),
   })
 
-  const sessionsQuery = useQuery({
+  const sessionsQuery = useInfiniteQuery({
     queryKey: ['agent-sessions', workspaceId],
-    queryFn: () => listAgentSessions(workspaceId!),
+    queryFn: ({ pageParam }) =>
+      listAgentSessions(workspaceId!, {
+        limit: AGENT_SESSIONS_PAGE_SIZE,
+        cursor: pageParam ?? undefined,
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => (last.has_more ? last.next_cursor : undefined),
     enabled: Boolean(workspaceId),
   })
+
+  const sessionList = useMemo(
+    () => sessionsQuery.data?.pages.flatMap((page) => page.sessions) ?? [],
+    [sessionsQuery.data],
+  )
+
+  const {
+    hasNextPage: sessionsHasNextPage,
+    isFetchingNextPage: sessionsFetchingNextPage,
+    fetchNextPage: fetchNextSessionsPage,
+    isSuccess: sessionsLoaded,
+  } = sessionsQuery
+
+  const maybeLoadMoreSessions = useCallback(() => {
+    const el = historyScrollRef.current
+    if (!el || !sessionsHasNextPage || sessionsFetchingNextPage) {
+      return
+    }
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 56) {
+      void fetchNextSessionsPage()
+    }
+  }, [sessionsHasNextPage, sessionsFetchingNextPage, fetchNextSessionsPage])
+
+  const handleHistoryScroll = useCallback(() => {
+    maybeLoadMoreSessions()
+  }, [maybeLoadMoreSessions])
+
+  /** Keep wheel inside history scroller; load more when already at bottom. */
+  const handleHistoryWheel = useCallback(
+    (e: React.WheelEvent<HTMLDivElement>) => {
+      const el = historyScrollRef.current
+      if (!el) {
+        return
+      }
+      const canScrollInside = el.scrollHeight > el.clientHeight + 1
+      const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1
+      const atTop = el.scrollTop <= 0
+      const scrollingDown = e.deltaY > 0
+      const scrollingUp = e.deltaY < 0
+
+      if (canScrollInside) {
+        if ((scrollingDown && !atBottom) || (scrollingUp && !atTop)) {
+          e.stopPropagation()
+          return
+        }
+        if (scrollingDown && atBottom) {
+          e.stopPropagation()
+          maybeLoadMoreSessions()
+        }
+        return
+      }
+
+      if (scrollingDown && sessionsHasNextPage) {
+        e.stopPropagation()
+        maybeLoadMoreSessions()
+      }
+    },
+    [maybeLoadMoreSessions, sessionsHasNextPage],
+  )
+
+  useEffect(() => {
+    if (!sessionsLoaded || !sessionsHasNextPage || sessionsFetchingNextPage) {
+      return
+    }
+    const el = historyScrollRef.current
+    if (!el || el.scrollHeight > el.clientHeight + 8) {
+      return
+    }
+    void fetchNextSessionsPage()
+  }, [
+    sessionList.length,
+    sessionsLoaded,
+    sessionsHasNextPage,
+    sessionsFetchingNextPage,
+    fetchNextSessionsPage,
+  ])
+
+  useEffect(() => {
+    const root = historyScrollRef.current
+    const sentinel = historyLoadMoreRef.current
+    if (!root || !sentinel || !sessionsHasNextPage) {
+      return
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          maybeLoadMoreSessions()
+        }
+      },
+      { root, rootMargin: '64px', threshold: 0 },
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [sessionList.length, sessionsHasNextPage, maybeLoadMoreSessions])
 
   const usableModels = useMemo(() => {
     const rows = modelsQuery.data ?? []
@@ -174,6 +281,7 @@ export function AgentsPage() {
     abortRef.current?.abort()
     abortRef.current = null
     setSessionId(null)
+    setSessionLoadingId(null)
     setMessages([])
     setTraceOpenKeys([])
     setStreaming(false)
@@ -183,12 +291,14 @@ export function AgentsPage() {
   const loadSession = useCallback(
     async (id: string) => {
       if (!workspaceId || streaming) return
-      if (id === sessionId) return
+      if (id === sessionId && !sessionLoadingId) return
       abortRef.current?.abort()
       abortRef.current = null
       setStreaming(false)
       setTraceOpenKeys([])
       setDraft('')
+      setSessionLoadingId(id)
+      setMessages([])
       try {
         const detail = await getAgentSessionDetail(workspaceId, id)
         setSessionId(detail.session.id)
@@ -196,9 +306,11 @@ export function AgentsPage() {
       } catch (e) {
         if (e instanceof ApiError) antdMessage.error(e.message)
         else antdMessage.error(String(e))
+      } finally {
+        setSessionLoadingId(null)
       }
     },
-    [workspaceId, streaming, sessionId],
+    [workspaceId, streaming, sessionId, sessionLoadingId],
   )
 
   const formatSessionTime = useCallback(
@@ -294,7 +406,12 @@ export function AgentsPage() {
 
     let sid = sessionId
     try {
-      const detail = await getModelProvider(workspaceId, mid)
+      const modelRow = usableModels.find((m) => m.id === mid)
+      const maxTok =
+        modelRow?.max_tokens_to_sample != null &&
+        Number.isFinite(modelRow.max_tokens_to_sample)
+          ? modelRow.max_tokens_to_sample
+          : null
 
       if (!sid) {
         const sessionTitle = titleFromFirstQuestion(apiBody)
@@ -307,11 +424,6 @@ export function AgentsPage() {
         pushAsstLog(`[session] ${sid}`)
         void queryClient.invalidateQueries({ queryKey: ['agent-sessions', workspaceId] })
       }
-
-      const maxTok =
-        detail.max_tokens_to_sample != null && Number.isFinite(detail.max_tokens_to_sample)
-          ? detail.max_tokens_to_sample
-          : null
 
       const { runId } = await streamAgentRun(
         workspaceId,
@@ -379,6 +491,7 @@ export function AgentsPage() {
     sessionId,
     draft,
     prefs.selectedModelId,
+    usableModels,
     queryClient,
     t,
   ])
@@ -467,10 +580,13 @@ export function AgentsPage() {
     [lastMessageId, streaming, traceOpenKeys, t],
   )
 
+  const sessionDetailLoading = sessionLoadingId !== null
+
   const showHero =
     Boolean(workspaceId) &&
     !modelsQuery.isLoading &&
     usableModels.length > 0 &&
+    !sessionDetailLoading &&
     messages.length === 0
 
   return (
@@ -479,7 +595,12 @@ export function AgentsPage() {
         <Button type="primary" block onClick={handleNewChat}>
           {t('agents.newChat')}
         </Button>
-        <div className="agents-page__sider-history minerva-scrollbar-styled">
+        <div
+          ref={historyScrollRef}
+          className="agents-page__sider-history minerva-scrollbar-styled"
+          onScroll={handleHistoryScroll}
+          onWheel={handleHistoryWheel}
+        >
           <Text type="secondary" className="agents-page__sider-history-title">
             {t('agents.recentChats')}
           </Text>
@@ -487,19 +608,20 @@ export function AgentsPage() {
             <Flex justify="center" style={{ padding: '12px 0' }}>
               <Spin size="small" />
             </Flex>
-          ) : (sessionsQuery.data?.sessions ?? []).length === 0 ? (
+          ) : sessionList.length === 0 ? (
             <Text type="secondary" className="agents-page__sider-history-empty">
               {t('agents.noRecentChats')}
             </Text>
           ) : (
             <div className="agents-page__sider-history-list">
-              {(sessionsQuery.data?.sessions ?? []).map((s: AgentSessionListItem) => {
+              {sessionList.map((s: AgentSessionListItem) => {
                 const active = sessionId === s.id
+                const loading = sessionLoadingId === s.id
                 return (
                   <div
                     key={s.id}
                     className={
-                      active
+                      active || loading
                         ? 'agents-page__session-row agents-page__session-row--active'
                         : 'agents-page__session-row'
                     }
@@ -508,13 +630,17 @@ export function AgentsPage() {
                       type="button"
                       className="agents-page__session-item"
                       onClick={() => void loadSession(s.id)}
-                      disabled={streaming}
+                      disabled={streaming || sessionDetailLoading}
                     >
                       <span className="agents-page__session-item-title">
                         {sessionListLabel(s, t('agents.defaultSessionTitle'))}
                       </span>
                       <span className="agents-page__session-item-time">
-                        {formatSessionTime(s.updated_at ?? s.created_at)}
+                        {loading ? (
+                          <Spin size="small" />
+                        ) : (
+                          formatSessionTime(s.updated_at ?? s.created_at)
+                        )}
                       </span>
                     </button>
                     <Dropdown menu={buildSessionRowMenu(s.id)} trigger={['click']}>
@@ -533,6 +659,18 @@ export function AgentsPage() {
               })}
             </div>
           )}
+          {sessionList.length > 0 && sessionsHasNextPage ? (
+            <div
+              ref={historyLoadMoreRef}
+              className="agents-page__sider-history-sentinel"
+              aria-hidden
+            />
+          ) : null}
+          {sessionsQuery.isFetchingNextPage ? (
+            <Flex justify="center" className="agents-page__sider-history-more">
+              <Spin size="small" />
+            </Flex>
+          ) : null}
         </div>
       </aside>
 
@@ -559,6 +697,17 @@ export function AgentsPage() {
                 </span>
               }
             />
+          ) : sessionDetailLoading ? (
+            <Flex
+              vertical
+              align="center"
+              justify="center"
+              gap={12}
+              className="agents-page__session-loading"
+            >
+              <Spin />
+              <Text type="secondary">{t('agents.loadingSession')}</Text>
+            </Flex>
           ) : messages.length === 0 ? (
             <div className="agents-page__hero-wrap">
               <div className="agents-page__hero">

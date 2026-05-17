@@ -19,7 +19,11 @@ from app.agent.api.v2.schemas import (
     AgentSessionListOut,
     AgentSessionOut,
 )
-from app.agent.infrastructure.repository import RECENT_AGENT_SESSIONS_DEFAULT_LIMIT
+from app.agent.infrastructure.repository import (
+    RECENT_AGENT_SESSIONS_DEFAULT_LIMIT,
+    decode_agent_session_cursor,
+    encode_agent_session_cursor,
+)
 from app.agent.infrastructure import repository as agent_repo
 from app.agent.infrastructure.skill_loader import list_indexed_skills
 from app.agent.service.agent_graph_run_service import (
@@ -83,14 +87,32 @@ async def create_agent_session(
 async def list_agent_sessions(
     workspace_id: uuid.UUID,
     limit: int = Query(default=RECENT_AGENT_SESSIONS_DEFAULT_LIMIT, ge=1, le=50),
+    cursor: str | None = Query(default=None, description="Keyset cursor from prior page ``next_cursor``."),
     _workspace: uuid.UUID = Depends(require_workspace_member),
     db: AsyncSession = Depends(get_db),
 ) -> AgentSessionListOut:
-    """列出工作区最近的智能体会话。"""
+    """列出工作区最近的智能体会话（支持 ``cursor`` 滚动分页）。"""
 
-    rows = await agent_repo.list_agent_sessions_recent(
-        db, workspace_id=workspace_id, limit=limit
+    cursor_updated_at = None
+    cursor_id = None
+    if cursor:
+        try:
+            cursor_updated_at, cursor_id = decode_agent_session_cursor(cursor)
+        except ValueError as e:
+            raise AppError("agent.invalid_session_cursor", "会话列表游标无效。") from e
+
+    rows, has_more = await agent_repo.list_agent_sessions_recent(
+        db,
+        workspace_id=workspace_id,
+        limit=limit,
+        cursor_updated_at=cursor_updated_at,
+        cursor_id=cursor_id,
     )
+    next_cursor: str | None = None
+    if has_more and rows:
+        last_row, _preview = rows[-1]
+        ts = last_row.updated_at or last_row.created_at
+        next_cursor = encode_agent_session_cursor(ts, last_row.id)
     return AgentSessionListOut(
         sessions=[
             AgentSessionListItemOut(
@@ -101,7 +123,9 @@ async def list_agent_sessions(
                 updated_at=row.updated_at,
             )
             for row, preview in rows
-        ]
+        ],
+        has_more=has_more,
+        next_cursor=next_cursor,
     )
 
 

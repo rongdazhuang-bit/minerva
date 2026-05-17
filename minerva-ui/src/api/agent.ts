@@ -1,7 +1,8 @@
 /**
  * 工作区智能体 v2：会话 CRUD 与 SSE v2 流式 run（服务端托管 model_id）。
  */
-import { ApiError, apiOrigin } from '@/api/client'
+import { ApiError, authFetch } from '@/api/client'
+import { apiOrigin } from '@/api/config'
 import {
   parseAgentV2SseLine,
   type AgentStreamV2ParseResult,
@@ -54,23 +55,8 @@ export type AgentRunCreateBodyV2 = {
 
 export type AgentStreamEvent = AgentStreamV2ParseResult
 
-function authHeaders(): HeadersInit {
-  const headers: Record<string, string> = {}
-  const token = localStorage.getItem('access_token')
-  if (token) headers.Authorization = `Bearer ${token}`
-  return headers
-}
-
 function v2Base(workspaceId: string) {
   return `${apiOrigin()}/workspaces/${workspaceId}/agent/v2`
-}
-
-async function handleAuth(res: Response) {
-  if (res.status === 401) {
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
-    window.location.assign('/login')
-  }
 }
 
 async function parseJsonError(text: string, res: Response): Promise<never> {
@@ -83,18 +69,29 @@ async function parseJsonError(text: string, res: Response): Promise<never> {
   }
 }
 
-/** GET 最近会话列表（侧栏历史）。 */
+/** Default page size for agent session sidebar infinite scroll. */
+export const AGENT_SESSIONS_PAGE_SIZE = 20
+
+export type AgentSessionListResponse = {
+  sessions: AgentSessionListItem[]
+  has_more: boolean
+  next_cursor: string | null
+}
+
+/** GET 最近会话列表（侧栏历史，支持 cursor 分页）。 */
 export async function listAgentSessions(
   workspaceId: string,
-  limit = 20,
-): Promise<{ sessions: AgentSessionListItem[] }> {
-  const res = await fetch(`${v2Base(workspaceId)}/sessions?limit=${limit}`, {
-    headers: new Headers(authHeaders()),
-  })
-  await handleAuth(res)
+  options?: { limit?: number; cursor?: string | null },
+): Promise<AgentSessionListResponse> {
+  const limit = options?.limit ?? AGENT_SESSIONS_PAGE_SIZE
+  const params = new URLSearchParams({ limit: String(limit) })
+  if (options?.cursor) {
+    params.set('cursor', options.cursor)
+  }
+  const res = await authFetch(`${v2Base(workspaceId)}/sessions?${params}`)
   const text = await res.text()
   if (!res.ok) await parseJsonError(text, res)
-  return JSON.parse(text) as { sessions: AgentSessionListItem[] }
+  return JSON.parse(text) as AgentSessionListResponse
 }
 
 /** DELETE 会话。 */
@@ -102,11 +99,9 @@ export async function deleteAgentSession(
   workspaceId: string,
   sessionId: string,
 ): Promise<void> {
-  const res = await fetch(`${v2Base(workspaceId)}/sessions/${sessionId}`, {
+  const res = await authFetch(`${v2Base(workspaceId)}/sessions/${sessionId}`, {
     method: 'DELETE',
-    headers: new Headers(authHeaders()),
   })
-  await handleAuth(res)
   if (res.status === 204) return
   const text = await res.text()
   if (!res.ok) await parseJsonError(text, res)
@@ -117,10 +112,7 @@ export async function getAgentSessionDetail(
   workspaceId: string,
   sessionId: string,
 ): Promise<AgentSessionDetailOut> {
-  const res = await fetch(`${v2Base(workspaceId)}/sessions/${sessionId}`, {
-    headers: new Headers(authHeaders()),
-  })
-  await handleAuth(res)
+  const res = await authFetch(`${v2Base(workspaceId)}/sessions/${sessionId}`)
   const text = await res.text()
   if (!res.ok) await parseJsonError(text, res)
   return JSON.parse(text) as AgentSessionDetailOut
@@ -130,10 +122,7 @@ export async function getAgentSessionDetail(
 export async function listAgentSkills(
   workspaceId: string,
 ): Promise<{ skills: AgentSkillListItem[] }> {
-  const res = await fetch(`${v2Base(workspaceId)}/skills`, {
-    headers: new Headers(authHeaders()),
-  })
-  await handleAuth(res)
+  const res = await authFetch(`${v2Base(workspaceId)}/skills`)
   const text = await res.text()
   if (!res.ok) await parseJsonError(text, res)
   return JSON.parse(text) as { skills: AgentSkillListItem[] }
@@ -144,14 +133,12 @@ export async function createAgentSession(
   workspaceId: string,
   body: { title?: string | null; agent_key?: string | null } = {},
 ): Promise<AgentSessionOut> {
-  const headers = new Headers(authHeaders())
-  headers.set('Content-Type', 'application/json')
-  const res = await fetch(`${v2Base(workspaceId)}/sessions`, {
+  const headers = new Headers({ 'Content-Type': 'application/json' })
+  const res = await authFetch(`${v2Base(workspaceId)}/sessions`, {
     method: 'POST',
     headers,
     body: JSON.stringify(body),
   })
-  await handleAuth(res)
   const text = await res.text()
   if (!res.ok) await parseJsonError(text, res)
   return JSON.parse(text) as AgentSessionOut
@@ -171,21 +158,22 @@ export async function streamAgentRun(
   onEvent: (evt: AgentStreamEvent) => void,
   signal?: AbortSignal,
 ): Promise<StreamAgentRunResult> {
-  const headers = new Headers(authHeaders())
-  headers.set('Content-Type', 'application/json')
-  const res = await fetch(`${v2Base(workspaceId)}/sessions/${sessionId}/runs`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      user_message: body.user_message,
-      model_id: body.model_id,
-      temperature: body.temperature ?? null,
-      max_tokens: body.max_tokens ?? null,
-      preferred_skills: body.preferred_skills ?? [],
-    }),
-    signal,
-  })
-  await handleAuth(res)
+  const headers = new Headers({ 'Content-Type': 'application/json' })
+  const res = await authFetch(
+    `${v2Base(workspaceId)}/sessions/${sessionId}/runs`,
+    {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        user_message: body.user_message,
+        model_id: body.model_id,
+        temperature: body.temperature ?? null,
+        max_tokens: body.max_tokens ?? null,
+        preferred_skills: body.preferred_skills ?? [],
+      }),
+      signal,
+    },
+  )
   if (!res.ok) {
     const text = await res.text()
     await parseJsonError(text, res)

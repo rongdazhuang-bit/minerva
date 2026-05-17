@@ -10,7 +10,10 @@ from slowapi.errors import RateLimitExceeded
 from app.core.api.router import api
 from app.config import settings
 from app.errors import register_exception_handlers
-from app.agent.infrastructure.langgraph_checkpointer import get_langgraph_checkpointer
+from app.agent.infrastructure.langgraph_checkpointer import (
+    close_langgraph_checkpointer,
+    get_langgraph_checkpointer,
+)
 from app.core.infrastructure.db.bootstrap import create_missing_tables
 from app.limits import limiter
 
@@ -22,6 +25,7 @@ async def lifespan(app: FastAPI):
     await create_missing_tables()
     await get_langgraph_checkpointer()
     yield
+    await close_langgraph_checkpointer()
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)

@@ -27,7 +27,10 @@ import {
   normalizeMarkdownForAgent,
   normalizeMarkdownForOcr,
 } from '@/components/markdown/normalizeMarkdownMath'
-import { normalizePrismLanguage } from '@/components/markdown/prismLanguages'
+import {
+  formatCodeBlockLanguageLabel,
+  normalizePrismLanguage,
+} from '@/components/markdown/prismLanguages'
 import 'katex/dist/katex.min.css'
 import './MinervaMarkdown.css'
 
@@ -67,13 +70,15 @@ function loadMermaidApi() {
 
 type CodeLikeProps = { className?: string; children?: ReactNode }
 
-/** Prism-highlighted fenced code with copy actions at the top-right and bottom-right. */
+/** Prism-highlighted fenced code with language badge, line numbers, and copy. */
 const PrismCodeWithCopy = memo(function PrismCodeWithCopy({
   code,
   language,
+  rawLanguage,
 }: {
   code: string
   language: string
+  rawLanguage: string
 }) {
   const { t } = useTranslation()
   const onCopy = useCallback(async () => {
@@ -83,21 +88,22 @@ const PrismCodeWithCopy = memo(function PrismCodeWithCopy({
   }, [code, t])
 
   const copyLabel = t('agents.copyCodeBlock')
+  const languageLabel = formatCodeBlockLanguageLabel(
+    rawLanguage,
+    language,
+    t('agents.codeLangPlainText'),
+  )
 
   return (
     <div className="minerva-md-syntax-host">
+      <div className="minerva-md-syntax-header">
+        <span className="minerva-md-syntax-lang" title={languageLabel}>
+          {languageLabel}
+        </span>
+      </div>
       <button
         type="button"
-        className="minerva-md-syntax-copy minerva-md-syntax-copy--tr"
-        aria-label={copyLabel}
-        title={copyLabel}
-        onClick={() => void onCopy()}
-      >
-        <CopyOutlined />
-      </button>
-      <button
-        type="button"
-        className="minerva-md-syntax-copy minerva-md-syntax-copy--br"
+        className="minerva-md-syntax-copy"
         aria-label={copyLabel}
         title={copyLabel}
         onClick={() => void onCopy()}
@@ -112,12 +118,21 @@ const PrismCodeWithCopy = memo(function PrismCodeWithCopy({
         codeTagProps={{ className: 'minerva-md-syntax-code' }}
         customStyle={{
           margin: 0,
-          padding: '2rem 2.5rem 2rem 1em',
-          borderRadius: 8,
+          padding: '0.75em 2.5rem 2rem 0',
+          borderRadius: 0,
           fontSize: '0.88em',
-          border: '1px solid var(--minerva-border, #2a3f58)',
+          border: 'none',
+          background: 'transparent',
         }}
-        showLineNumbers={false}
+        showLineNumbers
+        lineNumberStyle={{
+          minWidth: '2.25em',
+          paddingRight: '0.75em',
+          marginRight: '0.5em',
+          textAlign: 'right',
+          userSelect: 'none',
+          opacity: 0.45,
+        }}
         wrapLines
         wrapLongLines
       >
@@ -182,7 +197,7 @@ function createPreBlock(richCode: boolean) {
         const langMatch = /language-([\w#+.-]+)/i.exec(cls)
         const rawLang = langMatch?.[1] ?? ''
         const lang = rawLang ? normalizePrismLanguage(rawLang) : 'plaintext'
-        return <PrismCodeWithCopy code={inner} language={lang} />
+        return <PrismCodeWithCopy code={inner} language={lang} rawLanguage={rawLang} />
       }
     }
     return (

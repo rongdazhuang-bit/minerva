@@ -165,11 +165,35 @@ html.minerva-tone-sunshine .minerva-md .katex-error {
   position: relative;
   margin: 0.55em 0;
   min-height: 4.75rem;
+  border: 1px solid var(--minerva-border, #2a3f58);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.minerva-md-syntax-header {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--minerva-border, #2a3f58);
+  background: color-mix(in srgb, var(--minerva-surface-2, #121c28) 92%, #000 8%);
+}
+
+.minerva-md-syntax-lang {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--minerva-ink, #e8f0f8) 72%, transparent);
+  user-select: none;
 }
 
 .minerva-md-syntax-copy {
   position: absolute;
   z-index: 2;
+  right: 6px;
+  bottom: 6px;
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
@@ -200,19 +224,13 @@ html.minerva-tone-sunshine .minerva-md .katex-error {
   outline-offset: 2px;
 }
 
-.minerva-md-syntax-copy--tr {
-  top: 6px;
-  right: 6px;
-}
-
-.minerva-md-syntax-copy--br {
-  bottom: 6px;
-  right: 6px;
-}
-
 .minerva-md-syntax {
   max-width: 100%;
   overflow-x: auto !important;
+}
+
+.minerva-md-syntax .linenumber {
+  border-right: 1px solid color-mix(in srgb, var(--minerva-border, #2a3f58) 85%, transparent);
 }
 
 .minerva-md-syntax-code {

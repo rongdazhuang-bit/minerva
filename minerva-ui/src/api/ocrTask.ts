@@ -1,4 +1,10 @@
 import { apiJson } from '@/api/client'
+import { apiOrigin } from '@/api/config'
+import {
+  forceLogoutOnAuthFailure,
+  getAccessToken,
+  refreshTokens,
+} from '@/api/tokenSession'
 
 export type OcrFileOverviewStats = {
   init_count: number
@@ -107,15 +113,6 @@ function ocrFilePath(workspaceId: string, suffix = '') {
   return `/workspaces/${workspaceId}/ocr-files${suffix}`
 }
 
-function resolveApiBaseUrl(): string {
-  const v = import.meta.env.VITE_API_BASE_URL
-  if (v != null && String(v).trim() !== '') {
-    return String(v).replace(/\/$/, '')
-  }
-  if (import.meta.env.DEV) return 'http://127.0.0.1:8000'
-  return ''
-}
-
 export function getOcrFileOverviewStats(workspaceId: string) {
   return apiJson<OcrFileOverviewStats>(ocrFilePath(workspaceId, '/overview-stats'))
 }
@@ -193,42 +190,66 @@ export function uploadOcrSourceFile(
   workspaceId: string,
   file: File,
   onProgress?: (percent: number) => void,
-) {
-  const base = resolveApiBaseUrl()
-  const url = `${base}/workspaces/${workspaceId}/s3/files:upload?module_prefix=ocr_file`
-  const token = localStorage.getItem('access_token')
-  const formData = new FormData()
-  formData.append('file', file)
-  return new Promise<OcrS3UploadOut>((resolve, reject) => {
-    const xhr = new XMLHttpRequest()
-    xhr.open('POST', url, true)
-    if (token != null && token.trim() !== '') {
-      xhr.setRequestHeader('Authorization', `Bearer ${token}`)
-    }
-    xhr.upload.onprogress = (evt) => {
-      if (evt.lengthComputable && onProgress != null) {
-        onProgress(Math.max(0, Math.min(100, Math.round((evt.loaded / evt.total) * 100))))
+): Promise<OcrS3UploadOut> {
+  const url = `${apiOrigin()}/workspaces/${workspaceId}/s3/files:upload?module_prefix=ocr_file`
+
+  const sendOnce = async (retried: boolean): Promise<OcrS3UploadOut> => {
+    const token = await getAccessToken()
+    const formData = new FormData()
+    formData.append('file', file)
+    return new Promise<OcrS3UploadOut>((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', url, true)
+      if (token != null && token.trim() !== '') {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`)
       }
-    }
-    xhr.onerror = () => reject(new Error('network error'))
-    xhr.onload = () => {
-      const text = xhr.responseText ?? ''
-      if (xhr.status < 200 || xhr.status >= 300) {
-        try {
-          const parsed = JSON.parse(text) as { message?: string }
-          reject(new Error((parsed.message ?? text) || xhr.statusText))
-          return
-        } catch {
-          reject(new Error(text || xhr.statusText))
-          return
+      xhr.upload.onprogress = (evt) => {
+        if (evt.lengthComputable && onProgress != null) {
+          onProgress(
+            Math.max(0, Math.min(100, Math.round((evt.loaded / evt.total) * 100))),
+          )
         }
       }
-      try {
-        resolve(JSON.parse(text) as OcrS3UploadOut)
-      } catch {
-        reject(new Error('invalid upload response'))
+      xhr.onerror = () => reject(new Error('network error'))
+      xhr.onload = () => {
+        void (async () => {
+          const text = xhr.responseText ?? ''
+          if (xhr.status === 401 && !retried) {
+            const ok = await refreshTokens()
+            if (ok) {
+              try {
+                resolve(await sendOnce(true))
+              } catch (e) {
+                reject(e)
+              }
+              return
+            }
+            forceLogoutOnAuthFailure()
+          }
+          if (xhr.status === 401) {
+            forceLogoutOnAuthFailure()
+            reject(new Error('unauthorized'))
+            return
+          }
+          if (xhr.status < 200 || xhr.status >= 300) {
+            try {
+              const parsed = JSON.parse(text) as { message?: string }
+              reject(new Error((parsed.message ?? text) || xhr.statusText))
+            } catch {
+              reject(new Error(text || xhr.statusText))
+            }
+            return
+          }
+          try {
+            resolve(JSON.parse(text) as OcrS3UploadOut)
+          } catch {
+            reject(new Error('invalid upload response'))
+          }
+        })()
       }
-    }
-    xhr.send(formData)
-  })
+      xhr.send(formData)
+    })
+  }
+
+  return sendOnce(false)
 }

@@ -1,12 +1,61 @@
 import { describe, expect, it } from 'vitest'
+import { unified } from 'unified'
+import remarkParse from 'remark-parse'
+import { visit } from 'unist-util-visit'
+import { MINERVA_MARKDOWN_REMARK_PLUGINS } from '@/components/markdown/markdownPlugins'
 import {
   balanceExtraClosingBraces,
+  convertLatexBracketMathDelimiters,
   isProseLikeMathBody,
   normalizeMarkdownForAgent,
+  wrapBareLatexTextCommands,
   repairMissingInlineMathClosers,
+  unwrapInlineMathFromBoldSpans,
   wrapBareTexInParentheses,
   wrapCjkInMathBody,
 } from '@/components/markdown/normalizeMarkdownMath'
+
+const USER_EULER_LIST_SNIPPET = `- **特殊值（\\(\\theta = \\pi\\)）**：得到 **欧拉恒等式**  
+  \\[
+  e^{i\\pi} + 1 = 0
+  \\]  
+  被誉为“数学中最美的公式”，因为它将 **自然常数 \\(e\\)、虚数单位 \\(i\\)、圆周率 \\(\\pi\\)、加法单位元 \\(0\\) 和乘法单位元 \\(1\\)** 统一在一个等式中。
+- **几何意义**：在复平面上，\\(e^{i\\theta}\\) 表示单位圆上角度为 \\(\\theta\\) 的点，其模长为 1。
+
+---
+
+### **2. 多面体欧拉公式（拓扑学）**
+\\[
+V - E + F = 2
+\\]
+**解释**：
+- **含义**：描述凸多面体的顶点数 \\(V\\)、边数 \\(E\\) 和面数 \\(F\\) 之间的关系。
+- **例子**：立方体的 \\(V=8, E=12, F=6\\)，满足 \\(8-12+6=2\\)。
+- **推广**：对任意与球面同胚的连通平面图，该公式成立（此时 \\(V-E+F=1\\) 需根据连通性调整）。`
+
+const EULER_FORMULAS_MARKDOWN = `### **1. 复分析中的欧拉公式（最著名）**
+\\[
+e^{i\\theta} = \\cos\\theta + i\\sin\\theta
+\\]
+**解释**：
+- **含义**：将复数指数函数与三角函数联系起来，建立了实数域与复数域的桥梁。
+- **特殊值（\\(\\theta = \\pi\\)）**：得到 **欧拉恒等式**  
+  \\[
+  e^{i\\pi} + 1 = 0
+  \\]  
+  被誉为“数学中最美的公式”，因为它将 **自然常数 \\(e\\)、虚数单位 \\(i\\)、圆周率 \\(\\pi\\)、加法单位元 \\(0\\) 和乘法单位元 \\(1\\)** 统一在一个等式中。
+- **几何意义**：在复平面上，\\(e^{i\\theta}\\) 表示单位圆上角度为 \\(\\theta\\) 的点，其模长为 1。
+
+---
+
+### **2. 多面体欧拉公式（拓扑学）**
+\\[
+V - E + F = 2
+\\]
+**解释**：
+- **含义**：描述凸多面体的顶点数 \\(V\\)、边数 \\(E\\) 和面数 \\(F\\) 之间的关系。
+- **例子**：立方体的 \\(V=8, E=12, F=6\\)，满足 \\(8-12+6=2\\)。
+- **推广**：对任意与球面同胚的连通平面图，该公式成立（此时 \\(V-E+F=1\\) 需根据连通性调整）。`
 
 describe('repairMissingInlineMathClosers', () => {
   it('closes inline math before CJK comma when model omits trailing $', () => {
@@ -49,6 +98,95 @@ describe('wrapCjkInMathBody', () => {
 
   it('does not double-wrap existing text command', () => {
     expect(wrapCjkInMathBody(String.raw`\text{人}`)).toBe(String.raw`\text{人}`)
+  })
+})
+
+describe('unwrapInlineMathFromBoldSpans', () => {
+  it('pulls $...$ out of ** so remark-math can parse', () => {
+    expect(unwrapInlineMathFromBoldSpans('**自然常数 $e$、虚数单位 $i$**')).toBe(
+      '**自然常数 **$e$**、虚数单位 **$i$',
+    )
+  })
+
+  it('keeps bold-only spans unchanged', () => {
+    expect(unwrapInlineMathFromBoldSpans('**欧拉恒等式**')).toBe('**欧拉恒等式**')
+  })
+
+  it('unwraps bare **F(\\omega)** to inline math', () => {
+    expect(unwrapInlineMathFromBoldSpans('**F(\\omega)**')).toBe('$F(\\omega)$')
+  })
+
+  it('unwraps \\( ... \\) inside bold after bracket conversion', () => {
+    expect(unwrapInlineMathFromBoldSpans('**\\( F(\\omega) \\)**')).toBe('$F(\\omega)$')
+  })
+})
+
+const FOURIER_CONTINUOUS_FREQ_LINE =
+  '变成连续的频率 \\( \\omega \\，离散的系数 \\( c_n \\) 变成连续的频谱密度函数'
+
+const FOURIER_FULL_SENTENCE =
+  '从级数形式出发，当 $T \\to \\infty$ 时，离散的频率 $n\\omega_0$ 变成连续的频率 \\( \\omega \\，\\text{离散的系数} \\( c_n \\) 变成连续的频谱密度函数 $F(\\omega)$。'
+
+const FOURIER_TRANSFORM_PAIR_LINE =
+  '令方括号内的部分为 \\( F(\\omega) \\)，就得到了傅里叶变换对。'
+
+const FOURIER_CORE_PARAGRAPH =
+  '**核心**：傅里叶变换 \\( F(\\omega) \\) 描述了信号 \\( f(t) \\) 在各个连续频率 \\( \\omega \\) 上的“密度”或“强度”。'
+
+const FOURIER_BOLD_FORMULA_LINE =
+  '6. 令方括号内的部分为 **F(\\omega)**，就得到了傅里叶变换对。'
+
+describe('wrapBareLatexTextCommands', () => {
+  it('wraps bare \\text{} outside math delimiters', () => {
+    expect(wrapBareLatexTextCommands(String.raw`\text{离散的系数}`)).toBe(
+      String.raw`$\text{离散的系数}$`,
+    )
+    expect(wrapBareLatexTextCommands(String.raw`$\text{ok}$`)).toBe(String.raw`$\text{ok}$`)
+  })
+})
+
+describe('convertLatexBracketMathDelimiters', () => {
+  it('splits \\( \\omega \\， prose \\( c_n \\) into separate inline math spans', () => {
+    const out = convertLatexBracketMathDelimiters(FOURIER_CONTINUOUS_FREQ_LINE)
+    expect(out).toBe('变成连续的频率 $\\omega$，离散的系数 $c_n$ 变成连续的频谱密度函数')
+    expect(out).not.toContain('\\(')
+    expect(out).not.toContain('\\omega \\')
+  })
+
+  it('handles nested \\( before second variable', () => {
+    const out = convertLatexBracketMathDelimiters(
+      String.raw`\( \omega \,\text{离散的系数} \( c_n \)`,
+    )
+    expect(out).toBe(String.raw`$\omega \,\text{离散的系数}$$c_n$`)
+  })
+
+  it('keeps \\, thin space before \\text inside one math fragment', () => {
+    const out = convertLatexBracketMathDelimiters(
+      String.raw`\( \omega \，\text{离散的系数} \( c_n \)`,
+    )
+    expect(out).toBe(String.raw`$\omega \,\text{离散的系数}$$c_n$`)
+  })
+
+  it('converts \\[...\\] to flow $$ fences', () => {
+    const input = String.raw`\[
+e^{i\theta} = \cos\theta + i\sin\theta
+\]`
+    expect(convertLatexBracketMathDelimiters(input)).toBe(
+      String.raw`$$
+e^{i\theta} = \cos\theta + i\sin\theta
+$$`,
+    )
+  })
+
+  it('converts \\(...\\) to inline $ fences', () => {
+    expect(convertLatexBracketMathDelimiters(String.raw`\(\theta = \pi\)`)).toBe(
+      String.raw`$\theta = \pi$`,
+    )
+  })
+
+  it('leaves fenced code blocks unchanged via normalizeMarkdownForAgent', () => {
+    const input = '```\n\\[x\\]\n```\n\\(y\\)'
+    expect(normalizeMarkdownForAgent(input)).toBe('```\n\\[x\\]\n```\n$y$')
   })
 })
 
@@ -154,6 +292,110 @@ $$`
     expect(out).toContain('**DFT**')
     expect(out).toContain('$\\sum_{n=0}^{N-1}')
     expect(out).not.toContain('math-inline')
+  })
+
+  it('converts LaTeX bracket delimiters in Euler formula sample', () => {
+    const out = normalizeMarkdownForAgent(EULER_FORMULAS_MARKDOWN)
+    expect(out).not.toContain('\\[')
+    expect(out).not.toContain('\\]')
+    expect(out).not.toMatch(/\\\([^)]*\\\)/)
+    expect(out).toContain(String.raw`e^{i\theta} = \cos\theta + i\sin\theta`)
+    expect(out).toContain(String.raw`$\theta = \pi$`)
+    expect(out).toContain('V - E + F = 2')
+    expect(out).toContain(String.raw`$V=8, E=12, F=6$`)
+    expect(out.match(/\$\$/g)?.length).toBeGreaterThanOrEqual(6)
+  })
+
+  it('parses Euler formula sample into flow and inline math nodes', () => {
+    const md = normalizeMarkdownForAgent(EULER_FORMULAS_MARKDOWN)
+    const processor = unified().use(remarkParse).use(MINERVA_MARKDOWN_REMARK_PLUGINS)
+    const mdast = processor.runSync(processor.parse(md))
+    let flowMath = 0
+    let inlineMath = 0
+    visit(mdast, 'math', () => {
+      flowMath++
+    })
+    visit(mdast, 'inlineMath', () => {
+      inlineMath++
+    })
+    expect(flowMath).toBeGreaterThanOrEqual(3)
+    expect(inlineMath).toBeGreaterThanOrEqual(1)
+  })
+
+  it('parses inline math outside bold after bracket conversion', () => {
+    const md = normalizeMarkdownForAgent(
+      '- **几何意义**：在复平面上，\\(e^{i\\theta}\\) 表示单位圆上角度为 \\(\\theta\\) 的点。',
+    )
+    const processor = unified().use(remarkParse).use(MINERVA_MARKDOWN_REMARK_PLUGINS)
+    const mdast = processor.runSync(processor.parse(md))
+    let inlineMath = 0
+    visit(mdast, 'inlineMath', () => {
+      inlineMath++
+    })
+    expect(inlineMath).toBeGreaterThanOrEqual(2)
+  })
+
+  it('dedents 2-space list display math and parses flow + inline in user snippet', () => {
+    const md = normalizeMarkdownForAgent(USER_EULER_LIST_SNIPPET)
+    expect(md).toMatch(/^\$\$/m)
+    expect(md).not.toMatch(/^\s{2}\$\$/m)
+    const processor = unified().use(remarkParse).use(MINERVA_MARKDOWN_REMARK_PLUGINS)
+    const mdast = processor.runSync(processor.parse(md))
+    let flowMath = 0
+    let inlineMath = 0
+    visit(mdast, 'math', () => {
+      flowMath++
+    })
+    visit(mdast, 'inlineMath', () => {
+      inlineMath++
+    })
+    expect(flowMath).toBeGreaterThanOrEqual(2)
+    expect(inlineMath).toBeGreaterThanOrEqual(6)
+  })
+
+  it('unwraps bold around constants in Euler identity prose', () => {
+    const md = normalizeMarkdownForAgent(USER_EULER_LIST_SNIPPET)
+    expect(md).toContain('**自然常数 **$e$**')
+    expect(md).toContain('虚数单位 **$i$**')
+    expect(md).not.toContain('**自然常数 $e$')
+  })
+
+  it('renders Fourier transform pair and core paragraph inline math', () => {
+    const out = normalizeMarkdownForAgent(
+      `${FOURIER_TRANSFORM_PAIR_LINE}\n\n${FOURIER_CORE_PARAGRAPH}`,
+    )
+    expect(out).toContain('$F(\\omega)$')
+    expect(out).toContain('$f(t)$')
+    expect(out).not.toContain('\\(')
+    expect(out).not.toContain('**F(\\omega)**')
+    const processor = unified().use(remarkParse).use(MINERVA_MARKDOWN_REMARK_PLUGINS)
+    const mdast = processor.runSync(processor.parse(out))
+    let inlineMath = 0
+    visit(mdast, 'inlineMath', () => {
+      inlineMath++
+    })
+    expect(inlineMath).toBeGreaterThanOrEqual(4)
+  })
+
+  it('renders **F(\\omega)** in bold as KaTeX', () => {
+    const out = normalizeMarkdownForAgent(FOURIER_BOLD_FORMULA_LINE)
+    expect(out).toContain('$F(\\omega)$')
+    expect(out).not.toContain('**F(\\omega)**')
+  })
+
+  it('renders Fourier continuous-frequency sentence without literal LaTeX in prose', () => {
+    const out = normalizeMarkdownForAgent(FOURIER_FULL_SENTENCE)
+    expect(out).toContain(String.raw`$\omega \,\text{离散的系数}$`)
+    expect(out).toContain('$c_n$')
+    expect(out).not.toMatch(/\\omega \\，/)
+    expect(out).not.toContain('\\(')
+    const processor = unified().use(remarkParse).use(MINERVA_MARKDOWN_REMARK_PLUGINS)
+    const mdast = processor.runSync(processor.parse(out))
+    let inlineMath = 0
+    visit(mdast, 'inlineMath', () => {
+      inlineMath++
+    })
+    expect(inlineMath).toBeGreaterThanOrEqual(4)
   })
 
   it('dedents indented list notes and sub-bullets (not GFM code blocks)', () => {

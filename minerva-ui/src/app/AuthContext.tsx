@@ -3,13 +3,21 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from 'react'
 
-const STORAGE_A = 'access_token'
-const STORAGE_R = 'refresh_token'
+import {
+  STORAGE_ACCESS,
+  STORAGE_REFRESH,
+  cancelProactiveRefresh,
+  clearStoredTokens,
+  scheduleProactiveRefresh,
+  setStoredTokens,
+  subscribeTokensUpdated,
+} from '@/api/tokenSession'
 
 type JwtPayload = { wid?: string; wrole?: string }
 
@@ -50,13 +58,41 @@ type AuthValue = {
 
 const AuthContext = createContext<AuthValue | null>(null)
 
+function readTokensFromStorage(): { access: string | null; refresh: string | null } {
+  return {
+    access: localStorage.getItem(STORAGE_ACCESS),
+    refresh: localStorage.getItem(STORAGE_REFRESH),
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [accessToken, setAccess] = useState<string | null>(() =>
-    localStorage.getItem(STORAGE_A),
-  )
-  const [refreshToken, setRefresh] = useState<string | null>(() =>
-    localStorage.getItem(STORAGE_R),
-  )
+  const initial = readTokensFromStorage()
+  const [accessToken, setAccess] = useState<string | null>(initial.access)
+  const [refreshToken, setRefresh] = useState<string | null>(initial.refresh)
+
+  const syncFromStorage = useCallback(() => {
+    const { access, refresh } = readTokensFromStorage()
+    setAccess(access)
+    setRefresh(refresh)
+    scheduleProactiveRefresh()
+  }, [])
+
+  useEffect(() => {
+    scheduleProactiveRefresh()
+    const unsub = subscribeTokensUpdated(syncFromStorage)
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_ACCESS || e.key === STORAGE_REFRESH) {
+        syncFromStorage()
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => {
+      unsub()
+      window.removeEventListener('storage', onStorage)
+      cancelProactiveRefresh()
+    }
+  }, [syncFromStorage])
+
   const workspaceId = useMemo(
     () => readWidFromToken(accessToken),
     [accessToken],
@@ -71,15 +107,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [workspaceRole])
 
   const setTokens = useCallback((a: string, r: string) => {
-    localStorage.setItem(STORAGE_A, a)
-    localStorage.setItem(STORAGE_R, r)
+    setStoredTokens(a, r)
     setAccess(a)
     setRefresh(r)
+    scheduleProactiveRefresh()
   }, [])
 
   const clear = useCallback(() => {
-    localStorage.removeItem(STORAGE_A)
-    localStorage.removeItem(STORAGE_R)
+    cancelProactiveRefresh()
+    clearStoredTokens()
     setAccess(null)
     setRefresh(null)
   }, [])

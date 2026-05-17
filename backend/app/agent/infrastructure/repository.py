@@ -6,12 +6,30 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import desc, func, select
+from sqlalchemy import and_, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.domain.db.models import AgentMessage, AgentRun, AgentRunNode, AgentSession
 
 RECENT_AGENT_SESSIONS_DEFAULT_LIMIT: int = 20
+
+
+def encode_agent_session_cursor(updated_at: datetime, session_id: uuid.UUID) -> str:
+    """Encode ``(updated_at, id)`` for keyset pagination (newest-first list)."""
+
+    ts = updated_at if updated_at.tzinfo else updated_at.replace(tzinfo=timezone.utc)
+    return f"{ts.isoformat()}|{session_id}"
+
+
+def decode_agent_session_cursor(raw: str) -> tuple[datetime, uuid.UUID]:
+    """Decode a cursor produced by ``encode_agent_session_cursor``."""
+
+    marker = raw.rfind("|")
+    if marker <= 0:
+        raise ValueError("invalid agent session cursor")
+    ts = datetime.fromisoformat(raw[:marker])
+    sid = uuid.UUID(raw[marker + 1 :])
+    return ts, sid
 
 
 async def get_agent_session(
@@ -75,10 +93,13 @@ async def list_agent_sessions_recent(
     *,
     workspace_id: uuid.UUID,
     limit: int = RECENT_AGENT_SESSIONS_DEFAULT_LIMIT,
-) -> list[tuple[AgentSession, str | None]]:
-    """Return recent sessions with optional last user-message preview text."""
+    cursor_updated_at: datetime | None = None,
+    cursor_id: uuid.UUID | None = None,
+) -> tuple[list[tuple[AgentSession, str | None]], bool]:
+    """Return recent sessions with preview text and whether a further page exists."""
 
     cap = max(1, min(limit, 50))
+    sort_ts = func.coalesce(AgentSession.updated_at, AgentSession.created_at)
     preview_subq = (
         select(AgentMessage.content)
         .where(
@@ -90,14 +111,21 @@ async def list_agent_sessions_recent(
         .correlate(AgentSession)
         .scalar_subquery()
     )
-    stmt = (
-        select(AgentSession, preview_subq.label("preview"))
-        .where(AgentSession.workspace_id == workspace_id)
-        .order_by(desc(func.coalesce(AgentSession.updated_at, AgentSession.created_at)))
-        .limit(cap)
+    stmt = select(AgentSession, preview_subq.label("preview")).where(
+        AgentSession.workspace_id == workspace_id
     )
+    if cursor_updated_at is not None and cursor_id is not None:
+        stmt = stmt.where(
+            or_(
+                sort_ts < cursor_updated_at,
+                and_(sort_ts == cursor_updated_at, AgentSession.id < cursor_id),
+            )
+        )
+    stmt = stmt.order_by(desc(sort_ts), desc(AgentSession.id)).limit(cap + 1)
     rows = await session.execute(stmt)
-    return [(row[0], row[1]) for row in rows.all()]
+    items = [(row[0], row[1]) for row in rows.all()]
+    has_more = len(items) > cap
+    return items[:cap], has_more
 
 
 async def create_agent_session(
