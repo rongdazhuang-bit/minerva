@@ -1,4 +1,4 @@
-"""Pydantic request/response models for agent HTTP APIs."""
+"""Pydantic request/response models for agent HTTP API v2."""
 
 from __future__ import annotations
 
@@ -6,8 +6,6 @@ from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field
-
-from app.llm.domain.models import ProviderKind
 
 
 class AgentSessionCreateIn(BaseModel):
@@ -62,27 +60,24 @@ class AgentSessionDetailOut(BaseModel):
     messages: list[AgentMessageOut]
 
 
-class AgentSkillItemOut(BaseModel):
-    """One skill entry from INDEX.md."""
+class AgentCapabilityItemOut(BaseModel):
+    """One built-in agent capability."""
 
     id: str
     description: str
 
 
-class AgentSkillListOut(BaseModel):
-    """List of skills available in the workspace agent UI."""
+class AgentCapabilityListOut(BaseModel):
+    """Capabilities available to the planner."""
 
-    skills: list[AgentSkillItemOut]
+    capabilities: list[AgentCapabilityItemOut]
 
 
-class AgentRunCreateIn(BaseModel):
-    """发起一次 run：用户消息与上游模型连接参数。"""
+class AgentRunCreateV2(BaseModel):
+    """发起一次 v2 run（服务端托管模型连接）。"""
 
     user_message: str = Field(min_length=1)
-    skill_ids: list[str] = Field(default_factory=list)
-    provider_kind: ProviderKind = ProviderKind.openai_compatible
-    base_url: str = Field(min_length=1)
-    api_key: str = Field(min_length=1)
-    model: str = Field(min_length=1)
+    model_id: UUID
     temperature: float | None = Field(default=None, ge=0, le=2)
     max_tokens: int | None = Field(default=None, ge=1)
+    preferred_capabilities: list[str] = Field(default_factory=list)

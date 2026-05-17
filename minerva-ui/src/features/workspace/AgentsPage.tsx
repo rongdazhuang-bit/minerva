@@ -26,25 +26,17 @@ import {
   deleteAgentSession,
   getAgentSessionDetail,
   listAgentSessions,
-  listAgentSkills,
   streamAgentRun,
   type AgentSessionListItem,
-  type AgentSkillListItem,
   type AgentStreamEvent,
 } from '@/api/agent'
+import { formatAgentV2TraceLine } from '@/api/agent-stream-v2'
 import {
   agentMessagesToChat,
-  buildDisplayUserMessage,
   formatSessionListDate,
   sessionListLabel,
-  stripSkillPrefixFromDraft,
   titleFromFirstQuestion,
 } from '@/features/workspace/agentSkillUi'
-import {
-  deltaReasoningText,
-  formatMinervaTraceLine,
-  isMinervaChunkExtension,
-} from '@/api/openai-stream'
 import { ApiError } from '@/api/client'
 import { getModelProvider, listModelProviders, type ModelProviderListItem } from '@/api/modelProviders'
 import { useAuth } from '@/app/AuthContext'
@@ -76,14 +68,6 @@ function savePrefs(p: UiPrefs) {
   sessionStorage.setItem(UI_PREFS_KEY, JSON.stringify(p))
 }
 
-/** 将后台 ``model_type`` 粗映射为 Agent run 的 ``provider_kind``。 */
-function mapProviderKind(modelType: string): 'openai_compatible' | 'volcengine' | 'aliyun' {
-  const s = modelType.toLowerCase()
-  if (s.includes('volc') || s.includes('doubao') || s.includes('火山')) return 'volcengine'
-  if (s.includes('ali') || s.includes('dashscope') || s.includes('阿里')) return 'aliyun'
-  return 'openai_compatible'
-}
-
 type ChatMsg = {
   id: string
   role: 'user' | 'assistant'
@@ -103,10 +87,6 @@ export function AgentsPage() {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [draft, setDraft] = useState('')
-  /** Explicitly selected skill id for the next outgoing message (from ``/`` menu). */
-  const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null)
-  /** Highlighted row in the ``/`` skill menu (keyboard or hover). */
-  const [skillHighlightIndex, setSkillHighlightIndex] = useState(0)
   const [streaming, setStreaming] = useState(false)
   /** 当前轮助手气泡内「运行/思考」折叠：有正文输出后自动收起 */
   const [traceOpenKeys, setTraceOpenKeys] = useState<string[]>([])
@@ -120,12 +100,6 @@ export function AgentsPage() {
   const modelsQuery = useQuery({
     queryKey: ['agent-model-providers', workspaceId],
     queryFn: () => listModelProviders(workspaceId!),
-    enabled: Boolean(workspaceId),
-  })
-
-  const skillsQuery = useQuery({
-    queryKey: ['agent-skills', workspaceId],
-    queryFn: () => listAgentSkills(workspaceId!),
     enabled: Boolean(workspaceId),
   })
 
@@ -190,83 +164,11 @@ export function AgentsPage() {
     wasStreamingRef.current = streaming
   }, [streaming])
 
-  /** Open only while picking; closes after a skill is selected (``selectedSkillId`` set). */
-  const skillMenuOpen = draft.startsWith('/') && !streaming && selectedSkillId === null
-
-  const filteredSkills = useMemo(() => {
-    const list = skillsQuery.data?.skills ?? []
-    if (!skillMenuOpen) return []
-    const q = draft.slice(1).trim().toLowerCase()
-    if (!q) return list
-    return list.filter(
-      (s: AgentSkillListItem) =>
-        s.id.toLowerCase().includes(q) || s.description.toLowerCase().includes(q),
-    )
-  }, [draft, skillMenuOpen, skillsQuery.data?.skills])
-
-  const skillItemRefs = useRef<(HTMLButtonElement | null)[]>([])
-
-  const applySkillSelection = useCallback((s: AgentSkillListItem) => {
-    setSelectedSkillId(s.id)
-    setDraft(`/${s.id} `)
-    window.requestAnimationFrame(() => {
-      draftInputRef.current?.focus({ preventScroll: true })
-    })
-  }, [])
-
-  /** Allow reopening the picker when the user edits away from the chosen ``/skill_id`` prefix. */
-  useEffect(() => {
-    if (!selectedSkillId) return
-    const prefix = `/${selectedSkillId}`
-    if (!draft.startsWith(prefix)) {
-      setSelectedSkillId(null)
-    }
-  }, [draft, selectedSkillId])
-
-  useEffect(() => {
-    if (!skillMenuOpen) return
-    setSkillHighlightIndex(0)
-  }, [skillMenuOpen, filteredSkills])
-
-  useEffect(() => {
-    if (skillHighlightIndex >= filteredSkills.length && filteredSkills.length > 0) {
-      setSkillHighlightIndex(filteredSkills.length - 1)
-    }
-  }, [filteredSkills.length, skillHighlightIndex])
-
-  useEffect(() => {
-    skillItemRefs.current[skillHighlightIndex]?.scrollIntoView({ block: 'nearest' })
-  }, [skillHighlightIndex, filteredSkills])
-
-  const handleDraftKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (!skillMenuOpen || filteredSkills.length === 0) return
-
-      if (e.key === 'ArrowDown') {
-        e.preventDefault()
-        setSkillHighlightIndex((i) => (i + 1) % filteredSkills.length)
-        return
-      }
-      if (e.key === 'ArrowUp') {
-        e.preventDefault()
-        setSkillHighlightIndex((i) => (i - 1 + filteredSkills.length) % filteredSkills.length)
-        return
-      }
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault()
-        const picked = filteredSkills[skillHighlightIndex]
-        if (picked) applySkillSelection(picked)
-      }
-    },
-    [skillMenuOpen, filteredSkills, skillHighlightIndex, applySkillSelection],
-  )
-
   const canSend = useMemo(() => {
     if (!workspaceId || streaming) return false
     if (!prefs.selectedModelId) return false
-    const apiBody = stripSkillPrefixFromDraft(draft, selectedSkillId)
-    return apiBody.length > 0 || Boolean(selectedSkillId)
-  }, [workspaceId, streaming, prefs.selectedModelId, draft, selectedSkillId])
+    return draft.trim().length > 0
+  }, [workspaceId, streaming, prefs.selectedModelId, draft])
 
   const handleNewChat = useCallback(() => {
     abortRef.current?.abort()
@@ -275,7 +177,6 @@ export function AgentsPage() {
     setMessages([])
     setTraceOpenKeys([])
     setStreaming(false)
-    setSelectedSkillId(null)
     antdMessage.info(t('agents.newChatHint'))
   }, [t])
 
@@ -287,7 +188,6 @@ export function AgentsPage() {
       abortRef.current = null
       setStreaming(false)
       setTraceOpenKeys([])
-      setSelectedSkillId(null)
       setDraft('')
       try {
         const detail = await getAgentSessionDetail(workspaceId, id)
@@ -368,16 +268,13 @@ export function AgentsPage() {
       antdMessage.warning(t('agents.pickModel'))
       return
     }
-    const skillIdForRun = selectedSkillId
-    const apiBody = stripSkillPrefixFromDraft(draft, skillIdForRun)
-    const displayContent = buildDisplayUserMessage(apiBody, skillIdForRun)
-    if (!apiBody && !skillIdForRun) return
+    const apiBody = draft.trim()
+    if (!apiBody) return
 
-    const userMsg: ChatMsg = { id: `u-${Date.now()}`, role: 'user', content: displayContent }
+    const userMsg: ChatMsg = { id: `u-${Date.now()}`, role: 'user', content: apiBody }
     const asstId = `a-${Date.now()}`
     const asstMsg: ChatMsg = { id: asstId, role: 'assistant', content: '', reasoning: '' }
     setDraft('')
-    setSelectedSkillId(null)
     setMessages((m) => [...m, userMsg, asstMsg])
     setStreaming(true)
     setTraceOpenKeys(['trace'])
@@ -398,14 +295,9 @@ export function AgentsPage() {
     let sid = sessionId
     try {
       const detail = await getModelProvider(workspaceId, mid)
-      const baseUrl = (detail.endpoint_url ?? '').trim()
-      const apiKey = (detail.api_key ?? '').trim()
-      if (!baseUrl || !apiKey) {
-        throw new ApiError('agent.model_incomplete', t('agents.modelMissingSecret'))
-      }
 
       if (!sid) {
-        const sessionTitle = titleFromFirstQuestion(apiBody || displayContent)
+        const sessionTitle = titleFromFirstQuestion(apiBody)
         const s = await createAgentSession(
           workspaceId,
           sessionTitle ? { title: sessionTitle } : {},
@@ -421,57 +313,53 @@ export function AgentsPage() {
           ? detail.max_tokens_to_sample
           : null
 
-      const pk = mapProviderKind(detail.model_type)
-
       const { runId } = await streamAgentRun(
         workspaceId,
         sid,
         {
-          user_message: apiBody || displayContent,
-          skill_ids: skillIdForRun ? [skillIdForRun] : [],
-          provider_kind: pk,
-          base_url: baseUrl,
-          api_key: apiKey,
-          model: String(detail.model_name ?? '').trim(),
+          user_message: apiBody,
+          model_id: mid,
           temperature: null,
           max_tokens: maxTok,
+          preferred_capabilities: [],
         },
         (evt: AgentStreamEvent) => {
           if (evt.kind === 'done') return
           if (evt.kind === 'error') {
-            const code = evt.error.code ?? 'error'
-            const msg = evt.error.message ?? ''
-            pushAsstLog(`[error] ${code}: ${msg}`)
-            antdMessage.error(msg || code)
+            pushAsstLog(`[error] ${evt.code}: ${evt.message}`)
+            antdMessage.error(evt.message || evt.code)
             return
           }
-          const chunk = evt.chunk
-          const minerva = chunk.minerva
-          if (minerva && isMinervaChunkExtension(minerva)) {
-            pushAsstLog(formatMinervaTraceLine(minerva))
+          const ev = evt.event
+          const traceLine = formatAgentV2TraceLine(ev)
+          if (traceLine) pushAsstLog(traceLine)
+          if (ev.type === 'llm.delta') {
+            const channel = String(ev.payload.channel ?? 'assistant')
+            const text = String(ev.payload.text ?? '')
+            if (!text) return
+            if (channel === 'reasoning') {
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === asstId ? { ...m, reasoning: (m.reasoning ?? '') + text } : m,
+                ),
+              )
+            } else {
+              setTraceOpenKeys([])
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === asstId ? { ...m, content: m.content + text } : m,
+                ),
+              )
+            }
             return
           }
-          const choice = chunk.choices?.[0]
-          const delta = choice?.delta
-          if (!delta) return
-          const reasoningPiece = deltaReasoningText(delta)
-          if (reasoningPiece.length > 0) {
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === asstId
-                  ? { ...m, reasoning: (m.reasoning ?? '') + reasoningPiece }
-                  : m,
-              ),
-            )
-          }
-          const contentPiece = typeof delta.content === 'string' ? delta.content : ''
-          if (contentPiece.length > 0) {
-            setTraceOpenKeys([])
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === asstId ? { ...m, content: m.content + contentPiece } : m,
-              ),
-            )
+          if (ev.type === 'message.final') {
+            const content = String(ev.payload.content ?? '')
+            if (content) {
+              setMessages((prev) =>
+                prev.map((m) => (m.id === asstId ? { ...m, content } : m)),
+              )
+            }
           }
         },
         ac.signal,
@@ -498,7 +386,6 @@ export function AgentsPage() {
     workspaceId,
     sessionId,
     draft,
-    selectedSkillId,
     prefs.selectedModelId,
     queryClient,
     t,
@@ -771,63 +658,15 @@ export function AgentsPage() {
 
         <div className="agents-page__composer-wrap">
           <div className="agents-page__composer">
-            {skillMenuOpen ? (
-              <div className="agents-page__skill-menu" role="listbox" aria-label={t('agents.skillPickerTitle')}>
-                <Text type="secondary" className="agents-page__skill-menu-title">
-                  {t('agents.skillPickerTitle')}
-                </Text>
-                {skillsQuery.isLoading ? (
-                  <Text type="secondary" style={{ fontSize: 12, textAlign: 'left' }}>
-                    {t('agents.skillLoading')}
-                  </Text>
-                ) : filteredSkills.length === 0 ? (
-                  <Text type="secondary" style={{ fontSize: 12, textAlign: 'left' }}>
-                    {t('agents.skillPickerEmpty')}
-                  </Text>
-                ) : (
-                  <div className="agents-page__skill-menu-list">
-                    {filteredSkills.map((s, idx) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        role="option"
-                        aria-selected={idx === skillHighlightIndex}
-                        ref={(el) => {
-                          skillItemRefs.current[idx] = el
-                        }}
-                        className={
-                          idx === skillHighlightIndex
-                            ? 'agents-page__skill-item agents-page__skill-item--active'
-                            : 'agents-page__skill-item'
-                        }
-                        onMouseEnter={() => setSkillHighlightIndex(idx)}
-                        onClick={() => applySkillSelection(s)}
-                      >
-                        <span className="agents-page__skill-item-id">/{s.id}</span>
-                        <span className="agents-page__skill-item-desc">{s.description}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : null}
             <Input.TextArea
               ref={draftInputRef}
               allowClear
               variant="borderless"
               autoSize={{ minRows: 2, maxRows: 8 }}
               value={draft}
-              onChange={(e) => {
-                const v = e.target.value
-                setDraft(v)
-                if (selectedSkillId && !v.startsWith(`/${selectedSkillId}`)) {
-                  setSelectedSkillId(null)
-                }
-              }}
-              onKeyDown={handleDraftKeyDown}
+              onChange={(e) => setDraft(e.target.value)}
               onPressEnter={(e) => {
                 if (!e.shiftKey) {
-                  if (skillMenuOpen && filteredSkills.length > 0) return
                   e.preventDefault()
                   if (canSend) void onSend()
                 }

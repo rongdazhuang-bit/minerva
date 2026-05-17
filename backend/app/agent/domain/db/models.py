@@ -43,6 +43,7 @@ class AgentSession(Base):
         DateTime(timezone=True), server_default=text("now()"), nullable=False
     )
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    summary_text: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class AgentRun(Base):
@@ -117,6 +118,66 @@ class AgentMessage(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), nullable=False
     )
+    message_json: Mapped[dict[str, Any] | list[Any] | None] = mapped_column(JSONB, nullable=True)
+
+
+class AgentPlan(Base):
+    """单次 run 的结构化计划快照。"""
+
+    __tablename__ = "agent_plan"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("agent_run.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    steps_json: Mapped[dict[str, Any] | list[Any]] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, server_default=sa.text("'active'"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), nullable=False
+    )
+
+
+class AgentLongTermMemory(Base):
+    """工作区/会话级长期记忆（SQL 检索，首期无向量）。"""
+
+    __tablename__ = "agent_long_term_memory"
+    __table_args__ = (
+        Index("ix_agent_ltm_workspace_session", "workspace_id", "session_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    session_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("agent_session.id", ondelete="CASCADE"),
+        index=True,
+        nullable=True,
+    )
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    key: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    tags: Mapped[dict[str, Any] | list[Any] | None] = mapped_column(JSONB, nullable=True)
+    source_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("agent_run.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), nullable=False
+    )
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class AgentRunNode(Base):

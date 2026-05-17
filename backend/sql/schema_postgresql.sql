@@ -460,6 +460,7 @@ CREATE TABLE IF NOT EXISTS public.agent_session (
   meta_json jsonb NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NULL,
+  summary_text text NULL,
   PRIMARY KEY (id),
   CONSTRAINT agent_session_workspace_id_fk FOREIGN KEY (workspace_id) REFERENCES public.workspaces (id) ON DELETE CASCADE,
   CONSTRAINT agent_session_created_by_fk FOREIGN KEY (created_by) REFERENCES public.users (id) ON DELETE SET NULL
@@ -527,6 +528,7 @@ CREATE TABLE IF NOT EXISTS public.agent_message (
   tool_name varchar(128) NULL,
   meta_json jsonb NULL,
   run_id uuid NULL,
+  message_json jsonb NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (id),
   CONSTRAINT uq_agent_message_session_seq UNIQUE (session_id, seq),
@@ -548,6 +550,40 @@ COMMENT ON COLUMN public.agent_message.tool_name IS '工具名冗余';
 COMMENT ON COLUMN public.agent_message.meta_json IS '扩展(JSONB)';
 COMMENT ON COLUMN public.agent_message.run_id IS '产生该条的 run（可空）';
 COMMENT ON COLUMN public.agent_message.created_at IS '创建时间';
+COMMENT ON COLUMN public.agent_message.message_json IS 'LangChain 消息序列化(JSONB)';
+
+CREATE TABLE IF NOT EXISTS public.agent_plan (
+  id uuid NOT NULL,
+  run_id uuid NOT NULL,
+  steps_json jsonb NOT NULL,
+  status varchar(16) NOT NULL DEFAULT 'active',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (id),
+  CONSTRAINT agent_plan_run_id_fk FOREIGN KEY (run_id) REFERENCES public.agent_run (id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS ix_agent_plan_run_id ON public.agent_plan (run_id);
+COMMENT ON TABLE public.agent_plan IS '单次 run 的结构化计划';
+
+CREATE TABLE IF NOT EXISTS public.agent_long_term_memory (
+  id uuid NOT NULL,
+  workspace_id uuid NOT NULL,
+  session_id uuid NULL,
+  kind varchar(32) NOT NULL,
+  key varchar(128) NULL,
+  content text NOT NULL,
+  tags jsonb NULL,
+  source_run_id uuid NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  expires_at timestamptz NULL,
+  PRIMARY KEY (id),
+  CONSTRAINT agent_ltm_workspace_id_fk FOREIGN KEY (workspace_id) REFERENCES public.workspaces (id) ON DELETE CASCADE,
+  CONSTRAINT agent_ltm_session_id_fk FOREIGN KEY (session_id) REFERENCES public.agent_session (id) ON DELETE CASCADE,
+  CONSTRAINT agent_ltm_source_run_id_fk FOREIGN KEY (source_run_id) REFERENCES public.agent_run (id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS ix_agent_ltm_workspace_id ON public.agent_long_term_memory (workspace_id);
+CREATE INDEX IF NOT EXISTS ix_agent_ltm_session_id ON public.agent_long_term_memory (session_id);
+CREATE INDEX IF NOT EXISTS ix_agent_ltm_workspace_session ON public.agent_long_term_memory (workspace_id, session_id);
+COMMENT ON TABLE public.agent_long_term_memory IS '长期记忆（SQL 检索）';
 
 CREATE TABLE IF NOT EXISTS public.agent_run_node (
   id uuid NOT NULL,

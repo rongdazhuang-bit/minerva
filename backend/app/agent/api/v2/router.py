@@ -1,4 +1,4 @@
-"""FastAPI routes for agent sessions and streaming runs."""
+"""FastAPI routes for agent v2 (LangGraph + SSE v2)."""
 
 from __future__ import annotations
 
@@ -8,40 +8,45 @@ from fastapi import APIRouter, Depends, Query, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agent.api.schemas import (
+from app.agent.api.v2.schemas import (
+    AgentCapabilityItemOut,
+    AgentCapabilityListOut,
     AgentMessageOut,
-    AgentRunCreateIn,
+    AgentRunCreateV2,
     AgentSessionCreateIn,
     AgentSessionDetailOut,
     AgentSessionListItemOut,
     AgentSessionListOut,
     AgentSessionOut,
-    AgentSkillItemOut,
-    AgentSkillListOut,
 )
 from app.agent.infrastructure.repository import RECENT_AGENT_SESSIONS_DEFAULT_LIMIT
-from app.exceptions import AppError
 from app.agent.infrastructure import repository as agent_repo
-from app.agent.infrastructure import skill_loader
-from app.agent.service.agent_run_service import AgentRunService, get_agent_run_service
+from app.agent.service.agent_graph_run_service import (
+    AgentGraphRunService,
+    get_agent_graph_run_service,
+)
 from app.core.api.deps import get_current_user, require_workspace_member
 from app.core.domain.identity.models import User
 from app.dependencies import get_db
+from app.exceptions import AppError
 
-router = APIRouter(prefix="/workspaces/{workspace_id}/agent", tags=["agent"])
+router = APIRouter(prefix="/workspaces/{workspace_id}/agent/v2", tags=["agent-v2"])
+
+_CAPABILITIES: list[AgentCapabilityItemOut] = [
+    AgentCapabilityItemOut(id="general", description="通用对话与汇总"),
+    AgentCapabilityItemOut(id="file", description="工作区沙箱文件与目录操作"),
+    AgentCapabilityItemOut(id="datetime", description="查询服务器当前日期时间"),
+]
 
 
-@router.get("/skills", response_model=AgentSkillListOut)
-async def list_agent_skills(
+@router.get("/capabilities", response_model=AgentCapabilityListOut)
+async def list_agent_capabilities(
     workspace_id: uuid.UUID,
     _workspace: uuid.UUID = Depends(require_workspace_member),
-) -> AgentSkillListOut:
-    """返回 INDEX 中可加载的技能列表（供前端 ``/`` 菜单）。"""
+) -> AgentCapabilityListOut:
+    """返回内置能力列表（供前端偏好选择）。"""
 
-    rows = skill_loader.list_indexed_skills()
-    return AgentSkillListOut(
-        skills=[AgentSkillItemOut(id=r["id"], description=r["description"]) for r in rows]
-    )
+    return AgentCapabilityListOut(capabilities=_CAPABILITIES)
 
 
 @router.post("/sessions", response_model=AgentSessionOut)
@@ -82,7 +87,7 @@ async def list_agent_sessions(
     _workspace: uuid.UUID = Depends(require_workspace_member),
     db: AsyncSession = Depends(get_db),
 ) -> AgentSessionListOut:
-    """列出工作区最近的智能体会话（侧栏历史）。"""
+    """列出工作区最近的智能体会话。"""
 
     rows = await agent_repo.list_agent_sessions_recent(
         db, workspace_id=workspace_id, limit=limit
@@ -108,7 +113,7 @@ async def get_agent_session_detail(
     _workspace: uuid.UUID = Depends(require_workspace_member),
     db: AsyncSession = Depends(get_db),
 ) -> AgentSessionDetailOut:
-    """加载会话及其消息历史（用于恢复对话）。"""
+    """加载会话及其消息历史。"""
 
     row = await agent_repo.get_agent_session(
         db, workspace_id=workspace_id, session_id=session_id
@@ -146,7 +151,7 @@ async def delete_agent_session(
     _workspace: uuid.UUID = Depends(require_workspace_member),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
-    """删除会话及其关联的 message、run、run_node（数据库级联）。"""
+    """删除会话及其关联数据。"""
 
     deleted = await agent_repo.delete_agent_session(
         db, workspace_id=workspace_id, session_id=session_id
@@ -161,13 +166,13 @@ async def delete_agent_session(
 async def create_agent_run_sse(
     workspace_id: uuid.UUID,
     session_id: uuid.UUID,
-    body: AgentRunCreateIn,
+    body: AgentRunCreateV2,
     _workspace: uuid.UUID = Depends(require_workspace_member),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    svc: AgentRunService = Depends(get_agent_run_service),
+    svc: AgentGraphRunService = Depends(get_agent_graph_run_service),
 ) -> StreamingResponse:
-    """发起一次 run，返回 OpenAI 兼容的 ``chat.completion.chunk`` SSE 流。"""
+    """发起一次 run，返回 SSE v2 事件流。"""
 
     run_id = uuid.uuid4()
 
@@ -180,13 +185,10 @@ async def create_agent_run_sse(
                 user_id=user.id,
                 session_id=session_id,
                 user_message=body.user_message,
-                skill_ids=body.skill_ids,
-                provider_kind=body.provider_kind,
-                base_url=body.base_url,
-                api_key=body.api_key,
-                model=body.model,
+                model_id=body.model_id,
                 temperature=body.temperature,
                 max_tokens=body.max_tokens,
+                preferred_capabilities=body.preferred_capabilities,
             ):
                 yield chunk
             await db.commit()

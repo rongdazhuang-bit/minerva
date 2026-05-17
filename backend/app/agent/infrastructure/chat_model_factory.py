@@ -1,0 +1,71 @@
+"""Build LangChain chat models from workspace SysModel rows."""
+
+from __future__ import annotations
+
+import uuid
+
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_openai import ChatOpenAI
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.exceptions import AppError
+from app.sys.model_provider.domain.db.models import SysModel
+from app.sys.model_provider.infrastructure import repository as model_repo
+
+
+class ChatModelFactory:
+    """Resolve ``SysModel`` into a LangChain chat model for agent graphs."""
+
+    @staticmethod
+    def from_sys_model_row(
+        row: SysModel,
+        *,
+        workspace_id: uuid.UUID,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> BaseChatModel:
+        """Validate workspace ownership and enabled flag, then construct the client."""
+
+        if row.workspace_id != workspace_id:
+            raise AppError("agent.model_not_found", "模型不存在或不属于当前工作区。")
+        if not row.enabled:
+            raise AppError("agent.model_disabled", "模型未启用。")
+        base_url = (row.endpoint_url or "").strip()
+        if not base_url:
+            raise AppError("agent.model_misconfigured", "模型缺少 endpoint_url。")
+        api_key = (row.api_key or "").strip()
+        if not api_key:
+            raise AppError("agent.model_misconfigured", "模型缺少 api_key。")
+        kwargs: dict = {
+            "model": row.model_name,
+            "base_url": base_url.rstrip("/"),
+            "api_key": api_key,
+        }
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
+        return ChatOpenAI(**kwargs)
+
+    @staticmethod
+    async def get(
+        session: AsyncSession,
+        *,
+        workspace_id: uuid.UUID,
+        model_id: uuid.UUID,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> BaseChatModel:
+        """Load ``SysModel`` from DB and return a chat model."""
+
+        row = await model_repo.get_for_workspace(
+            session, workspace_id=workspace_id, model_id=model_id
+        )
+        if row is None:
+            raise AppError("agent.model_not_found", "模型不存在或不属于当前工作区。")
+        return ChatModelFactory.from_sys_model_row(
+            row,
+            workspace_id=workspace_id,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
