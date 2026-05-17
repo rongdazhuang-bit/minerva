@@ -1,0 +1,56 @@
+"""Stream sub-agent runs and map events to SSE v2."""
+
+from __future__ import annotations
+
+from langchain_core.messages import HumanMessage
+from langgraph.graph.state import CompiledStateGraph
+
+from app.agent.graphs.deps import GraphDeps
+from app.agent.domain.plan import PlanStep
+from app.agent.infrastructure.event_mapper import map_langchain_stream_event
+
+
+def extract_last_ai_text(messages: list) -> str:
+    """Pull the last assistant text from sub-agent message list."""
+
+    for msg in reversed(messages):
+        role = getattr(msg, "type", None) or getattr(msg, "role", None)
+        if role in ("ai", "assistant"):
+            content = getattr(msg, "content", "") or ""
+            if isinstance(content, str) and content.strip():
+                return content.strip()
+    return ""
+
+
+async def run_subagent_with_stream(
+    deps: GraphDeps,
+    subagent: CompiledStateGraph,
+    *,
+    step: PlanStep,
+    recursion_limit: int,
+) -> str:
+    """Run one sub-agent with ``astream_events`` and forward tool/LLM deltas to SSE."""
+
+    config_sub = {"recursion_limit": recursion_limit}
+    inputs = {"messages": [HumanMessage(content=step.goal)]}
+    output = ""
+    async for event in subagent.astream_events(inputs, config=config_sub, version="v2"):
+        if deps.emit_sse:
+            line = map_langchain_stream_event(
+                event,
+                run_id=deps.run_id,
+                session_id=deps.session_id,
+                step_id=step.id,
+                capability=step.capability,
+            )
+            if line:
+                await deps.emit_sse(line)
+        if event.get("event") == "on_chain_end":
+            data = event.get("data") or {}
+            out = data.get("output")
+            if isinstance(out, dict) and out.get("messages"):
+                output = extract_last_ai_text(out["messages"])
+    if not output:
+        result = await subagent.ainvoke(inputs, config=config_sub)
+        output = extract_last_ai_text(result.get("messages", []))
+    return output

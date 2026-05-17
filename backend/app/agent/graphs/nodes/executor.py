@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import uuid
 
-from langchain_core.messages import HumanMessage
-
 from app.agent.capabilities.datetime.agent import build_datetime_react_agent
 from app.agent.capabilities.file.agent import build_file_react_agent
 from app.agent.capabilities.general.agent import build_general_react_agent
 from app.agent.domain.plan import Plan
 from app.agent.domain.sse_v2 import AgentSseEventType, build_sse_event
 from app.agent.graphs.deps import GraphDeps
+from app.agent.graphs.nodes.subagent_runner import run_subagent_with_stream
 from app.agent.graphs.state import AgentGraphState, StepResult
 from app.agent.infrastructure import repository as agent_repo
 from app.config import settings
@@ -25,18 +24,6 @@ def _get_subagent(deps: GraphDeps, capability: str):
     if capability == "datetime":
         return build_datetime_react_agent(deps.model)
     return build_general_react_agent(deps.model)
-
-
-def _extract_last_ai_text(messages: list) -> str:
-    """Pull the last assistant text from sub-agent message list."""
-
-    for msg in reversed(messages):
-        role = getattr(msg, "type", None) or getattr(msg, "role", None)
-        if role in ("ai", "assistant"):
-            content = getattr(msg, "content", "") or ""
-            if isinstance(content, str) and content.strip():
-                return content.strip()
-    return ""
 
 
 async def executor_node(state: AgentGraphState, config: dict) -> dict:
@@ -86,15 +73,14 @@ async def executor_node(state: AgentGraphState, config: dict) -> dict:
     )
 
     subagent = _get_subagent(deps, step.capability)
-    config_sub = {"recursion_limit": settings.agent_subagent_recursion_limit}
     try:
-        result = await subagent.ainvoke(
-            {"messages": [HumanMessage(content=step.goal)]},
-            config=config_sub,
+        output = await run_subagent_with_stream(
+            deps,
+            subagent,
+            step=step,
+            recursion_limit=settings.agent_subagent_recursion_limit,
         )
-        out_messages = result.get("messages", [])
-        output = _extract_last_ai_text(out_messages)
-        step.status = "success"
+        step.status = "success" if output else "failed"
     except Exception as e:
         output = f"[subagent error: {e}]"
         step.status = "failed"

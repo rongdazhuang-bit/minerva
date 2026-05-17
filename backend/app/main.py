@@ -10,6 +10,7 @@ from slowapi.errors import RateLimitExceeded
 from app.core.api.router import api
 from app.config import settings
 from app.errors import register_exception_handlers
+from app.agent.infrastructure.langgraph_checkpointer import get_langgraph_checkpointer
 from app.core.infrastructure.db.bootstrap import create_missing_tables
 from app.limits import limiter
 
@@ -19,6 +20,7 @@ async def lifespan(app: FastAPI):
     """Ensure ORM tables exist when configured; release resources on shutdown."""
 
     await create_missing_tables()
+    await get_langgraph_checkpointer()
     yield
 
 

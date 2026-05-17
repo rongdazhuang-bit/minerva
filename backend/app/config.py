@@ -230,6 +230,14 @@ class Settings(BaseSettings):
             "agent_message_fallback_limit",
         ),
     )
+    agent_langgraph_checkpoint_enabled: bool = Field(
+        default=True,
+        description="为 True 时尝试启用 LangGraph PostgresSaver checkpoint。",
+        validation_alias=AliasChoices(
+            "AGENT_LANGGRAPH_CHECKPOINT_ENABLED",
+            "agent_langgraph_checkpoint_enabled",
+        ),
+    )
     agent_tool_timeout_seconds: float = Field(
         default=60.0,
         ge=1.0,

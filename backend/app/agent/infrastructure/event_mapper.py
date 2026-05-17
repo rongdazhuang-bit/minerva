@@ -52,14 +52,17 @@ def map_langchain_stream_event(
                 },
             )
     if kind == "on_tool_start":
+        data = event.get("data") or {}
+        inp = data.get("input")
+        args_preview = str(inp)[:240] if inp is not None else ""
         return build_sse_event(
             event_type=AgentSseEventType.tool_started,
             run_id=run_id,
             session_id=session_id,
             payload={
-                "tool_call_id": event.get("run_id", ""),
-                "name": event.get("name", ""),
-                "arguments_preview": "",
+                "tool_call_id": str(event.get("run_id") or ""),
+                "name": str(event.get("name") or ""),
+                "arguments_preview": args_preview,
                 "step_id": step_id,
                 "capability": capability,
             },
