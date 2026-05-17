@@ -17,7 +17,7 @@
 ## 模块结构
 
 - `app.llm.domain`：DTO（`ChatMessage`、`ChatCallParams`、`ProviderKind`）。
-- `app.llm.strategies`：`openai_compatible`（默认）、`volcengine` / `aliyun` 占位。
+- `app.llm.strategies`：`openai_compatible`（默认）、`volcengine_compatible`（火山 Ark OpenAI 兼容）、`aliyun` 占位。
 - `app.llm.service.chat_service`：`ChatService` 与单例 `chat_service`。
 - `app.llm.api.router`：HTTP 表面（需登录且为 workspace 成员）。
 
@@ -68,8 +68,8 @@ async for line in chat_service.stream_sse_lines(
 - `POST /workspaces/{workspace_id}/llm/chat/completions`
 - 鉴权：`Authorization: Bearer <access_token>`，且用户须为该 workspace 成员。
 - 请求体（节选）：`provider_kind`、`base_url`、`api_key`、`model`、`system_prompt`、`user_prompt`、`messages[]`、`temperature`、`max_tokens`、`stream`。
-- `stream: false`：响应为 JSON，体为上游 completion 的 JSON 形态。
-- `stream: true`：`Content-Type: text/event-stream`，每条 `data: <json>`，最后 `data: [DONE]`。
+- `stream` **默认 `true`**（省略时走流式）；显式 `stream: false`：响应为 JSON，体为上游 completion 的 JSON 形态。
+- `stream: true`（或省略）：`Content-Type: text/event-stream`，每条 `data: <json>`，最后 `data: [DONE]`。
 
 **请勿** 在前端或日志中暴露真实 `api_key`；生产环境建议后续改为仅传 `model_id` 由服务端查 `sys_models`（当前 spec 为可选增强）。
 
@@ -77,9 +77,13 @@ async for line in chat_service.stream_sse_lines(
 
 将 `base_url` 设为 LiteLLM 提供的 OpenAI 兼容地址（通常以 `/v1` 结尾，具体以部署为准），`model` 为 LiteLLM 中配置的模型名，`api_key` 与 LiteLLM/上游要求一致。
 
+## Volcengine Ark
+
+`provider_kind` 为 `volcengine` 时使用 `VolcengineCompatibleStrategy`（`AsyncOpenAI` + 调用方传入的 `base_url` / `api_key`）。典型 `base_url`：`https://ark.cn-beijing.volces.com/api/v3`；`model` 为 Ark 控制台中的模型 ID（如 `doubao-seed-2-0-lite-260215`）。
+
 ## 占位策略
 
-`provider_kind` 为 `volcengine` 或 `aliyun` 时返回 HTTP 501，业务码 `ai.provider.not_implemented`。
+`provider_kind` 为 `aliyun` 时返回 HTTP 501，业务码 `ai.provider.not_implemented`。
 
 ## 设计规格
 

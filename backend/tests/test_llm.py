@@ -9,7 +9,7 @@ from httpx import ASGITransport, AsyncClient
 from app.llm.domain.models import ChatCallParams, ChatMessage, ProviderKind
 from app.llm.service.chat_service import build_openai_messages, chat_service
 from app.llm.strategies import get_strategy
-from app.llm.strategies.volcengine_placeholder import VolcenginePlaceholderStrategy
+from app.llm.strategies.volcengine_compatible import VolcengineCompatibleStrategy
 from app.exceptions import AppError
 from app.main import app
 
@@ -26,35 +26,69 @@ def test_build_openai_messages_order() -> None:
 
 
 @pytest.mark.asyncio
-async def test_volcengine_placeholder_complete() -> None:
-    s = VolcenginePlaceholderStrategy()
-    with pytest.raises(AppError) as ei:
-        await s.complete(
+async def test_volcengine_compatible_complete_success() -> None:
+    fake = MagicMock()
+    fake.model_dump = MagicMock(
+        side_effect=lambda mode="json": {"id": "chatcmpl-volc", "object": "chat.completion", "choices": []}
+    )
+    create_mock = AsyncMock(return_value=fake)
+    mock_client = MagicMock()
+    mock_client.chat.completions.create = create_mock
+    mock_cm = MagicMock()
+    mock_cm.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_cm.__aexit__ = AsyncMock(return_value=None)
+    with patch(
+        "app.llm.strategies.volcengine_compatible.AsyncOpenAI",
+        return_value=mock_cm,
+    ):
+        strat = VolcengineCompatibleStrategy()
+        out = await strat.complete(
             ChatCallParams(
-                base_url="http://x",
-                api_key="k",
-                model="m",
+                base_url="https://ark.cn-beijing.volces.com/api/v3",
+                api_key="sk",
+                model="doubao-seed-2-0-lite-260215",
                 messages=[{"role": "user", "content": "hi"}],
             )
         )
-    assert ei.value.code == "ai.provider.not_implemented"
-    assert ei.value.status_code == 501
+    assert out["id"] == "chatcmpl-volc"
+    create_mock.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-async def test_volcengine_stream_raises() -> None:
-    s = VolcenginePlaceholderStrategy()
-    params = ChatCallParams(
-        base_url="http://x",
-        api_key="k",
-        model="m",
-        messages=[{"role": "user", "content": "hi"}],
-    )
-    gen = s.stream(params)
-    with pytest.raises(AppError) as ei:
-        async for _ in gen:
-            pass
-    assert ei.value.code == "ai.provider.not_implemented"
+async def test_volcengine_compatible_stream_yields_chunks() -> None:
+    async def fake_chunks():
+        c1 = MagicMock()
+        c1.model_dump = MagicMock(side_effect=lambda mode="json": {"choices": [{"index": 0}]})
+        yield c1
+
+    create_mock = AsyncMock(return_value=fake_chunks())
+    mock_client = MagicMock()
+    mock_client.chat.completions.create = create_mock
+    mock_cm = MagicMock()
+    mock_cm.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_cm.__aexit__ = AsyncMock(return_value=None)
+    with patch(
+        "app.llm.strategies.volcengine_compatible.AsyncOpenAI",
+        return_value=mock_cm,
+    ):
+        strat = VolcengineCompatibleStrategy()
+        out: list[dict] = []
+        async for ch in strat.stream(
+            ChatCallParams(
+                base_url="https://ark.cn-beijing.volces.com/api/v3",
+                api_key="sk",
+                model="doubao-seed-2-0-lite-260215",
+                messages=[{"role": "user", "content": "hi"}],
+            )
+        ):
+            out.append(ch)
+    assert len(out) == 1
+    assert out[0]["choices"][0]["index"] == 0
+
+
+def test_get_strategy_volcengine() -> None:
+    s = get_strategy(ProviderKind.volcengine)
+    assert isinstance(s, VolcengineCompatibleStrategy)
 
 
 def test_get_strategy_unknown() -> None:
