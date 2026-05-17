@@ -197,6 +197,39 @@ class Settings(BaseSettings):
             "agent_max_tool_rounds",
         ),
     )
+    agent_max_plan_steps: int = Field(
+        default=8,
+        ge=1,
+        description="Planner 单次 run 最大计划步数。",
+        validation_alias=AliasChoices("AGENT_MAX_PLAN_STEPS", "agent_max_plan_steps"),
+    )
+    agent_subagent_recursion_limit: int = Field(
+        default=16,
+        ge=1,
+        description="子 Agent create_react_agent 的 recursion_limit。",
+        validation_alias=AliasChoices(
+            "AGENT_SUBAGENT_RECURSION_LIMIT",
+            "agent_subagent_recursion_limit",
+        ),
+    )
+    agent_memory_retrieve_limit: int = Field(
+        default=20,
+        ge=1,
+        description="长期记忆检索最大条数。",
+        validation_alias=AliasChoices(
+            "AGENT_MEMORY_RETRIEVE_LIMIT",
+            "agent_memory_retrieve_limit",
+        ),
+    )
+    agent_message_fallback_limit: int = Field(
+        default=50,
+        ge=1,
+        description="长期记忆不足时 agent_message fallback 条数。",
+        validation_alias=AliasChoices(
+            "AGENT_MESSAGE_FALLBACK_LIMIT",
+            "agent_message_fallback_limit",
+        ),
+    )
     agent_tool_timeout_seconds: float = Field(
         default=60.0,
         ge=1.0,
