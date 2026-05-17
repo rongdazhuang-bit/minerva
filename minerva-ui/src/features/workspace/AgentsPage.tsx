@@ -654,6 +654,7 @@ export function AgentsPage() {
               ref={draftInputRef}
               allowClear
               variant="borderless"
+              classNames={{ textarea: 'agents-page__composer-input' }}
               autoSize={{ minRows: 2, maxRows: 8 }}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}

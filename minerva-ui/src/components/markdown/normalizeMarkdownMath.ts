@@ -8,6 +8,10 @@ import {
 /** CJK unified ideographs (basic block + ext A) for ``\\text{}`` wrapping in math. */
 const CJK_RUN_RE = /^[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]+/
 
+/** Typical LaTeX commands in real formulas (not model prose wrongly wrapped in ``$...$``). */
+const LATEX_MATH_COMMAND_RE =
+  /\\(?:frac|sum|int|prod|lim|sqrt|omega|pi|alpha|beta|gamma|cdot|times|to|infty|partial|mathbf|mathrm|left|right|begin|end)\b/
+
 /** Parenthesized TeX that models often emit without ``$`` delimiters. */
 const BARE_TEX_IN_PARENS_RE = /([（(])\s*(\\[a-zA-Z][^）)\n]*?)\s*([）)])/g
 
@@ -45,6 +49,32 @@ export function balanceExtraClosingBraces(tex: string): string {
   return out
 }
 
+/** Count CJK characters in ``s``. */
+function countCjkChars(s: string): number {
+  return (s.match(/[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/g) ?? []).length
+}
+
+/**
+ * Whether a ``$...$`` body is mostly natural-language prose (models often wrongly fence whole sentences).
+ */
+export function isProseLikeMathBody(body: string): boolean {
+  const trimmed = body.trim()
+  const len = trimmed.length
+  if (len < 10) return false
+
+  const cjk = countCjkChars(trimmed)
+  if (cjk < 3) return false
+
+  const hasLatex = LATEX_MATH_COMMAND_RE.test(trimmed)
+  const hasSubSup = /[_^]/.test(trimmed)
+
+  if (!hasLatex && !hasSubSup) return true
+
+  if (hasLatex && cjk / len > 0.35 && len > 24) return true
+
+  return false
+}
+
 /**
  * Wrap bare CJK runs in ``\\text{...}`` so KaTeX can render subscripts like ``_{人\\to箱}``.
  */
@@ -80,6 +110,80 @@ export function wrapCjkInMathBody(body: string): string {
   }
 
   return out
+}
+
+/** CJK punctuation that often follows a model-truncated ``$...$`` before prose continues. */
+const CJK_AFTER_MATH_PUNCT_RE = /[，。：；、]/
+
+/**
+ * Insert a missing ``$`` before CJK punctuation when a formula's closing fence was omitted (e.g. ``\\frac{\\pi}{N}}，则``).
+ */
+export function repairMissingInlineMathClosers(text: string): string {
+  let out = ''
+  let i = 0
+  let inlineDepth = 0
+
+  while (i < text.length) {
+    if (text[i] === '$' && i + 1 < text.length && text[i + 1] === '$') {
+      const closeBlock = text.indexOf('$$', i + 2)
+      if (closeBlock === -1) {
+        out += text.slice(i)
+        break
+      }
+      out += text.slice(i, closeBlock + 2)
+      i = closeBlock + 2
+      continue
+    }
+
+    if (text[i] === '$') {
+      let backslashes = 0
+      for (let j = i - 1; j >= 0 && text[j] === '\\'; j--) {
+        backslashes++
+      }
+      if (backslashes % 2 === 0) {
+        inlineDepth = inlineDepth === 0 ? 1 : 0
+        out += '$'
+        i++
+        continue
+      }
+    }
+
+    if (inlineDepth === 1 && CJK_AFTER_MATH_PUNCT_RE.test(text[i])) {
+      const next = text[i + 1] ?? ''
+      const prev = out[out.length - 1] ?? ''
+      if (/[\u4e00-\u9fff]/.test(next) && /[}\)\]\w\d]/.test(prev)) {
+        out += '$'
+        inlineDepth = 0
+      }
+    }
+
+    out += text[i]
+    i++
+  }
+
+  return out
+}
+
+/**
+ * Split a mis-paired ``$...$`` body at ``}}，中文`` so the TeX prefix and trailing prose separate.
+ */
+function trySplitMathBodyAtCjkContinuation(
+  rawBody: string,
+): { math: string; suffix: string } | null {
+  const match = /^([\s\S]*?\})(\s*[，。：；、][\u4e00-\u9fff][\s\S]*)$/.exec(rawBody)
+  if (!match) return null
+
+  const math = match[1]
+  let balance = 0
+  for (const ch of math) {
+    if (ch === '{') balance++
+    else if (ch === '}') balance--
+  }
+  if (balance !== 0) return null
+  if (isProseLikeMathBody(rawBody)) return null
+  if (!LATEX_MATH_COMMAND_RE.test(math) && !/[_^=\\]/.test(math)) return null
+
+  return { math, suffix: match[2] }
 }
 
 /**
@@ -122,9 +226,19 @@ export function normalizeInlineMathSpans(text: string): string {
         break
       }
       const rawBody = text.slice(bodyStart, close)
-      const body = wrapCjkInMathBody(balanceExtraClosingBraces(rawBody))
-      out += `$${body}$`
-      i = close + 1
+      if (isProseLikeMathBody(rawBody)) {
+        out += rawBody
+        i = close + 1
+        continue
+      }
+
+      const split = trySplitMathBodyAtCjkContinuation(rawBody)
+      const mathPart = split?.math ?? rawBody
+      const suffix = split?.suffix ?? ''
+
+      const body = wrapCjkInMathBody(balanceExtraClosingBraces(mathPart))
+      out += `$${body}$${suffix}`
+      i = split ? Math.max(close, open + 1) : close + 1
       continue
     }
 
@@ -354,6 +468,39 @@ export function normalizeSelectiveDisplayMathFencesForRemarkMath(text: string): 
   return out
 }
 
+/** Whether ``line`` is a GFM pipe table row. */
+function isGfmTableRow(line: string): boolean {
+  const trimmed = line.trim()
+  return trimmed.startsWith('|') && trimmed.indexOf('|', 1) !== -1
+}
+
+/**
+ * Apply ``transform`` only outside contiguous GFM table row blocks (table math uses ``remarkMathInTableCells``).
+ */
+export function mapOutsideGfmTableRows(text: string, transform: (chunk: string) => string): string {
+  const lines = text.split('\n')
+  const out: string[] = []
+  let i = 0
+
+  while (i < lines.length) {
+    if (!isGfmTableRow(lines[i])) {
+      const start = i
+      while (i < lines.length && !isGfmTableRow(lines[i])) {
+        i++
+      }
+      out.push(transform(lines.slice(start, i).join('\n')))
+      continue
+    }
+
+    while (i < lines.length && isGfmTableRow(lines[i])) {
+      out.push(lines[i])
+      i++
+    }
+  }
+
+  return out.join('\n')
+}
+
 /**
  * Agent chat math preprocessing (CJK in math, parenthesized TeX, loose ``$`` delimiters).
  */
@@ -362,10 +509,14 @@ export function normalizeMarkdownForAgent(markdown: string): string {
     const base = ensureBlankLineBeforeDisplayMathFences(
       unindentDisplayMathFenceLines(unindentIndentedListContinuations(chunk)),
     )
-    return normalizeSelectiveDisplayMathFencesForRemarkMath(
-      normalizeInlineMathSpans(
-        mapOutsideDisplayMathFences(base, (part) =>
-          wrapBareTexInParentheses(normalizeLooseInlineMathDelimiters(part)),
+    return mapOutsideGfmTableRows(base, (nonTable) =>
+      normalizeSelectiveDisplayMathFencesForRemarkMath(
+        normalizeInlineMathSpans(
+          mapOutsideDisplayMathFences(nonTable, (part) =>
+            repairMissingInlineMathClosers(
+              wrapBareTexInParentheses(normalizeLooseInlineMathDelimiters(part)),
+            ),
+          ),
         ),
       ),
     )

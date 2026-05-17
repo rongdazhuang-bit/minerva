@@ -1,10 +1,36 @@
 import { describe, expect, it } from 'vitest'
 import {
   balanceExtraClosingBraces,
+  isProseLikeMathBody,
   normalizeMarkdownForAgent,
+  repairMissingInlineMathClosers,
   wrapBareTexInParentheses,
   wrapCjkInMathBody,
 } from '@/components/markdown/normalizeMarkdownMath'
+
+describe('repairMissingInlineMathClosers', () => {
+  it('closes inline math before CJK comma when model omits trailing $', () => {
+    const input =
+      '通常令旋转因子 $W_N = e^{-i \\frac{2\\pi}{N}}，则公式简化为 $X[k] = \\sum_{n=0}^{N-1} x[n] W_N^{kn}$。'
+    const out = repairMissingInlineMathClosers(input)
+    expect(out).toContain(String.raw`\frac{2\pi}{N}}$，则公式简化为`)
+    expect(out).not.toContain(String.raw`\frac{2\pi}{N}}，则`)
+  })
+})
+
+describe('isProseLikeMathBody', () => {
+  it('detects model-wrapped Chinese sentences', () => {
+    expect(isProseLikeMathBody('DFT 的推导可以看作是对连续傅里叶变换（FT）进行离散化')).toBe(true)
+    expect(isProseLikeMathBody('3.2 推导思路（连续信号的采样与截断）')).toBe(true)
+  })
+
+  it('keeps real formulas', () => {
+    expect(isProseLikeMathBody(String.raw`\omega_0 = \frac{2\pi}{NT}`)).toBe(false)
+    expect(isProseLikeMathBody('f(t)')).toBe(false)
+    expect(isProseLikeMathBody(String.raw`dt \to T`)).toBe(false)
+    expect(isProseLikeMathBody('x[n] = f(nT)')).toBe(false)
+  })
+})
 
 describe('balanceExtraClosingBraces', () => {
   it('removes one stray closing brace before end of math', () => {
@@ -108,6 +134,26 @@ $$`
 
   it('keeps compact E=mc^2 as inline $$', () => {
     expect(normalizeMarkdownForAgent('$$E=mc^2$$')).toBe('$$E=mc^2$$')
+  })
+
+  it('does not wrap CJK in \\text{} inside GFM table rows during preprocess', () => {
+    const input = `| 类型 | 公式 |
+| :--- | :--- |
+| 连续、周期 | $\\int f(t) dt$ |`
+    const out = normalizeMarkdownForAgent(input)
+    expect(out).toContain('连续、周期')
+    expect(out).not.toMatch(/\\text\{连续\}/)
+    expect(out).toContain('$\\int f(t) dt$')
+  })
+
+  it('keeps Fourier summary table markdown intact (math parsed by remarkMathInTableCells)', () => {
+    const input = `| 变换类型 | 核心公式 |
+| :--- | :--- |
+| **DFT** | $\\sum_{n=0}^{N-1} x[n] e^{-i \\frac{2\\pi}{N} kn}$ |`
+    const out = normalizeMarkdownForAgent(input)
+    expect(out).toContain('**DFT**')
+    expect(out).toContain('$\\sum_{n=0}^{N-1}')
+    expect(out).not.toContain('math-inline')
   })
 
   it('dedents indented list notes and sub-bullets (not GFM code blocks)', () => {

@@ -5,9 +5,14 @@ import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import type { PluggableList } from 'unified'
 import { MINERVA_MARKDOWN_SANITIZE_SCHEMA } from '@/components/markdown/markdownSanitize'
+import { remarkMathInTableCells } from '@/components/markdown/remarkMathInTableCells'
 
-/** Shared remark plugins (GFM + TeX). */
-export const MINERVA_MARKDOWN_REMARK_PLUGINS: PluggableList = [remarkGfm, remarkMath]
+/** Shared remark plugins (GFM + TeX + table-cell math re-parse). */
+export const MINERVA_MARKDOWN_REMARK_PLUGINS: PluggableList = [
+  remarkGfm,
+  remarkMath,
+  remarkMathInTableCells,
+]
 
 /** Shared rehype plugins (raw HTML, KaTeX, sanitize). */
 export const MINERVA_MARKDOWN_REHYPE_PLUGINS: PluggableList = [

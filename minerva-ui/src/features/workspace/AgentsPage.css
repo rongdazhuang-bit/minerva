@@ -222,6 +222,48 @@
   background: var(--minerva-surface, #1b2838);
 }
 
+/* 输入框：细纵向滚动条（无箭头、透明轨道） */
+.agents-page__composer-input {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(148 163 184 / 0.5) transparent;
+}
+
+.agents-page__composer-input::-webkit-scrollbar {
+  width: 4px;
+}
+
+.agents-page__composer-input::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.agents-page__composer-input::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.agents-page__composer-input::-webkit-scrollbar-thumb {
+  min-height: 28px;
+  background: rgb(148 163 184 / 0.42);
+  border-radius: 999px;
+}
+
+.agents-page__composer-input::-webkit-scrollbar-thumb:hover {
+  background: rgb(125 211 252 / 0.62);
+}
+
+html.minerva-tone-sunshine .agents-page__composer-input {
+  scrollbar-color: rgb(100 116 139 / 0.55) transparent;
+}
+
+html.minerva-tone-sunshine .agents-page__composer-input::-webkit-scrollbar-thumb {
+  background: rgb(100 116 139 / 0.38);
+}
+
+html.minerva-tone-sunshine .agents-page__composer-input::-webkit-scrollbar-thumb:hover {
+  background: rgb(59 130 246 / 0.5);
+}
+
 .agents-page__skill-menu {
   margin-bottom: 8px;
   padding: 8px 10px;

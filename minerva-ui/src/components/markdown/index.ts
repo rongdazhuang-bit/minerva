@@ -10,12 +10,15 @@ export { copyTextToClipboard } from '@/components/markdown/copyToClipboard'
 export { normalizePrismLanguage } from '@/components/markdown/prismLanguages'
 export {
   balanceExtraClosingBraces,
+  isProseLikeMathBody,
+  repairMissingInlineMathClosers,
   mapOutsideFencedCodeBlocks,
   normalizeAgentChatMath,
   normalizeInlineMathSpans,
   normalizeMarkdownForAgent,
   normalizeMarkdownForOcr,
   normalizeSelectiveDisplayMathFencesForRemarkMath,
+  mapOutsideGfmTableRows,
   ensureBlankLineBeforeDisplayMathFences,
   unindentDisplayMathFenceLines,
   unindentIndentedListContinuations,
