@@ -6,7 +6,7 @@ import uuid
 
 from langchain_core.runnables import RunnableConfig
 
-from app.agent.capabilities.datetime.agent import build_datetime_react_agent
+from app.agent.capabilities.datetime.runner import run_datetime_capability
 from app.agent.capabilities.file.agent import build_file_react_agent
 from app.agent.capabilities.general.agent import build_general_react_agent
 from app.agent.domain.plan import Plan
@@ -23,8 +23,6 @@ def _get_subagent(deps: GraphDeps, capability: str):
 
     if capability == "file":
         return build_file_react_agent(deps.model, workspace_id=deps.workspace_id)
-    if capability == "datetime":
-        return build_datetime_react_agent(deps.model)
     return build_general_react_agent(deps.model)
 
 
@@ -74,14 +72,17 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
         status="running",
     )
 
-    subagent = _get_subagent(deps, step.capability)
     try:
-        output = await run_subagent_with_stream(
-            deps,
-            subagent,
-            step=step,
-            recursion_limit=settings.agent_subagent_recursion_limit,
-        )
+        if step.capability == "datetime":
+            output = await run_datetime_capability(deps, step=step)
+        else:
+            subagent = _get_subagent(deps, step.capability)
+            output = await run_subagent_with_stream(
+                deps,
+                subagent,
+                step=step,
+                recursion_limit=settings.agent_subagent_recursion_limit,
+            )
         step.status = "success" if output else "failed"
     except Exception as e:
         output = f"[subagent error: {e}]"

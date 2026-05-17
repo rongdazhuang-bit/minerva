@@ -12,3 +12,4 @@ def test_main_graph_compiles() -> None:
     assert "planner" in names
     assert "executor" in names
     assert "synthesizer" in names
+    assert "memory.persist" not in names

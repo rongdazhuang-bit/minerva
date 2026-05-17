@@ -16,15 +16,22 @@ from app.exceptions import AppError
 
 log = logging.getLogger(__name__)
 
-# Endpoint suffix appended to user-provided base URLs for chat completions.
-_CHAT_COMPLETIONS_PATH = "/chat/completions"
 _LOG_JSON_MAX_CHARS = 100_000
 
 
-def _chat_completions_url(base_url: str) -> str:
-    """Append chat completions suffix with normalized slashes."""
+def _client_base_url(raw: str) -> str:
+    """Return ``base_url`` for ``AsyncOpenAI`` as configured (trim only).
 
-    return base_url.rstrip("/") + _CHAT_COMPLETIONS_PATH
+    Ark expects ``https://ark.<region>.volces.com/api/v3``; the SDK appends
+    ``/chat/completions``. Strip a trailing ``/responses`` segment when present
+    (OpenAI Responses API path) so we do not call ``.../responses/chat/completions``.
+    """
+
+    url = raw.strip()
+    normalized = url.rstrip("/")
+    if normalized.endswith("/responses"):
+        return normalized[: -len("/responses")]
+    return url
 
 
 def _json_for_log(data: Any) -> str:
@@ -129,12 +136,11 @@ class VolcengineCompatibleStrategy:
     async def complete(self, params: ChatCallParams) -> dict[str, Any]:
         """Perform blocking completion with structured logging."""
 
-        base_url = params.base_url.rstrip("/")
-        url = _chat_completions_url(base_url)
+        base_url = _client_base_url(params.base_url)
         kwargs = _completion_kwargs(params, stream=False)
         log.info(
-            "ai.volcengine.chat.completions request method=complete url=%s body=%s",
-            url,
+            "ai.volcengine.chat.completions request method=complete base_url=%s body=%s",
+            base_url,
             _json_for_log(kwargs),
         )
         try:
@@ -146,18 +152,18 @@ class VolcengineCompatibleStrategy:
                 resp = await client.chat.completions.create(**kwargs)
                 out = resp.model_dump(mode="json")
                 log.info(
-                    "ai.volcengine.chat.completions response method=complete url=%s body=%s",
-                    url,
+                    "ai.volcengine.chat.completions response method=complete base_url=%s body=%s",
+                    base_url,
                     _json_for_log(out),
                 )
                 return out
         except APIStatusError as e:
-            _log_upstream_http_error(url=url, exc=e, method="complete")
+            _log_upstream_http_error(url=base_url, exc=e, method="complete")
             raise _map_openai_error(e) from None
         except (APITimeoutError, APIConnectionError) as e:
             log.warning(
-                "ai.volcengine.chat.completions upstream transport error method=complete url=%s error=%s",
-                url,
+                "ai.volcengine.chat.completions upstream transport error method=complete base_url=%s error=%s",
+                base_url,
                 e,
             )
             raise _map_openai_error(e) from None
@@ -170,12 +176,11 @@ class VolcengineCompatibleStrategy:
     async def stream(self, params: ChatCallParams) -> AsyncIterator[dict[str, Any]]:
         """Yield streamed completion chunks while summarizing traffic for logs."""
 
-        base_url = params.base_url.rstrip("/")
-        url = _chat_completions_url(base_url)
+        base_url = _client_base_url(params.base_url)
         kwargs = _completion_kwargs(params, stream=True)
         log.info(
-            "ai.volcengine.chat.completions request method=stream url=%s body=%s",
-            url,
+            "ai.volcengine.chat.completions request method=stream base_url=%s body=%s",
+            base_url,
             _json_for_log(kwargs),
         )
         try:
@@ -201,17 +206,17 @@ class VolcengineCompatibleStrategy:
                     "last_chunk": last_chunk,
                 }
                 log.info(
-                    "ai.volcengine.chat.completions response method=stream url=%s body=%s",
-                    url,
+                    "ai.volcengine.chat.completions response method=stream base_url=%s body=%s",
+                    base_url,
                     _json_for_log(summary),
                 )
         except APIStatusError as e:
-            _log_upstream_http_error(url=url, exc=e, method="stream")
+            _log_upstream_http_error(url=base_url, exc=e, method="stream")
             raise _map_openai_error(e) from None
         except (APITimeoutError, APIConnectionError) as e:
             log.warning(
-                "ai.volcengine.chat.completions upstream transport error method=stream url=%s error=%s",
-                url,
+                "ai.volcengine.chat.completions upstream transport error method=stream base_url=%s error=%s",
+                base_url,
                 e,
             )
             raise _map_openai_error(e) from None

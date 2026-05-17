@@ -79,8 +79,6 @@ export function formatAgentV2TraceLine(event: AgentSseEventV2): string {
       return `[run.error] ${String(p.code ?? '')}: ${String(p.message ?? '')}`
     case 'llm.delta':
       return ''
-    case 'message.final':
-      return '[message] final'
     default:
       return `[${event.type}]`
   }

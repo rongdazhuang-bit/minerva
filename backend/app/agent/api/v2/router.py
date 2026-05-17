@@ -191,7 +191,6 @@ async def create_agent_run_sse(
                 preferred_capabilities=body.preferred_capabilities,
             ):
                 yield chunk
-            await db.commit()
         except Exception:
             await db.rollback()
             raise
@@ -202,6 +201,7 @@ async def create_agent_run_sse(
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
             "X-Minerva-Run-Id": str(run_id),
         },
     )

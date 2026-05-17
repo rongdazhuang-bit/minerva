@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Awaitable
 
 from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import BaseMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.infrastructure.memory_store import AgentMemoryStore
@@ -29,3 +30,4 @@ class GraphDeps:
     emit_sse: SseEmitFn | None = None
     temperature: float | None = None
     max_tokens: int | None = None
+    conversation_messages: list[BaseMessage] | None = None

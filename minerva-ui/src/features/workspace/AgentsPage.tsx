@@ -353,14 +353,6 @@ export function AgentsPage() {
             }
             return
           }
-          if (ev.type === 'message.final') {
-            const content = String(ev.payload.content ?? '')
-            if (content) {
-              setMessages((prev) =>
-                prev.map((m) => (m.id === asstId ? { ...m, content } : m)),
-              )
-            }
-          }
         },
         ac.signal,
       )

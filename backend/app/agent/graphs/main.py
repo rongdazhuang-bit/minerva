@@ -7,7 +7,7 @@ from langgraph.graph import END, START, StateGraph
 
 from app.agent.graphs.deps import GraphDeps
 from app.agent.graphs.nodes.executor import executor_node, route_after_executor
-from app.agent.graphs.nodes.memory_nodes import memory_persist_node, memory_retrieve_node
+from app.agent.graphs.nodes.memory_nodes import memory_retrieve_node
 from app.agent.graphs.nodes.planner import planner_node
 from app.agent.graphs.nodes.synthesizer import synthesizer_node
 from app.agent.graphs.state import AgentGraphState
@@ -21,7 +21,6 @@ def build_main_graph(*, checkpointer: BaseCheckpointSaver | None = None):
     graph.add_node("planner", planner_node)
     graph.add_node("executor", executor_node)
     graph.add_node("synthesizer", synthesizer_node)
-    graph.add_node("memory.persist", memory_persist_node)
 
     graph.add_edge(START, "memory.retrieve")
     graph.add_edge("memory.retrieve", "planner")
@@ -31,7 +30,6 @@ def build_main_graph(*, checkpointer: BaseCheckpointSaver | None = None):
         route_after_executor,
         {"executor": "executor", "synthesizer": "synthesizer"},
     )
-    graph.add_edge("synthesizer", "memory.persist")
-    graph.add_edge("memory.persist", END)
+    graph.add_edge("synthesizer", END)
 
     return graph.compile(checkpointer=checkpointer)

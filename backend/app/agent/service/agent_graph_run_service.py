@@ -18,9 +18,12 @@ from app.agent.graphs.deps import GraphDeps
 from app.agent.graphs.main import build_main_graph
 from app.agent.graphs.state import AgentGraphState
 from app.agent.infrastructure import repository as agent_repo
+from app.agent.infrastructure.chat_history import agent_rows_to_langchain
 from app.agent.infrastructure.chat_model_factory import ChatModelFactory
 from app.agent.infrastructure.langgraph_checkpointer import get_langgraph_checkpointer
 from app.agent.infrastructure.memory_store import AgentMemoryStore
+from app.agent.service.memory_persist_service import schedule_persist_turn_memory_background
+from app.config import settings
 from app.exceptions import AppError
 
 log = logging.getLogger(__name__)
@@ -129,6 +132,14 @@ class AgentGraphRunService:
                     run_id=run_id,
                 )
 
+                msg_rows = await agent_repo.list_agent_messages_ordered(
+                    session, session_id=session_id
+                )
+                conversation_messages = agent_rows_to_langchain(
+                    msg_rows,
+                    max_messages=settings.agent_chat_history_message_limit,
+                )
+
                 deps = GraphDeps(
                     db=session,
                     model=model_row,
@@ -140,6 +151,7 @@ class AgentGraphRunService:
                     emit_sse=emit,
                     temperature=temperature,
                     max_tokens=max_tokens,
+                    conversation_messages=conversation_messages,
                 )
 
                 initial: AgentGraphState = {
@@ -169,14 +181,6 @@ class AgentGraphRunService:
 
                 final_answer = (final_state.get("final_answer") or "").strip()
                 if final_answer:
-                    await emit(
-                        build_sse_event(
-                            event_type=AgentSseEventType.message_final,
-                            run_id=run_id,
-                            session_id=session_id,
-                            payload={"content": final_answer},
-                        )
-                    )
                     await agent_repo.append_agent_message(
                         session,
                         session_id=session_id,
@@ -188,6 +192,7 @@ class AgentGraphRunService:
                 await agent_repo.finalize_agent_run(
                     session, run_id=run_id, status="success", usage_json=None
                 )
+                await session.commit()
                 await emit(
                     build_sse_event(
                         event_type=AgentSseEventType.run_finished,
@@ -196,6 +201,17 @@ class AgentGraphRunService:
                         payload={"status": "success"},
                     )
                 )
+                if final_answer:
+                    schedule_persist_turn_memory_background(
+                        workspace_id=workspace_id,
+                        session_id=session_id,
+                        run_id=run_id,
+                        user_message=user_message,
+                        final_answer=final_answer,
+                        model_id=model_id,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                    )
             except AppError as e:
                 log.warning("agent v2 AppError run_id=%s code=%s", run_id, e.code)
                 await agent_repo.finalize_agent_run(
@@ -205,6 +221,7 @@ class AgentGraphRunService:
                     error_code=e.code,
                     error_message=str(e.message),
                 )
+                await session.commit()
                 await emit(
                     build_sse_event(
                         event_type=AgentSseEventType.run_error,
@@ -230,6 +247,7 @@ class AgentGraphRunService:
                     error_code="agent.internal_error",
                     error_message=str(e),
                 )
+                await session.commit()
                 await emit(
                     build_sse_event(
                         event_type=AgentSseEventType.run_error,
@@ -247,6 +265,7 @@ class AgentGraphRunService:
                     )
                 )
             finally:
+                await emit(SSE_DONE_LINE)
                 await queue.put(None)
 
         task = asyncio.create_task(run_graph())
@@ -256,7 +275,6 @@ class AgentGraphRunService:
                 if chunk is None:
                     break
                 yield chunk
-            yield SSE_DONE_LINE
         finally:
             await task
 

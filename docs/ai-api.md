@@ -79,7 +79,7 @@ async for line in chat_service.stream_sse_lines(
 
 ## Volcengine Ark
 
-`provider_kind` 为 `volcengine` 时使用 `VolcengineCompatibleStrategy`（`AsyncOpenAI` + 调用方传入的 `base_url` / `api_key`）。典型 `base_url`：`https://ark.cn-beijing.volces.com/api/v3`；`model` 为 Ark 控制台中的模型 ID（如 `doubao-seed-2-0-lite-260215`）。
+`provider_kind` 为 `volcengine` 时使用 `VolcengineCompatibleStrategy`（`AsyncOpenAI` + 调用方传入的 `base_url` / `api_key`）。`base_url` 直接传给 SDK（不在应用层拼接路径）；典型值为 Ark 根路径 `https://ark.cn-beijing.volces.com/api/v3`（**不要**带 `/responses` 或 `/chat/completions`，由 SDK 请求 `/chat/completions`）。`model` 为 Ark 控制台中的模型 ID（如 `doubao-seed-2-0-lite-260215`）。
 
 ## 占位策略
 

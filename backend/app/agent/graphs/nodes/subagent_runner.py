@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from langchain_core.messages import HumanMessage
 from langgraph.graph.state import CompiledStateGraph
 
-from app.agent.graphs.deps import GraphDeps
 from app.agent.domain.plan import PlanStep
+from app.agent.graphs.deps import GraphDeps
+from app.agent.infrastructure.chat_history import messages_with_user_input
 from app.agent.infrastructure.event_mapper import map_langchain_stream_event
 
 
@@ -32,7 +32,8 @@ async def run_subagent_with_stream(
     """Run one sub-agent with ``astream_events`` and forward tool/LLM deltas to SSE."""
 
     config_sub = {"recursion_limit": recursion_limit}
-    inputs = {"messages": [HumanMessage(content=step.goal)]}
+    history = deps.conversation_messages or []
+    inputs = {"messages": messages_with_user_input(history, step.goal)}
     output = ""
     async for event in subagent.astream_events(inputs, config=config_sub, version="v2"):
         if deps.emit_sse:

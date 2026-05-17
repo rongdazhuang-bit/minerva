@@ -27,7 +27,7 @@ class AgentSseEventType(str, Enum):
     tool_started = "tool.started"
     tool_finished = "tool.finished"
     memory_retrieved = "memory.retrieved"
-    message_final = "message.final"
+    message_final = "message.final"  # Reserved; not emitted (assistant text uses llm.delta only).
 
 
 def utc_iso_now() -> str:

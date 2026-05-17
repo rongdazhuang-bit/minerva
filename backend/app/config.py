@@ -230,6 +230,15 @@ class Settings(BaseSettings):
             "agent_message_fallback_limit",
         ),
     )
+    agent_chat_history_message_limit: int = Field(
+        default=40,
+        ge=1,
+        description="单次 run 注入模型的会话历史最大消息条数（按 seq 截断保留最近）。",
+        validation_alias=AliasChoices(
+            "AGENT_CHAT_HISTORY_MESSAGE_LIMIT",
+            "agent_chat_history_message_limit",
+        ),
+    )
     agent_langgraph_checkpoint_enabled: bool = Field(
         default=True,
         description="为 True 时尝试启用 LangGraph PostgresSaver checkpoint。",

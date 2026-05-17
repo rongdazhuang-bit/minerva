@@ -23,6 +23,7 @@ import rehypeSanitize from 'rehype-sanitize'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import { AGENT_CHAT_MARKDOWN_SANITIZE_SCHEMA } from '@/features/workspace/agentChatMarkdownSanitize'
+import { normalizeAgentChatMath } from '@/features/workspace/normalizeAgentChatMath'
 import { normalizePrismLanguage } from '@/features/workspace/agentChatPrismLanguages'
 import 'katex/dist/katex.min.css'
 import './AgentAssistantMarkdown.css'
@@ -236,6 +237,8 @@ export const AgentAssistantMarkdown = memo(function AgentAssistantMarkdown({
     return <span className="agents-page__md-empty">{'\u00a0'}</span>
   }
 
+  const rendered = normalizeAgentChatMath(trimmed)
+
   return (
     <div className="agents-page__md-wrap">
       <div className="agents-page__md">
@@ -249,7 +252,7 @@ export const AgentAssistantMarkdown = memo(function AgentAssistantMarkdown({
           ]}
           components={{ pre: PreBlock }}
         >
-          {markdown}
+          {rendered}
         </ReactMarkdown>
       </div>
     </div>

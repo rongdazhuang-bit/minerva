@@ -9,9 +9,20 @@ from httpx import ASGITransport, AsyncClient
 from app.llm.domain.models import ChatCallParams, ChatMessage, ProviderKind
 from app.llm.service.chat_service import build_openai_messages, chat_service
 from app.llm.strategies import get_strategy
-from app.llm.strategies.volcengine_compatible import VolcengineCompatibleStrategy
+from app.llm.strategies.volcengine_compatible import VolcengineCompatibleStrategy, _client_base_url
 from app.exceptions import AppError
 from app.main import app
+
+
+def test_volcengine_client_base_url_strips_responses_suffix() -> None:
+    assert (
+        _client_base_url("https://ark.cn-beijing.volces.com/api/v3/responses")
+        == "https://ark.cn-beijing.volces.com/api/v3"
+    )
+    assert (
+        _client_base_url("https://ark.cn-beijing.volces.com/api/v3")
+        == "https://ark.cn-beijing.volces.com/api/v3"
+    )
 
 
 def test_build_openai_messages_order() -> None:

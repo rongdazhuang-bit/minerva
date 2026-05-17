@@ -1,8 +1,19 @@
 /* 智能体助手气泡内 Markdown：公式、表格、Mermaid 与正文排版 */
 .agents-page__md-wrap {
   max-width: 100%;
+  /*
+   * 仅横向滚动宽表格；勿让另一轴解析为 auto（会与 KaTeX 行盒 strut 叠加出细纵向滚动条）。
+   * 纵向由外层 ``.agents-page__scroll`` 负责。
+   */
   overflow-x: auto;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
+}
+
+/* remark/rehype 偶发在公式外包一层带 max-height 的 div，会触发内层纵向滚动条 */
+.agents-page__md-wrap div:has(.katex) {
+  max-height: none !important;
+  overflow: visible !important;
 }
 
 .agents-page__md {
@@ -26,6 +37,10 @@
   max-height: none;
 }
 
+/*
+ * 块级公式勿单独设 overflow-x: auto，否则另一轴也会变成 auto 并出现细纵向滚动条。
+ * 横向溢出由 ``.agents-page__md-wrap`` 承担。
+ */
 .agents-page__md .katex-display {
   display: block;
   margin: 0.85em 0;
