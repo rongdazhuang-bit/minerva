@@ -56,7 +56,7 @@ class AgentGraphRunService:
         model_id: uuid.UUID,
         temperature: float | None = None,
         max_tokens: int | None = None,
-        preferred_capabilities: list[str] | None = None,
+        preferred_skills: list[str] | None = None,
     ) -> AsyncIterator[bytes]:
         """Execute one agent run; yield SSE v2 lines as the graph produces them."""
 
@@ -118,7 +118,7 @@ class AgentGraphRunService:
                     provider_kind=None,
                     request_meta_json={
                         "model_id": str(model_id),
-                        "preferred_capabilities": preferred_capabilities or [],
+                        "preferred_skills": preferred_skills or [],
                         "temperature": temperature,
                         "max_tokens": max_tokens,
                     },
@@ -161,7 +161,7 @@ class AgentGraphRunService:
                     "user_id": user_id,
                     "model_id": model_id,
                     "user_message": user_message,
-                    "preferred_capabilities": preferred_capabilities or [],
+                    "preferred_skills": preferred_skills or [],
                     "plan": None,
                     "current_step_index": 0,
                     "retrieved_memories": [],

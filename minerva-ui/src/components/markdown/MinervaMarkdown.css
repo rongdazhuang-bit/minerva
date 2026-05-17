@@ -1,0 +1,249 @@
+/* Shared Minerva Markdown: KaTeX, GFM tables, optional Prism / Mermaid (agent preset). */
+.minerva-md-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: 2px 6px 8px 2px;
+}
+
+.minerva-md-wrap div:has(.katex) {
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.minerva-md {
+  color: var(--minerva-ink, #e8f0f8);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.minerva-md :first-child {
+  margin-top: 0;
+}
+
+.minerva-md :last-child {
+  margin-bottom: 0;
+}
+
+.minerva-md .katex {
+  color: inherit;
+  font-size: 1em;
+  overflow: visible;
+  max-height: none;
+}
+
+.minerva-md .katex-display {
+  display: block;
+  margin: 0.85em 0;
+  padding: 0.35em 0;
+  overflow: visible;
+  max-width: 100%;
+  max-height: none;
+}
+
+.minerva-md .katex-display > .katex {
+  display: block;
+}
+
+.minerva-md .katex-html {
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.minerva-md .katex-error {
+  color: #f87171;
+}
+
+html.minerva-tone-sunshine .minerva-md .katex-error {
+  color: #dc2626;
+}
+
+.minerva-md p {
+  margin: 0.5em 0;
+}
+
+.minerva-md h1,
+.minerva-md h2,
+.minerva-md h3,
+.minerva-md h4 {
+  margin: 0.75em 0 0.4em;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.minerva-md img {
+  max-width: 100%;
+  height: auto;
+}
+
+.minerva-md table {
+  border-collapse: collapse;
+  margin: 0.6em 0;
+  font-size: 0.95em;
+  table-layout: auto;
+  width: max-content;
+  max-width: none;
+}
+
+.minerva-md thead {
+  border-bottom: 1px solid var(--minerva-border, #2a3f58);
+}
+
+.minerva-md caption {
+  caption-side: top;
+  text-align: start;
+  font-weight: 600;
+  padding: 0.35em 0.5em 0.5em;
+  color: color-mix(in srgb, var(--minerva-ink, #e8f0f8) 88%, transparent);
+}
+
+.minerva-md th,
+.minerva-md td {
+  border: 1px solid var(--minerva-border, #2a3f58);
+  padding: 0.4em 0.65em;
+  text-align: start;
+  vertical-align: top;
+}
+
+.minerva-md th {
+  background: color-mix(in srgb, var(--minerva-surface-2, #121c28) 75%, transparent);
+  font-weight: 600;
+}
+
+.minerva-md tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--minerva-surface-2, #121c28) 35%, transparent);
+}
+
+.minerva-md blockquote {
+  margin: 0.55em 0;
+  padding: 0.35em 0.85em;
+  border-left: 3px solid var(--minerva-primary, #38bdf8);
+  background: rgba(56, 189, 248, 0.08);
+  color: color-mix(in srgb, var(--minerva-ink, #e8f0f8) 92%, transparent);
+}
+
+.minerva-md pre.minerva-md-pre {
+  margin: 0.55em 0;
+  padding: 0.65em 0.85em;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--minerva-border, #2a3f58);
+  overflow-x: auto;
+  font-size: 0.88em;
+  line-height: 1.45;
+}
+
+.minerva-md pre.minerva-md-pre code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  white-space: pre;
+}
+
+.minerva-md :not(pre) > code {
+  padding: 0.12em 0.4em;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  font-size: 0.9em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.minerva-md-mermaid {
+  margin: 0.55em 0;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.minerva-md-mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.minerva-md-syntax-host {
+  position: relative;
+  margin: 0.55em 0;
+  min-height: 4.75rem;
+}
+
+.minerva-md-syntax-copy {
+  position: absolute;
+  z-index: 2;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid var(--minerva-border, #2a3f58);
+  background: color-mix(in srgb, var(--minerva-surface-2, #121c28) 88%, #000 12%);
+  color: color-mix(in srgb, var(--minerva-ink, #e8f0f8) 92%, transparent);
+  cursor: pointer;
+  opacity: 0.82;
+  font-size: 13px;
+  line-height: 1;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.minerva-md-syntax-copy:hover {
+  opacity: 1;
+  color: var(--minerva-ink, #e8f0f8);
+  background: color-mix(in srgb, var(--minerva-surface-2, #121c28) 70%, var(--minerva-primary, #38bdf8) 18%);
+}
+
+.minerva-md-syntax-copy:focus-visible {
+  outline: 2px solid var(--minerva-primary, #38bdf8);
+  outline-offset: 2px;
+}
+
+.minerva-md-syntax-copy--tr {
+  top: 6px;
+  right: 6px;
+}
+
+.minerva-md-syntax-copy--br {
+  bottom: 6px;
+  right: 6px;
+}
+
+.minerva-md-syntax {
+  max-width: 100%;
+  overflow-x: auto !important;
+}
+
+.minerva-md-syntax-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+}
+
+.minerva-md-empty {
+  display: inline-block;
+}
+
+html.minerva-tone-sunshine .minerva-md {
+  color: var(--minerva-ink, #0f172a);
+}
+
+html.minerva-tone-sunshine .minerva-md thead {
+  border-bottom-color: #e2e8f0;
+}
+
+html.minerva-tone-sunshine .minerva-md caption {
+  color: color-mix(in srgb, var(--minerva-ink, #0f172a) 85%, transparent);
+}
+
+html.minerva-tone-sunshine .minerva-md th,
+html.minerva-tone-sunshine .minerva-md td {
+  border-color: #e2e8f0;
+}
+
+html.minerva-tone-sunshine .minerva-md th {
+  background: #f1f5f9;
+}
+
+html.minerva-tone-sunshine .minerva-md tbody tr:nth-child(even) td {
+  background: #f8fafc;
+}

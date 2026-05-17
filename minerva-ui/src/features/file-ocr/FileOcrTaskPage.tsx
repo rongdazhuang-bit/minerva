@@ -58,12 +58,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Dayjs } from 'dayjs'
 import type { ReactNode } from 'react'
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import ReactMarkdown, { defaultUrlTransform } from 'react-markdown'
-import rehypeKatex from 'rehype-katex'
-import rehypeRaw from 'rehype-raw'
-import rehypeSanitize, { defaultSchema, type Options } from 'rehype-sanitize'
-import remarkGfm from 'remark-gfm'
-import remarkMath from 'remark-math'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '@/api/client'
 import {
@@ -90,55 +84,13 @@ import { useCountUp } from '@/hooks/useCountUp'
 import { useDictItemTree } from '@/hooks/useDictItemTree'
 import mineruLogo from './assets/mineru-logo.png'
 import paddleOcrLogo from './assets/paddleocr-logo.jpg'
-import {
-  applyOcrMarkdownImagePlaceholders,
-  normalizeDisplayMathFencesForRemarkMath,
-  normalizeLooseInlineMathDelimiters,
-  promoteInlineMathContainingTagToDisplay,
-} from './applyOcrMarkdownImagePlaceholders'
+import { MinervaMarkdown } from '@/components/markdown'
 import {
   buildOcrMarkdownDocumentForExport,
   sanitizeMarkdownDownloadBasename,
   triggerMarkdownFileDownload,
 } from './buildOcrMarkdownExport'
-import 'katex/dist/katex.min.css'
-import './FileOcrTaskMarkdown.css'
 import './FileOcrTaskPage.css'
-
-/** GitHub-style defaults plus table caption/col/colgroup, KaTeX ``span`` styling, and ``data:`` on ``img``. */
-const PADDLE_OCR_MARKDOWN_SANITIZE_SCHEMA: Options = {
-  ...defaultSchema,
-  tagNames: [...(defaultSchema.tagNames ?? []), 'caption', 'col', 'colgroup'],
-  ancestors: {
-    ...defaultSchema.ancestors,
-    caption: ['table'],
-    col: ['colgroup', 'table'],
-    colgroup: ['table'],
-  },
-  protocols: {
-    ...defaultSchema.protocols,
-    /** Explicit allowlist: remote URLs and Paddle-inlined ``data:image/...`` URIs. */
-    src: ['http', 'https', 'data'],
-  },
-  attributes: {
-    ...defaultSchema.attributes,
-    /** KaTeX (``output: 'html'``) uses nested spans with ``className`` and inline ``style``. */
-    span: ['className', 'style', 'ariaHidden', 'title'],
-  },
-}
-
-/**
- * Keeps ``http``/``https`` (and relative) URLs while allowing ``data:image/...`` for inlined OCR assets.
- *
- * ``react-markdown``'s ``defaultUrlTransform`` strips unknown schemes, which removes ``data:`` from ``img`` src.
- */
-function fileOcrMarkdownUrlTransform(url: string): string {
-  const v = url.trim()
-  if (v.toLowerCase().startsWith('data:image/')) {
-    return v
-  }
-  return defaultUrlTransform(url)
-}
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024
 const MAX_FILE_COUNT = 50
@@ -1259,37 +1211,19 @@ export function RulesFileOcrTaskPage() {
           <div>
             {detailData.pages.map((page, idx) => {
               const n = typeof page.page_index === 'number' ? page.page_index + 1 : idx + 1
-              const md = normalizeDisplayMathFencesForRemarkMath(
-                promoteInlineMathContainingTagToDisplay(
-                  normalizeLooseInlineMathDelimiters(
-                    applyOcrMarkdownImagePlaceholders(page.markdown_text, page.images),
-                  ),
-                ),
-              )
               return (
                 <section key={`${n}-${idx}`} style={{ marginBottom: 28 }}>
                   <h2 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 12px' }}>
                     {t('fileOcr.tasks.detail.pageTitle', { n })}
                   </h2>
-                  <div className="file-ocr-task-md-wrap">
-                    <div className="file-ocr-task-md">
-                      {md.trim() === '' ? (
-                        <span style={{ opacity: 0.65 }}>{t('fileOcr.tasks.detail.pageEmpty')}</span>
-                      ) : (
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm, remarkMath]}
-                          rehypePlugins={[
-                            rehypeRaw,
-                            [rehypeKatex, { output: 'html', strict: 'ignore', throwOnError: false }],
-                            [rehypeSanitize, PADDLE_OCR_MARKDOWN_SANITIZE_SCHEMA],
-                          ]}
-                          urlTransform={fileOcrMarkdownUrlTransform}
-                        >
-                          {md}
-                        </ReactMarkdown>
-                      )}
-                    </div>
-                  </div>
+                  <MinervaMarkdown
+                    preset="ocr"
+                    markdown={page.markdown_text ?? ''}
+                    images={page.images}
+                    emptyFallback={
+                      <span style={{ opacity: 0.65 }}>{t('fileOcr.tasks.detail.pageEmpty')}</span>
+                    }
+                  />
                 </section>
               )
             })}

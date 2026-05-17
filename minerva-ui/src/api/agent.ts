@@ -39,7 +39,7 @@ export type AgentSessionDetailOut = {
   messages: AgentMessageOut[]
 }
 
-export type AgentCapabilityListItem = {
+export type AgentSkillListItem = {
   id: string
   description: string
 }
@@ -49,7 +49,7 @@ export type AgentRunCreateBodyV2 = {
   model_id: string
   temperature?: number | null
   max_tokens?: number | null
-  preferred_capabilities?: string[]
+  preferred_skills?: string[]
 }
 
 export type AgentStreamEvent = AgentStreamV2ParseResult
@@ -126,17 +126,17 @@ export async function getAgentSessionDetail(
   return JSON.parse(text) as AgentSessionDetailOut
 }
 
-/** GET 内置 capabilities 列表。 */
-export async function listAgentCapabilities(
+/** GET 内置 skills 列表。 */
+export async function listAgentSkills(
   workspaceId: string,
-): Promise<{ capabilities: AgentCapabilityListItem[] }> {
-  const res = await fetch(`${v2Base(workspaceId)}/capabilities`, {
+): Promise<{ skills: AgentSkillListItem[] }> {
+  const res = await fetch(`${v2Base(workspaceId)}/skills`, {
     headers: new Headers(authHeaders()),
   })
   await handleAuth(res)
   const text = await res.text()
   if (!res.ok) await parseJsonError(text, res)
-  return JSON.parse(text) as { capabilities: AgentCapabilityListItem[] }
+  return JSON.parse(text) as { skills: AgentSkillListItem[] }
 }
 
 /** POST 创建会话。 */
@@ -181,7 +181,7 @@ export async function streamAgentRun(
       model_id: body.model_id,
       temperature: body.temperature ?? null,
       max_tokens: body.max_tokens ?? null,
-      preferred_capabilities: body.preferred_capabilities ?? [],
+      preferred_skills: body.preferred_skills ?? [],
     }),
     signal,
   })

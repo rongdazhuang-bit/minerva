@@ -38,10 +38,10 @@ async def test_agent_v2_create_run_requires_auth() -> None:
 
 
 @pytest.mark.asyncio
-async def test_agent_v2_list_capabilities_requires_auth() -> None:
+async def test_agent_v2_list_skills_requires_auth() -> None:
     """未携带 JWT 时列出能力应返回 401。"""
 
     ws = uuid.uuid4()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        res = await ac.get(f"/workspaces/{ws}/agent/v2/capabilities")
+        res = await ac.get(f"/workspaces/{ws}/agent/v2/skills")
     assert res.status_code == 401

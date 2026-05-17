@@ -9,8 +9,8 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.api.v2.schemas import (
-    AgentCapabilityItemOut,
-    AgentCapabilityListOut,
+    AgentSkillItemOut,
+    AgentSkillListOut,
     AgentMessageOut,
     AgentRunCreateV2,
     AgentSessionCreateIn,
@@ -21,6 +21,7 @@ from app.agent.api.v2.schemas import (
 )
 from app.agent.infrastructure.repository import RECENT_AGENT_SESSIONS_DEFAULT_LIMIT
 from app.agent.infrastructure import repository as agent_repo
+from app.agent.infrastructure.skill_loader import list_indexed_skills
 from app.agent.service.agent_graph_run_service import (
     AgentGraphRunService,
     get_agent_graph_run_service,
@@ -32,21 +33,19 @@ from app.exceptions import AppError
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/agent/v2", tags=["agent-v2"])
 
-_CAPABILITIES: list[AgentCapabilityItemOut] = [
-    AgentCapabilityItemOut(id="general", description="通用对话与汇总"),
-    AgentCapabilityItemOut(id="file", description="工作区沙箱文件与目录操作"),
-    AgentCapabilityItemOut(id="datetime", description="查询服务器当前日期时间"),
-]
-
-
-@router.get("/capabilities", response_model=AgentCapabilityListOut)
-async def list_agent_capabilities(
+@router.get("/skills", response_model=AgentSkillListOut)
+async def list_agent_skills(
     workspace_id: uuid.UUID,
     _workspace: uuid.UUID = Depends(require_workspace_member),
-) -> AgentCapabilityListOut:
-    """返回内置能力列表（供前端偏好选择）。"""
+) -> AgentSkillListOut:
+    """返回内置技能列表（来自 ``skills/INDEX.md``，供前端偏好选择）。"""
 
-    return AgentCapabilityListOut(capabilities=_CAPABILITIES)
+    return AgentSkillListOut(
+        skills=[
+            AgentSkillItemOut(id=s.id, description=s.description)
+            for s in list_indexed_skills()
+        ]
+    )
 
 
 @router.post("/sessions", response_model=AgentSessionOut)
@@ -188,7 +187,7 @@ async def create_agent_run_sse(
                 model_id=body.model_id,
                 temperature=body.temperature,
                 max_tokens=body.max_tokens,
-                preferred_capabilities=body.preferred_capabilities,
+                preferred_skills=body.preferred_skills,
             ):
                 yield chunk
         except Exception:

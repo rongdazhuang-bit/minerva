@@ -1,1 +1,1 @@
-"""Agent infrastructure: persistence, skills, and tool wiring."""
+"""Agent infrastructure: persistence, LangGraph wiring, and skills."""

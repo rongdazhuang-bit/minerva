@@ -1,17 +1,20 @@
-"""LangChain tools for datetime capability."""
+"""Datetime skill tools (``register_tools`` + JSON ok contract)."""
 
 from __future__ import annotations
 
 import json
 from datetime import datetime
 from datetime import timezone as dt_timezone
+from typing import Any
 
 from langchain_core.tools import tool
+
+from app.agent.infrastructure.skill_tool_context import SkillToolContext
 
 
 @tool
 def get_system_datetime(timezone: str = "UTC") -> str:
-    """返回服务器当前日期时间（ISO-8601 JSON，含 iso、timezone、unix）。"""
+    """返回服务器当前日期时间（JSON：ok, iso, timezone, unix）。"""
 
     tz = (timezone or "UTC").strip().upper()
     if tz == "LOCAL":
@@ -21,5 +24,16 @@ def get_system_datetime(timezone: str = "UTC") -> str:
         now = datetime.now(dt_timezone.utc)
         tz_label = "UTC"
     iso = now.isoformat().replace("+00:00", "Z") if tz_label == "UTC" else now.isoformat()
-    payload = {"iso": iso, "timezone": tz_label, "unix": int(now.timestamp())}
+    payload = {
+        "ok": True,
+        "iso": iso,
+        "timezone": tz_label,
+        "unix": int(now.timestamp()),
+    }
     return json.dumps(payload, ensure_ascii=False)
+
+
+def register_tools(_ctx: SkillToolContext) -> list[Any]:
+    """Register datetime tools for on-demand skill loading."""
+
+    return [get_system_datetime]

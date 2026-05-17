@@ -321,7 +321,7 @@ export function AgentsPage() {
           model_id: mid,
           temperature: null,
           max_tokens: maxTok,
-          preferred_capabilities: [],
+          preferred_skills: [],
         },
         (evt: AgentStreamEvent) => {
           if (evt.kind === 'done') return

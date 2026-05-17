@@ -1,4 +1,4 @@
-"""LangChain tools for workspace file sandbox operations."""
+"""File skill tools (``register_tools`` + JSON ok/error contract)."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from typing import Any
 from langchain_core.tools import tool
 
 from app.agent.infrastructure.agent_file_sandbox import AgentFileSandbox
+from app.agent.infrastructure.skill_tool_context import SkillToolContext
 
 _SandboxAsyncFn = Callable[[AgentFileSandbox], Awaitable[dict[str, object]]]
 
@@ -25,12 +26,14 @@ async def _json_call(workspace_id: uuid.UUID, fn: _SandboxAsyncFn) -> str:
         return json.dumps(e.to_dict(), ensure_ascii=False)
 
 
-def build_file_tools(workspace_id: uuid.UUID) -> list[Any]:
-    """Create file tools bound to one workspace sandbox."""
+def register_tools(ctx: SkillToolContext) -> list[Any]:
+    """Register workspace-scoped file sandbox tools (skills ``register_tools`` convention)."""
+
+    workspace_id = ctx.workspace_id
 
     @tool
     async def list_dir(path: str = "") -> str:
-        """列出沙箱目录下的直接子项。"""
+        """列出沙箱目录下的直接子项。path 为空表示沙箱根目录。"""
 
         return await _json_call(workspace_id, lambda b: b.list_dir_async(path))
 

@@ -152,51 +152,6 @@ class Settings(BaseSettings):
             "celery_beat_max_loop_seconds",
         ),
     )
-    agent_node_stream_segment_max_chars: int = Field(
-        default=2048,
-        ge=256,
-        description="Agent 运行节点 `llm.stream_segment` 单段累计文本上限（字符），与 chunk 阈值先达先生效。",
-        validation_alias=AliasChoices(
-            "AGENT_NODE_STREAM_SEGMENT_MAX_CHARS",
-            "agent_node_stream_segment_max_chars",
-        ),
-    )
-    agent_node_stream_segment_max_chunks: int = Field(
-        default=50,
-        ge=1,
-        description="Agent 运行节点流式分段：上游 chunk 计数阈值，与字符阈值先达先生效。",
-        validation_alias=AliasChoices(
-            "AGENT_NODE_STREAM_SEGMENT_MAX_CHUNKS",
-            "agent_node_stream_segment_max_chunks",
-        ),
-    )
-    agent_node_stream_segment_max_rows: int = Field(
-        default=500,
-        ge=10,
-        description="单次 agent run 中 `llm.stream_segment` 节点最大行数，超出后合并并标记 overflow。",
-        validation_alias=AliasChoices(
-            "AGENT_NODE_STREAM_SEGMENT_MAX_ROWS",
-            "agent_node_stream_segment_max_rows",
-        ),
-    )
-    agent_json_snapshot_max_bytes: int = Field(
-        default=65536,
-        ge=4096,
-        description="Agent 节点 `inputs_json`/`outputs_json` 等 JSON 快照写入前的最大字节数（截断）。",
-        validation_alias=AliasChoices(
-            "AGENT_JSON_SNAPSHOT_MAX_BYTES",
-            "agent_json_snapshot_max_bytes",
-        ),
-    )
-    agent_max_tool_rounds: int = Field(
-        default=16,
-        ge=1,
-        description="单次 run 内 LLM↔tool 循环最大轮数，防止无限工具调用。",
-        validation_alias=AliasChoices(
-            "AGENT_MAX_TOOL_ROUNDS",
-            "agent_max_tool_rounds",
-        ),
-    )
     agent_max_plan_steps: int = Field(
         default=8,
         ge=1,
@@ -245,15 +200,6 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices(
             "AGENT_LANGGRAPH_CHECKPOINT_ENABLED",
             "agent_langgraph_checkpoint_enabled",
-        ),
-    )
-    agent_tool_timeout_seconds: float = Field(
-        default=60.0,
-        ge=1.0,
-        description="单个 tool 执行超时（秒）。",
-        validation_alias=AliasChoices(
-            "AGENT_TOOL_TIMEOUT_SECONDS",
-            "agent_tool_timeout_seconds",
         ),
     )
     agent_files_root: str = Field(

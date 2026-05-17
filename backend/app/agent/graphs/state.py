@@ -1,9 +1,9 @@
-"""LangGraph state for the main Plan-and-Execute agent."""
+"""LangGraph state for the main Plan-and-Execute agent graph."""
 
 from __future__ import annotations
 
 import uuid
-from typing import Any, TypedDict
+from typing import TypedDict
 
 from app.agent.domain.plan import Plan
 from app.agent.infrastructure.memory_store import MemoryHit
@@ -13,7 +13,7 @@ class StepResult(TypedDict, total=False):
     """Output from one executor step."""
 
     step_id: str
-    capability: str
+    skill_id: str
     output: str
 
 
@@ -26,7 +26,7 @@ class AgentGraphState(TypedDict, total=False):
     user_id: uuid.UUID
     model_id: uuid.UUID
     user_message: str
-    preferred_capabilities: list[str]
+    preferred_skills: list[str]
     plan: Plan | None
     plan_id: uuid.UUID | None
     current_step_index: int

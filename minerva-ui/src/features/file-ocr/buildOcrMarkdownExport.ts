@@ -3,12 +3,7 @@
  */
 
 import type { OcrFileMarkdownPages } from '@/api/ocrTask'
-import {
-  applyOcrMarkdownImagePlaceholders,
-  normalizeDisplayMathFencesForRemarkMath,
-  normalizeLooseInlineMathDelimiters,
-  promoteInlineMathContainingTagToDisplay,
-} from './applyOcrMarkdownImagePlaceholders'
+import { normalizeMarkdownForOcr } from '@/components/markdown'
 
 /** User-visible strings for page headings and empty-page placeholder (from i18n at call site). */
 export type OcrMarkdownExportLabels = {
@@ -27,11 +22,7 @@ function normalizePageMarkdownForExport(
   markdown: string | null | undefined,
   images: Record<string, string> | null | undefined,
 ): string {
-  return normalizeDisplayMathFencesForRemarkMath(
-    promoteInlineMathContainingTagToDisplay(
-      normalizeLooseInlineMathDelimiters(applyOcrMarkdownImagePlaceholders(markdown, images)),
-    ),
-  ).trimEnd()
+  return normalizeMarkdownForOcr(markdown, images).trimEnd()
 }
 
 /**

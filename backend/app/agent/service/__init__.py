@@ -1,1 +1,1 @@
-"""Agent runtime services (runs, streaming, tool loop)."""
+"""Agent runtime services (LangGraph runs, SSE v2, memory persistence)."""

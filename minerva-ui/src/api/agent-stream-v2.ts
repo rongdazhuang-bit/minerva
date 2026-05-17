@@ -60,11 +60,11 @@ export function formatAgentV2TraceLine(event: AgentSseEventV2): string {
       return `[plan] ${steps.length} step(s)`
     }
     case 'plan.step_updated':
-      return `[step] ${String(p.step_id ?? '')} ${String(p.status ?? '')} (${String(p.capability ?? '')})`
+      return `[step] ${String(p.step_id ?? '')} ${String(p.status ?? '')} (${String(p.skill_id ?? '')})`
     case 'subagent.started':
-      return `[subagent] start ${String(p.capability ?? '')}`
+      return `[subagent] start ${String(p.skill_id ?? '')}`
     case 'subagent.finished':
-      return `[subagent] end ${String(p.capability ?? '')} ${String(p.status ?? '')}`
+      return `[subagent] end ${String(p.skill_id ?? '')} ${String(p.status ?? '')}`
     case 'tool.started':
       return `[tool] ${String(p.name ?? '')} …`
     case 'tool.finished':

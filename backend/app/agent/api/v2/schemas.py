@@ -60,17 +60,17 @@ class AgentSessionDetailOut(BaseModel):
     messages: list[AgentMessageOut]
 
 
-class AgentCapabilityItemOut(BaseModel):
-    """One built-in agent capability."""
+class AgentSkillItemOut(BaseModel):
+    """One built-in agent skill."""
 
     id: str
     description: str
 
 
-class AgentCapabilityListOut(BaseModel):
-    """Capabilities available to the planner."""
+class AgentSkillListOut(BaseModel):
+    """Skills available to the planner."""
 
-    capabilities: list[AgentCapabilityItemOut]
+    skills: list[AgentSkillItemOut]
 
 
 class AgentRunCreateV2(BaseModel):
@@ -80,4 +80,4 @@ class AgentRunCreateV2(BaseModel):
     model_id: UUID
     temperature: float | None = Field(default=None, ge=0, le=2)
     max_tokens: int | None = Field(default=None, ge=1)
-    preferred_capabilities: list[str] = Field(default_factory=list)
+    preferred_skills: list[str] = Field(default_factory=list)

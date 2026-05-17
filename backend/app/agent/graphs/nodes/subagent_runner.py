@@ -42,7 +42,7 @@ async def run_subagent_with_stream(
                 run_id=deps.run_id,
                 session_id=deps.session_id,
                 step_id=step.id,
-                capability=step.capability,
+                skill_id=step.skill_id,
             )
             if line:
                 await deps.emit_sse(line)

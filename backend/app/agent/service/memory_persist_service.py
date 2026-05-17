@@ -7,11 +7,10 @@ import logging
 import uuid
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agent.domain.memory_extract import MemoryExtract
 from app.agent.infrastructure import repository as agent_repo
+from app.agent.service.memory_extract_llm import invoke_memory_extract
 from app.agent.infrastructure.chat_model_factory import ChatModelFactory
 from app.agent.infrastructure.memory_store import AgentMemoryStore
 from app.core.infrastructure.db.session import async_session_factory
@@ -50,17 +49,10 @@ async def persist_turn_memory(
             status="running",
         )
 
-        structured = model.with_structured_output(MemoryExtract)
-        extract: MemoryExtract = await structured.ainvoke(
-            [
-                SystemMessage(
-                    content=(
-                        "从本轮对话提取：一句 summary；0-5 条可复用 fact（含可选 key）。"
-                        "无事实则 facts 为空列表。"
-                    )
-                ),
-                HumanMessage(content=f"用户：{user_text}\n\n助手：{final[:4000]}"),
-            ]
+        extract = await invoke_memory_extract(
+            model,
+            user_message=user_text,
+            final_answer=final,
         )
         summary = (extract.summary or final)[:2000]
         await memory_store.insert_summary(
@@ -99,21 +91,7 @@ async def persist_turn_memory(
             outputs_json={"summary_chars": len(summary), "fact_count": len(extract.facts)},
         )
     except Exception as e:
-        log.warning("memory.persist failed run_id=%s err=%s", run_id, e)
-        try:
-            summary = final[:2000]
-            await memory_store.insert_summary(
-                session,
-                workspace_id=workspace_id,
-                session_id=session_id,
-                content=summary,
-                source_run_id=run_id,
-            )
-            await memory_store.touch_session_summary(
-                session, session_id=session_id, summary_text=summary[:8000]
-            )
-        except Exception:
-            log.exception("memory.persist fallback failed run_id=%s", run_id)
+        log.exception("memory.persist failed run_id=%s err=%s", run_id, e)
 
 
 async def persist_turn_memory_background(

@@ -1,4 +1,4 @@
-"""Executor node: run one plan step via a sub-agent."""
+"""Executor node: run one plan step via a skill sub-agent (tools loaded on demand)."""
 
 from __future__ import annotations
 
@@ -6,28 +6,19 @@ import uuid
 
 from langchain_core.runnables import RunnableConfig
 
-from app.agent.capabilities.datetime.runner import run_datetime_capability
-from app.agent.capabilities.file.agent import build_file_react_agent
-from app.agent.capabilities.general.agent import build_general_react_agent
 from app.agent.domain.plan import Plan
 from app.agent.domain.sse_v2 import AgentSseEventType, build_sse_event
 from app.agent.graphs.deps import GraphDeps
 from app.agent.graphs.nodes.subagent_runner import run_subagent_with_stream
 from app.agent.graphs.state import AgentGraphState, StepResult
 from app.agent.infrastructure import repository as agent_repo
+from app.agent.infrastructure.skill_loader import build_skill_react_agent
+from app.agent.infrastructure.skill_tool_context import SkillToolContext
 from app.config import settings
 
 
-def _get_subagent(deps: GraphDeps, capability: str):
-    """Return a compiled sub-agent for the given capability name."""
-
-    if capability == "file":
-        return build_file_react_agent(deps.model, workspace_id=deps.workspace_id)
-    return build_general_react_agent(deps.model)
-
-
 async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
-    """Execute the current plan step with the matching sub-agent."""
+    """Execute the current plan step; model chooses tools inside the skill ReAct graph."""
 
     deps: GraphDeps = config["configurable"]["deps"]
     plan: Plan | None = state.get("plan")
@@ -48,7 +39,7 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
                 event_type=AgentSseEventType.plan_step_updated,
                 run_id=deps.run_id,
                 session_id=deps.session_id,
-                payload={"step_id": step.id, "status": "running", "capability": step.capability},
+                payload={"step_id": step.id, "status": "running", "skill_id": step.skill_id},
             )
         )
         await deps.emit_sse(
@@ -56,7 +47,7 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
                 event_type=AgentSseEventType.subagent_started,
                 run_id=deps.run_id,
                 session_id=deps.session_id,
-                payload={"capability": step.capability, "step_id": step.id},
+                payload={"skill_id": step.skill_id, "step_id": step.id},
             )
         )
 
@@ -68,21 +59,24 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
         parent_node_id=None,
         sequence_idx=10 + idx,
         node_type="subagent.run",
-        node_name=step.capability,
+        node_name=step.skill_id,
         status="running",
     )
 
+    ctx = SkillToolContext(workspace_id=deps.workspace_id)
     try:
-        if step.capability == "datetime":
-            output = await run_datetime_capability(deps, step=step)
-        else:
-            subagent = _get_subagent(deps, step.capability)
-            output = await run_subagent_with_stream(
-                deps,
-                subagent,
-                step=step,
-                recursion_limit=settings.agent_subagent_recursion_limit,
-            )
+        subagent = build_skill_react_agent(
+            deps.model,
+            step.skill_id,
+            ctx,
+            cache=deps.subagent_cache,
+        )
+        output = await run_subagent_with_stream(
+            deps,
+            subagent,
+            step=step,
+            recursion_limit=settings.agent_subagent_recursion_limit,
+        )
         step.status = "success" if output else "failed"
     except Exception as e:
         output = f"[subagent error: {e}]"
@@ -91,7 +85,7 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
     plan.steps[idx] = step
     step_result: StepResult = {
         "step_id": step.id,
-        "capability": step.capability,
+        "skill_id": step.skill_id,
         "output": output,
     }
     results = list(state.get("subagent_results") or [])
@@ -104,7 +98,7 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
         parent_node_id=node_id,
         sequence_idx=0,
         node_type="subagent.finish",
-        node_name=step.capability,
+        node_name=step.skill_id,
         status=step.status,
         outputs_json={"chars": len(output)},
     )
@@ -116,7 +110,7 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
                 run_id=deps.run_id,
                 session_id=deps.session_id,
                 payload={
-                    "capability": step.capability,
+                    "skill_id": step.skill_id,
                     "step_id": step.id,
                     "status": step.status,
                 },
@@ -127,7 +121,11 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
                 event_type=AgentSseEventType.plan_step_updated,
                 run_id=deps.run_id,
                 session_id=deps.session_id,
-                payload={"step_id": step.id, "status": step.status, "capability": step.capability},
+                payload={
+                    "step_id": step.id,
+                    "status": step.status,
+                    "skill_id": step.skill_id,
+                },
             )
         )
 

@@ -45,7 +45,7 @@ def _format_subagent_blob(results: list[StepResult]) -> str:
 
     parts: list[str] = []
     for r in results:
-        parts.append(f"[{r.get('capability')}] {r.get('output', '')}")
+        parts.append(f"[{r.get('skill_id')}] {r.get('output', '')}")
     return "\n\n".join(parts)
 
 

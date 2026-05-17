@@ -14,7 +14,7 @@ def map_langchain_stream_event(
     run_id: uuid.UUID,
     session_id: uuid.UUID,
     step_id: str | None = None,
-    capability: str | None = None,
+    skill_id: str | None = None,
 ) -> bytes | None:
     """Convert one ``astream_events`` v2 dict to an SSE line, or None if skipped."""
 
@@ -36,7 +36,7 @@ def map_langchain_stream_event(
                     "channel": "reasoning",
                     "text": str(reasoning_text),
                     "step_id": step_id,
-                    "capability": capability,
+                    "skill_id": skill_id,
                 },
             )
         if content:
@@ -48,7 +48,7 @@ def map_langchain_stream_event(
                     "channel": "assistant",
                     "text": str(content),
                     "step_id": step_id,
-                    "capability": capability,
+                    "skill_id": skill_id,
                 },
             )
     if kind == "on_tool_start":
@@ -64,7 +64,7 @@ def map_langchain_stream_event(
                 "name": str(event.get("name") or ""),
                 "arguments_preview": args_preview,
                 "step_id": step_id,
-                "capability": capability,
+                "skill_id": skill_id,
             },
         )
     if kind == "on_tool_end":
@@ -80,7 +80,7 @@ def map_langchain_stream_event(
                 "result_preview": preview,
                 "status": "success",
                 "step_id": step_id,
-                "capability": capability,
+                "skill_id": skill_id,
             },
         )
     return None
