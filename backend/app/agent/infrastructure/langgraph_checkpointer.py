@@ -5,12 +5,15 @@ from __future__ import annotations
 import logging
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
+from psycopg.rows import dict_row
+from psycopg_pool import AsyncConnectionPool
 
 from app.config import settings
 
 log = logging.getLogger(__name__)
 
 _checkpointer: BaseCheckpointSaver | None = None
+_pool: AsyncConnectionPool | None = None
 _setup_done = False
 
 
@@ -32,7 +35,7 @@ def _checkpoint_dsn() -> str:
 async def get_langgraph_checkpointer() -> BaseCheckpointSaver | None:
     """Return a shared checkpointer, or ``None`` if disabled or setup failed."""
 
-    global _checkpointer, _setup_done
+    global _checkpointer, _pool, _setup_done
     if not settings.agent_langgraph_checkpoint_enabled:
         return None
     if _checkpointer is not None:
@@ -42,12 +45,27 @@ async def get_langgraph_checkpointer() -> BaseCheckpointSaver | None:
     try:
         from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
-        saver = AsyncPostgresSaver.from_conn_string(_checkpoint_dsn())
+        _pool = AsyncConnectionPool(
+            conninfo=_checkpoint_dsn(),
+            kwargs={
+                "autocommit": True,
+                "prepare_threshold": 0,
+                "row_factory": dict_row,
+            },
+        )
+        await _pool.open()
+        saver = AsyncPostgresSaver(conn=_pool)
         await saver.setup()
         _checkpointer = saver
-        log.info("LangGraph AsyncPostgresSaver ready")
+        log.info("LangGraph AsyncPostgresSaver ready (connection pool)")
     except Exception as e:
         log.warning("LangGraph checkpoint disabled: %s", e)
         _checkpointer = None
+        if _pool is not None:
+            try:
+                await _pool.close()
+            except Exception:
+                pass
+            _pool = None
     _setup_done = True
     return _checkpointer
