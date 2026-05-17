@@ -26,6 +26,11 @@ dependencies = [
   "boto3>=1.35",
   "celery",
   "redis",
+  "langgraph>=0.2.60",
+  "langchain>=0.3.18",
+  "langchain-core>=0.3.28",
+  "langchain-openai>=0.3.0",
+  "langgraph-checkpoint-postgres>=2.0.10",
 ]
 
 [project.optional-dependencies]
