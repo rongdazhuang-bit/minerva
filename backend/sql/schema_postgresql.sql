@@ -591,16 +591,6 @@ COMMENT ON COLUMN public.agent_run_node.meta_json IS '扩展(JSONB)';
 -- LangGraph checkpoint（AsyncPostgresSaver；列定义对齐 langgraph-checkpoint-postgres 3.x）
 -- ---------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION public.minerva_checkpoint_set_update_at()
-RETURNS trigger
-LANGUAGE plpgsql
-AS $$
-BEGIN
-  NEW.update_at := now();
-  RETURN NEW;
-END;
-$$;
-
 CREATE TABLE IF NOT EXISTS public.checkpoints (
   thread_id text NOT NULL,
   checkpoint_ns text NOT NULL DEFAULT '',
@@ -615,10 +605,6 @@ CREATE TABLE IF NOT EXISTS public.checkpoints (
 );
 CREATE INDEX IF NOT EXISTS checkpoints_thread_id_idx ON public.checkpoints (thread_id);
 CREATE INDEX IF NOT EXISTS ix_checkpoints_create_at ON public.checkpoints (create_at);
-DROP TRIGGER IF EXISTS trg_checkpoints_set_update_at ON public.checkpoints;
-CREATE TRIGGER trg_checkpoints_set_update_at
-  BEFORE UPDATE ON public.checkpoints
-  FOR EACH ROW EXECUTE FUNCTION public.minerva_checkpoint_set_update_at();
 COMMENT ON TABLE public.checkpoints IS 'LangGraph checkpoint 主表';
 COMMENT ON COLUMN public.checkpoints.create_at IS '行创建时间（清理依据）';
 COMMENT ON COLUMN public.checkpoints.update_at IS '行最后更新时间';
@@ -636,10 +622,6 @@ CREATE TABLE IF NOT EXISTS public.checkpoint_blobs (
 );
 CREATE INDEX IF NOT EXISTS checkpoint_blobs_thread_id_idx ON public.checkpoint_blobs (thread_id);
 CREATE INDEX IF NOT EXISTS ix_checkpoint_blobs_create_at ON public.checkpoint_blobs (create_at);
-DROP TRIGGER IF EXISTS trg_checkpoint_blobs_set_update_at ON public.checkpoint_blobs;
-CREATE TRIGGER trg_checkpoint_blobs_set_update_at
-  BEFORE UPDATE ON public.checkpoint_blobs
-  FOR EACH ROW EXECUTE FUNCTION public.minerva_checkpoint_set_update_at();
 COMMENT ON TABLE public.checkpoint_blobs IS 'LangGraph checkpoint blob 分片';
 COMMENT ON COLUMN public.checkpoint_blobs.create_at IS '行创建时间（清理依据）';
 COMMENT ON COLUMN public.checkpoint_blobs.update_at IS '行最后更新时间';
@@ -660,10 +642,6 @@ CREATE TABLE IF NOT EXISTS public.checkpoint_writes (
 );
 CREATE INDEX IF NOT EXISTS checkpoint_writes_thread_id_idx ON public.checkpoint_writes (thread_id);
 CREATE INDEX IF NOT EXISTS ix_checkpoint_writes_create_at ON public.checkpoint_writes (create_at);
-DROP TRIGGER IF EXISTS trg_checkpoint_writes_set_update_at ON public.checkpoint_writes;
-CREATE TRIGGER trg_checkpoint_writes_set_update_at
-  BEFORE UPDATE ON public.checkpoint_writes
-  FOR EACH ROW EXECUTE FUNCTION public.minerva_checkpoint_set_update_at();
 COMMENT ON TABLE public.checkpoint_writes IS 'LangGraph checkpoint 写入缓冲';
 COMMENT ON COLUMN public.checkpoint_writes.create_at IS '行创建时间（清理依据）';
 COMMENT ON COLUMN public.checkpoint_writes.update_at IS '行最后更新时间';

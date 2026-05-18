@@ -2,7 +2,7 @@
 
 **日期**：2026-05-18  
 **状态**：已实现（2026-05-18）  
-**依据**：头脑风暴——为 `checkpoints` / `checkpoint_blobs` / `checkpoint_writes` 增加 `create_at`、`update_at`；`update_at` 由 PostgreSQL 触发器维护；按 `create_at` 可配置保留天数（默认 7 天）分批 DELETE；调度走现有 **`sys_celery` + `MinervaBeatScheduler`**；DDL 写入 **`schema_postgresql.sql`**，存量库幂等变更写入 **`agent_v2_langgraph_migration.sql`**（不新增 `patches/` 文件）。
+**依据**：头脑风暴——为 `checkpoints` / `checkpoint_blobs` / `checkpoint_writes` 增加 `create_at`、`update_at`；`update_at` 由 **`MinervaAsyncPostgresSaver`** UPSERT SQL 维护（无库触发器）；按 `create_at` 可配置保留天数（默认 7 天）分批 DELETE；调度走现有 **`sys_celery` + `MinervaBeatScheduler`**；DDL 写入 **`schema_postgresql.sql`**，存量库幂等变更写入 **`agent_v2_langgraph_migration.sql`**（不新增 `patches/` 文件）。
 
 ---
 
@@ -11,11 +11,11 @@
 - LangGraph `AsyncPostgresSaver`（`langgraph-checkpoint-postgres` ≥3.1）在应用首次启用 checkpoint 时通过 `setup()` 创建 `checkpoints`、`checkpoint_blobs`、`checkpoint_writes` 等表，**官方 DDL 无时间列**，无法按时间做保留与清理。
 - **目标**：
   1. 三表增加 `create_at`、`update_at`（`timestamptz NOT NULL DEFAULT now()`），`create_at` 建索引；
-  2. `update_at` 在任意 `UPDATE`（含 `INSERT … ON CONFLICT DO UPDATE`）时由触发器设为 `now()`；
+  2. `update_at` 在 checkpoints / checkpoint_writes 的 UPSERT 冲突更新时由 `MinervaAsyncPostgresSaver` SQL 设为 `now()`；
   3. `Settings` 可配置保留天数（默认 **7**），Celery 任务按 `create_at < now() - retention` 分批删除；
   4. 周期调度与全站一致：运维在 **`sys_celery`** 配置 cron，Beat 从库加载。
 
-**成功标准**：新库执行 `schema_postgresql.sql` 后表结构含时间列与触发器；存量库执行 `agent_v2_langgraph_migration.sql` 后列/索引/触发器就绪；配置 `sys_celery` 且 Worker 运行后，超保留行被删除且 LangGraph checkpoint 读写不受影响。
+**成功标准**：新库执行 `schema_postgresql.sql` 后表结构含时间列；存量库执行 `agent_v2_langgraph_migration.sql` 后列/索引就绪；应用使用 `MinervaAsyncPostgresSaver`；配置 `sys_celery` 且 Worker 运行后，超保留行被删除且 LangGraph checkpoint 读写不受影响。
 
 ---
 
@@ -23,8 +23,8 @@
 
 ### 2.1 本次范围
 
-- `backend/sql/schema_postgresql.sql`：新增 LangGraph checkpoint 三表 **完整 CREATE**（含官方列 + `create_at` / `update_at` + 索引 + 触发器函数与触发器）。
-- `backend/sql/agent_v2_langgraph_migration.sql`：存量库幂等 `ALTER`、回填、索引、触发器（表已存在但无时间列时）。
+- `backend/sql/schema_postgresql.sql`：新增 LangGraph checkpoint 三表 **完整 CREATE**（含官方列 + `create_at` / `update_at` + 索引）。
+- `backend/sql/agent_v2_langgraph_migration.sql`：存量库幂等 `ALTER`、回填、索引；`DROP` 历史触发器（若曾部署）。
 - `app/config.py`：保留天数、清理开关、批大小。
 - Celery：`agent.checkpoint_purge` 任务 + `celery_app` 注册 import。
 - 清理服务：同步 SQL 删除 + advisory lock。
@@ -106,24 +106,23 @@ PRIMARY KEY (thread_id, checkpoint_ns, checkpoint_id, task_id, idx)
 
 > `task_path` 为官方 migration 后续追加列；`schema_postgresql.sql` 建表时直接包含，避免与 `setup()` 后结构不一致。
 
-### 3.3 触发器
+### 3.3 `update_at` 维护（应用代码）
 
-共享函数（示例名 `minerva_checkpoint_set_update_at()`）：
-
-- `BEFORE UPDATE` → `NEW.update_at := now(); RETURN NEW;`
-- 三表各挂一个 `BEFORE UPDATE` 触发器。
+- **`MinervaAsyncPostgresSaver`**（`backend/app/agent/infrastructure/minerva_postgres_saver.py`）子类化 LangGraph `AsyncPostgresSaver`，覆盖 `UPSERT_CHECKPOINTS_SQL` / `UPSERT_CHECKPOINT_WRITES_SQL`，在 `ON CONFLICT DO UPDATE` 子句中增加 `update_at = now()`。
+- **`checkpoint_blobs`** 官方为 `ON CONFLICT DO NOTHING`，仅首次 `INSERT` 写入 `update_at`（列默认值）。
+- **无** PostgreSQL 触发器；存量库迁移脚本会 `DROP` 已部署的触发器与 `minerva_checkpoint_set_update_at()`（若存在）。
 
 **语义**：
 
 - `INSERT`：`create_at`、`update_at` 均由 `DEFAULT now()` 写入。
-- `INSERT … ON CONFLICT DO UPDATE`：`create_at` 不变；`update_at` 由触发器刷新。
+- `INSERT … ON CONFLICT DO UPDATE`（checkpoints / writes）：`create_at` 不变；`update_at` 由 UPSERT SQL 刷新。
 
 ### 3.4 与 LangGraph `setup()` 的协作
 
 | 场景 | 行为 |
 |------|------|
 | 新环境先跑 `schema_postgresql.sql` | 表已含时间列；`setup()` 的 `CREATE TABLE IF NOT EXISTS` 跳过 |
-| 仅跑过 `setup()` 的旧环境 | 执行 `agent_v2_langgraph_migration.sql` 补列/索引/触发器 |
+| 仅跑过 `setup()` 的旧环境 | 执行 `agent_v2_langgraph_migration.sql` 补列/索引 |
 | LangGraph `INSERT` 未列出时间列 | 依赖 `DEFAULT`；兼容 |
 
 **存量回填**（迁移 SQL 内）：对 `create_at IS NULL` 的行（补列后）设 `create_at = now()`, `update_at = now()`，避免迁移后首轮清理误删历史数据。
@@ -227,7 +226,7 @@ PRIMARY KEY (thread_id, checkpoint_ns, checkpoint_id, task_id, idx)
 
 实现完成后更新 `docs/agent-module-design.md` §Checkpoint：
 
-- 时间列与触发器说明；
+- 时间列与 `MinervaAsyncPostgresSaver` 说明；
 - `Settings` 三项；
 - `sys_celery` 配置步骤与「单条启用」约定。
 
@@ -238,7 +237,7 @@ PRIMARY KEY (thread_id, checkpoint_ns, checkpoint_id, task_id, idx)
 - [x] 无未决 `TBD`：调度、DDL 位置、回填策略、删除顺序均已明确。
 - [x] 与 Minerva 无外键约定一致。
 - [x] 与 `langgraph-checkpoint-postgres` 3.x 官方列一致（含 `task_path`）。
-- [x] 清理只看 `create_at`；`update_at` 仅观测/一致性，不参与 cutoff。
+- [x] 清理只看 `create_at`；`update_at` 由应用 UPSERT SQL 维护，不参与 cutoff。
 - [x] 范围可放入单一实现计划。
 
 ---
@@ -251,6 +250,7 @@ PRIMARY KEY (thread_id, checkpoint_ns, checkpoint_id, task_id, idx)
 | 存量迁移 | `backend/sql/agent_v2_langgraph_migration.sql` |
 | Settings | `backend/app/config.py` |
 | 清理服务 | `backend/app/agent/service/checkpoint_purge_service.py` |
+| Checkpointer | `backend/app/agent/infrastructure/minerva_postgres_saver.py` |
 | 常量 / lock key | `backend/app/agent/constants.py` → `2026051801` |
 | Celery 任务 | `backend/app/agent/task/checkpoint_purge_job.py` → `agent.checkpoint_purge` |
 | Beat 注册 | `backend/app/celery_app.py` |

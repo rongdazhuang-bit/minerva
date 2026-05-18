@@ -74,13 +74,13 @@ async def get_langgraph_checkpointer() -> BaseCheckpointSaver | None:
     if _setup_done:
         return None
     try:
-        from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+        from app.agent.infrastructure.minerva_postgres_saver import MinervaAsyncPostgresSaver
 
         min_size, max_size = _checkpoint_pool_sizes()
         timeout = settings.agent_langgraph_checkpoint_pool_timeout
         _pool = _create_checkpoint_pool()
         await _pool.open(wait=True, timeout=timeout)
-        saver = AsyncPostgresSaver(conn=_pool)
+        saver = MinervaAsyncPostgresSaver(conn=_pool)
         await saver.setup()
         _checkpointer = saver
         log.info(

@@ -38,17 +38,8 @@ CREATE INDEX IF NOT EXISTS ix_agent_ltm_workspace_id ON public.agent_long_term_m
 CREATE INDEX IF NOT EXISTS ix_agent_ltm_session_id ON public.agent_long_term_memory (session_id);
 CREATE INDEX IF NOT EXISTS ix_agent_ltm_workspace_session ON public.agent_long_term_memory (workspace_id, session_id);
 
--- LangGraph checkpoint: timestamps + indexes + update_at triggers (requires tables from setup() or schema_postgresql.sql).
-
-CREATE OR REPLACE FUNCTION public.minerva_checkpoint_set_update_at()
-RETURNS trigger
-LANGUAGE plpgsql
-AS $$
-BEGIN
-  NEW.update_at := now();
-  RETURN NEW;
-END;
-$$;
+-- LangGraph checkpoint: timestamps + indexes (requires tables from setup() or schema_postgresql.sql).
+-- update_at on UPSERT is set in app code (MinervaAsyncPostgresSaver), not DB triggers.
 
 ALTER TABLE public.checkpoints
   ADD COLUMN IF NOT EXISTS create_at timestamptz NULL DEFAULT now(),
@@ -88,14 +79,6 @@ CREATE INDEX IF NOT EXISTS ix_checkpoint_blobs_create_at ON public.checkpoint_bl
 CREATE INDEX IF NOT EXISTS ix_checkpoint_writes_create_at ON public.checkpoint_writes (create_at);
 
 DROP TRIGGER IF EXISTS trg_checkpoints_set_update_at ON public.checkpoints;
-CREATE TRIGGER trg_checkpoints_set_update_at
-  BEFORE UPDATE ON public.checkpoints
-  FOR EACH ROW EXECUTE FUNCTION public.minerva_checkpoint_set_update_at();
 DROP TRIGGER IF EXISTS trg_checkpoint_blobs_set_update_at ON public.checkpoint_blobs;
-CREATE TRIGGER trg_checkpoint_blobs_set_update_at
-  BEFORE UPDATE ON public.checkpoint_blobs
-  FOR EACH ROW EXECUTE FUNCTION public.minerva_checkpoint_set_update_at();
 DROP TRIGGER IF EXISTS trg_checkpoint_writes_set_update_at ON public.checkpoint_writes;
-CREATE TRIGGER trg_checkpoint_writes_set_update_at
-  BEFORE UPDATE ON public.checkpoint_writes
-  FOR EACH ROW EXECUTE FUNCTION public.minerva_checkpoint_set_update_at();
+DROP FUNCTION IF EXISTS public.minerva_checkpoint_set_update_at();
