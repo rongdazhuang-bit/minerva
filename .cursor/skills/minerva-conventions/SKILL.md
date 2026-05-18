@@ -2,10 +2,11 @@
 name: minerva-conventions
 description: >-
   Minerva 仓库级开发约定：(1) 数据库表设计禁止外键与 ON DELETE 级联，关联与删除在业务代码层实现；
-  (2) 修 bug/改行为时先查 docs/superpowers/specs 与设计文档，改代码后再回填修订文档。
+  (2) 修 bug/改行为时先查 docs/superpowers/specs 与设计文档，改代码后再回填修订文档；
+  (3) 环境变量在 app/config.py 或代码中新增/删除/更名/改默认值时，须同步 backend/.env.example 与 backend/.env.dev。
   Use when designing tables, writing schema/SQL/ORM, implementing delete APIs, cascading cleanup,
-  or when fixing bugs, aligning code with specs, or updating requirements/design docs after code changes.
-  Triggers: 外键、级联删除、CASCADE、RESTRICT、schema、建表、删除接口、需求文档、设计文档、spec 回填.
+  changing Settings or os.getenv, or when fixing bugs, aligning code with specs, or updating requirements/design docs after code changes.
+  Triggers: 外键、级联删除、CASCADE、RESTRICT、schema、建表、删除接口、需求文档、设计文档、spec 回填、环境变量、.env、Settings、config.py.
 ---
 
 # Minerva 项目约定
@@ -70,9 +71,68 @@ description: >-
 
 ---
 
-## 3. 与其他 Skill 的关系
+## 3. 环境变量：同步 `.env.example` 与 `.env.dev`
+
+### 规则（硬性）
+
+在 backend 中**新增、删除、更名或修改默认值/语义**的环境变量时，必须在**同一 PR / 同一次改动**内同步更新：
+
+| 文件 | 用途 |
+|------|------|
+| `backend/.env.example` | 模板：占位符、本地 docker-compose 默认连接串、分组注释；**不含**真实密钥 |
+| `backend/.env.dev` | 团队/本地开发实际值；保留已有连接串与密钥，仅随代码变更增删改对应键 |
+
+**不得**只改 `app/config.py`（或 `os.getenv`）而不同步上述两个文件。
+
+### 何谓「环境变量变更」
+
+以下任一情况均须同步：
+
+1. **`app/config.py` `Settings` 字段**：增删字段、`Field(validation_alias=...)` 更名、默认值或 `description` 含义变化。
+2. **代码内直接读取**：`os.environ.get` / `os.getenv`（如 `MINERVA_CELERY_USE_PREFORK`、`MINERVA_SKIP_DB_TESTS`）。
+3. **启动脚本约定**：`scripts/run-backend.sh` 等文档化变量（`MINERVA_BACKEND_PORT`、`MINERVA_SKIP_CELERY_*`）。
+
+以下**通常不需要**写入 `.env.dev`（可仅在 `.env.example` 末尾以注释说明）：
+
+- 仅 pytest 使用的 `MINERVA_SKIP_DB_TESTS`。
+- 操作系统级 `TZ`（除非团队统一要求写入 dev 配置）。
+
+### 两个文件的分工
+
+| 操作 | `.env.example` | `.env.dev` |
+|------|----------------|------------|
+| **新增** Settings 项 | 写入键 + 与 `config.py` 一致的默认值 + 中文注释 | 写入键；有团队共用非默认 dev 值则填写，否则与默认值相同 |
+| **删除** | 删除对应行及注释 | 删除对应行 |
+| **更名** | 旧键删除、新键写入 | 同左；保留原 dev 侧取值迁移到新键 |
+| **仅改默认值** | 更新示例默认值 | 若 dev 未显式覆盖可不动；若 dev 曾手写旧默认则改为新默认或保留 intentional override 并加注释 |
+
+### 格式与来源
+
+- **键名**：与 `Settings` 的 `validation_alias` 或 Pydantic 大写蛇形名一致（如 `DATABASE_URL`、`AGENT_MAX_PLAN_STEPS`）。
+- **分组**：按「运行环境 / 数据库 / JWT / AI / Celery / Agent」等区块排列，与现有 `.env.example` 结构一致。
+- **权威来源**：`backend/app/config.py`；辅助检索 `os.getenv`、`scripts/run-backend.sh`。
+- **加载顺序**（写入 `.env.example` 头注释即可，勿重复发明）：进程环境变量 → `.env.dev` → `.env.dev.<APP_ENV>`（若存在）。
+- **勿**在配置文件中添加应用未读取的键（历史 `REDIS_URL` 若仅备忘，须注释说明「应用不读取，以 `CELERY_*` 为准」）。
+
+### 实现时的检查清单
+
+1. 改 `config.py` 或 `os.getenv` 后，列出所有受影响的环境变量键名。
+2. 更新 `backend/.env.example`（含分组注释；脚本/测试专用项可注释列出）。
+3. 更新 `backend/.env.dev`（保留现有数据库/Redis/JWT 等真实 dev 值，不无故覆盖）。
+4. 若 spec / `docs/agent-module-design.md` 等文档列出了环境变量表，**一并回填**（见 §2）。
+5. 本地可执行：`cd backend && python -c "from app.config import settings; print(settings.model_dump())"` 确认从 `.env.dev` 加载无误。
+
+### 禁止
+
+- 合并仅含 `config.py` 变更、未更新 `.env.example` / `.env.dev` 的 PR（除非用户明确声明暂不维护 env 文件并记录 follow-up）。
+- 在 `.env.example` 中提交生产密钥或团队成员真实密码。
+- 新增 `Settings` 字段却只在 README 中说明、不写 env 文件。
+
+---
+
+## 4. 与其他 Skill 的关系
 
 - **注释与目录**：`/.cursor/skills/code-comments/SKILL.md`（类/方法注释、`app/sys/tool` 分层、分页与 UI 约定）。
-- **本 Skill**：库表无外键 + 文档驱动修改闭环。
+- **本 Skill**：库表无外键 + 文档驱动修改闭环 + 环境变量配置文件同步。
 
 两者同时适用时，均应遵守。

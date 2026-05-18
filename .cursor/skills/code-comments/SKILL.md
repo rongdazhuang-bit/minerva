@@ -285,7 +285,7 @@ app/sys/tool/<name>/
 
 1. 新建 `app/sys/tool/<name>/` 时，**子目录与 `app/sys/tool/ocr` 一一对应**（含 `domain` 下 db/dto/vo 等子包时的惯例）。
 2. 业务代码按上表落层；跨层依赖方向为 **api → service → (domain, infrastructure 实现)**，**domain 不依赖 api**。
-3. 路由在 `app/api/router.py` 注册；配置走 `app/config.py` 等，密钥不进仓库。
+3. 路由在 `app/api/router.py` 注册；配置走 `app/config.py` 等，密钥不进仓库；**增删改环境变量须同步** `backend/.env.example` 与 `backend/.env.dev`（见 `minerva-conventions` §3）。
 4. 持久化/迁移遵守仓库 `sql/` 习惯；**禁止库外键**（见 `/.cursor/skills/minerva-conventions/SKILL.md` §1）。
 5. 代码注释与文档串遵循本 Skill **前半部分**《代码注释规范》；修 bug/改行为须 **先 spec 后代码再回填**（见 `minerva-conventions` §2）。
 
