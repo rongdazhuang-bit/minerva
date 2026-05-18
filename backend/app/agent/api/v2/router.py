@@ -212,6 +212,8 @@ async def create_agent_run_sse(
                 temperature=body.temperature,
                 max_tokens=body.max_tokens,
                 preferred_skills=body.preferred_skills,
+                regenerate_from_message_id=body.regenerate_from_message_id,
+                regenerate_last_assistant=body.regenerate_last_assistant,
             ):
                 yield chunk
         except Exception:

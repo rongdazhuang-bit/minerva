@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import and_, desc, func, or_, select
+from sqlalchemy import and_, delete, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.domain.db.models import AgentMessage, AgentRun, AgentRunNode, AgentSession
@@ -246,6 +246,61 @@ async def append_agent_message(
     else:
         await touch_agent_session(session, session_id=session_id)
     return row
+
+
+async def get_agent_message_for_session(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    session_id: uuid.UUID,
+    message_id: uuid.UUID,
+) -> AgentMessage | None:
+    """按消息 id 加载会话内一条记录（校验工作区归属）。"""
+
+    stmt = (
+        select(AgentMessage)
+        .join(AgentSession, AgentMessage.session_id == AgentSession.id)
+        .where(
+            AgentMessage.id == message_id,
+            AgentMessage.session_id == session_id,
+            AgentSession.workspace_id == workspace_id,
+        )
+    )
+    return (await session.execute(stmt)).scalar_one_or_none()
+
+
+async def delete_agent_messages_from_seq(
+    session: AsyncSession,
+    *,
+    session_id: uuid.UUID,
+    from_seq: int,
+) -> int:
+    """删除 ``seq >= from_seq`` 的会话消息（用于重新生成截断）。"""
+
+    stmt = delete(AgentMessage).where(
+        AgentMessage.session_id == session_id,
+        AgentMessage.seq >= from_seq,
+    )
+    res = await session.execute(stmt)
+    await session.flush()
+    return int(res.rowcount or 0)
+
+
+async def find_last_assistant_message(
+    session: AsyncSession, *, session_id: uuid.UUID
+) -> AgentMessage | None:
+    """返回会话内 ``seq`` 最大的助手消息。"""
+
+    stmt = (
+        select(AgentMessage)
+        .where(
+            AgentMessage.session_id == session_id,
+            AgentMessage.role == "assistant",
+        )
+        .order_by(AgentMessage.seq.desc())
+        .limit(1)
+    )
+    return (await session.execute(stmt)).scalar_one_or_none()
 
 
 async def list_agent_messages_ordered(

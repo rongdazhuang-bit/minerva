@@ -12,6 +12,13 @@ export {
   normalizePrismLanguage,
 } from '@/components/markdown/prismLanguages'
 export {
+  isChartFenceLanguage,
+  parseMarkdownChartConfig,
+  type MarkdownChartConfig,
+  type MarkdownChartType,
+} from '@/components/markdown/parseMarkdownChartConfig'
+export { MarkdownChartBlock } from '@/components/markdown/MarkdownChartBlock'
+export {
   balanceExtraClosingBraces,
   convertLatexBracketMathDelimiters,
   unwrapInlineMathFromBoldSpans,

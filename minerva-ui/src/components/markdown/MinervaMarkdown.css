@@ -154,11 +154,78 @@ html.minerva-tone-sunshine .minerva-md .katex-error {
   margin: 0.55em 0;
   max-width: 100%;
   overflow-x: auto;
+  padding: 8px 4px 4px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .minerva-md-mermaid svg {
+  display: block;
   max-width: 100%;
   height: auto;
+  background: transparent !important;
+}
+
+.minerva-md-mermaid svg text {
+  fill: var(--minerva-ink-muted, #94a3b8);
+}
+
+.minerva-md-chart {
+  margin: 0.55em 0;
+  max-width: 100%;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+  background: transparent;
+  box-shadow: none;
+}
+
+.minerva-md-chart-title {
+  margin: 0;
+  padding: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  border-bottom: none;
+  color: var(--minerva-ink, #e8f0f8);
+}
+
+.minerva-md-chart-plot {
+  width: 100%;
+  padding: 8px 4px 4px;
+  overflow-x: auto;
+  background: transparent;
+}
+
+.minerva-md-chart-measure {
+  width: 100%;
+}
+
+.minerva-md-chart-error {
+  margin: 0.55em 0;
+}
+
+.minerva-md-chart .recharts-wrapper,
+.minerva-md-chart .recharts-surface {
+  background: transparent !important;
+}
+
+.minerva-md-chart .recharts-cartesian-grid-horizontal line,
+.minerva-md-chart .recharts-cartesian-grid-vertical line {
+  stroke: var(--minerva-border, #2a3f58);
+}
+
+.minerva-md-chart .recharts-legend-item-text {
+  color: var(--minerva-ink-muted, #94a3b8) !important;
+}
+
+.minerva-md-chart .recharts-pie-label-text {
+  fill: var(--minerva-ink-muted, #94a3b8);
+}
+
+html.minerva-tone-sunshine .minerva-md-chart-title {
+  color: var(--minerva-ink, #0f172a);
 }
 
 .minerva-md-syntax-host {
@@ -173,13 +240,19 @@ html.minerva-tone-sunshine .minerva-md .katex-error {
 .minerva-md-syntax-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   min-height: 32px;
-  padding: 0 10px;
+  padding: 0 6px 0 10px;
   border-bottom: 1px solid var(--minerva-border, #2a3f58);
   background: color-mix(in srgb, var(--minerva-surface-2, #121c28) 92%, #000 8%);
 }
 
 .minerva-md-syntax-lang {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 11px;
   font-weight: 600;
@@ -190,21 +263,18 @@ html.minerva-tone-sunshine .minerva-md .katex-error {
 }
 
 .minerva-md-syntax-copy {
-  position: absolute;
-  z-index: 2;
-  right: 6px;
-  bottom: 6px;
+  flex-shrink: 0;
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   margin: 0;
   padding: 0;
+  border: none;
   border-radius: 6px;
-  border: 1px solid var(--minerva-border, #2a3f58);
-  background: color-mix(in srgb, var(--minerva-surface-2, #121c28) 88%, #000 12%);
+  background: transparent;
   color: color-mix(in srgb, var(--minerva-ink, #e8f0f8) 92%, transparent);
   cursor: pointer;
   opacity: 0.82;
@@ -216,7 +286,7 @@ html.minerva-tone-sunshine .minerva-md .katex-error {
 .minerva-md-syntax-copy:hover {
   opacity: 1;
   color: var(--minerva-ink, #e8f0f8);
-  background: color-mix(in srgb, var(--minerva-surface-2, #121c28) 70%, var(--minerva-primary, #38bdf8) 18%);
+  background: color-mix(in srgb, var(--minerva-primary, #38bdf8) 14%, transparent);
 }
 
 .minerva-md-syntax-copy:focus-visible {

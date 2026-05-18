@@ -7,6 +7,7 @@
 .agents-page__md-user-wrap .minerva-md-syntax-host,
 .agents-page__md-user-wrap .minerva-md-syntax,
 .agents-page__md-user-wrap .minerva-md-mermaid,
+.agents-page__md-user-wrap .minerva-md-chart,
 .agents-page__md-user-wrap .minerva-md-pre {
   text-align: left;
   direction: ltr;
@@ -27,7 +28,8 @@
 .agents-page .minerva-md-table-scroll,
 .agents-page .minerva-md-syntax,
 .agents-page .minerva-md-pre,
-.agents-page .minerva-md-mermaid {
+.agents-page .minerva-md-mermaid,
+.agents-page .minerva-md-chart {
   max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;

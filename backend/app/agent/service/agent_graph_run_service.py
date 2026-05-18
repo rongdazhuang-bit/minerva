@@ -80,6 +80,8 @@ class AgentGraphRunService:
         temperature: float | None = None,
         max_tokens: int | None = None,
         preferred_skills: list[str] | None = None,
+        regenerate_from_message_id: uuid.UUID | None = None,
+        regenerate_last_assistant: bool = False,
     ) -> AsyncIterator[bytes]:
         """Execute one agent run; yield SSE v2 lines as the graph produces them."""
 
@@ -147,13 +149,74 @@ class AgentGraphRunService:
                     },
                 )
 
-                await agent_repo.append_agent_message(
-                    session,
-                    session_id=session_id,
-                    role="user",
-                    content=user_message,
-                    run_id=run_id,
-                )
+                is_regenerate = bool(regenerate_from_message_id or regenerate_last_assistant)
+                if is_regenerate:
+                    truncate_from: int | None = None
+                    if regenerate_from_message_id is not None:
+                        target = await agent_repo.get_agent_message_for_session(
+                            session,
+                            workspace_id=workspace_id,
+                            session_id=session_id,
+                            message_id=regenerate_from_message_id,
+                        )
+                        if target is None:
+                            await emit(
+                                build_sse_event(
+                                    event_type=AgentSseEventType.run_error,
+                                    run_id=run_id,
+                                    session_id=session_id,
+                                    payload={
+                                        "code": "agent.message_not_found",
+                                        "message": "要重新生成的消息不存在。",
+                                    },
+                                )
+                            )
+                            return
+                        if target.role != "assistant":
+                            await emit(
+                                build_sse_event(
+                                    event_type=AgentSseEventType.run_error,
+                                    run_id=run_id,
+                                    session_id=session_id,
+                                    payload={
+                                        "code": "agent.regenerate_not_assistant",
+                                        "message": "只能对助手回复重新生成。",
+                                    },
+                                )
+                            )
+                            return
+                        truncate_from = target.seq
+                    else:
+                        last_asst = await agent_repo.find_last_assistant_message(
+                            session, session_id=session_id
+                        )
+                        if last_asst is None:
+                            await emit(
+                                build_sse_event(
+                                    event_type=AgentSseEventType.run_error,
+                                    run_id=run_id,
+                                    session_id=session_id,
+                                    payload={
+                                        "code": "agent.regenerate_no_assistant",
+                                        "message": "会话中尚无助手回复可重新生成。",
+                                    },
+                                )
+                            )
+                            return
+                        truncate_from = last_asst.seq
+                    await agent_repo.delete_agent_messages_from_seq(
+                        session,
+                        session_id=session_id,
+                        from_seq=truncate_from,
+                    )
+                else:
+                    await agent_repo.append_agent_message(
+                        session,
+                        session_id=session_id,
+                        role="user",
+                        content=user_message,
+                        run_id=run_id,
+                    )
 
                 msg_rows = await agent_repo.list_agent_messages_ordered(
                     session, session_id=session_id

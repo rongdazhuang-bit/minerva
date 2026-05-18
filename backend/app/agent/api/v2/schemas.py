@@ -83,3 +83,11 @@ class AgentRunCreateV2(BaseModel):
     temperature: float | None = Field(default=None, ge=0, le=2)
     max_tokens: int | None = Field(default=None, ge=1)
     preferred_skills: list[str] = Field(default_factory=list)
+    regenerate_from_message_id: UUID | None = Field(
+        default=None,
+        description="重新生成：从该助手消息起截断会话历史（含该条），不再重复写入用户消息。",
+    )
+    regenerate_last_assistant: bool = Field(
+        default=False,
+        description="重新生成：截断最后一条助手消息及其后的记录（无需 message id）。",
+    )

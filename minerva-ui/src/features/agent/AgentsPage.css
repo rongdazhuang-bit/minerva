@@ -164,16 +164,16 @@
   padding: 4px 0;
 }
 
-.agents-page__msg-copy {
+.agents-page__msg-actions {
   margin-top: 2px;
 }
 
-.agents-page__msg-copy-btn {
+.agents-page__msg-action-btn {
   color: var(--minerva-ink-muted, #a8b8cc) !important;
   padding-inline: 6px !important;
 }
 
-.agents-page__msg-copy-btn:hover {
+.agents-page__msg-action-btn:hover:not(:disabled) {
   color: var(--minerva-primary, #38bdf8) !important;
 }
 
@@ -181,8 +181,15 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
+  overflow-anchor: auto;
+  overscroll-behavior: contain;
   /* 上 右 下 左：左侧收紧，对话与助手气泡向左靠 */
   padding: var(--agents-chrome-inset) 14px var(--agents-chrome-inset) 4px;
+}
+
+.agents-page__scroll-anchor {
+  height: 1px;
+  overflow-anchor: none;
 }
 
 .agents-page__scroll--hero {

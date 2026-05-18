@@ -1,7 +1,13 @@
 /**
  * 工作区「智能体」对话页：Kimi 式布局；模型仅从已配置的模型提供商列表中选择（运行由后端按 model_id 加载）。
  */
-import { CopyOutlined, MoreOutlined, RobotOutlined, SendOutlined } from '@ant-design/icons'
+import {
+  CopyOutlined,
+  MoreOutlined,
+  RedoOutlined,
+  RobotOutlined,
+  SendOutlined,
+} from '@ant-design/icons'
 import {
   Alert,
   Button,
@@ -35,14 +41,17 @@ import { formatAgentV2TraceLine } from '@/api/agent-stream-v2'
 import {
   agentMessagesToChat,
   formatSessionListDate,
+  isAgentMessageUuid,
+  mergeAgentChatWithLocal,
   sessionListLabel,
   titleFromFirstQuestion,
-} from '@/features/workspace/agentSkillUi'
+  type AgentChatMsg,
+} from '@/features/agent/agentSkillUi'
 import { ApiError } from '@/api/client'
 import { listModelProviders, type ModelProviderListItem } from '@/api/modelProviders'
 import { useAuth } from '@/app/AuthContext'
 import { copyTextToClipboard } from '@/components/markdown/copyToClipboard'
-import { AgentAssistantMarkdown } from '@/features/workspace/AgentAssistantMarkdown'
+import { AgentAssistantMarkdown } from '@/features/agent/AgentAssistantMarkdown'
 import './AgentsPage.css'
 
 const { Text, Title } = Typography
@@ -70,16 +79,6 @@ function savePrefs(p: UiPrefs) {
   sessionStorage.setItem(UI_PREFS_KEY, JSON.stringify(p))
 }
 
-type ChatMsg = {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  /** 模型推理 token 流（与正文分离展示） */
-  reasoning?: string
-  /** 助手气泡内：编排轨迹（minerva 事件） */
-  processLog?: string[]
-}
-
 /** 工作区智能体对话主界面（类 Kimi：侧栏 + 主区 + 底部合成器，右侧选模型）。 */
 export function AgentsPage() {
   const { t, i18n } = useTranslation()
@@ -89,7 +88,7 @@ export function AgentsPage() {
   const [sessionId, setSessionId] = useState<string | null>(null)
   /** Session id being loaded after a sidebar click (detail fetch in flight). */
   const [sessionLoadingId, setSessionLoadingId] = useState<string | null>(null)
-  const [messages, setMessages] = useState<ChatMsg[]>([])
+  const [messages, setMessages] = useState<AgentChatMsg[]>([])
   const [draft, setDraft] = useState('')
   const [streaming, setStreaming] = useState(false)
   /** 当前轮助手气泡内「运行/思考」折叠：有正文输出后自动收起 */
@@ -106,6 +105,8 @@ export function AgentsPage() {
   const draftInputRef = useRef<InputRef | null>(null)
   /** Tracks previous ``streaming`` to detect assistant run completion. */
   const wasStreamingRef = useRef(false)
+  /** When true, user scrolled up in the message list; pause auto-scroll until next send. */
+  const userScrolledUpRef = useRef(false)
 
   const modelsQuery = useQuery({
     queryKey: ['agent-model-providers', workspaceId],
@@ -162,7 +163,7 @@ export function AgentsPage() {
       return
     }
     const horizontalPane = target.closest(
-      '.minerva-md-table-scroll, .minerva-md-syntax, .minerva-md-pre, .minerva-md-mermaid',
+      '.minerva-md-table-scroll, .minerva-md-syntax, .minerva-md-pre, .minerva-md-mermaid, .minerva-md-chart',
     )
     if (horizontalPane instanceof HTMLElement && Math.abs(e.deltaX) > 0) {
       const canScrollX = horizontalPane.scrollWidth > horizontalPane.clientWidth + 1
@@ -288,9 +289,32 @@ export function AgentsPage() {
     [t],
   )
 
+  /** Track whether the user manually scrolled away from the bottom of the message list. */
   useEffect(() => {
-    listEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, streaming])
+    const chat = chatScrollRef.current
+    if (!chat) return
+    const onScroll = () => {
+      const dist = chat.scrollHeight - chat.scrollTop - chat.clientHeight
+      userScrolledUpRef.current = dist > 96
+    }
+    chat.addEventListener('scroll', onScroll, { passive: true })
+    return () => chat.removeEventListener('scroll', onScroll)
+  }, [])
+
+  /** Scroll only the in-page message scroller (never ``scrollIntoView`` — avoids shifting the whole layout). */
+  const scrollChatToEnd = useCallback((behavior: ScrollBehavior = 'auto') => {
+    const chat = chatScrollRef.current
+    if (!chat) return
+    if (streaming && userScrolledUpRef.current) return
+    chat.scrollTo({ top: chat.scrollHeight, behavior })
+  }, [streaming])
+
+  useEffect(() => {
+    if (messages.length === 0) return
+    const behavior: ScrollBehavior = streaming ? 'auto' : 'smooth'
+    const id = requestAnimationFrame(() => scrollChatToEnd(behavior))
+    return () => cancelAnimationFrame(id)
+  }, [messages, streaming, scrollChatToEnd])
 
   /** When assistant streaming ends, focus the draft field so the user can type the next message. */
   useEffect(() => {
@@ -403,131 +427,234 @@ export function AgentsPage() {
     [t, confirmDeleteSession],
   )
 
-  const onSend = useCallback(async () => {
-    if (!workspaceId) {
-      antdMessage.error(t('agents.noWorkspace'))
-      return
-    }
-    const mid = prefs.selectedModelId
-    if (!mid) {
-      antdMessage.warning(t('agents.pickModel'))
-      return
-    }
-    const apiBody = draft.trim()
-    if (!apiBody) return
+  /** 发起一轮助手流式回复（新提问或基于已有用户消息重新生成）。 */
+  const runAgentTurn = useCallback(
+    async (
+      userMessage: string,
+      options?: {
+        regenerateFromAssistantId?: string
+        regenerateLastAssistant?: boolean
+      },
+    ) => {
+      if (!workspaceId) {
+        antdMessage.error(t('agents.noWorkspace'))
+        return
+      }
+      const mid = prefs.selectedModelId
+      if (!mid) {
+        antdMessage.warning(t('agents.pickModel'))
+        return
+      }
+      const apiBody = userMessage.trim()
+      if (!apiBody) return
 
-    const userMsg: ChatMsg = { id: `u-${Date.now()}`, role: 'user', content: apiBody }
-    const asstId = `a-${Date.now()}`
-    const asstMsg: ChatMsg = { id: asstId, role: 'assistant', content: '', reasoning: '' }
-    setDraft('')
-    setMessages((m) => [...m, userMsg, asstMsg])
-    setStreaming(true)
-    setTraceOpenKeys(['trace'])
-
-    const ac = new AbortController()
-    abortRef.current = ac
-
-    const pushAsstLog = (line: string) => {
-      setMessages((prev) =>
-        prev.map((row) =>
-          row.id === asstId && row.role === 'assistant'
-            ? { ...row, processLog: [...(row.processLog ?? []).slice(-199), line] }
-            : row,
-        ),
+      const isRegenerate = Boolean(
+        options?.regenerateFromAssistantId || options?.regenerateLastAssistant,
       )
-    }
+      if (isRegenerate && !sessionId) {
+        antdMessage.warning(t('agents.regenerateNoSession'))
+        return
+      }
 
-    let sid = sessionId
-    try {
-      const modelRow = usableModels.find((m) => m.id === mid)
-      const maxTok =
-        modelRow?.max_tokens_to_sample != null &&
-        Number.isFinite(modelRow.max_tokens_to_sample)
-          ? modelRow.max_tokens_to_sample
-          : null
+      const asstId = `a-${Date.now()}`
+      const asstMsg: AgentChatMsg = { id: asstId, role: 'assistant', content: '', reasoning: '' }
+      const regenId = options?.regenerateFromAssistantId
 
-      if (!sid) {
-        const sessionTitle = titleFromFirstQuestion(apiBody)
-        const s = await createAgentSession(
-          workspaceId,
-          sessionTitle ? { title: sessionTitle } : {},
+      let truncateOk = false
+      if (isRegenerate) {
+        setMessages((prev) => {
+          let truncateIdx = regenId ? prev.findIndex((m) => m.id === regenId) : -1
+          if (truncateIdx < 0 && options?.regenerateLastAssistant) {
+            for (let i = prev.length - 1; i >= 0; i--) {
+              if (prev[i]?.role === 'assistant') {
+                truncateIdx = i
+                break
+              }
+            }
+          }
+          if (truncateIdx < 0) return prev
+          truncateOk = true
+          return [...prev.slice(0, truncateIdx), asstMsg]
+        })
+        if (!truncateOk) {
+          antdMessage.warning(t('agents.regenerateNoUserMessage'))
+          return
+        }
+      } else {
+        const userMsg: AgentChatMsg = { id: `u-${Date.now()}`, role: 'user', content: apiBody }
+        setMessages((m) => [...m, userMsg, asstMsg])
+      }
+
+      userScrolledUpRef.current = false
+      setStreaming(true)
+      setTraceOpenKeys(['trace'])
+
+      const ac = new AbortController()
+      abortRef.current = ac
+
+      const pushAsstLog = (line: string) => {
+        setMessages((prev) =>
+          prev.map((row) =>
+            row.id === asstId && row.role === 'assistant'
+              ? { ...row, processLog: [...(row.processLog ?? []).slice(-199), line] }
+              : row,
+          ),
         )
-        sid = s.id
-        setSessionId(sid)
-        pushAsstLog(`[session] ${sid}`)
+      }
+
+      let sid = sessionId
+      try {
+        const modelRow = usableModels.find((m) => m.id === mid)
+        const maxTok =
+          modelRow?.max_tokens_to_sample != null &&
+          Number.isFinite(modelRow.max_tokens_to_sample)
+            ? modelRow.max_tokens_to_sample
+            : null
+
+        if (!sid) {
+          if (isRegenerate) {
+            antdMessage.warning(t('agents.regenerateNoSession'))
+            return
+          }
+          const sessionTitle = titleFromFirstQuestion(apiBody)
+          const s = await createAgentSession(
+            workspaceId,
+            sessionTitle ? { title: sessionTitle } : {},
+          )
+          sid = s.id
+          setSessionId(sid)
+          pushAsstLog(`[session] ${sid}`)
+          void queryClient.invalidateQueries({ queryKey: ['agent-sessions', workspaceId] })
+        }
+
+        const regenerateFromMessageId =
+          isRegenerate && regenId && isAgentMessageUuid(regenId) ? regenId : null
+        const regenerateLastAssistant = Boolean(
+          isRegenerate &&
+            (options?.regenerateLastAssistant || !regenerateFromMessageId),
+        )
+
+        const { runId } = await streamAgentRun(
+          workspaceId,
+          sid,
+          {
+            user_message: apiBody,
+            model_id: mid,
+            temperature: null,
+            max_tokens: maxTok,
+            preferred_skills: [],
+            regenerate_from_message_id: regenerateFromMessageId,
+            regenerate_last_assistant: regenerateLastAssistant,
+          },
+          (evt: AgentStreamEvent) => {
+            if (evt.kind === 'done') return
+            if (evt.kind === 'error') {
+              pushAsstLog(`[error] ${evt.code}: ${evt.message}`)
+              antdMessage.error(evt.message || evt.code)
+              return
+            }
+            const ev = evt.event
+            const traceLine = formatAgentV2TraceLine(ev)
+            if (traceLine) pushAsstLog(traceLine)
+            if (ev.type === 'llm.delta') {
+              const channel = String(ev.payload.channel ?? 'assistant')
+              const text = String(ev.payload.text ?? '')
+              if (!text) return
+              if (channel === 'reasoning') {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === asstId ? { ...m, reasoning: (m.reasoning ?? '') + text } : m,
+                  ),
+                )
+              } else {
+                setTraceOpenKeys([])
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === asstId ? { ...m, content: m.content + text } : m,
+                  ),
+                )
+              }
+              return
+            }
+          },
+          ac.signal,
+        )
+        if (runId) {
+          pushAsstLog(`[run] ${runId}`)
+        }
+      } catch (e) {
+        if ((e as Error).name === 'AbortError') {
+          pushAsstLog('[aborted]')
+        } else if (e instanceof ApiError) {
+          antdMessage.error(e.message)
+          pushAsstLog(`[api] ${e.code}: ${e.message}`)
+        } else {
+          antdMessage.error(String(e))
+          pushAsstLog(`[error] ${String(e)}`)
+        }
+      } finally {
+        setStreaming(false)
+        abortRef.current = null
+        if (sid && workspaceId) {
+          try {
+            const detail = await getAgentSessionDetail(workspaceId, sid)
+            const serverChat = agentMessagesToChat(detail.messages)
+            setMessages((prev) => mergeAgentChatWithLocal(serverChat, prev))
+          } catch {
+            /* 同步失败不阻断 UI */
+          }
+        }
         void queryClient.invalidateQueries({ queryKey: ['agent-sessions', workspaceId] })
       }
+    },
+    [workspaceId, sessionId, prefs.selectedModelId, usableModels, queryClient, t],
+  )
 
-      const { runId } = await streamAgentRun(
-        workspaceId,
-        sid,
-        {
-          user_message: apiBody,
-          model_id: mid,
-          temperature: null,
-          max_tokens: maxTok,
-          preferred_skills: [],
-        },
-        (evt: AgentStreamEvent) => {
-          if (evt.kind === 'done') return
-          if (evt.kind === 'error') {
-            pushAsstLog(`[error] ${evt.code}: ${evt.message}`)
-            antdMessage.error(evt.message || evt.code)
-            return
-          }
-          const ev = evt.event
-          const traceLine = formatAgentV2TraceLine(ev)
-          if (traceLine) pushAsstLog(traceLine)
-          if (ev.type === 'llm.delta') {
-            const channel = String(ev.payload.channel ?? 'assistant')
-            const text = String(ev.payload.text ?? '')
-            if (!text) return
-            if (channel === 'reasoning') {
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === asstId ? { ...m, reasoning: (m.reasoning ?? '') + text } : m,
-                ),
-              )
-            } else {
-              setTraceOpenKeys([])
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === asstId ? { ...m, content: m.content + text } : m,
-                ),
-              )
-            }
-            return
-          }
-        },
-        ac.signal,
-      )
-      if (runId) {
-        pushAsstLog(`[run] ${runId}`)
+  const onSend = useCallback(async () => {
+    const apiBody = draft.trim()
+    if (!apiBody) return
+    setDraft('')
+    await runAgentTurn(apiBody)
+  }, [draft, runAgentTurn])
+
+  /** 删除当前助手回复及其后消息，调用 runs 接口用同一条用户提问重新流式生成。 */
+  const onRegenerate = useCallback(
+    async (assistantMsgId: string) => {
+      if (streaming) {
+        antdMessage.warning(t('agents.regenerateWhileStreaming'))
+        return
       }
-    } catch (e) {
-      if ((e as Error).name === 'AbortError') {
-        pushAsstLog('[aborted]')
-      } else if (e instanceof ApiError) {
-        antdMessage.error(e.message)
-        pushAsstLog(`[api] ${e.code}: ${e.message}`)
-      } else {
-        antdMessage.error(String(e))
-        pushAsstLog(`[error] ${String(e)}`)
+      if (!sessionId) {
+        antdMessage.warning(t('agents.regenerateNoSession'))
+        return
       }
-    } finally {
-      setStreaming(false)
-      abortRef.current = null
-      void queryClient.invalidateQueries({ queryKey: ['agent-sessions', workspaceId] })
-    }
-  }, [
-    workspaceId,
-    sessionId,
-    draft,
-    prefs.selectedModelId,
-    usableModels,
-    queryClient,
-    t,
-  ])
+      const idx = messages.findIndex((m) => m.id === assistantMsgId)
+      if (idx < 0) return
+      let userMessage = ''
+      for (let i = idx - 1; i >= 0; i--) {
+        const row = messages[i]
+        if (row?.role === 'user' && row.content.trim()) {
+          userMessage = row.content.trim()
+          break
+        }
+      }
+      if (!userMessage) {
+        antdMessage.warning(t('agents.regenerateNoUserMessage'))
+        return
+      }
+      const isLastAssistant = messages[messages.length - 1]?.id === assistantMsgId
+      const hasServerId = isAgentMessageUuid(assistantMsgId)
+      if (!hasServerId && !isLastAssistant) {
+        antdMessage.warning(t('agents.regenerateStaleMessage'))
+        return
+      }
+      await runAgentTurn(userMessage, {
+        regenerateFromAssistantId: assistantMsgId,
+        regenerateLastAssistant: !hasServerId && isLastAssistant,
+      })
+    },
+    [streaming, messages, sessionId, runAgentTurn, t],
+  )
 
   const selectOptions = useMemo(
     () =>
@@ -542,7 +669,7 @@ export function AgentsPage() {
   const lastMessageId = useMemo(() => messages[messages.length - 1]?.id, [messages])
 
   const assistantReasoningBelowRobot = useCallback(
-    (m: ChatMsg) => {
+    (m: AgentChatMsg) => {
       if (m.role !== 'assistant') return null
       const text = (m.reasoning ?? '').trim()
       if (!text) return null
@@ -569,7 +696,7 @@ export function AgentsPage() {
   )
 
   const assistantTraceBelowRobot = useCallback(
-    (m: ChatMsg) => {
+    (m: AgentChatMsg) => {
       if (m.role !== 'assistant') return null
       const logs = m.processLog ?? []
       const isLatestAssistantCard = m.id === lastMessageId
@@ -815,16 +942,29 @@ export function AgentsPage() {
                   </Flex>
                   {(m.content ?? '').trim().length > 0 ? (
                     <div
-                      className="agents-page__msg-copy"
+                      className="agents-page__msg-actions"
                       style={{
                         display: 'flex',
                         justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start',
+                        gap: 2,
                       }}
                     >
+                      {m.role === 'assistant' ? (
+                        <Button
+                          type="text"
+                          size="small"
+                          className="agents-page__msg-action-btn"
+                          icon={<RedoOutlined />}
+                          aria-label={t('agents.regenerateMessage')}
+                          title={t('agents.regenerateMessage')}
+                          disabled={streaming}
+                          onClick={() => void onRegenerate(m.id)}
+                        />
+                      ) : null}
                       <Button
                         type="text"
                         size="small"
-                        className="agents-page__msg-copy-btn"
+                        className="agents-page__msg-action-btn"
                         icon={<CopyOutlined />}
                         aria-label={t('agents.copyMessage')}
                         title={t('agents.copyMessage')}
@@ -836,7 +976,9 @@ export function AgentsPage() {
               </div>
             ))
           )}
-          {messages.length > 0 ? <div ref={listEndRef} /> : null}
+          {messages.length > 0 ? (
+            <div ref={listEndRef} className="agents-page__scroll-anchor" aria-hidden />
+          ) : null}
         </div>
 
         <div className="agents-page__composer-wrap">

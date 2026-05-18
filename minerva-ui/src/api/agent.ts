@@ -51,6 +51,10 @@ export type AgentRunCreateBodyV2 = {
   temperature?: number | null
   max_tokens?: number | null
   preferred_skills?: string[]
+  /** 从该助手消息起截断服务端历史并重新 run（须为会话内真实 message id）。 */
+  regenerate_from_message_id?: string | null
+  /** 截断最后一条助手消息并重新 run（无 message id 时使用）。 */
+  regenerate_last_assistant?: boolean
 }
 
 export type AgentStreamEvent = AgentStreamV2ParseResult
@@ -170,6 +174,8 @@ export async function streamAgentRun(
         temperature: body.temperature ?? null,
         max_tokens: body.max_tokens ?? null,
         preferred_skills: body.preferred_skills ?? [],
+        regenerate_from_message_id: body.regenerate_from_message_id ?? null,
+        regenerate_last_assistant: body.regenerate_last_assistant ?? false,
       }),
       signal,
     },

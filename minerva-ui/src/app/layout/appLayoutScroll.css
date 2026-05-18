@@ -123,6 +123,7 @@ html.minerva-tone-sunshine
 .agents-page .minerva-md-table-scroll,
 .agents-page .minerva-md-pre,
 .agents-page .minerva-md-mermaid,
+.agents-page .minerva-md-chart,
 .agents-page .minerva-md-syntax {
   scrollbar-width: thin;
   scrollbar-color: rgb(148 163 184 / 0.5) transparent;
@@ -187,6 +188,7 @@ html.minerva-tone-sunshine .minerva-scrollbar-thin,
 html.minerva-tone-sunshine .agents-page .minerva-md-table-scroll,
 html.minerva-tone-sunshine .agents-page .minerva-md-pre,
 html.minerva-tone-sunshine .agents-page .minerva-md-mermaid,
+.agents-page .minerva-md-chart,
 html.minerva-tone-sunshine .agents-page .minerva-md-syntax {
   scrollbar-color: rgb(100 116 139 / 0.55) transparent;
 }

@@ -2,6 +2,14 @@
  * Helpers for agent skill prefix in the composer and chat bubbles.
  */
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+/** True when ``s`` looks like a server-side agent message UUID. */
+export function isAgentMessageUuid(s: string): boolean {
+  return UUID_RE.test(s.trim())
+}
+
 /** Strip leading ``/skill_id`` token for API ``user_message``. */
 export function stripSkillPrefixFromDraft(draft: string, skillId: string | null): string {
   if (!skillId) return draft.trim()
@@ -16,11 +24,36 @@ export function buildDisplayUserMessage(body: string, skillId: string | null): s
   return inner ? `/${skillId} ${inner}` : `/${skillId}`
 }
 
+export type AgentChatMsg = {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  reasoning?: string
+  processLog?: string[]
+}
+
+/** 将服务端消息与本地 UI 状态（推理、轨迹）按 id 或顺序合并。 */
+export function mergeAgentChatWithLocal(
+  server: AgentChatMsg[],
+  local: AgentChatMsg[],
+): AgentChatMsg[] {
+  return server.map((sm, index) => {
+    const byId = local.find((m) => m.id === sm.id)
+    const byIndex = local[index]
+    const src = byId ?? (byIndex?.role === sm.role ? byIndex : undefined)
+    return {
+      ...sm,
+      reasoning: src?.reasoning,
+      processLog: src?.processLog,
+    }
+  })
+}
+
 /** Map API messages to chat bubbles (skip ``tool`` rows). */
 export function agentMessagesToChat(
   rows: { id: string; role: string; content: string | null }[],
-): { id: string; role: 'user' | 'assistant'; content: string }[] {
-  const out: { id: string; role: 'user' | 'assistant'; content: string }[] = []
+): AgentChatMsg[] {
+  const out: AgentChatMsg[] = []
   for (const m of rows) {
     if (m.role !== 'user' && m.role !== 'assistant') continue
     const text = (m.content ?? '').trim()

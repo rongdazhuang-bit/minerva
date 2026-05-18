@@ -27,10 +27,20 @@ import {
   normalizeMarkdownForAgent,
   normalizeMarkdownForOcr,
 } from '@/components/markdown/normalizeMarkdownMath'
+import { MarkdownChartBlock } from '@/components/markdown/MarkdownChartBlock'
+import {
+  isChartFenceLanguage,
+} from '@/components/markdown/parseMarkdownChartConfig'
 import {
   formatCodeBlockLanguageLabel,
   normalizePrismLanguage,
 } from '@/components/markdown/prismLanguages'
+import {
+  buildMermaidInitializeConfig,
+  harmonizeMermaidSvgBackground,
+  randomizeMermaidLineColors,
+} from '@/components/markdown/mermaidTheme'
+import { randomId } from '@/lib/randomId'
 import 'katex/dist/katex.min.css'
 import './MinervaMarkdown.css'
 
@@ -49,23 +59,16 @@ function textFromReactNode(node: ReactNode): string {
   return ''
 }
 
-let mermaidApiPromise: Promise<typeof import('mermaid').default> | null = null
+let mermaidModulePromise: Promise<typeof import('mermaid').default> | null = null
 
-/** 懒加载 Mermaid 并仅初始化一次（多图块共用）。 */
-function loadMermaidApi() {
-  if (!mermaidApiPromise) {
-    mermaidApiPromise = import('mermaid').then((mod) => {
-      const mermaid = mod.default
-      mermaid.initialize({
-        startOnLoad: false,
-        securityLevel: 'strict',
-        theme: 'dark',
-        fontFamily: 'ui-sans-serif, system-ui, sans-serif',
-      })
-      return mermaid
-    })
+/** 懒加载 Mermaid；每次渲染前按当前主题重新 ``initialize``。 */
+async function loadMermaidApi() {
+  if (!mermaidModulePromise) {
+    mermaidModulePromise = import('mermaid').then((mod) => mod.default)
   }
-  return mermaidApiPromise
+  const mermaid = await mermaidModulePromise
+  mermaid.initialize(buildMermaidInitializeConfig())
+  return mermaid
 }
 
 type CodeLikeProps = { className?: string; children?: ReactNode }
@@ -100,16 +103,16 @@ const PrismCodeWithCopy = memo(function PrismCodeWithCopy({
         <span className="minerva-md-syntax-lang" title={languageLabel}>
           {languageLabel}
         </span>
+        <button
+          type="button"
+          className="minerva-md-syntax-copy"
+          aria-label={copyLabel}
+          title={copyLabel}
+          onClick={() => void onCopy()}
+        >
+          <CopyOutlined />
+        </button>
       </div>
-      <button
-        type="button"
-        className="minerva-md-syntax-copy"
-        aria-label={copyLabel}
-        title={copyLabel}
-        onClick={() => void onCopy()}
-      >
-        <CopyOutlined />
-      </button>
       <SyntaxHighlighter
         language={language}
         style={oneDark}
@@ -118,7 +121,7 @@ const PrismCodeWithCopy = memo(function PrismCodeWithCopy({
         codeTagProps={{ className: 'minerva-md-syntax-code' }}
         customStyle={{
           margin: 0,
-          padding: '0.75em 2.5rem 2rem 0',
+          padding: '0.75em 0.85em',
           borderRadius: 0,
           fontSize: '0.88em',
           border: 'none',
@@ -153,14 +156,14 @@ function MermaidBlock({ code }: { code: string }) {
     const el = hostRef.current
     if (!el) return
     let cancelled = false
-    const renderId = `minerva-mmd-${crypto.randomUUID()}`
+    const renderId = `minerva-mmd-${randomId()}`
     void (async () => {
       try {
         const mermaid = await loadMermaidApi()
         if (cancelled || !hostRef.current) return
         const { svg, bindFunctions } = await mermaid.render(renderId, code)
         if (cancelled || !hostRef.current) return
-        hostRef.current.innerHTML = svg
+        hostRef.current.innerHTML = randomizeMermaidLineColors(harmonizeMermaidSvgBackground(svg))
         bindFunctions?.(hostRef.current)
       } catch {
         if (!cancelled && hostRef.current) {
@@ -199,6 +202,9 @@ function createPreBlock(richCode: boolean) {
         }
         const langMatch = /language-([\w#+.-]+)/i.exec(cls)
         const rawLang = langMatch?.[1] ?? ''
+        if (rawLang && isChartFenceLanguage(rawLang)) {
+          return <MarkdownChartBlock code={inner} />
+        }
         const lang = rawLang ? normalizePrismLanguage(rawLang) : 'plaintext'
         return <PrismCodeWithCopy code={inner} language={lang} rawLanguage={rawLang} />
       }
