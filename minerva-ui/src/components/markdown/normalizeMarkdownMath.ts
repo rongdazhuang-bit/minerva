@@ -18,6 +18,176 @@ const BARE_TEX_IN_PARENS_RE = /([（(])\s*(\\[a-zA-Z][^）)\n]*?)\s*([）)])/g
 /** Strip redundant ``\\(...\\)`` wrappers inside a display-math body (already in math mode). */
 const REDUNDANT_INLINE_BRACKET_IN_DISPLAY_RE = /\\\(([\s\S]*?)\\\)/g
 
+/** Strip redundant nested ``\\[...\\]`` wrappers inside a display-math body (already in math mode). */
+const REDUNDANT_NESTED_DISPLAY_BRACKET_PAIR_RE = /\\\[([\s\S]*?)\\\]/g
+
+/**
+ * Find the closing ``\\]`` for display math opened at ``openIndex`` (``\\[``), using depth counting
+ * with a fallback to the last ``\\]`` when models emit only one closer for double ``\\[`` openers.
+ */
+function findDisplayBracketMathClose(text: string, openIndex: number): number {
+  let depth = 1
+  let i = openIndex + 2
+  const n = text.length
+
+  while (i < n) {
+    if (text.startsWith('\\[', i)) {
+      depth++
+      i += 2
+      continue
+    }
+    if (text.startsWith('\\]', i)) {
+      depth--
+      if (depth === 0) return i
+      i += 2
+      continue
+    }
+    i++
+  }
+
+  let last = -1
+  for (let j = openIndex + 2; j < n; j++) {
+    if (text.startsWith('\\]', j)) last = j
+  }
+  return last
+}
+
+/**
+ * Models sometimes truncate a Christoffel product as ``- \\Gamma} - \\Gamma^...`` (extra ``}`` before the superscript).
+ */
+const STRAY_GAMMA_BRACE_BEFORE_SUP_RE = /-\s*\\Gamma\}\s*-\s*(\\Gamma\^)/g
+
+/** ``\\partial\\_rho``-style subscripts (should be ``\\partial_\\rho``). */
+const MIS_ESCAPED_SUBSCRIPT_RE = /(\\[a-zA-Z]+)\\_([a-zA-Z]+)/g
+
+/** Orphan operators with ``\\null`` subscripts (invalid in KaTeX; common after σ→ρ substitution glitches). */
+const ORPHAN_OPERATOR_NULL_SUB_RE = /(?:[+\-]\s*)?\\[a-zA-Z]+(?:_\{\\?null\}|_\\null)\b/g
+
+/** Math fragments illegally nested inside ``\\text{...}`` (e.g. ``g^{\\mu\\nu}``). */
+const EMBEDDED_MATH_IN_TEXT_FRAGMENT_RE = /[A-Za-z](?:\^\{[^{}]+\}|_\{[^{}]+\})+/g
+
+/** Remove stray nested ``\\[`` / ``\\]`` delimiters from a display-math body. */
+function stripRedundantNestedDisplayBrackets(body: string): string {
+  let b = body.replace(REDUNDANT_NESTED_DISPLAY_BRACKET_PAIR_RE, '$1').trim()
+  while (b.startsWith('\\[')) {
+    b = b.slice(2).trimStart()
+  }
+  while (b.endsWith('\\]')) {
+    b = b.slice(0, -2).trimEnd()
+  }
+  return b
+}
+
+/**
+ * Split one ``\\text{...}`` inner string so embedded ``g^{...}`` / ``g_{...}`` render outside text mode.
+ */
+function rebuildTextCommandWithoutEmbeddedMath(inner: string): string {
+  const matches = [...inner.matchAll(EMBEDDED_MATH_IN_TEXT_FRAGMENT_RE)]
+  if (matches.length === 0) return `\\text{${inner}}`
+
+  let out = ''
+  let last = 0
+  for (const m of matches) {
+    const idx = m.index ?? 0
+    if (idx > last) {
+      out += `\\text{${inner.slice(last, idx)}}`
+    }
+    out += m[0]
+    last = idx + m[0].length
+  }
+  if (last < inner.length) {
+    out += `\\text{${inner.slice(last)}}`
+  }
+  return out
+}
+
+/**
+ * Move ``g^{\\mu\\nu}``-style fragments out of ``\\text{...}`` (KaTeX text mode cannot nest math).
+ */
+export function repairEmbeddedMathInTextCommands(tex: string): string {
+  let out = ''
+  let i = 0
+  const n = tex.length
+
+  while (i < n) {
+    if (tex.startsWith('\\text{', i)) {
+      const start = i + '\\text{'.length
+      let depth = 1
+      let j = start
+      while (j < n && depth > 0) {
+        if (tex[j] === '{') depth++
+        else if (tex[j] === '}') depth--
+        j++
+      }
+      out += rebuildTextCommandWithoutEmbeddedMath(tex.slice(start, j - 1))
+      i = j
+      continue
+    }
+    out += tex[i]
+    i++
+  }
+
+  return out
+}
+
+/** Shared KaTeX-oriented repairs for inline and display math bodies. */
+export function repairMathBody(tex: string): string {
+  const stripped = tex
+    .replace(STRAY_GAMMA_BRACE_BEFORE_SUP_RE, '- $1')
+    .replace(MIS_ESCAPED_SUBSCRIPT_RE, '$1_{$2}')
+    .replace(ORPHAN_OPERATOR_NULL_SUB_RE, '')
+    .replace(/\\[a-zA-Z]+(?:_\{\\?null\}|_\\null)\b/g, '')
+  return wrapCjkInMathBody(balanceExtraClosingBraces(repairEmbeddedMathInTextCommands(stripped)))
+}
+
+/**
+ * Repair common display-math typos (stray braces, CJK in ``\\text{}``) before KaTeX.
+ */
+export function repairDisplayMathBody(body: string): string {
+  const trimmed = body.trim()
+  if (!trimmed) return trimmed
+  return repairMathBody(trimmed)
+}
+
+/** Rewrite a ``$$...$$`` inner span; preserve padding when no repair is needed. */
+function repairDisplayMathFenceBody(rawBody: string): string {
+  const trimmed = rawBody.trim()
+  if (!trimmed) return rawBody
+  const repaired = repairDisplayMathBody(trimmed)
+  if (repaired === trimmed) return rawBody
+  const lead = rawBody.match(/^\s*/)?.[0] ?? ''
+  const trail = rawBody.match(/\s*$/)?.[0] ?? ''
+  return `${lead}${repaired}${trail}`
+}
+
+/** Rewrite every ``$$...$$`` body with ``repairDisplayMathBody``. */
+export function repairDisplayMathFencesInMarkdown(text: string): string {
+  let out = ''
+  let i = 0
+  const n = text.length
+
+  while (i < n) {
+    if (text[i] === '$' && i + 1 < n && text[i + 1] === '$') {
+      const closeBlock = text.indexOf('$$', i + 2)
+      if (closeBlock === -1) {
+        out += text.slice(i)
+        break
+      }
+      const rawBody = text.slice(i + 2, closeBlock)
+      const multiline = /[\r\n]/.test(rawBody)
+      const repaired = repairDisplayMathFenceBody(rawBody)
+      out += multiline ? `$$\n${repaired.trim()}\n$$` : `$$${repaired}$$`
+      i = closeBlock + 2
+      continue
+    }
+
+    out += text[i]
+    i++
+  }
+
+  return out
+}
+
 /** Bare ``\\text{...}`` outside ``$`` / ``\\(...\\)`` (models often omit math fences). */
 const BARE_LATEX_TEXT_CMD_RE = /\\text\{([^{}]*)\}/g
 
@@ -82,20 +252,22 @@ export function convertLatexBracketMathDelimiters(text: string): string {
   const emitBracketMathBody = (rawBody: string) => {
     const body = rawBody.trim().replace(/\\，/g, '\\,')
     if (!body) return
-    out += `$${wrapCjkInMathBody(balanceExtraClosingBraces(body))}$`
+    out += `$${repairMathBody(body)}$`
   }
 
   while (i < n) {
     if (text.startsWith('\\[', i)) {
-      const close = text.indexOf('\\]', i + 2)
+      const close = findDisplayBracketMathClose(text, i)
       if (close === -1) {
         out += text.slice(i)
         break
       }
       const rawBody = text.slice(i + 2, close)
-      const body = rawBody
-        .replace(REDUNDANT_INLINE_BRACKET_IN_DISPLAY_RE, '$1')
-        .trim()
+      const body = repairDisplayMathBody(
+        stripRedundantNestedDisplayBrackets(
+          rawBody.replace(REDUNDANT_INLINE_BRACKET_IN_DISPLAY_RE, '$1'),
+        ),
+      )
       out += body ? `$$\n${body}\n$$` : '$$\n$$'
       i = close + 2
       continue
@@ -137,6 +309,19 @@ export function convertLatexBracketMathDelimiters(text: string): string {
   return out
 }
 
+/** ``T \\to \\infty`` / ``T → ∞`` inside bold without ``$`` (models often omit fences). */
+const BARE_ARROW_LIMIT_IN_BOLD_RE =
+  /[A-Za-z][A-Za-z0-9]*(?:_\{[^{}]+\}|_[A-Za-z0-9])?\s*(?:\\to|→)\s*(?:\\infty|∞)/
+
+/** Normalize Unicode limits and tighten spaces for KaTeX. */
+function normalizeBareLimitInBold(tex: string): string {
+  return tex
+    .replace(/→/g, '\\to ')
+    .replace(/∞/g, '\\infty')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim()
+}
+
 /** Whether ``**...**`` is a short bare TeX fragment (e.g. ``**F(\\omega)**``) that must render outside strong. */
 function isBareTexBoldBody(inner: string): boolean {
   const t = inner.trim()
@@ -144,7 +329,55 @@ function isBareTexBoldBody(inner: string): boolean {
   if (/[\u4e00-\u9fff]/.test(t) && !/\\[a-zA-Z]/.test(t)) return false
   if (/\\[a-zA-Z]+/.test(t)) return true
   if (/[A-Za-z]\s*\([^)]+\)/.test(t) && /[_^\\]/.test(t)) return true
+  if (BARE_ARROW_LIMIT_IN_BOLD_RE.test(t) && !/[\u4e00-\u9fff]/.test(t)) return true
   return false
+}
+
+/**
+ * Pull bare ``T \\to \\infty`` / ``T → ∞`` out of a bold body so remark-math can parse it.
+ */
+function rebuildBoldSegmentWithBareLimit(inner: string): string {
+  const re = new RegExp(BARE_ARROW_LIMIT_IN_BOLD_RE.source, 'g')
+  let result = ''
+  let last = 0
+  let found = false
+
+  for (const m of inner.matchAll(re)) {
+    found = true
+    const idx = m.index ?? 0
+    if (idx > last) {
+      result += `**${inner.slice(last, idx)}**`
+    }
+    result += `$${normalizeBareLimitInBold(m[0])}$`
+    last = idx + m[0].length
+  }
+
+  if (!found) return `**${inner}**`
+  if (last < inner.length) {
+    result += `**${inner.slice(last)}**`
+  }
+  return result
+}
+
+/**
+ * Fix ``**label **T→∞`` where the model closed bold before the limit (math left as plain text).
+ */
+export function repairPrematureBoldCloseBeforeMath(text: string): string {
+  let out = text.replace(
+    /\*\*([^*\n]+?)\s*\*\*\s*(\$[^$\n]+\$)(?!\*\*)/g,
+    '**$1** $2',
+  )
+  out = out.replace(
+    /\*\*([^*\n]+?)\s*\*\*\s*([A-Za-z][A-Za-z0-9]*)\s*(?:\\to|→)\s*(?:\\infty|∞)/g,
+    (_match, label: string, sym: string) =>
+      `**${label.trim()}** $${normalizeBareLimitInBold(`${sym} \\to \\infty`)}$`,
+  )
+  return out
+}
+
+/** Bold + inline math normalization (premature-close repair + unwrap math from ``**``). */
+export function normalizeBoldWithInlineMath(text: string): string {
+  return repairPrematureBoldCloseBeforeMath(unwrapInlineMathFromBoldSpans(repairPrematureBoldCloseBeforeMath(text)))
 }
 
 /**
@@ -180,6 +413,11 @@ export function unwrapInlineMathFromBoldSpans(text: string): string {
           : inner
       if (processed.includes('$')) {
         out += rebuildBoldSegmentWithExternalMath(processed)
+        i = close + 2
+        continue
+      }
+      if (BARE_ARROW_LIMIT_IN_BOLD_RE.test(processed)) {
+        out += rebuildBoldSegmentWithBareLimit(processed)
         i = close + 2
         continue
       }
@@ -455,7 +693,7 @@ export function normalizeInlineMathSpans(text: string): string {
       const mathPart = split?.math ?? rawBody
       const suffix = split?.suffix ?? ''
 
-      const body = wrapCjkInMathBody(balanceExtraClosingBraces(mathPart))
+      const body = repairMathBody(mathPart)
       out += `$${body}$${suffix}`
       i = split ? Math.max(close, open + 1) : close + 1
       continue
@@ -882,8 +1120,10 @@ export function normalizeMarkdownForAgent(markdown: string): string {
     const base = ensureBlankLineBeforeDisplayMathFences(
       unindentDisplayMathFenceLines(
         unindentIndentedListContinuations(
-          unwrapInlineMathFromBoldSpans(
-            wrapBareLatexTextCommands(convertLatexBracketMathDelimiters(chunk)),
+          normalizeBoldWithInlineMath(
+            repairDisplayMathFencesInMarkdown(
+              wrapBareLatexTextCommands(convertLatexBracketMathDelimiters(chunk)),
+            ),
           ),
         ),
       ),

@@ -8,9 +8,14 @@ import {
   convertLatexBracketMathDelimiters,
   isProseLikeMathBody,
   normalizeMarkdownForAgent,
+  repairDisplayMathBody,
+  repairEmbeddedMathInTextCommands,
+  repairMathBody,
   wrapBareLatexTextCommands,
   repairMissingInlineMathClosers,
   unwrapInlineMathFromBoldSpans,
+  repairPrematureBoldCloseBeforeMath,
+  normalizeBoldWithInlineMath,
   wrapBareTexInParentheses,
   wrapCjkInMathBody,
 } from '@/components/markdown/normalizeMarkdownMath'
@@ -119,6 +124,45 @@ describe('unwrapInlineMathFromBoldSpans', () => {
   it('unwraps \\( ... \\) inside bold after bracket conversion', () => {
     expect(unwrapInlineMathFromBoldSpans('**\\( F(\\omega) \\)**')).toBe('$F(\\omega)$')
   })
+
+  it('unwraps $T \\to \\infty$ inside bold with CJK label', () => {
+    expect(unwrapInlineMathFromBoldSpans('**取极限 $T \\to \\infty$**')).toBe(
+      '**取极限 **$T \\to \\infty$',
+    )
+  })
+
+  it('wraps bare T → ∞ inside bold without dollar fences', () => {
+    expect(unwrapInlineMathFromBoldSpans('**取极限 T → ∞**')).toBe(
+      '**取极限 **$T \\to \\infty$',
+    )
+  })
+
+  it('wraps full bold T \\to \\infty without dollars', () => {
+    expect(unwrapInlineMathFromBoldSpans('**T \\to \\infty**')).toBe('$T \\to \\infty$')
+  })
+})
+
+describe('repairPrematureBoldCloseBeforeMath', () => {
+  it('fixes **取极限 **T→∞ with no spaces', () => {
+    expect(repairPrematureBoldCloseBeforeMath('2.  **取极限 **T→∞：')).toBe(
+      '2.  **取极限** $T \\to \\infty$：',
+    )
+  })
+
+  it('fixes **取极限 **$T \\to \\infty$ after unwrap', () => {
+    expect(repairPrematureBoldCloseBeforeMath('**取极限 **$T \\to \\infty$')).toBe(
+      '**取极限** $T \\to \\infty$',
+    )
+  })
+})
+
+describe('normalizeBoldWithInlineMath', () => {
+  it('handles list item with premature bold close', () => {
+    const out = normalizeBoldWithInlineMath('2.  **取极限 **T→∞：')
+    expect(out).toContain('**取极限**')
+    expect(out).toContain('$T')
+    expect(out).not.toMatch(/\*\*\s*T→/)
+  })
 })
 
 const FOURIER_CONTINUOUS_FREQ_LINE =
@@ -174,6 +218,52 @@ e^{i\theta} = \cos\theta + i\sin\theta
     expect(convertLatexBracketMathDelimiters(input)).toBe(
       String.raw`$$
 e^{i\theta} = \cos\theta + i\sin\theta
+$$`,
+    )
+  })
+
+  it('strips redundant nested \\[ inside display math (single closing \\])', () => {
+    const input = String.raw`\[
+\[
+\mathcal{L}_{\text{QCD}} = -\frac{1}{4} F_{\mu\nu}^a F^{a\mu\nu}
+\]`
+    expect(convertLatexBracketMathDelimiters(input)).toBe(
+      String.raw`$$
+\mathcal{L}_{\text{QCD}} = -\frac{1}{4} F_{\mu\nu}^a F^{a\mu\nu}
+$$`,
+    )
+  })
+
+  it('strips orphan \\partial_\\null operators', () => {
+    const input = String.raw`R_{\mu\nu} = \partial_\rho \Gamma^{\rho}_{\mu\nu} - \partial_\null - \partial_\nu \Gamma^{\rho}_{\mu\rho}`
+    const out = repairMathBody(input)
+    expect(out).not.toMatch(/\\null/)
+    expect(out).toContain(String.raw`\partial_\nu \Gamma^{\rho}_{\mu\rho}`)
+  })
+
+  it('splits g^{...} out of \\text{...}', () => {
+    const input = String.raw`\text{(完整 R 展开，与上类似但多一个 g^{\mu\nu} 缩并)}`
+    expect(repairEmbeddedMathInTextCommands(input)).toBe(
+      String.raw`\text{(完整 R 展开，与上类似但多一个 }g^{\mu\nu}\text{ 缩并)}`,
+    )
+  })
+
+  it('repairs stray \\Gamma} before superscripted \\Gamma in display math', () => {
+    const broken = String.raw`\underbrace{ \partial_\rho \Gamma^\rho_{\mu\nu} - \partial_\nu \Gamma^\rho_{\mu\rho} + \Gamma^\rho_{\lambda\rho} \Gamma^\lambda_{\mu\nu} - \Gamma} - \Gamma^\rho_{\lambda\nu} \Gamma^\lambda_{\mu\rho} }_{R_{\mu\nu} \text{ 的展开}}`
+    const fixed = repairDisplayMathBody(broken)
+    expect(fixed).not.toContain('\\Gamma}')
+    expect(fixed).toContain(String.raw`- \Gamma^\rho_{\lambda\nu} \Gamma^\lambda_{\mu\rho} }_{R_{\mu\nu}`)
+  })
+
+  it('strips redundant nested \\[ \\] pairs with balanced closers', () => {
+    const input = String.raw`\[
+\[
+e^{i\pi} + 1 = 0
+\]
+\]`
+    expect(convertLatexBracketMathDelimiters(input)).toBe(
+      String.raw`$$
+e^{i\pi} + 1 = 0
 $$`,
     )
   })
