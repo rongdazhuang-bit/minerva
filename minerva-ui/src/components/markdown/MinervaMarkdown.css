@@ -172,6 +172,10 @@ html.minerva-tone-sunshine .minerva-md .katex-error {
   fill: var(--minerva-ink-muted, #94a3b8);
 }
 
+.minerva-md-mermaid svg g.cluster-label text {
+  text-anchor: middle;
+}
+
 .minerva-md-chart {
   margin: 0.55em 0;
   max-width: 100%;

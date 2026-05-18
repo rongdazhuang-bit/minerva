@@ -39,3 +39,16 @@ export {
   wrapBareTexInParentheses,
   wrapCjkInMathBody,
 } from '@/components/markdown/normalizeMarkdownMath'
+export {
+  normalizeMermaidHtmlLineBreaks,
+  normalizeMermaidSourceForRender,
+  prepareMarkdownFencedDiagrams,
+  repairMermaidFencedBlocks,
+  splitInlineOpeningCodeFences,
+} from '@/components/markdown/normalizeMarkdownFences'
+export {
+  centerMermaidClusterLabelsLive,
+  parseTranslate,
+  postProcessMermaidSvg,
+  sanitizeMermaidSvgForXml,
+} from '@/components/markdown/mermaidTheme'

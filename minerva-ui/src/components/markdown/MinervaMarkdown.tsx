@@ -37,9 +37,10 @@ import {
 } from '@/components/markdown/prismLanguages'
 import {
   buildMermaidInitializeConfig,
-  harmonizeMermaidSvgBackground,
-  randomizeMermaidLineColors,
+  centerMermaidClusterLabelsLive,
+  postProcessMermaidSvg,
 } from '@/components/markdown/mermaidTheme'
+import { normalizeMermaidSourceForRender } from '@/components/markdown/normalizeMarkdownFences'
 import { randomId } from '@/lib/randomId'
 import 'katex/dist/katex.min.css'
 import './MinervaMarkdown.css'
@@ -148,6 +149,18 @@ const PrismCodeWithCopy = memo(function PrismCodeWithCopy({
   )
 })
 
+/** Mount Mermaid SVG via XML parser (avoids ``innerHTML`` breaking ``foreignObject`` markup). */
+function mountMermaidSvg(host: HTMLDivElement, rawSvg: string): void {
+  const svg = postProcessMermaidSvg(rawSvg)
+  const doc = new DOMParser().parseFromString(svg, 'image/svg+xml')
+  const err = doc.querySelector('parsererror')
+  if (err) {
+    throw new Error(err.textContent ?? 'mermaid svg parse failed')
+  }
+  host.replaceChildren()
+  host.append(doc.documentElement)
+}
+
 /** 将 `` ```mermaid `` 代码块渲染为 SVG（失败时回退为源码文本）。 */
 function MermaidBlock({ code }: { code: string }) {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -157,17 +170,27 @@ function MermaidBlock({ code }: { code: string }) {
     if (!el) return
     let cancelled = false
     const renderId = `minerva-mmd-${randomId()}`
+    const source = normalizeMermaidSourceForRender(code)
     void (async () => {
       try {
         const mermaid = await loadMermaidApi()
         if (cancelled || !hostRef.current) return
-        const { svg, bindFunctions } = await mermaid.render(renderId, code)
+        const { svg, bindFunctions } = await mermaid.render(renderId, source)
         if (cancelled || !hostRef.current) return
-        hostRef.current.innerHTML = randomizeMermaidLineColors(harmonizeMermaidSvgBackground(svg))
+        mountMermaidSvg(hostRef.current, svg)
         bindFunctions?.(hostRef.current)
+        requestAnimationFrame(() => {
+          if (!cancelled && hostRef.current) {
+            centerMermaidClusterLabelsLive(hostRef.current)
+          }
+        })
       } catch {
         if (!cancelled && hostRef.current) {
-          hostRef.current.textContent = code
+          hostRef.current.replaceChildren()
+          const pre = document.createElement('pre')
+          pre.className = 'minerva-md-pre minerva-md-mermaid-fallback'
+          pre.textContent = code
+          hostRef.current.append(pre)
         }
       }
     })()

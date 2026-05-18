@@ -1,3 +1,4 @@
+import { prepareMarkdownFencedDiagrams } from '@/components/markdown/normalizeMarkdownFences'
 import {
   applyOcrMarkdownImagePlaceholders,
   normalizeDisplayMathFencesForRemarkMath,
@@ -1116,7 +1117,7 @@ export function mapOutsideGfmTableRows(text: string, transform: (chunk: string) 
  * Agent chat math preprocessing (CJK in math, parenthesized TeX, loose ``$`` delimiters).
  */
 export function normalizeMarkdownForAgent(markdown: string): string {
-  return mapOutsideFencedCodeBlocks(markdown, (chunk) => {
+  return mapOutsideFencedCodeBlocks(prepareMarkdownFencedDiagrams(markdown), (chunk) => {
     const base = ensureBlankLineBeforeDisplayMathFences(
       unindentDisplayMathFenceLines(
         unindentIndentedListContinuations(
@@ -1154,12 +1155,15 @@ export function normalizeMarkdownForOcr(
   markdown: string | null | undefined,
   images?: Record<string, string> | null,
 ): string {
+  const withImages = applyOcrMarkdownImagePlaceholders(markdown, images)
   return normalizeDisplayMathFencesForRemarkMath(
     promoteInlineMathContainingTagToDisplay(
       normalizeLooseInlineMathDelimiters(
         unwrapInlineMathFromBoldSpans(
           wrapBareLatexTextCommands(
-            convertLatexBracketMathDelimiters(applyOcrMarkdownImagePlaceholders(markdown, images)),
+            convertLatexBracketMathDelimiters(
+              prepareMarkdownFencedDiagrams(withImages),
+            ),
           ),
         ),
       ),

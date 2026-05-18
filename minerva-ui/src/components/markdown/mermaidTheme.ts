@@ -20,6 +20,10 @@ export function buildMermaidInitializeConfig(): import('mermaid').MermaidConfig 
     securityLevel: 'strict',
     theme: 'base',
     fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+    flowchart: {
+      /** SVG ``text`` labels center reliably; HTML ``foreignObject`` titles often measure wrong width. */
+      htmlLabels: false,
+    },
     themeVariables: {
       background: 'transparent',
       mainBkg: 'transparent',
@@ -52,6 +56,71 @@ export function buildMermaidInitializeConfig(): import('mermaid').MermaidConfig 
       cScale3: c4,
     },
   }
+}
+
+/**
+ * Self-close ``<br>`` tags in Mermaid SVG so XML parsers accept foreignObject HTML.
+ */
+export function sanitizeMermaidSvgForXml(svg: string): string {
+  return svg.replace(/<br([^>]*?)>/gi, (_match, attrs: string) => {
+    if (attrs.trimEnd().endsWith('/')) return `<br${attrs}>`
+    return `<br${attrs}/>`
+  })
+}
+
+/** Parse ``translate(tx, ty)`` from an SVG ``transform`` attribute. */
+export function parseTranslate(transform: string | null): { x: number; y: number } {
+  if (!transform) return { x: 0, y: 0 }
+  const match = /translate\(\s*([-\d.]+)(?:[,\s]+([-\d.]+))?\s*\)/.exec(transform)
+  if (!match) return { x: 0, y: 0 }
+  return { x: parseFloat(match[1]), y: parseFloat(match[2] ?? '0') }
+}
+
+/** Shift a cluster label ``translate`` by ``dx``/``dy`` in SVG user units. */
+function shiftClusterLabelTransform(label: SVGGElement, dx: number, dy = 0): void {
+  const { x, y } = parseTranslate(label.getAttribute('transform'))
+  label.setAttribute('transform', `translate(${x + dx}, ${y + dy})`)
+}
+
+/**
+ * After the SVG is in the DOM, nudge subgraph titles to the horizontal center of the cluster ``rect``.
+ */
+export function centerMermaidClusterLabelsLive(host: HTMLElement): void {
+  const svg = host.querySelector('svg')
+  if (!svg) return
+
+  const inverse = svg.getScreenCTM()?.inverse()
+  if (!inverse) return
+
+  const toSvgX = (clientX: number, clientY: number) => {
+    const pt = svg.createSVGPoint()
+    pt.x = clientX
+    pt.y = clientY
+    return pt.matrixTransform(inverse).x
+  }
+
+  for (const cluster of svg.querySelectorAll('g.cluster')) {
+    const label = cluster.querySelector('g.cluster-label')
+    const rect = cluster.querySelector('rect')
+    if (!(label instanceof SVGGElement) || !rect) continue
+
+    const cr = rect.getBoundingClientRect()
+    const lr = label.getBoundingClientRect()
+    if (cr.width <= 0 || lr.width <= 0) continue
+
+    const clusterCenterX = toSvgX(cr.left + cr.width / 2, cr.top)
+    const labelCenterX = toSvgX(lr.left + lr.width / 2, lr.top)
+    const dx = clusterCenterX - labelCenterX
+    if (Number.isFinite(dx) && Math.abs(dx) >= 0.5) {
+      shiftClusterLabelTransform(label, dx)
+    }
+  }
+}
+
+/** Post-process Mermaid SVG for theme tweaks (sanitize → background → stroke colors). */
+export function postProcessMermaidSvg(svg: string): string {
+  const safe = sanitizeMermaidSvgForXml(svg)
+  return randomizeMermaidLineColors(harmonizeMermaidSvgBackground(safe))
 }
 
 /** Assign random stroke colors to chart-like ``path``/``line`` elements in Mermaid SVG. */
