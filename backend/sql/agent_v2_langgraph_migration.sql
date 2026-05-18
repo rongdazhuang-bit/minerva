@@ -37,3 +37,65 @@ CREATE TABLE IF NOT EXISTS public.agent_long_term_memory (
 CREATE INDEX IF NOT EXISTS ix_agent_ltm_workspace_id ON public.agent_long_term_memory (workspace_id);
 CREATE INDEX IF NOT EXISTS ix_agent_ltm_session_id ON public.agent_long_term_memory (session_id);
 CREATE INDEX IF NOT EXISTS ix_agent_ltm_workspace_session ON public.agent_long_term_memory (workspace_id, session_id);
+
+-- LangGraph checkpoint: timestamps + indexes + update_at triggers (requires tables from setup() or schema_postgresql.sql).
+
+CREATE OR REPLACE FUNCTION public.minerva_checkpoint_set_update_at()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.update_at := now();
+  RETURN NEW;
+END;
+$$;
+
+ALTER TABLE public.checkpoints
+  ADD COLUMN IF NOT EXISTS create_at timestamptz NULL DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS update_at timestamptz NULL DEFAULT now();
+ALTER TABLE public.checkpoint_blobs
+  ADD COLUMN IF NOT EXISTS create_at timestamptz NULL DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS update_at timestamptz NULL DEFAULT now();
+ALTER TABLE public.checkpoint_writes
+  ADD COLUMN IF NOT EXISTS create_at timestamptz NULL DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS update_at timestamptz NULL DEFAULT now();
+
+UPDATE public.checkpoints
+SET create_at = COALESCE(create_at, now()), update_at = COALESCE(update_at, now())
+WHERE create_at IS NULL OR update_at IS NULL;
+UPDATE public.checkpoint_blobs
+SET create_at = COALESCE(create_at, now()), update_at = COALESCE(update_at, now())
+WHERE create_at IS NULL OR update_at IS NULL;
+UPDATE public.checkpoint_writes
+SET create_at = COALESCE(create_at, now()), update_at = COALESCE(update_at, now())
+WHERE create_at IS NULL OR update_at IS NULL;
+
+ALTER TABLE public.checkpoints
+  ALTER COLUMN create_at SET NOT NULL,
+  ALTER COLUMN update_at SET NOT NULL;
+ALTER TABLE public.checkpoint_blobs
+  ALTER COLUMN create_at SET NOT NULL,
+  ALTER COLUMN update_at SET NOT NULL;
+ALTER TABLE public.checkpoint_writes
+  ALTER COLUMN create_at SET NOT NULL,
+  ALTER COLUMN update_at SET NOT NULL;
+
+ALTER TABLE public.checkpoint_writes
+  ADD COLUMN IF NOT EXISTS task_path text NOT NULL DEFAULT '';
+
+CREATE INDEX IF NOT EXISTS ix_checkpoints_create_at ON public.checkpoints (create_at);
+CREATE INDEX IF NOT EXISTS ix_checkpoint_blobs_create_at ON public.checkpoint_blobs (create_at);
+CREATE INDEX IF NOT EXISTS ix_checkpoint_writes_create_at ON public.checkpoint_writes (create_at);
+
+DROP TRIGGER IF EXISTS trg_checkpoints_set_update_at ON public.checkpoints;
+CREATE TRIGGER trg_checkpoints_set_update_at
+  BEFORE UPDATE ON public.checkpoints
+  FOR EACH ROW EXECUTE FUNCTION public.minerva_checkpoint_set_update_at();
+DROP TRIGGER IF EXISTS trg_checkpoint_blobs_set_update_at ON public.checkpoint_blobs;
+CREATE TRIGGER trg_checkpoint_blobs_set_update_at
+  BEFORE UPDATE ON public.checkpoint_blobs
+  FOR EACH ROW EXECUTE FUNCTION public.minerva_checkpoint_set_update_at();
+DROP TRIGGER IF EXISTS trg_checkpoint_writes_set_update_at ON public.checkpoint_writes;
+CREATE TRIGGER trg_checkpoint_writes_set_update_at
+  BEFORE UPDATE ON public.checkpoint_writes
+  FOR EACH ROW EXECUTE FUNCTION public.minerva_checkpoint_set_update_at();

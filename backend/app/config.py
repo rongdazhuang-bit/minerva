@@ -232,6 +232,34 @@ class Settings(BaseSettings):
             "agent_langgraph_checkpoint_pool_timeout",
         ),
     )
+    agent_langgraph_checkpoint_retention_days: int = Field(
+        default=7,
+        ge=1,
+        le=3650,
+        description="LangGraph checkpoint 行保留天数（按 create_at 清理）。",
+        validation_alias=AliasChoices(
+            "AGENT_LANGGRAPH_CHECKPOINT_RETENTION_DAYS",
+            "agent_langgraph_checkpoint_retention_days",
+        ),
+    )
+    agent_langgraph_checkpoint_cleanup_enabled: bool = Field(
+        default=True,
+        description="为 False 时 agent.checkpoint_purge 任务直接跳过。",
+        validation_alias=AliasChoices(
+            "AGENT_LANGGRAPH_CHECKPOINT_CLEANUP_ENABLED",
+            "agent_langgraph_checkpoint_cleanup_enabled",
+        ),
+    )
+    agent_langgraph_checkpoint_cleanup_batch_size: int = Field(
+        default=1000,
+        ge=1,
+        le=50_000,
+        description="checkpoint 清理每表每轮 DELETE 行数上限。",
+        validation_alias=AliasChoices(
+            "AGENT_LANGGRAPH_CHECKPOINT_CLEANUP_BATCH_SIZE",
+            "agent_langgraph_checkpoint_cleanup_batch_size",
+        ),
+    )
     agent_files_root: str = Field(
         default="",
         description="Agent 工作区文件沙箱根目录；空则使用 backend/data/agent-files。",

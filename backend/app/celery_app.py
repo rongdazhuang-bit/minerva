@@ -97,6 +97,7 @@ if celery_app is not None:
 
     _import_models()
     # Registers ``shared_task`` symbols (e.g. ``demo.default_job``) on this app for workers.
+    import app.agent.task.checkpoint_purge_job  # noqa: F401
     import app.file_ocr.task.scan_init_job  # noqa: F401
     import app.sys.celery.demo.default_job  # noqa: F401
 

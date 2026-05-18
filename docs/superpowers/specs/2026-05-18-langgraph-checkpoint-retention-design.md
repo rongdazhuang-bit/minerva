@@ -1,7 +1,7 @@
 # LangGraph Checkpoint 时间戳与保留清理设计
 
 **日期**：2026-05-18  
-**状态**：待实现  
+**状态**：已实现（2026-05-18）  
 **依据**：头脑风暴——为 `checkpoints` / `checkpoint_blobs` / `checkpoint_writes` 增加 `create_at`、`update_at`；`update_at` 由 PostgreSQL 触发器维护；按 `create_at` 可配置保留天数（默认 7 天）分批 DELETE；调度走现有 **`sys_celery` + `MinervaBeatScheduler`**；DDL 写入 **`schema_postgresql.sql`**，存量库幂等变更写入 **`agent_v2_langgraph_migration.sql`**（不新增 `patches/` 文件）。
 
 ---
@@ -243,13 +243,15 @@ PRIMARY KEY (thread_id, checkpoint_ns, checkpoint_id, task_id, idx)
 
 ---
 
-## 9. 实现对照（待回填）
+## 9. 实现对照（以代码为准，2026-05-18）
 
 | 项 | 代码 / SQL |
 |----|------------|
-| 新库 DDL | `backend/sql/schema_postgresql.sql` |
+| 新库 DDL | `backend/sql/schema_postgresql.sql`（LangGraph checkpoint 段） |
 | 存量迁移 | `backend/sql/agent_v2_langgraph_migration.sql` |
 | Settings | `backend/app/config.py` |
-| Celery 任务 | `agent.checkpoint_purge` |
+| 清理服务 | `backend/app/agent/service/checkpoint_purge_service.py` |
+| 常量 / lock key | `backend/app/agent/constants.py` → `2026051801` |
+| Celery 任务 | `backend/app/agent/task/checkpoint_purge_job.py` → `agent.checkpoint_purge` |
 | Beat 注册 | `backend/app/celery_app.py` |
-| Advisory lock key | 待定常量（实现计划中固定一个 int64） |
+| 测试 | `backend/tests/test_checkpoint_purge.py` |

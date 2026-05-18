@@ -426,7 +426,7 @@ Agent **不**直接调用 `app/llm` 的手写循环；统一经 LangChain `ChatO
 1. **新增 Skill**：遵循 §6.4；Planner 路由写在 `SKILL.md`，避免在代码中硬编码分支。
 2. **调优延迟**：记忆 persist 已后台化；若 Planner 慢，可减少 `agent_max_plan_steps` 或优化模型。
 3. **沙箱磁盘**：定期清理 `data/agent-files/workspaces/*` 或配置独立卷。
-4. **Checkpoint**：生产需 PostgreSQL 可用且 `agent_langgraph_checkpoint_enabled=true`；失败时自动降级为无 checkpoint 运行。
+4. **Checkpoint**：生产需 PostgreSQL 可用且 `agent_langgraph_checkpoint_enabled=true`；失败时自动降级为无 checkpoint 运行。表 `checkpoints` / `checkpoint_blobs` / `checkpoint_writes` 含 `create_at`（清理依据）与 `update_at`（UPDATE 触发器维护）。保留天数由 `agent_langgraph_checkpoint_retention_days`（默认 7）控制；Celery 任务 `agent.checkpoint_purge` 经 **`sys_celery`** 调度（`task_code=agent_checkpoint_purge`，建议 cron `0 0 3 * * *`），全站仅需一条启用记录。存量库执行 `backend/sql/agent_v2_langgraph_migration.sql`。
 5. **观测**：结合 `agent_run` / `agent_run_node` 表与 SSE 日志排查失败 Run。
 
 ---
