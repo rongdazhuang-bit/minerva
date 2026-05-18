@@ -41,6 +41,7 @@ import {
 import { ApiError } from '@/api/client'
 import { listModelProviders, type ModelProviderListItem } from '@/api/modelProviders'
 import { useAuth } from '@/app/AuthContext'
+import { copyTextToClipboard } from '@/components/markdown/copyToClipboard'
 import { AgentAssistantMarkdown } from '@/features/workspace/AgentAssistantMarkdown'
 import './AgentsPage.css'
 
@@ -95,6 +96,8 @@ export function AgentsPage() {
   const [traceOpenKeys, setTraceOpenKeys] = useState<string[]>([])
   const abortRef = useRef<AbortController | null>(null)
   const listEndRef = useRef<HTMLDivElement | null>(null)
+  /** Main session message list scroll container. */
+  const chatScrollRef = useRef<HTMLDivElement | null>(null)
   /** Sidebar history list scroll container (infinite session pagination). */
   const historyScrollRef = useRef<HTMLDivElement | null>(null)
   /** Sentinel at list bottom for IntersectionObserver-based pagination. */
@@ -147,6 +150,39 @@ export function AgentsPage() {
   const handleHistoryScroll = useCallback(() => {
     maybeLoadMoreSessions()
   }, [maybeLoadMoreSessions])
+
+  /** Forward vertical wheel over Q&A markdown to the main session scroller. */
+  const handleMessageAreaWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    const chat = chatScrollRef.current
+    if (!chat || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) {
+      return
+    }
+    const target = e.target
+    if (!(target instanceof HTMLElement)) {
+      return
+    }
+    const horizontalPane = target.closest(
+      '.minerva-md-table-scroll, .minerva-md-syntax, .minerva-md-pre, .minerva-md-mermaid',
+    )
+    if (horizontalPane instanceof HTMLElement && Math.abs(e.deltaX) > 0) {
+      const canScrollX = horizontalPane.scrollWidth > horizontalPane.clientWidth + 1
+      const atLeft = horizontalPane.scrollLeft <= 0
+      const atRight =
+        horizontalPane.scrollLeft + horizontalPane.clientWidth >= horizontalPane.scrollWidth - 1
+      if (canScrollX && ((e.deltaX < 0 && !atLeft) || (e.deltaX > 0 && !atRight))) {
+        return
+      }
+    }
+    const maxScroll = chat.scrollHeight - chat.clientHeight
+    if (maxScroll <= 0) {
+      return
+    }
+    const prev = chat.scrollTop
+    chat.scrollTop = Math.max(0, Math.min(maxScroll, prev + e.deltaY))
+    if (chat.scrollTop !== prev) {
+      e.preventDefault()
+    }
+  }, [])
 
   /** Keep wheel inside history scroller; load more when already at bottom. */
   const handleHistoryWheel = useCallback(
@@ -245,12 +281,9 @@ export function AgentsPage() {
   /** 将单条消息正文写入剪贴板（助手为原始 Markdown）。 */
   const copyMessageBody = useCallback(
     async (text: string) => {
-      try {
-        await navigator.clipboard.writeText(text)
-        antdMessage.success(t('agents.copySuccess'))
-      } catch {
-        antdMessage.error(t('agents.copyFailed'))
-      }
+      const ok = await copyTextToClipboard(text)
+      if (ok) antdMessage.success(t('agents.copySuccess'))
+      else antdMessage.error(t('agents.copyFailed'))
     },
     [t],
   )
@@ -676,7 +709,8 @@ export function AgentsPage() {
 
       <div className="agents-page__main">
         <div
-          className={`agents-page__scroll minerva-scrollbar-styled${showHero ? ' agents-page__scroll--hero' : ''}`}
+          ref={chatScrollRef}
+          className={`agents-page__scroll minerva-scrollbar-thin${showHero ? ' agents-page__scroll--hero' : ''}`}
         >
           {!workspaceId ? (
             <Alert type="warning" message={t('agents.noWorkspace')} showIcon />
@@ -762,11 +796,19 @@ export function AgentsPage() {
                       <Spin size="small" style={{ marginTop: 4 }} />
                     ) : null}
                     {m.role === 'assistant' ? (
-                      <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                      <div
+                        className="agents-page__msg-body"
+                        style={{ flex: 1, minWidth: 0, textAlign: 'left' }}
+                        onWheel={handleMessageAreaWheel}
+                      >
                         <AgentAssistantMarkdown markdown={m.content} />
                       </div>
                     ) : (
-                      <div className="agents-page__md-user-wrap" style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        className="agents-page__md-user-wrap agents-page__msg-body"
+                        style={{ flex: 1, minWidth: 0 }}
+                        onWheel={handleMessageAreaWheel}
+                      >
                         <AgentAssistantMarkdown markdown={m.content} />
                       </div>
                     )}

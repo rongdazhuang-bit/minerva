@@ -117,6 +117,97 @@ html.minerva-tone-sunshine
 }
 
 /*
+ * 4px thin bar + transparent track (agent chat list, message markdown overflow, inputs).
+ */
+.minerva-scrollbar-thin,
+.agents-page .minerva-md-table-scroll,
+.agents-page .minerva-md-pre,
+.agents-page .minerva-md-mermaid,
+.agents-page .minerva-md-syntax {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(148 163 184 / 0.5) transparent;
+  overscroll-behavior: contain;
+}
+
+.minerva-scrollbar-thin::-webkit-scrollbar,
+.agents-page .minerva-md-table-scroll::-webkit-scrollbar,
+.agents-page .minerva-md-pre::-webkit-scrollbar,
+.agents-page .minerva-md-mermaid::-webkit-scrollbar,
+.agents-page .minerva-md-syntax::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.minerva-scrollbar-thin::-webkit-scrollbar-button,
+.agents-page .minerva-md-table-scroll::-webkit-scrollbar-button,
+.agents-page .minerva-md-pre::-webkit-scrollbar-button,
+.agents-page .minerva-md-mermaid::-webkit-scrollbar-button,
+.agents-page .minerva-md-syntax::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.minerva-scrollbar-thin::-webkit-scrollbar-track,
+.agents-page .minerva-md-table-scroll::-webkit-scrollbar-track,
+.agents-page .minerva-md-pre::-webkit-scrollbar-track,
+.agents-page .minerva-md-mermaid::-webkit-scrollbar-track,
+.agents-page .minerva-md-syntax::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.minerva-scrollbar-thin::-webkit-scrollbar-thumb,
+.agents-page .minerva-md-table-scroll::-webkit-scrollbar-thumb,
+.agents-page .minerva-md-pre::-webkit-scrollbar-thumb,
+.agents-page .minerva-md-mermaid::-webkit-scrollbar-thumb,
+.agents-page .minerva-md-syntax::-webkit-scrollbar-thumb {
+  min-height: 28px;
+  min-width: 28px;
+  background: rgb(148 163 184 / 0.42);
+  border-radius: 999px;
+}
+
+.minerva-scrollbar-thin::-webkit-scrollbar-thumb:hover,
+.agents-page .minerva-md-table-scroll::-webkit-scrollbar-thumb:hover,
+.agents-page .minerva-md-pre::-webkit-scrollbar-thumb:hover,
+.agents-page .minerva-md-mermaid::-webkit-scrollbar-thumb:hover,
+.agents-page .minerva-md-syntax::-webkit-scrollbar-thumb:hover {
+  background: rgb(125 211 252 / 0.62);
+}
+
+.minerva-scrollbar-thin::-webkit-scrollbar-corner,
+.agents-page .minerva-md-table-scroll::-webkit-scrollbar-corner,
+.agents-page .minerva-md-pre::-webkit-scrollbar-corner,
+.agents-page .minerva-md-mermaid::-webkit-scrollbar-corner,
+.agents-page .minerva-md-syntax::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+html.minerva-tone-sunshine .minerva-scrollbar-thin,
+html.minerva-tone-sunshine .agents-page .minerva-md-table-scroll,
+html.minerva-tone-sunshine .agents-page .minerva-md-pre,
+html.minerva-tone-sunshine .agents-page .minerva-md-mermaid,
+html.minerva-tone-sunshine .agents-page .minerva-md-syntax {
+  scrollbar-color: rgb(100 116 139 / 0.55) transparent;
+}
+
+html.minerva-tone-sunshine .minerva-scrollbar-thin::-webkit-scrollbar-thumb,
+html.minerva-tone-sunshine .agents-page .minerva-md-table-scroll::-webkit-scrollbar-thumb,
+html.minerva-tone-sunshine .agents-page .minerva-md-pre::-webkit-scrollbar-thumb,
+html.minerva-tone-sunshine .agents-page .minerva-md-mermaid::-webkit-scrollbar-thumb,
+html.minerva-tone-sunshine .agents-page .minerva-md-syntax::-webkit-scrollbar-thumb {
+  background: rgb(100 116 139 / 0.38);
+}
+
+html.minerva-tone-sunshine .minerva-scrollbar-thin::-webkit-scrollbar-thumb:hover,
+html.minerva-tone-sunshine .agents-page .minerva-md-table-scroll::-webkit-scrollbar-thumb:hover,
+html.minerva-tone-sunshine .agents-page .minerva-md-pre::-webkit-scrollbar-thumb:hover,
+html.minerva-tone-sunshine .agents-page .minerva-md-mermaid::-webkit-scrollbar-thumb:hover,
+html.minerva-tone-sunshine .agents-page .minerva-md-syntax::-webkit-scrollbar-thumb:hover {
+  background: rgb(59 130 246 / 0.5);
+}
+
+/*
  * Card / list pages: Ant Design Table body scrollbar + container (reference: OCR settings).
  * Use on Table className together with scroll.y + sticky where the table body should scroll.
  */

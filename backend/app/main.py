@@ -42,7 +42,16 @@ _cors: dict = {
     "allow_methods": ["*"],
     "allow_headers": ["*"],
 }
+# Dev: localhost/127.0.0.1 plus RFC1918 LAN hosts (e.g. http://192.168.x.x:5173).
+_DEV_CORS_ORIGIN_REGEX = (
+    r"^https?://("
+    r"127\.0\.0\.1|localhost|"
+    r"10(?:\.\d{1,3}){3}|"
+    r"192\.168(?:\.\d{1,3}){2}|"
+    r"172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}"
+    r")(:\d+)?$"
+)
 if settings.app_env in ("dev", "development", "local", "test"):
-    _cors["allow_origin_regex"] = r"^https?://(127\.0\.0\.1|localhost)(:\d+)?$"
+    _cors["allow_origin_regex"] = _DEV_CORS_ORIGIN_REGEX
 app.add_middleware(CORSMiddleware, **_cors)
 app.include_router(api)

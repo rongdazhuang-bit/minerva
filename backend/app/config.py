@@ -12,11 +12,11 @@ _BACKEND_DIR = Path(__file__).resolve().parent.parent  # backend/ root (parent o
 
 
 def _discover_app_env() -> str:
-    """APP_ENV: shell / process env 优先，其次从根 .env 里读取，默认 dev。"""
+    """APP_ENV: shell / process env 优先，其次从根 .env.dev 里读取，默认 dev。"""
     v = os.environ.get("APP_ENV", "").strip()
     if v:
         return v
-    base = _BACKEND_DIR / ".env"
+    base = _BACKEND_DIR / ".env.dev"
     if not base.is_file():
         return "dev"
     try:
@@ -32,10 +32,10 @@ def _discover_app_env() -> str:
 
 
 def _env_file_paths() -> tuple[str, ...] | None:
-    """多环境：先 .env 共享配置，再 .env.<APP_ENV> 覆盖（文件存在才加载）。"""
+    """多环境：先 .env.dev 共享配置，再 .env.dev.<APP_ENV> 覆盖（文件存在才加载）。"""
     app_env = _discover_app_env()
     out: list[str] = []
-    for name in (".env", f".env.{app_env}"):
+    for name in (".env.dev", f".env.dev.{app_env}"):
         p = _BACKEND_DIR / name
         if p.is_file():
             out.append(str(p))
@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     app_name: str = "minerva-api"
     app_env: str = Field(
         default=_APP_ENV,
-        description="运行环境名。优先通过环境变量 APP_ENV 或根 .env 中的 APP_ENV 选择要合并的 .env.<name> 文件。",
+        description="运行环境名。优先通过环境变量 APP_ENV 或根 .env.dev 中的 APP_ENV 选择要合并的 .env.dev.<name> 文件。",
         validation_alias=AliasChoices("APP_ENV", "app_env"),
     )
     database_url: str = Field(
@@ -200,6 +200,36 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices(
             "AGENT_LANGGRAPH_CHECKPOINT_ENABLED",
             "agent_langgraph_checkpoint_enabled",
+        ),
+    )
+    agent_langgraph_checkpoint_pool_min_size: int = Field(
+        default=1,
+        ge=1,
+        le=32,
+        description="LangGraph checkpoint 专用 psycopg 连接池最小连接数。",
+        validation_alias=AliasChoices(
+            "AGENT_LANGGRAPH_CHECKPOINT_POOL_MIN_SIZE",
+            "agent_langgraph_checkpoint_pool_min_size",
+        ),
+    )
+    agent_langgraph_checkpoint_pool_max_size: int = Field(
+        default=8,
+        ge=1,
+        le=64,
+        description="LangGraph checkpoint 专用 psycopg 连接池最大连接数。",
+        validation_alias=AliasChoices(
+            "AGENT_LANGGRAPH_CHECKPOINT_POOL_MAX_SIZE",
+            "agent_langgraph_checkpoint_pool_max_size",
+        ),
+    )
+    agent_langgraph_checkpoint_pool_timeout: float = Field(
+        default=60.0,
+        ge=5.0,
+        le=300.0,
+        description="从 checkpoint 连接池获取连接的超时时间（秒）。",
+        validation_alias=AliasChoices(
+            "AGENT_LANGGRAPH_CHECKPOINT_POOL_TIMEOUT",
+            "agent_langgraph_checkpoint_pool_timeout",
         ),
     )
     agent_files_root: str = Field(

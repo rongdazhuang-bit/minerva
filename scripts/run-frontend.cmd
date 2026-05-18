@@ -1,6 +1,8 @@
 @echo off
 setlocal EnableExtensions
 REM 在仓库根目录启动 Vite 前端。可选: set MINERVA_FRONTEND_PORT=3000
+REM 局域网: host 已绑定 0.0.0.0；其它设备用终端里 Network 地址访问（需后端已 run-backend.cmd）。
+REM 开发默认经 Vite 代理连本机 API；代理目标可用 MINERVA_DEV_API_PROXY_TARGET 覆盖。
 
 set "UI=%~dp0..\minerva-ui"
 

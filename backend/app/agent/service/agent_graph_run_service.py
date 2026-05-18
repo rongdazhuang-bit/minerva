@@ -7,6 +7,7 @@ import logging
 import uuid
 from collections.abc import AsyncIterator
 
+from psycopg_pool import PoolTimeout
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.domain.sse_v2 import (
@@ -20,7 +21,10 @@ from app.agent.graphs.state import AgentGraphState
 from app.agent.infrastructure import repository as agent_repo
 from app.agent.infrastructure.chat_history import agent_rows_to_langchain
 from app.agent.infrastructure.chat_model_factory import ChatModelFactory
-from app.agent.infrastructure.langgraph_checkpointer import get_langgraph_checkpointer
+from app.agent.infrastructure.langgraph_checkpointer import (
+    get_langgraph_checkpointer,
+    reset_langgraph_checkpointer,
+)
 from app.agent.infrastructure.memory_store import AgentMemoryStore
 from app.agent.service.memory_persist_service import schedule_persist_turn_memory_background
 from app.config import settings
@@ -43,6 +47,25 @@ class AgentGraphRunService:
             checkpointer = await get_langgraph_checkpointer()
             self._graph = build_main_graph(checkpointer=checkpointer)
         return self._graph
+
+    async def _ainvoke_with_checkpoint_recovery(
+        self,
+        graph,
+        initial: AgentGraphState,
+        run_config: dict,
+    ) -> AgentGraphState:
+        """Run the graph; rebuild the checkpoint pool once on ``PoolTimeout``."""
+
+        try:
+            return await graph.ainvoke(initial, config=run_config)
+        except PoolTimeout as e:
+            log.warning(
+                "checkpoint pool timeout during agent run, rebuilding pool: %s", e
+            )
+            await reset_langgraph_checkpointer()
+            self._graph = None
+            graph = await self._get_graph()
+            return await graph.ainvoke(initial, config=run_config)
 
     async def run_stream_sse(
         self,
@@ -177,7 +200,9 @@ class AgentGraphRunService:
                     }
                 }
 
-                final_state = await graph.ainvoke(initial, config=run_config)
+                final_state = await self._ainvoke_with_checkpoint_recovery(
+                    graph, initial, run_config
+                )
 
                 final_answer = (final_state.get("final_answer") or "").strip()
                 if final_answer:

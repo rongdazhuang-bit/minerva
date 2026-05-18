@@ -365,6 +365,45 @@ html.minerva-tone-sunshine .agents-page__composer-input::-webkit-scrollbar-thumb
   padding: 8px;
   border-radius: 0;
   background: rgba(0, 0, 0, 0.2);
+  scrollbar-width: thin;
+  scrollbar-color: rgb(148 163 184 / 0.5) transparent;
+}
+
+/* 运行过程 / 模型思考：细纵向滚动条（与输入框一致） */
+.agents-page__process::-webkit-scrollbar {
+  width: 4px;
+}
+
+.agents-page__process::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.agents-page__process::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.agents-page__process::-webkit-scrollbar-thumb {
+  min-height: 28px;
+  background: rgb(148 163 184 / 0.42);
+  border-radius: 999px;
+}
+
+.agents-page__process::-webkit-scrollbar-thumb:hover {
+  background: rgb(125 211 252 / 0.62);
+}
+
+html.minerva-tone-sunshine .agents-page__process {
+  scrollbar-color: rgb(100 116 139 / 0.55) transparent;
+}
+
+html.minerva-tone-sunshine .agents-page__process::-webkit-scrollbar-thumb {
+  background: rgb(100 116 139 / 0.38);
+}
+
+html.minerva-tone-sunshine .agents-page__process::-webkit-scrollbar-thumb:hover {
+  background: rgb(59 130 246 / 0.5);
 }
 
 /* 助手气泡内折叠：与机器人图标区视觉紧凑 */

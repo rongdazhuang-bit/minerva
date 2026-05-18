@@ -38,7 +38,7 @@ Minerva是一个基于现代技术栈构建的企业级智能应用平台，采�
 **Linux / macOS：**
 
 ```bash
-cp backend/.env.example backend/.env
+cp backend/.env.dev.example backend/.env.dev
 ```
 
 **Windows (PowerShell)：**
@@ -135,7 +135,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
    ```bash
    cd minerva-ui
-   cp .env.example .env
+   cp .env.dev.example .env.dev
    ```
 
 2. 确认 `.env` 中 `VITE_API_BASE_URL` 指向本机 API，例如：

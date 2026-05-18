@@ -294,6 +294,13 @@ $$`
     expect(out).not.toContain('math-inline')
   })
 
+  it('escapes pipes inside inline math in GFM table cells (Parseval absolute value)', () => {
+    const input = `| **Parseval 定理** | $\\sum_{n=0}^{N-1} |x[n]|^2 = \\frac{1}{N} \\sum_{k=0}^{N-1} |X[k]|^2$ | 保证时域与频域能量守恒。 |`
+    const out = normalizeMarkdownForAgent(input)
+    expect(out).toContain('\\|x[n]\\|')
+    expect(out).toContain('\\|X[k]\\|')
+  })
+
   it('converts LaTeX bracket delimiters in Euler formula sample', () => {
     const out = normalizeMarkdownForAgent(EULER_FORMULAS_MARKDOWN)
     expect(out).not.toContain('\\[')

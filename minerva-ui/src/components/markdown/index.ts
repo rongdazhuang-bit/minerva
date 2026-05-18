@@ -25,6 +25,7 @@ export {
   normalizeSelectiveDisplayMathFencesForRemarkMath,
   mapOutsideGfmTableRows,
   ensureBlankLineBeforeDisplayMathFences,
+  trimLeadingWhitespaceOnDisplayMathFenceLines,
   unindentDisplayMathFenceLines,
   unindentIndentedListContinuations,
   wrapBareLatexTextCommands,

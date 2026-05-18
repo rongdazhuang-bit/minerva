@@ -38,7 +38,7 @@ Copy `backend/.env.example` to `backend/.env` (if there's another `.env.example`
 **Linux / macOS:**
 
 ```bash
-cp backend/.env.example backend/.env
+cp backend/.env.dev.example backend/.env.dev
 ```
 
 **Windows (PowerShell):**
@@ -135,7 +135,7 @@ Open another terminal and operate in the **`minerva-ui` directory**:
 
    ```bash
    cd minerva-ui
-   cp .env.example .env
+   cp .env.dev.example .env.dev
    ```
 
 2. Confirm `VITE_API_BASE_URL` in `.env` points to local API, for example:

@@ -3,10 +3,40 @@
   text-align: right;
 }
 
+.agents-page__md-user-wrap .minerva-md-table-scroll,
 .agents-page__md-user-wrap .minerva-md-syntax-host,
 .agents-page__md-user-wrap .minerva-md-syntax,
 .agents-page__md-user-wrap .minerva-md-mermaid,
 .agents-page__md-user-wrap .minerva-md-pre {
   text-align: left;
   direction: ltr;
+}
+
+/*
+ * 智能体问答区：外层不参与滚动（避免抢滚轮）；仅宽表/代码横向滚动。
+ * 纵向滚轮由 .agents-page__scroll 承接（见 AgentsPage handleMessageAreaWheel）。
+ */
+.agents-page .minerva-md-wrap {
+  overflow: visible;
+}
+
+.agents-page .minerva-md-syntax-host {
+  overflow: visible;
+}
+
+.agents-page .minerva-md-table-scroll,
+.agents-page .minerva-md-syntax,
+.agents-page .minerva-md-pre,
+.agents-page .minerva-md-mermaid {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overflow-y: clip;
+  max-height: none !important;
+  overscroll-behavior-y: auto;
+}
+
+.agents-page .minerva-md-syntax pre,
+.agents-page .minerva-md-syntax code {
+  max-height: none !important;
 }

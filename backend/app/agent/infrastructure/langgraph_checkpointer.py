@@ -32,6 +32,37 @@ def _checkpoint_dsn() -> str:
     return raw
 
 
+def _checkpoint_pool_sizes() -> tuple[int, int]:
+    """Return validated ``(min_size, max_size)`` for the checkpoint pool."""
+
+    min_size = settings.agent_langgraph_checkpoint_pool_min_size
+    max_size = max(
+        settings.agent_langgraph_checkpoint_pool_max_size,
+        min_size,
+    )
+    return min_size, max_size
+
+
+def _create_checkpoint_pool() -> AsyncConnectionPool:
+    """Build a psycopg async pool for LangGraph checkpoint reads/writes."""
+
+    min_size, max_size = _checkpoint_pool_sizes()
+    timeout = settings.agent_langgraph_checkpoint_pool_timeout
+    return AsyncConnectionPool(
+        conninfo=_checkpoint_dsn(),
+        open=False,
+        min_size=min_size,
+        max_size=max_size,
+        timeout=timeout,
+        kwargs={
+            "autocommit": True,
+            "prepare_threshold": 0,
+            "row_factory": dict_row,
+        },
+        check=AsyncConnectionPool.check_connection,
+    )
+
+
 async def get_langgraph_checkpointer() -> BaseCheckpointSaver | None:
     """Return a shared checkpointer, or ``None`` if disabled or setup failed."""
 
@@ -45,20 +76,20 @@ async def get_langgraph_checkpointer() -> BaseCheckpointSaver | None:
     try:
         from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
-        _pool = AsyncConnectionPool(
-            conninfo=_checkpoint_dsn(),
-            kwargs={
-                "autocommit": True,
-                "prepare_threshold": 0,
-                "row_factory": dict_row,
-            },
-            check=AsyncConnectionPool.check_connection,
-        )
-        await _pool.open()
+        min_size, max_size = _checkpoint_pool_sizes()
+        timeout = settings.agent_langgraph_checkpoint_pool_timeout
+        _pool = _create_checkpoint_pool()
+        await _pool.open(wait=True, timeout=timeout)
         saver = AsyncPostgresSaver(conn=_pool)
         await saver.setup()
         _checkpointer = saver
-        log.info("LangGraph AsyncPostgresSaver ready (pool with connection pre-check)")
+        log.info(
+            "LangGraph AsyncPostgresSaver ready "
+            "(pool min=%s max=%s timeout=%ss, connection pre-check enabled)",
+            min_size,
+            max_size,
+            timeout,
+        )
     except Exception as e:
         log.warning("LangGraph checkpoint disabled: %s", e)
         _checkpointer = None
@@ -70,6 +101,13 @@ async def get_langgraph_checkpointer() -> BaseCheckpointSaver | None:
             _pool = None
     _setup_done = True
     return _checkpointer
+
+
+async def reset_langgraph_checkpointer() -> BaseCheckpointSaver | None:
+    """Close and recreate the checkpoint pool (recovery after pool timeouts)."""
+
+    await close_langgraph_checkpointer()
+    return await get_langgraph_checkpointer()
 
 
 async def close_langgraph_checkpointer() -> None:

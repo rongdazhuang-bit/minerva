@@ -8,11 +8,13 @@ description: >-
   the layout template, including table scroll rules; (5) minerva-ui Ant Design forms:
   `allowClear` on text inputs and selects, and InputNumber limitations; (6) paginated
   lists: default 10 per page (shared constants in `app/pagination.py` and
-  `minerva-ui/src/constants/pagination.ts`). Use when adding
+  `minerva-ui/src/constants/pagination.ts`); (7) minerva-ui scrollbar widths via shared
+  classes in `appLayoutScroll.css` (`minerva-scrollbar-thin` 4px vs
+  `minerva-scrollbar-styled` 5px). Use when adding
   or editing comments, documenting APIs, reviewing comment quality, scaffolding
   `app/sys/tool/<name>`, building settings/auth forms, enforcing comment rules repo-wide,
   or the user asks for
-  注释规范、注释说明规则、工具模块目录、表单可清除、表格滚动、或分页条数.
+  注释规范、注释说明规则、工具模块目录、表单可清除、表格滚动、分页条数、或滚动条粗细.
 ---
 
 # 代码注释规范（Minerva）
@@ -149,6 +151,36 @@ export const queryClient = ...
 - **后端**：自 `app.pagination` 引用 **`DEFAULT_PAGE_SIZE`** 作为 `Query(..., default=DEFAULT_PAGE_SIZE)` 等；新增分页列表端点沿用同一常量。
 - **例外**：在客户端**循环拉全量**（如合并多页直到 `total` 满足）时，为减少往返可对单次请求使用**不超过**接口 `le` 上限的较大 `page_size`；这不改变「用户打开列表时看到的」默认 10 条约定。
 
+### minerva-ui：滚动条粗细（统一尺寸）
+
+可滚动区域的滚动条**不得**依赖浏览器默认粗条（Windows 上约 12–17px）。样式集中在 **`minerva-ui/src/app/layout/appLayoutScroll.css`**（由 `AppLayout` 引入）；新增可滚动容器时**复用既有 class**，勿在业务 CSS 里另写 `width: 8px` 等一次性尺寸。
+
+| 档位 | WebKit `width` / `height` | 工具 class / 选择器 | 适用场景 |
+|------|---------------------------|---------------------|----------|
+| **细（4px）** | `4px` | `minerva-scrollbar-thin` | 嵌套小面板、智能体对话主列表（`.agents-page__scroll`）、Modal/`Drawer` 的 `classNames.body`、Ant Design `TextArea`（`classNames.textarea`）、智能体输入框与「运行过程」等需弱视觉占位的纵向区 |
+| **标准（5px）** | `5px` | `minerva-scrollbar-styled`、`.minerva-app-sider-scroll`、`.minerva-app-main-scroll` | 应用壳侧栏/主区、通用页内纵向滚动、Cron 下拉虚拟列表等需略强对比的滚动 |
+| **表格体（5px）** | `5px` | `minerva-card-table-scroll-ocr`、`minerva-table-body-scrollbar-ocr` 下的 `.ant-table-body` | 带 `scroll.y` + `sticky` 的表格体（见下文「表格滚动规则」）；透明轨道 + 圆角滑块，与 OCR 设置页一致 |
+
+**细条（4px）约定**
+
+- 在滚动容器 DOM 上添加 **`minerva-scrollbar-thin`**（与 `overflow: auto` 同元素）。
+- Firefox：`scrollbar-width: thin`；轨道 **透明**；滑块圆角胶囊；**隐藏** `::-webkit-scrollbar-button`。
+- **智能体对话**内 Markdown 横向溢出（`.minerva-md-table-scroll`、`.minerva-md-pre`、`.minerva-md-mermaid`、`.minerva-md-syntax`）已在 `appLayoutScroll.css` 中通过 **`.agents-page` 作用域**套用细条；**`.minerva-md-wrap` 本身不滚动**。
+- **智能体问答区**不设内嵌**纵向**滚动：`AgentAssistantMarkdown.css` 令 wrap `overflow: visible`；宽表用 `AgentTableBlock` 包裹；纵向滚轮由 `.agents-page__scroll` 承接（`AgentsPage` 的 `handleMessageAreaWheel` 转发）。
+- 若某页局部样式与细条重复（如 `AgentsPage.css` 的 `.agents-page__composer-input`、`.agents-page__process`），须与 `minerva-scrollbar-thin` **同量级（4px）**；优先改为直接使用 `minerva-scrollbar-thin`，避免两套数值漂移。
+
+**标准条（5px）约定**
+
+- 模态框、设置页长表单等：`classNames={{ body: 'minerva-scrollbar-styled' }}`（或 `textarea: 'minerva-scrollbar-styled'`）。
+- 主内容区纵向滚动：`.minerva-app-main-scroll`（含 `scrollbar-gutter: stable`）。
+
+**禁止**
+
+- 可滚动区既不挂上述 class、也不在 `appLayoutScroll.css` 登记的选择器内，却指望「以后再说」——会回退为系统粗滚动条。
+- 为单页发明第三档宽度（如 6px、8px）；若确需新档位，**先改** `appLayoutScroll.css` 并更新本 Skill。
+
+**与主题**：`html.minerva-tone-sunshine` 下 thumb/track 色值已在 `appLayoutScroll.css` 成对维护；业务文件只挂 class，不复制 sunshine 覆盖块。
+
 ## Python
 
 - **硬性规则落地**：每个 **class**、每个 **def**（含 `_` 前缀私有方法）须有 docstring 或紧邻块注释；模块级变量与类属性须有说明（见「硬性规则」节）。
@@ -267,3 +299,4 @@ app/sys/tool/<name>/
 1. **右侧页面不滚动**：保持外层容器 `overflow: hidden`，不要让主内容区随表格数据量出现整页纵向滚动。
 2. **仅表格体滚动 + 表头固定**：表格使用 `scroll.y`（限制表格体高度）和 `sticky`（固定表头），确保大量数据时只滚动表格内容区。
 3. **滚动条按需显示**：表格体滚动容器使用 `overflow: auto`，默认不展示滚动条，仅在内容溢出时显示（避免常驻滚动条影响视觉）。
+4. **滚动条尺寸**：表格体使用 **`minerva-card-table-scroll-ocr`** 或 **`minerva-table-body-scrollbar-ocr`**（WebKit **5px**，见上文「minerva-ui：滚动条粗细」）；与智能体消息内嵌 Markdown 的 **4px 细条**不可混用同一容器上的两套自定义宽度。

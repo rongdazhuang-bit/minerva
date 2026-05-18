@@ -10,7 +10,7 @@ const CJK_RUN_RE = /^[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]+/
 
 /** Typical LaTeX commands in real formulas (not model prose wrongly wrapped in ``$...$``). */
 const LATEX_MATH_COMMAND_RE =
-  /\\(?:frac|sum|int|prod|lim|sqrt|omega|pi|alpha|beta|gamma|cdot|times|to|infty|partial|mathbf|mathrm|left|right|begin|end)\b/
+  /\\(?:dfrac|tfrac|frac|sum|int|prod|lim|sqrt|omega|pi|alpha|beta|gamma|cdot|times|to|infty|partial|mathbf|mathrm|left|right|begin|end|vec|Rightarrow|quad)\b/
 
 /** Parenthesized TeX that models often emit without ``$`` delimiters. */
 const BARE_TEX_IN_PARENS_RE = /([（(])\s*(\\[a-zA-Z][^）)\n]*?)\s*([）)])/g
@@ -640,7 +640,23 @@ export function unindentIndentedListContinuations(text: string): string {
 }
 
 /**
- * List items often indent ``$$`` by 4+ spaces; GFM then treats the line as code, not math.
+ * Trim leading whitespace on ``$$`` fence lines (models often indent 1–3 spaces after prose).
+ */
+export function trimLeadingWhitespaceOnDisplayMathFenceLines(text: string): string {
+  return text
+    .split('\n')
+    .map((line) => {
+      const trimmed = line.trimStart()
+      if (trimmed === '$$' || trimmed.startsWith('$$')) {
+        return trimmed
+      }
+      return line
+    })
+    .join('\n')
+}
+
+/**
+ * List items often indent ``$$``; GFM may treat 4+ spaces as code, 1–3 as broken flow math.
  */
 export function unindentDisplayMathFenceLines(text: string): string {
   const lines = text.split('\n')
@@ -648,7 +664,7 @@ export function unindentDisplayMathFenceLines(text: string): string {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
-    const openMatch = /^(\s{4,})(\$\$)(.*)$/.exec(line)
+    const openMatch = /^(\s{1,})(\$\$)(.*)$/.exec(line)
     if (!openMatch) {
       out.push(line)
       continue
@@ -715,7 +731,7 @@ function displayMathNeedsFlowFence(body: string): boolean {
   if (!trimmed) return false
   if (/\\tag\*?/.test(trimmed) || /\\begin\{/.test(trimmed)) return true
 
-  const fracCount = (trimmed.match(/\\frac\{/g) ?? []).length
+  const fracCount = (trimmed.match(/\\(?:dfrac|tfrac|frac)\{/g) ?? []).length
   const textCount = (trimmed.match(/\\text\{/g) ?? []).length
   const eqCount = (trimmed.match(/=/g) ?? []).length
 
@@ -726,6 +742,10 @@ function displayMathNeedsFlowFence(body: string): boolean {
   if (textCount >= 1 && eqCount >= 1 && /\\times/.test(trimmed)) return true
 
   if (textCount >= 1 && eqCount >= 1 && trimmed.length >= 36) return true
+
+  if (/\\quad/.test(trimmed) && (textCount >= 1 || fracCount >= 1)) return true
+
+  if (/\\Rightarrow/.test(trimmed) && fracCount >= 1 && eqCount >= 1) return true
 
   if (eqCount === 1 && /\s=\s/.test(trimmed) && /\\(gamma|rho|nu|mu|theta|phi|psi)\b/i.test(trimmed)) {
     return true
@@ -776,6 +796,58 @@ function isGfmTableRow(line: string): boolean {
 }
 
 /**
+ * Escape unescaped ``|`` inside a ``$...$`` / ``$$...$$`` fragment (GFM table column delimiter).
+ */
+function escapePipesInMathFragment(fragment: string): string {
+  return fragment.replace(/(?<!\\)\|/g, '\\|')
+}
+
+/**
+ * On one GFM table row, escape ``|`` inside math spans so ``|x[n]|`` does not split columns.
+ */
+export function escapePipesInTableRowMath(line: string): string {
+  if (!isGfmTableRow(line) || !line.includes('$')) return line
+
+  let out = ''
+  let i = 0
+  const n = line.length
+
+  while (i < n) {
+    if (line[i] === '$' && i + 1 < n && line[i + 1] === '$') {
+      const close = line.indexOf('$$', i + 2)
+      if (close < 0) {
+        out += line.slice(i)
+        break
+      }
+      out += escapePipesInMathFragment(line.slice(i, close + 2))
+      i = close + 2
+      continue
+    }
+
+    if (line[i] === '$') {
+      const close = indexOfUnescapedDollar(line, i + 1)
+      if (close < 0) {
+        out += line.slice(i)
+        break
+      }
+      out += escapePipesInMathFragment(line.slice(i, close + 1))
+      i = close + 1
+      continue
+    }
+
+    const nextInline = indexOfUnescapedDollar(line, i)
+    const nextDisplay = line.indexOf('$$', i)
+    let end = n
+    if (nextInline >= 0) end = Math.min(end, nextInline)
+    if (nextDisplay >= 0) end = Math.min(end, nextDisplay)
+    out += line.slice(i, end)
+    i = end
+  }
+
+  return out
+}
+
+/**
  * Apply ``transform`` only outside contiguous GFM table row blocks (table math uses ``remarkMathInTableCells``).
  */
 export function mapOutsideGfmTableRows(text: string, transform: (chunk: string) => string): string {
@@ -794,7 +866,7 @@ export function mapOutsideGfmTableRows(text: string, transform: (chunk: string) 
     }
 
     while (i < lines.length && isGfmTableRow(lines[i])) {
-      out.push(lines[i])
+      out.push(escapePipesInTableRowMath(lines[i]))
       i++
     }
   }
@@ -817,11 +889,13 @@ export function normalizeMarkdownForAgent(markdown: string): string {
       ),
     )
     return mapOutsideGfmTableRows(base, (nonTable) =>
-      normalizeSelectiveDisplayMathFencesForRemarkMath(
-        normalizeInlineMathSpans(
-          mapOutsideDisplayMathFences(nonTable, (part) =>
-            repairMissingInlineMathClosers(
-              wrapBareTexInParentheses(normalizeLooseInlineMathDelimiters(part)),
+      trimLeadingWhitespaceOnDisplayMathFenceLines(
+        normalizeSelectiveDisplayMathFencesForRemarkMath(
+          normalizeInlineMathSpans(
+            mapOutsideDisplayMathFences(nonTable, (part) =>
+              repairMissingInlineMathClosers(
+                wrapBareTexInParentheses(normalizeLooseInlineMathDelimiters(part)),
+              ),
             ),
           ),
         ),

@@ -123,6 +123,9 @@ const PrismCodeWithCopy = memo(function PrismCodeWithCopy({
           fontSize: '0.88em',
           border: 'none',
           background: 'transparent',
+          maxHeight: 'none',
+          overflowX: 'auto',
+          overflowY: 'clip',
         }}
         showLineNumbers
         lineNumberStyle={{
@@ -211,6 +214,16 @@ function createPreBlock(richCode: boolean) {
 const AGENT_PRE_BLOCK = createPreBlock(true)
 const OCR_PRE_BLOCK = createPreBlock(false)
 
+/** Agent chat: wrap wide GFM tables for horizontal scroll without trapping vertical wheel. */
+function AgentTableBlock(props: ComponentProps<'table'>) {
+  const { children, ...rest } = props
+  return (
+    <div className="minerva-md-table-scroll">
+      <table {...rest}>{children}</table>
+    </div>
+  )
+}
+
 export type MinervaMarkdownProps = {
   /** Raw Markdown source. */
   markdown: string
@@ -242,13 +255,19 @@ export const MinervaMarkdown = memo(function MinervaMarkdown({
       : normalizeMarkdownForOcr(trimmed, images)
 
   return (
-    <div className="minerva-md-wrap">
+    <div
+      className={preset === 'agent' ? 'minerva-md-wrap minerva-md-wrap--agent' : 'minerva-md-wrap'}
+    >
       <div className="minerva-md">
         <ReactMarkdown
           urlTransform={minervaMarkdownUrlTransform}
           remarkPlugins={MINERVA_MARKDOWN_REMARK_PLUGINS}
           rehypePlugins={MINERVA_MARKDOWN_REHYPE_PLUGINS}
-          components={{ pre: preset === 'agent' ? AGENT_PRE_BLOCK : OCR_PRE_BLOCK }}
+          components={
+            preset === 'agent'
+              ? { pre: AGENT_PRE_BLOCK, table: AgentTableBlock }
+              : { pre: OCR_PRE_BLOCK }
+          }
         >
           {rendered}
         </ReactMarkdown>

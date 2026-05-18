@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # 在仓库根目录执行：启动 FastAPI 后端（默认 http://0.0.0.0:8000 ）；可选后台启动 Celery Worker
 # 环境变量：APP_ENV、MINERVA_BACKEND_PORT（覆盖端口，默认 8000）
+# 局域网：监听 0.0.0.0；其它设备可访问 http://<本机IP>:端口（开发环境 CORS 含私网段）。
 # 可选：MINERVA_SKIP_CELERY_WORKER=1 跳过 Worker；MINERVA_SKIP_CELERY_BEAT=1 跳过 Beat（定时调度依赖 Beat）。
 set -euo pipefail
 

@@ -3,6 +3,7 @@ setlocal EnableExtensions
 chcp 65001 >nul
 REM 在仓库根目录从「资源管理器」或 cmd 运行本脚本：启动 FastAPI 后端；可选同时拉起 Celery Worker（独立窗口）
 REM 环境变量：APP_ENV、MINERVA_BACKEND_PORT（覆盖端口，默认 8000）
+REM 局域网：--host 0.0.0.0，其它设备可访问 http://<本机IP>:端口（开发环境 CORS 含私网段）。
 REM 可选：MINERVA_SKIP_CELERY_WORKER=1 不拉起 Worker；MINERVA_SKIP_CELERY_BEAT=1 不拉起 Beat（定时任务依赖 Beat）。
 REM Windows 下 Worker 默认 ``solo`` 进程池（见 ``app.celery_app``）；若要 prefork：MINERVA_CELERY_USE_PREFORK=1。
 REM Beat 定时从 Postgres 加载 ``enabled`` + ``cron`` 的 ``sys_celery``，通过 broker 派发任务。
@@ -19,14 +20,14 @@ cd /d "%BACKEND%" || exit /b 1
 
 echo 目录: %BACKEND%  端口: %MINERVA_BACKEND_PORT%
 
-if exist "%BACKEND%\.venv\Scripts\python.exe" (
+if exist "%BACKEND%\minerva\Scripts\python.exe" (
   if /i not "%MINERVA_SKIP_CELERY_WORKER%"=="1" (
-    start "Minerva Celery Worker" cmd /k "cd /d ""%BACKEND%"" && ""%BACKEND%\.venv\Scripts\python.exe"" -m celery -A app.celery_app:celery_app worker --loglevel=INFO"
+    start "Minerva Celery Worker" cmd /k "cd /d ""%BACKEND%"" && ""%BACKEND%\minerva\Scripts\python.exe"" -m celery -A app.celery_app:celery_app worker --loglevel=INFO"
   )
   if /i not "%MINERVA_SKIP_CELERY_BEAT%"=="1" (
-    start "Minerva Celery Beat" cmd /k "cd /d ""%BACKEND%"" && ""%BACKEND%\.venv\Scripts\python.exe"" -m celery -A app.celery_app:celery_app beat --loglevel=INFO"
+    start "Minerva Celery Beat" cmd /k "cd /d ""%BACKEND%"" && ""%BACKEND%\minerva\Scripts\python.exe"" -m celery -A app.celery_app:celery_app beat --loglevel=INFO"
   )
-  "%BACKEND%\.venv\Scripts\python.exe" -m uvicorn app.main:app --reload --host 0.0.0.0 --port %MINERVA_BACKEND_PORT%
+  "%BACKEND%\minerva\Scripts\python.exe" -m uvicorn app.main:app --reload --host 0.0.0.0 --port %MINERVA_BACKEND_PORT%
   exit /b %ERRORLEVEL%
 )
 
