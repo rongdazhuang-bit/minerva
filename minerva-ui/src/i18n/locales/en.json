@@ -607,6 +607,7 @@
   "settings.modelProvidersAdd": "Add model",
   "settings.modelProvidersAddInGroup": "Add under this provider",
   "settings.modelProvidersEdit": "Edit model",
+  "settings.modelProvidersCopy": "Duplicate model",
   "settings.modelProvidersDelete": "Delete model",
   "settings.modelProvidersDeleteConfirm": "Delete this model record?",
   "settings.modelProvidersView": "View",

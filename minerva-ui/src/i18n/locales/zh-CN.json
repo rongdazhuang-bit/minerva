@@ -607,6 +607,7 @@
   "settings.modelProvidersAdd": "新增模型",
   "settings.modelProvidersAddInGroup": "在此供应商下新增",
   "settings.modelProvidersEdit": "编辑模型",
+  "settings.modelProvidersCopy": "复制模型",
   "settings.modelProvidersDelete": "删除模型",
   "settings.modelProvidersDeleteConfirm": "确认删除该模型记录？",
   "settings.modelProvidersView": "查看",

@@ -1,4 +1,4 @@
-import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined } from '@ant-design/icons'
+import { CopyOutlined, DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined } from '@ant-design/icons'
 import {
   Alert,
   Button,
@@ -96,6 +96,27 @@ function normModelConfigField(v: unknown): string | null {
   if (v == null) return null
   const s = String(v).trim()
   return s === '' ? null : s
+}
+
+/** 将详情转为表单值；编辑时省略凭据，复制新增时保留凭据。 */
+function detailToFormValues(detail: ModelProviderDetail, omitSecrets: boolean): FormValues {
+  const rawAuth = detail.auth_type
+  const authType = rawAuth != null ? canonicalOcrAuthType(rawAuth) || rawAuth : undefined
+  return {
+    provider_name: detail.provider_name,
+    model_name: detail.model_name,
+    model_type: detail.model_type,
+    enabled: detail.enabled,
+    load_balancing_enabled: detail.load_balancing_enabled,
+    auth_type: authType,
+    endpoint_url: detail.endpoint_url ?? '',
+    auth_name: detail.auth_name ?? '',
+    auth_passwd: omitSecrets ? '' : detail.auth_passwd ?? '',
+    api_key: omitSecrets ? '' : detail.api_key ?? '',
+    context_size: detail.context_size ?? null,
+    max_tokens_to_sample: detail.max_tokens_to_sample ?? null,
+    model_config: normModelConfigField(detail.model_config) ?? '',
+  }
 }
 
 /** 查看抽屉内上下两段 Descriptions 共用，保证两表标签/内容列对齐 */
@@ -305,24 +326,25 @@ export function ModelProvidersPage() {
     try {
       const detail = await getModelProvider(workspaceId, modelId)
       setEditingBase(detail)
-      const rawAuth = detail.auth_type
-      const authType =
-        rawAuth != null ? canonicalOcrAuthType(rawAuth) || rawAuth : undefined
-      form.setFieldsValue({
-        provider_name: detail.provider_name,
-        model_name: detail.model_name,
-        model_type: detail.model_type,
-        enabled: detail.enabled,
-        load_balancing_enabled: detail.load_balancing_enabled,
-        auth_type: authType,
-        endpoint_url: detail.endpoint_url ?? '',
-        auth_name: detail.auth_name ?? '',
-        auth_passwd: '',
-        api_key: '',
-        context_size: detail.context_size ?? null,
-        max_tokens_to_sample: detail.max_tokens_to_sample ?? null,
-        model_config: normModelConfigField(detail.model_config) ?? '',
-      })
+      form.setFieldsValue(detailToFormValues(detail, true))
+      setOpen(true)
+    } catch {
+      void message.error(t('common.error'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  /** 复制该行配置为新增（不含 id / workspace_id / 时间戳等主键字段）。 */
+  const openCopy = async (modelId: string) => {
+    if (!workspaceId) return
+    setEditingId(null)
+    setEditingBase(null)
+    setSubmitting(true)
+    try {
+      const detail = await getModelProvider(workspaceId, modelId)
+      form.resetFields()
+      form.setFieldsValue(detailToFormValues(detail, false))
       setOpen(true)
     } catch {
       void message.error(t('common.error'))
@@ -532,7 +554,7 @@ export function ModelProvidersPage() {
     {
       title: t('settings.modelProvidersColActions'),
       key: 'actions',
-      width: 200,
+      width: 240,
       render: (_, row) => (
         <Space>
           <Button
@@ -543,6 +565,12 @@ export function ModelProvidersPage() {
           />
           {isWorkspaceManager ? (
             <>
+              <Button
+                type="text"
+                icon={<CopyOutlined />}
+                onClick={() => void openCopy(row.id)}
+                aria-label={t('settings.modelProvidersCopy')}
+              />
               <Button
                 type="text"
                 icon={<EditOutlined />}
