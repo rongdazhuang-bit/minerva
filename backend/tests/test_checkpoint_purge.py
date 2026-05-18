@@ -5,8 +5,16 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
+from app.agent.constants import AGENT_CHECKPOINT_PURGE_ADVISORY_LOCK_KEY
 from app.agent.service import checkpoint_purge_service as svc
 from app.config import settings
+
+
+def test_advisory_lock_key_is_bigint() -> None:
+    """Advisory lock key must be int64 for pg_try_advisory_lock(bigint)."""
+
+    assert isinstance(AGENT_CHECKPOINT_PURGE_ADVISORY_LOCK_KEY, int)
+    assert -2**63 <= AGENT_CHECKPOINT_PURGE_ADVISORY_LOCK_KEY < 2**63
 
 
 def test_retention_defaults() -> None:
