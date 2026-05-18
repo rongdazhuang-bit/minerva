@@ -28,6 +28,7 @@ from app.file_ocr.domain.db.models import OcrFile
 from app.file_ocr.domain.db.models_log import OcrFileLog
 from app.file_ocr.service.markdown_pages import get_ocr_file_markdown_pages
 from app.file_ocr.service.overview_log_daily_stats import compute_overview_log_daily_stats
+from app.file_ocr.service.ocr_file_delete import delete_ocr_file_dependents
 from app.file_ocr.service.result_row_cleanup import delete_ocr_file_engine_result_rows
 from app.pagination import DEFAULT_PAGE_SIZE
 
@@ -287,6 +288,11 @@ async def delete_ocr_file(
     row = result.scalar_one_or_none()
     if row is None:
         raise AppError("ocr_file.not_found", "OCR task not found", 404)
+    await delete_ocr_file_dependents(
+        session,
+        workspace_id=workspace_id,
+        file_id=ocr_file_id,
+    )
     await session.delete(row)
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

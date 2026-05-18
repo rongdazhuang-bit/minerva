@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any, Optional
 
 import sqlalchemy as sa
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
+from sqlalchemy import DateTime, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -25,13 +25,11 @@ class AgentSession(Base):
     )
     workspace_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("workspaces.id", ondelete="CASCADE"),
         index=True,
         nullable=False,
     )
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="SET NULL"),
         index=True,
         nullable=True,
     )
@@ -57,19 +55,16 @@ class AgentRun(Base):
     )
     session_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("agent_session.id", ondelete="CASCADE"),
         index=True,
         nullable=False,
     )
     workspace_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("workspaces.id", ondelete="CASCADE"),
         index=True,
         nullable=False,
     )
     triggered_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="SET NULL"),
         index=True,
         nullable=True,
     )
@@ -98,7 +93,6 @@ class AgentMessage(Base):
     )
     session_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("agent_session.id", ondelete="CASCADE"),
         index=True,
         nullable=False,
     )
@@ -111,7 +105,6 @@ class AgentMessage(Base):
     meta_json: Mapped[dict[str, Any] | list[Any] | None] = mapped_column(JSONB, nullable=True)
     run_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("agent_run.id", ondelete="SET NULL"),
         index=True,
         nullable=True,
     )
@@ -131,7 +124,6 @@ class AgentPlan(Base):
     )
     run_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("agent_run.id", ondelete="CASCADE"),
         index=True,
         nullable=False,
     )
@@ -155,13 +147,11 @@ class AgentLongTermMemory(Base):
     )
     workspace_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("workspaces.id", ondelete="CASCADE"),
         index=True,
         nullable=False,
     )
     session_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("agent_session.id", ondelete="CASCADE"),
         index=True,
         nullable=True,
     )
@@ -171,7 +161,6 @@ class AgentLongTermMemory(Base):
     tags: Mapped[dict[str, Any] | list[Any] | None] = mapped_column(JSONB, nullable=True)
     source_run_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("agent_run.id", ondelete="SET NULL"),
         nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
@@ -193,13 +182,11 @@ class AgentRunNode(Base):
     )
     run_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("agent_run.id", ondelete="CASCADE"),
         index=True,
         nullable=False,
     )
     parent_node_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("agent_run_node.id", ondelete="SET NULL"),
         index=True,
         nullable=True,
     )

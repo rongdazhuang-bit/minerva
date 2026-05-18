@@ -1,8 +1,8 @@
 # Agent 模块技术设计说明
 
 **路径**：`backend/app/agent`  
-**版本**：与代码库同步（LangGraph Plan-and-Execute + Skills）  
-**关联设计**：[Agent LangGraph 大改设计](superpowers/specs/2026-05-16-agent-langgraph-redesign-design.md)、[SSE v2 持久化](superpowers/specs/2026-05-15-agent-sse-persistence-design.md)
+**版本**：与代码库同步（LangGraph Plan-and-Execute + Skills）；**以本文件与代码为准**（2026-05-18 已从代码回填修订 `docs/superpowers/specs/` 中 Agent 相关 spec）  
+**关联设计**：[Agent LangGraph 大改设计](superpowers/specs/2026-05-16-agent-langgraph-redesign-design.md)（§14 实现对照）；历史 [SSE 持久化 v1](superpowers/specs/2026-05-15-agent-sse-persistence-design.md) 已废止
 
 ---
 

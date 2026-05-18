@@ -1,7 +1,7 @@
 # 文件 OCR：任务列表「查看详情」抽屉（按 `ocr_type` 策略取数 + Markdown 渲染）
 
 **日期**：2026-05-13  
-**状态**：已确认（用户）  
+**状态**：已实现（2026-05-18 按代码回填）  
 **依据**：头脑风暴结论——采用 **方案一**：后端只做「鉴权 + 校验状态 + 按 `ocr_type` 策略读结果表 + `page_index` 排序 + 规范化 DTO」；**占位符与图片 URL/data URI 的替换在前端完成**；列表入口 **仅 `status === 'SUCCESS'`** 可点；抽屉 **宽度约 80% 视口**；`markdown_images` 为 **JSON 对象**（`dict[str, str]`），与现有 Paddle 落库方式一致（`backend/app/file_ocr/service/strategies/paddle.py`）。
 
 ---
@@ -174,4 +174,17 @@
 
 ## 10. 实现计划入口
 
-用户审阅本文档并确认无修改后，使用 **`writing-plans`** 技能生成实现计划（拆分后端 API、读策略注册、前端 Drawer + API 客户端 + i18n 文案等步骤）。
+用户审阅本文档并确认无修改后，使用 **`writing-plans`** 技能生成实现计划。**已完成**。
+
+---
+
+## 11. 实现对照（以代码为准，2026-05-18）
+
+| 项 | 代码 |
+|----|------|
+| API | `GET .../ocr-files/{id}/markdown-pages` |
+| 非 SUCCESS | 409 |
+| 读策略 | `file_ocr/service/result_read/`（PADDLE/MINERU） |
+| UI | `FileOcrTaskPage.tsx` Drawer `width="80%"` |
+| 占位符 | `applyOcrMarkdownImagePlaceholders.ts` |
+| 取消请求 | `AbortController` |

@@ -1,7 +1,7 @@
 # S3 文件存储能力（全局配置 + 通用后端接口）设计说明
 
 **日期**：2026-04-30  
-**状态**：已评审待实现  
+**状态**：已实现（2026-05-18 按代码回填；与 spec 存在语义差异，见 §11）  
 **范围**：在 `backend/app/s3/` 实现可复用的 S3 文件对象能力，配置来源于 `sys_storage`（全局 S3 配置），支持 `API_KEY` 与 `BASIC` 认证，提供服务端接口：上传、列表、下载、删除，供多个业务模块复用。
 
 ---
@@ -254,4 +254,19 @@ API -> 参数与权限校验 -> 加载 sys_storage -> delete_object -> 204
 
 ## 10. 后续工作入口
 
-设计评审通过后，下一步仅进入 **`writing-plans`**，输出实现计划（目录脚手架、路由/服务/网关、测试、文档与验证步骤），不在本设计说明中直接写实现代码。
+设计评审通过后，下一步仅进入 **`writing-plans`**，输出实现计划。**已完成**，见 §11。
+
+---
+
+## 11. 实现对照（以代码为准，2026-05-18）
+
+| 本 spec | 当前代码 |
+|---------|----------|
+| 模块 | `backend/app/s3/` |
+| 路由 | `POST .../s3/files:upload`、`GET .../files`、`GET ...:download`、`DELETE .../files` |
+| **`storage_id` 必填** | **无**；按 workspace **最新** `sys_storage`（`update_at` DESC） |
+| 上传/删除权限 owner/admin | **全部为** `require_workspace_member` |
+| 删除 Body `storage_id`+`object_key` | **Query** 仅 `object_key` |
+| 上传响应 `bucket`/`etag` | 返回 `object_key`, `file_name`, `content_type`, `size`, `download_url` |
+| `module_prefix` 规则 | 实现更宽：`^[A-Za-z0-9][A-Za-z0-9/_-]*$` |
+| 前端管理页 | **无**（OCR 等直调 upload API，符合 spec 非目标） |

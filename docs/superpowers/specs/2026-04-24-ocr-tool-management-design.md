@@ -1,8 +1,8 @@
 # OCR 工具管理（sys_ocr_tool + 管理端 UI）设计说明
 
 **日期**：2026-04-24  
-**状态**：已评审待实现  
-**范围**：后端 CRUD（按 `app/tool/ocr` 分层）+ 管理端页面；数据源完全在服务端；运行时由调用方显式传入 `tool_id`，不在服务端定义全局/默认工具。
+**状态**：已实现（2026-05-18 按代码回填）  
+**范围**：后端 CRUD（`backend/app/sys/tool/ocr/`）+ 管理端 `/app/settings/ocr`；按 `workspace_id` 隔离。
 
 **数据模型决策（已确认）**：为 `sys_ocr_tool` 增加 **`workspace_id`**（FK → `workspaces`，`ON DELETE CASCADE`），按 workspace 隔离数据；不采用「全库共享同一批工具行、仅路径鉴权」的全局表方案。
 
@@ -130,3 +130,17 @@
 - [x] 与 `code-comments/SKILL.md` 中工具模块分层一致。
 - [x] 权限模型与 `require_workspace_member` 一致。
 - [x] 多租户隔离通过 `workspace_id` 落实。
+
+---
+
+## 10. 实现对照（以代码为准，2026-05-18）
+
+| 项 | 代码 |
+|----|------|
+| 模块路径 | `backend/app/sys/tool/ocr/`（非 spec 初稿 `app/tool/ocr`） |
+| API | `GET/POST /workspaces/{id}/ocr-tools`，`GET/PATCH/DELETE .../ocr-tools/{id}` |
+| 表 | `sys_ocr_tool`；`auth_type` 存大写 `NONE`/`BASIC`/`API_KEY` |
+| UI | `minerva-ui` → `/app/settings/ocr`（`OcrSettingsPage`） |
+| localStorage 迁移 | `readOcrSettings` +「从本机导入」+ `clearOcrSettings` |
+| 扩展字段 | `ocr_type`、`ocr_config`（扫描/参数表单，超出首版 spec） |
+| 测试 | `backend/tests/test_ocr_tools_api.py` |

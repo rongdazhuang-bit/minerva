@@ -1,7 +1,7 @@
 # 数据字典管理（sys_dict + sys_dict_item + 管理端 UI）设计说明
 
 **日期**：2026-04-25  
-**状态**：已评审待实现  
+**状态**：已实现（2026-05-18 按代码回填）  
 **范围**：后端 CRUD（代码根目录 **`app/sys/dict`**，**子目录与 `app/tool/ocr` 同构**）+ 设置页「数据字典」菜单；持久化使用现有表 `sys_dict`、`sys_dict_item`。
 
 **包路径说明**：Python 包名为 `app.sys`（与标准库 `sys` 不同）；业务代码中应使用 **`from app.sys.dict...`** 等完整限定导入，避免与 `import sys` 混淆。
@@ -146,3 +146,15 @@ app/sys/
 - [x] 无未决 `TBD`：排序方向、删除策略、唯一约束范围已与需求对齐。
 - [x] 多租户隔离与 404 策略与 OCR spec 一致。
 - [x] 注释规约见 `.cursor/skills/code-comments/SKILL.md`。
+
+---
+
+## 10. 实现对照（以代码为准，2026-05-18）
+
+| 项 | 代码 |
+|----|------|
+| 模块 | `backend/app/sys/dict/` |
+| API | `/workspaces/{id}/dicts` 及 `.../items` CRUD + 分页 |
+| UI | `/app/settings/dictionary` → `DictionaryPage` |
+| 排序 | `create_at DESC, dict_sort DESC` |
+| 只读按 code | 见 `2026-04-27-dict-by-code-and-query-cache-design.md` |

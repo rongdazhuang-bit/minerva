@@ -1,7 +1,7 @@
 # Agent 模块（方案 3 + 真 SSE + 会话/run/细粒度节点持久化）设计说明
 
 **日期**：2026-05-15  
-**状态**：待评审定稿  
+**状态**：已废止（2026-05-18）；由 LangGraph + SSE v2 替代，见 `2026-05-16-agent-langgraph-redesign-design.md`  
 **范围**：在 `backend/app/agent/` 实现智能体抽象：技能包（`INDEX.md` + 子 skill 文档 + 可注册 tools）、通过 **`app/llm` 最小扩展**调用模型、**默认真·SSE** 对外输出统一事件流；**服务端持久化**会话与消息以支持跨请求续写；**类 Dify 工作流**的 **细粒度节点树**（每节点含 id、类型、名称、输入/输出快照、状态与时间线）。应用日志（stdout/平台）仍保留，与 `run_id` 对齐。
 
 ---
@@ -200,4 +200,20 @@ backend/app/agent/
 
 ## 11. 下一步
 
-评审通过后：使用 **`writing-plans`** 产出实现计划（含迁移、`llm` 扩展点、agent service、API、最小前端联调约定）。
+~~评审通过后：使用 **writing-plans** 产出实现计划~~（已由 v2 大改取代。）
+
+---
+
+## 12. 实现对照（以代码为准，2026-05-18）
+
+**本 spec 描述的 v1 Agent 编排与 SSE envelope 已不再实现。** 下列为**仍沿用**与**已替代**部分：
+
+| 本 spec | 当前代码 |
+|---------|----------|
+| `POST .../agent/sessions`（无 v2） | 仅 `.../agent/v2/...`（`backend/app/agent/api/v2/router.py`） |
+| 自定义 SSE：`assistant_delta`、`tool_start` 等 | **SSE v2**：`llm.delta`、`tool.started`、`run.started`（`domain/sse_v2.py`） |
+| `AgentRunService` + `ToolRegistry` | `AgentGraphRunService` + LangGraph |
+| 细粒度节点 `llm.round` / `skill.index_load` | `plan.created`、`subagent.run`/`finish`、`memory.persist`（后台） |
+| 表 `agent_session` / `agent_message` / `agent_run` / `agent_run_node` | **仍使用**（`domain/db/models.py`） |
+
+权威说明：`docs/agent-module-design.md`、`2026-05-16-agent-langgraph-redesign-design.md` §14。

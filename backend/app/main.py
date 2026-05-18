@@ -1,6 +1,14 @@
 """FastAPI ASGI entry: app wiring, CORS, rate-limit middleware, and startup lifespan."""
 
+from __future__ import annotations
+
+import asyncio
+import sys
 from contextlib import asynccontextmanager
+
+# psycopg 异步池在 Windows 默认 ProactorEventLoop 下无法建连；须在事件循环创建前切换。
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,10 +18,7 @@ from slowapi.errors import RateLimitExceeded
 from app.core.api.router import api
 from app.config import settings
 from app.errors import register_exception_handlers
-from app.agent.infrastructure.langgraph_checkpointer import (
-    close_langgraph_checkpointer,
-    get_langgraph_checkpointer,
-)
+from app.agent.infrastructure.langgraph_checkpointer import close_langgraph_checkpointer
 from app.core.infrastructure.db.bootstrap import create_missing_tables
 from app.limits import limiter
 
@@ -23,7 +28,7 @@ async def lifespan(app: FastAPI):
     """Ensure ORM tables exist when configured; release resources on shutdown."""
 
     await create_missing_tables()
-    await get_langgraph_checkpointer()
+    # LangGraph checkpoint 在首次 Agent 运行时懒加载，避免启动阻塞 HTTP（尤其 Windows 上池初始化较慢）。
     yield
     await close_langgraph_checkpointer()
 

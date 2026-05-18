@@ -1,7 +1,7 @@
 # 文件 OCR：`INIT` 任务 Celery 周期扫描与策略化解析设计
 
 **日期**：2026-05-13  
-**状态**：已确认（用户）  
+**状态**：已实现（2026-05-18 按代码回填）  
 **依据**：头脑风暴结论——采用 **Celery 周期任务**；`ocr_type` 与设置页统一为 **`PADDLE_OCR` / `MINERU`**；结果表 DDL 已存在于 `backend/sql/schema_postgresql.sql`（`ocr_file_paddleocr`、`ocr_file_mineru`）；**首期实现 PaddleOCR 全流程**，**MinerU 仅占位（策略注册 + 不进入扫描队列）**。
 
 ---
@@ -148,3 +148,17 @@
 
 - 启用 **`MINERU` 扫描**：将 `MINERU` 纳入 `supported_ocr_types`，实现 `MineruFileStrategy` 并写 `ocr_file_mineru`。
 - 可选：为 `ocr_file_paddleocr.file_id` / `ocr_file_mineru.file_id` 增加外键与级联策略。
+
+---
+
+## 10. 实现对照（以代码为准，2026-05-18）
+
+| 项 | 代码 |
+|----|------|
+| Celery 任务 | `file_ocr.scan_init`（`task/scan_init_job.py`） |
+| 批量 | `FILE_OCR_SCAN_BATCH_SIZE = 25` |
+| 支持类型 | 扫描仅 `PADDLE_OCR`；`MINERU` 策略占位 |
+| 锁 | `FOR UPDATE SKIP LOCKED` |
+| 状态机 | INIT→PROCESS→SUCCESS/FAILED |
+| 结果表 | `ocr_file_paddleocr` 写入；`ocr_file_mineru` 占位 |
+| SQL 补丁 | `backend/sql/patches/2026-05-13-ocr-file-ocr-type-mineru.sql` |

@@ -8,6 +8,7 @@ engine = create_async_engine(  # Global async engine (asyncpg); shared across se
     settings.database_url,
     echo=False,
     pool_pre_ping=True,
+    connect_args={"timeout": 10},
 )
 
 async_session_factory = async_sessionmaker(  # Called per-request via ``get_db``.

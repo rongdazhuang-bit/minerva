@@ -33,16 +33,67 @@ export function normalizeMermaidHtmlLineBreaks(source: string): string {
   return source.replace(/<br\s*\/?>/gi, '\n')
 }
 
+/** Stable synthetic node id for edges that target bare CJK/words (e.g. ``F4 -.-> 全部组件``). */
+function syntheticMermaidNodeId(label: string): string {
+  const slug = label
+    .trim()
+    .replace(/\s+/g, '_')
+    .replace(/[^\w\u4e00-\u9fff]/g, '')
+    .slice(0, 28)
+  return `_mn_${slug || 'node'}`
+}
+
+/**
+ * Fix common model-generated Mermaid syntax errors (unclosed quotes, bare edge targets).
+ */
+export function repairMermaidSyntaxLines(source: string): string {
+  return source
+    .split('\n')
+    .map((line) => {
+      let out = line
+
+      const unclosedQuoted = /^(\s*)([A-Za-z][\w]*)\["([^"\n]+)\]\s*$/.exec(out)
+      if (unclosedQuoted) {
+        const [, indent, id, label] = unclosedQuoted
+        out = `${indent}${id}["${label}"]`
+      }
+
+      const quotedLabel = /^(\s*)([A-Za-z][\w]*)\["([\s\S]*)"\]\s*$/.exec(out)
+      if (quotedLabel) {
+        const [, indent, id, label] = quotedLabel
+        let fixed = label
+        const opens = (fixed.match(/\(/g) ?? []).length
+        const closes = (fixed.match(/\)/g) ?? []).length
+        if (opens > closes) {
+          fixed += ')'.repeat(opens - closes)
+        }
+        out = `${indent}${id}["${fixed}"]`
+      }
+
+      const edgeBare = /^(\s*)([A-Za-z][\w]*)\s+(-\.->|--)\s+([\u4e00-\u9fff][\u4e00-\u9fff\w\s/]+)\s*$/.exec(
+        out,
+      )
+      if (edgeBare) {
+        const [, indent, from, arrow, target] = edgeBare
+        const label = target.trim()
+        const nid = syntheticMermaidNodeId(label)
+        out = `${indent}${from} ${arrow} ${nid}["${label}"]`
+      }
+
+      return out
+    })
+    .join('\n')
+}
+
 /**
  * Sanitize Mermaid source immediately before ``mermaid.render`` (orphan lines + HTML breaks).
  */
 export function normalizeMermaidSourceForRender(source: string): string {
-  return normalizeMermaidHtmlLineBreaks(
-    source
-      .split('\n')
-      .filter((line) => !ORPHAN_MERMAID_NODE_TAIL.test(line))
-      .join('\n'),
-  )
+  const withoutOrphans = source
+    .split('\n')
+    .filter((line) => !ORPHAN_MERMAID_NODE_TAIL.test(line))
+    .join('\n')
+  return normalizeMermaidHtmlLineBreaks(repairMermaidSyntaxLines(withoutOrphans))
 }
 
 /**

@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, SmallInteger, String, Text, text
+from sqlalchemy import DateTime, SmallInteger, String, Text, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -22,7 +22,6 @@ class RuleBase(Base):
     )
     workspace_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("workspaces.id", ondelete="CASCADE"),
         index=True,
         nullable=False,
     )
@@ -55,13 +54,11 @@ class RuleConfigPrompt(Base):
     )
     workspace_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("workspaces.id", ondelete="CASCADE"),
         index=True,
         nullable=False,
     )
     model_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("sys_models.id", ondelete="RESTRICT"),
         nullable=False,
     )
     engineering_code: Mapped[str | None] = mapped_column(String(64), nullable=True)

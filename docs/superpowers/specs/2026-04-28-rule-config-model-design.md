@@ -1,7 +1,7 @@
 # 规则库「配置 → 模型配置」（`rule_config_model`）设计说明
 
 **日期**：2026-04-28  
-**状态**：已确认，待实现  
+**状态**：已实现（2026-05-18 按代码回填；表名/API 已演进，见 §实现对照）  
 **范围**：在 **`backend/app/rule`** 内实现表 **`public.rule_config_model`** 的 CRUD 与 **`model_id` → `sys_models.id`** 的引用校验；抽取 **工程 / 专业 / 文档类型** 三元组共用能力（**方案 B**），供 **`rule_base`** 与 **`rule_config_model`** 共用；前端在 **`minerva-ui/src/features/rules`** 新增独立页面，替换当前 **`/app/rules/config/models`** 误用的 `ModelProvidersPage`；定义运行时按上下文 **解析配置** 的优先级，**未命中则报错**（不静默回退默认模型）。
 
 ---
@@ -167,3 +167,18 @@
 - **一致性**：未命中报错、方案 B 共用模块、`update_at` 更名与 user 决策一致。  
 - **范围**：单 spec 可支撑一个实现计划；运行时解析以函数+测试为界，不接具体 LLM。  
 - **歧义**：「删除模型策略」明确为 **本 spec 不展开**；外键 ON DELETE 与 `model_provider` 对齐即可。
+
+---
+
+## 实现对照（以代码为准，2026-05-18）
+
+| 本 spec | 当前代码 |
+|---------|----------|
+| 表 `rule_config_model` | **`rule_config_prompt`**（`backend/app/rule/domain/db/models.py`） |
+| API `/rule-config/models` | **`/rule-config/config-prompts`** |
+| 解析 `resolve_rule_config_model` | **`resolve_rule_config_prompt`** |
+| UI `/app/rules/config/models` | **`/app/rules/config/config-prompts`**（旧路径 redirect） |
+| 三元组 + `scope_triple.py` | **已实现** |
+| DB 唯一索引 `(workspace_id, e, s, d)` | **未建**；应用层 `find_by_scope_exact` + 409 |
+| `schema_postgresql.sql` | **无** `rule_config_prompt` 定义 |
+| 额外能力 | `POST .../rule-base/polish-review-rules`（AI 润色） |

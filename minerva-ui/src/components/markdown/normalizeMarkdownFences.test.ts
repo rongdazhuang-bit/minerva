@@ -7,8 +7,10 @@ import remarkGfm from 'remark-gfm'
 import { sanitizeMermaidSvgForXml } from '@/components/markdown/mermaidTheme'
 import {
   normalizeMermaidHtmlLineBreaks,
+  normalizeMermaidSourceForRender,
   prepareMarkdownFencedDiagrams,
   repairMermaidFencedBlocks,
+  repairMermaidSyntaxLines,
   splitInlineOpeningCodeFences,
 } from '@/components/markdown/normalizeMarkdownFences'
 import { normalizeMarkdownForAgent } from '@/components/markdown/normalizeMarkdownMath'
@@ -83,6 +85,19 @@ describe('normalizeMarkdownFences', () => {
 
   it('converts HTML line breaks in mermaid labels to newlines', () => {
     expect(normalizeMermaidHtmlLineBreaks('A["x<br/>y<br>z"]')).toBe('A["x\ny\nz"]')
+  })
+
+  it('repairs unclosed node quotes and bare CJK edge targets in enterprise diagrams', () => {
+    const broken = [
+      'D2["ServiceImpl implements D1]',
+      'F2["Redis 分布式锁<br/>(避免缓存击穿"]',
+      'F4 -.-> 全部组件',
+    ].join('\n')
+    const fixed = normalizeMermaidSourceForRender(broken)
+    expect(fixed).toContain('D2["ServiceImpl implements D1"]')
+    expect(fixed).toContain('避免缓存击穿)"]')
+    expect(fixed).toMatch(/F4\s+-\.->\s+_mn_全部组件\["全部组件"\]/)
+    expect(fixed).not.toMatch(/<br\s*\/?>/i)
   })
 
   it('self-closes bare br tags in mermaid SVG for XML parsers', () => {

@@ -1,7 +1,7 @@
 # Agent 模块 LangGraph 大改设计
 
 **日期**：2026-05-16  
-**状态**：已定稿（2026-05-16 用户批准）  
+**状态**：已实现（2026-05-18 按代码回填修订；原 2026-05-16 定稿）  
 **范围**：一次性替换 `backend/app/agent` 自研编排（skills / ToolRegistry / 手写 tool loop），采用 **LangGraph（外层）+ `create_react_agent`（子 Agent）**；新增 **Plan-and-Execute**、**子 Agent**、**长期记忆（SQL，无向量）**；**破坏性**更新 HTTP API 与 SSE v2；前后端同 PR 落地。
 
 ---
@@ -26,7 +26,7 @@
 ### 1.3 非目标（首期）
 
 - 向量数据库 / embedding 长期记忆
-- 任意用户上传 skill 包（能力均在代码 `capabilities/`）
+- 任意用户上传 skill 包（能力在 `backend/app/agent/skills/` 内置目录）
 - 将每个上游 token 单独写入 `agent_run_node`
 - 旧版 SSE（OpenAI chunk + `minerva` v1）兼容
 
@@ -40,7 +40,7 @@
 | 长期记忆 | 结构化表 + 消息 ILIKE fallback；run 结束写入 |
 | API/SSE | 破坏性变更（v2）；仍需工具、思考、编排日志 |
 | 模型 | 服务端托管 `model_id` → `SysModel` |
-| 技能 | 迁到代码 `capabilities/`，废弃磁盘 `skills/` |
+| 技能 | 保留磁盘 `skills/`（`INDEX.md` + `SKILL.md` + `tools.py`）；**未**迁到 `capabilities/`（见 §14） |
 
 ---
 
@@ -50,10 +50,12 @@
 backend/app/agent/
   api/v2/                    # FastAPI 路由
   domain/                    # Plan、SSE v2 类型、ORM
-  capabilities/              # 原 skills → LangChain 能力包
-    general/   prompt.py, tools.py, agent.py
+  skills/                    # 内置技能包（INDEX.md + SKILL.md + tools.py）
+    general/
     file/
     datetime/
+  infrastructure/
+    skill_loader.py          # Planner 路由 + build_skill_react_agent
   graphs/
     state.py                 # AgentGraphState (TypedDict)
     main.py                  # 主图 compile
@@ -79,7 +81,7 @@ flowchart TB
     EXEC --> SA_TIME[subagent datetime]
     EXEC --> SA_GEN[subagent general]
     GRAPH --> SYN[synthesizer]
-    GRAPH --> MEM_OUT[memory.persist]
+    SVC --> MEM_BG[memory.persist background]
     SVC --> REPO[agent_repository]
     SVC --> MODEL[ChatModelFactory]
     REPO --> PG[(PostgreSQL)]
@@ -117,18 +119,18 @@ START
   → planner
   → executor ──(还有 step)──→ executor
             └──(无 step)────→ synthesizer
-  → memory.persist
   → END
+
+(Run 成功结束后，service 层异步 schedule_persist_turn_memory_background，非图内节点)
 ```
 
 | 节点 | 职责 |
 |------|------|
 | `memory.retrieve` | 长期记忆 SQL 检索；不足则 `agent_message` fallback |
 | `planner` | 根据 user_message、memories、能力清单生成 `Plan` |
-| `executor` | 执行当前 plan step，路由到对应 `subagent.*` 节点 |
-| `subagent.general` / `subagent.file` / `subagent.datetime` | 调用预编译 `create_react_agent` runnable |
+| `executor` | 执行当前 plan step；按 step 的 skill id 动态 `build_skill_react_agent()` 并 `ainvoke`（**非**独立图节点 `subagent.*`） |
 | `synthesizer` | 汇总各步结果为面向用户的最终回复（流式） |
-| `memory.persist` | 写入摘要/事实到长期表；可选更新 `agent_session.summary_text` |
+| `memory.persist`（后台） | Run 成功后由 `memory_persist_service` 异步 LLM 抽取并写入长期表；写入 `agent_run_node`（`node_type=memory.persist`） |
 
 ### 3.3 子 Agent
 
@@ -138,14 +140,15 @@ START
 | `file` | `list_dir`, `read_file`, `write_file`, `delete_path`, `mkdir`, `move_path` | 复用 `AgentFileSandbox`，改为 `@tool` |
 | `datetime` | `get_system_datetime` | 迁自现实现 |
 
-每个 capability 包：
+每个 skill 包（实际目录）：
 
 ```text
-capabilities/<name>/
-  prompt.py    # system prompt
-  tools.py     # @tool 定义
-  agent.py     # build_*_react_agent(model) -> CompiledGraph
+skills/<name>/
+  SKILL.md     # 描述 + Planner 路由触发词
+  tools.py     # register_tools(ctx) -> list[@tool]
 ```
+
+子 Agent 由 `skill_loader.build_skill_react_agent(skill_id, model, ctx)` 在 executor 内按需编译，无 per-skill `agent.py`。
 
 子 Agent 的 `astream_events` 由 `event_mapper` 打上 `capability`、`plan_step_id` 后并入主流。
 
@@ -267,7 +270,7 @@ preview 字段经 `redact_json` 与 `agent_json_snapshot_max_bytes` 截断。
 | `GET` | `/sessions` | 列表 |
 | `GET` | `/sessions/{session_id}` | 详情 + 消息 |
 | `DELETE` | `/sessions/{session_id}` | 删除（级联） |
-| `GET` | `/capabilities` | 能力列表（替代 `/skills`） |
+| `GET` | `/skills` | 内置技能列表（来自 `skills/INDEX.md`） |
 | `POST` | `/sessions/{session_id}/runs` | SSE v2 流 |
 
 **`AgentRunCreateV2`**
@@ -278,11 +281,14 @@ preview 字段经 `redact_json` 与 `agent_json_snapshot_max_bytes` 截断。
   "model_id": "uuid",
   "temperature": 0.7,
   "max_tokens": 4096,
-  "preferred_capabilities": ["file"]
+  "preferred_skills": ["file"],
+  "regenerate_from_message_id": null,
+  "regenerate_last_assistant": false
 }
 ```
 
-- `preferred_capabilities` 仅作 planner 提示，非强制路由
+- `preferred_skills` 仅作 planner 提示，非强制路由
+- `regenerate_*` 用于截断历史后重新生成助手回复（实现已落地）
 - 服务端 `ChatModelFactory.get(workspace_id, model_id)` 校验 enabled 与归属
 
 ---
@@ -343,9 +349,9 @@ preview 字段经 `redact_json` 与 `agent_json_snapshot_max_bytes` 截断。
 
 ## 10. 前端变更（`minerva-ui`）
 
-- 新增 `api/agent-v2.ts`、`agent-stream-v2.ts`
-- `AgentsPage`：计划步骤 UI、思考折叠（`llm.delta` reasoning）、工具时间线
-- 移除 `/技能` 前缀输入；可选 `preferred_capabilities` 多选
+- API：`minerva-ui/src/api/agent.ts`（v2 全量）+ `agent-stream-v2.ts`
+- `AgentsPage`：reasoning 折叠、processLog 轨迹；**无**独立计划步骤面板
+- Run 请求当前 `preferred_skills: []` 硬编码；**无** `/` 技能前缀选择器（Planner 自动路由）
 - 模型选择仍来自 `listModelProviders`，run 只传 `model_id`
 
 ---
@@ -373,11 +379,32 @@ preview 字段经 `redact_json` 与 `agent_json_snapshot_max_bytes` 截断。
 
 ---
 
-## 13. 成功标准
+## 13. 成功标准（实现核对，2026-05-18）
 
-- [ ] `POST .../agent/v2/sessions/{id}/runs` 返回 SSE v2，含 reasoning、tool、plan、subagent 事件
-- [ ] 文件类问题经 planner 多步路由 `file` 子 Agent 并可读写沙箱
-- [ ] 同 session 第二次 run 能利用 `agent_message` + 长期记忆表衔接上下文
-- [ ] Run 结束后 `agent_long_term_memory` 有新 summary/fact（成功路径）
-- [ ] 前端展示计划步骤与工具调用；旧 agent 路由已移除
-- [ ] 无 api_key 出现在 DB 快照或 SSE 中
+- [x] `POST .../agent/v2/sessions/{id}/runs` 返回 SSE v2，含 reasoning、tool、plan、subagent 事件
+- [x] 文件类问题经 planner 多步路由 `file` 子 Agent 并可读写沙箱
+- [x] 同 session 第二次 run 能利用 `agent_message` + 长期记忆表衔接上下文
+- [x] Run 结束后 `agent_long_term_memory` 有新 summary/fact（成功路径，后台 persist）
+- [x] 旧 agent v1 路由已移除
+- [x] 无 api_key 出现在 DB 快照或 SSE 中
+- [ ] 前端独立计划步骤 UI（未做）
+- [ ] `graph.node` / `message.final` SSE 事件（枚举保留，`message.final` 不发送；`graph.node` 未发射）
+- [ ] 迁 `capabilities/` 并删除 `skill_loader`（未做，见 §14）
+
+---
+
+## 14. 实现对照（以代码为准，2026-05-18）
+
+| 项 | 原 spec / 计划 | 当前代码 |
+|----|----------------|----------|
+| 技能目录 | `capabilities/` | `backend/app/agent/skills/` + `skill_loader.py` |
+| 列表 API | `/capabilities` | `GET .../agent/v2/skills` |
+| Run 字段 | `preferred_capabilities` | `preferred_skills`（`api/v2/schemas.py`） |
+| 主图 | 含 `memory.persist` 节点 | `graphs/main.py` 止于 `synthesizer→END`；persist 在 `memory_persist_service` 后台 |
+| 子 Agent | 独立图节点 | `executor_node` 内动态 ReAct |
+| 状态 `messages` | `list[BaseMessage]` | **未**入 `AgentGraphState` |
+| LTM 列 `source_message_id` | 有 | ORM **无**此列 |
+| 配置 | `agent_tool_timeout_seconds` 等 | **未**配置项 |
+| 技术设计汇总 | — | 见 `docs/agent-module-design.md` |
+
+**已删除（符合 spec 意图）**：`AgentRunService`、`tool_registry`、`skill_resolver`、`skill_tools`、`sse_minerva`、v1 API、`openai-stream.ts`。

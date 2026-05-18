@@ -10,7 +10,8 @@ description: >-
   lists: default 10 per page (shared constants in `app/pagination.py` and
   `minerva-ui/src/constants/pagination.ts`); (7) minerva-ui scrollbar widths via shared
   classes in `appLayoutScroll.css` (`minerva-scrollbar-thin` 4px vs
-  `minerva-scrollbar-styled` 5px). Use when adding
+  `minerva-scrollbar-styled` 5px). Cross-cutting rules (no DB foreign keys / doc-first fixes):
+  see `minerva-conventions` skill. Use when adding
   or editing comments, documenting APIs, reviewing comment quality, scaffolding
   `app/sys/tool/<name>`, building settings/auth forms, enforcing comment rules repo-wide,
   or the user asks for
@@ -285,8 +286,8 @@ app/sys/tool/<name>/
 1. 新建 `app/sys/tool/<name>/` 时，**子目录与 `app/sys/tool/ocr` 一一对应**（含 `domain` 下 db/dto/vo 等子包时的惯例）。
 2. 业务代码按上表落层；跨层依赖方向为 **api → service → (domain, infrastructure 实现)**，**domain 不依赖 api**。
 3. 路由在 `app/api/router.py` 注册；配置走 `app/config.py` 等，密钥不进仓库。
-4. 持久化/迁移遵守仓库 `alembic`、`sql/` 习惯。
-5. 代码注释与文档串遵循本 Skill **前半部分**《代码注释规范》。
+4. 持久化/迁移遵守仓库 `sql/` 习惯；**禁止库外键**（见 `/.cursor/skills/minerva-conventions/SKILL.md` §1）。
+5. 代码注释与文档串遵循本 Skill **前半部分**《代码注释规范》；修 bug/改行为须 **先 spec 后代码再回填**（见 `minerva-conventions` §2）。
 
 ## 与 `app/domain/identity` 等目录的关系
 

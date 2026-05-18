@@ -1,7 +1,7 @@
 # 规则库「概览」统计仪表盘设计说明
 
 **日期**：2026-04-28  
-**状态**：已确认，待实现  
+**状态**：部分实现（2026-05-18 按代码回填；KPI 已做，分项列表 UI 未做）  
 **依赖**：`rule_base` 工作空间隔离与现有字典 **`RULE_ENG_SUBJECT_DOC`**（三级：`engineering_code` / `subject_code` / `document_type`）；前端已有 `scopeTriple.ts`、`listDicts(..., { code: 'RULE_ENG_SUBJECT_DOC' })` 与 `buildCodeNameMap`。
 
 ---
@@ -84,3 +84,15 @@
 ## 7. 实现阶段衔接
 
 规格审阅通过后，使用 **writing-plans** 产出实现计划（后端路由 + service 聚合查询 + 前端页面与 API 封装 + 测试）。
+
+---
+
+## 8. 实现对照（以代码为准，2026-05-18）
+
+| 项 | 代码 |
+|----|------|
+| API `GET .../rule-base/overview-stats` | `backend/app/rule/api/router.py` |
+| 字段 `rule_count`, `engineering_codes`, `subject_codes`, `document_type_codes` | **已实现** |
+| UI 四 KPI | `RulesOverviewPage.tsx` |
+| **分项列表**（工程/专业/文档类型 code + 字典名称 Tag） | **未实现**（spec §4） |
+| 并行拉 `RULE_ENG_SUBJECT_DOC` 建 Map | **概览页未调用** |

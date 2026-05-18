@@ -1,8 +1,8 @@
 # Agent `system_datetime` 技能与工具链路（最小打通）设计说明
 
 **日期**：2026-05-16  
-**状态**：已实现  
-**范围**：新增 `system_datetime` 技能包；从已选 `skill_ids` 动态加载 `tools.py` 并接入 `AgentRunService` 工具循环；提供技能列表 HTTP API；前端智能体对话页支持 `/` 单选 skill，展示与 API 载荷分离。
+**状态**：已实现（2026-05-18 按代码回填；LangGraph v2 集成）  
+**范围**：内置技能 id **`datetime`**（非 `system_datetime`）；`get_system_datetime` 工具；经 Planner/executor 子 Agent 调用；列表 API 为 v2 `/skills`。
 
 ---
 
@@ -287,4 +287,19 @@ GET /workspaces/{workspace_id}/agent/skills
 
 ## 10. 与既有 spec 的关系
 
-本设计为 `docs/superpowers/specs/2026-05-15-agent-sse-persistence-design.md` 的 **增量**：仅实现工具循环与 `system_datetime` 的最小切片，细粒度节点树、多轮以上 tool 循环、DB 展示前缀等待后续迭代。
+原 v1 增量设计已由 LangGraph 取代。当前见 `2026-05-16-agent-langgraph-redesign-design.md` §14。
+
+---
+
+## 11. 实现对照（以代码为准，2026-05-18）
+
+| 本 spec 原文 | 当前代码 |
+|--------------|----------|
+| skill id `system_datetime` | **`datetime`**（`skills/datetime/`，`INDEX.md`） |
+| 目录 `skills/system_datetime/` | `skills/datetime/` |
+| `skill_resolver` + `skill_ids` | **无**；`preferred_skills` 仅提示 Planner |
+| `AgentRunService` 2 轮 tool 循环 | `create_react_agent`，`agent_subagent_recursion_limit=16` |
+| `GET .../agent/skills` | `GET .../agent/v2/skills` |
+| 前端 `/` 单选 + `skill_ids` | **未接线**（`AgentsPage` 中 `preferred_skills: []`） |
+| 工具名 `get_system_datetime` | **一致**（`skills/datetime/tools.py`） |
+| SSE `tool.start` | `tool.started`（SSE v2） |

@@ -1,6 +1,9 @@
+/** 认证相关 ``fetch`` 超时（毫秒），避免后端/代理不可达时无限挂起。 */
+export const AUTH_API_FETCH_TIMEOUT_MS = 15_000
+
 /**
  * 未设置 VITE_API_BASE_URL 时，生产构建用同源相对路径；
- * 开发环境默认走 Vite 同源代理（见 vite.config.ts），便于局域网设备访问 dev server。
+ * 开发环境默认走 Vite 同源代理（见 vite.config.ts），浏览器使用 http://localhost:5173。
  */
 export function resolveApiBaseUrl(): string {
   const v = import.meta.env.VITE_API_BASE_URL

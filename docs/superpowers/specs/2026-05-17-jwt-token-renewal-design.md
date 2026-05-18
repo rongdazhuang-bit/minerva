@@ -1,7 +1,7 @@
 # JWT Access Token 静默续期设计
 
 **日期**：2026-05-17  
-**状态**：已批准实现  
+**状态**：已实现（2026-05-18 按代码回填）  
 **范围**：前端集中式 token 续期 + 后端 access TTL 默认 60 分钟。
 
 ---
@@ -29,3 +29,16 @@
 
 - 登录后连续操作 > 20 分钟不跳登录。
 - refresh 失效时行为与现有一致（清 token、非认证页跳转登录）。
+
+---
+
+## 5. 实现对照（以代码为准，2026-05-18）
+
+| 项 | 代码 |
+|----|------|
+| 主动续期 | `minerva-ui/src/auth/tokenSession.ts`（`REFRESH_BUFFER_SEC = 120`） |
+| 401 单飞 | `refreshTokens()` + `apiJson` / `authFetch` 重试 |
+| Agent / OCR | `api/agent.ts`、`ocrTask` XHR 已接入 |
+| 多标签 | `AuthContext` + `storage` 事件 |
+| Access TTL | `jwt_access_ttl_minutes = 60`（`backend/app/config.py`） |
+| **非目标** | SSE 流中途续期、HttpOnly Cookie **未做** |

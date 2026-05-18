@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, UniqueConstraint, text
+from sqlalchemy import DateTime, Enum, String, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -55,7 +55,7 @@ class Workspace(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), index=True, nullable=False
+        UUID(as_uuid=True), index=True, nullable=False
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     slug: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -72,10 +72,10 @@ class TenantMembership(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+        UUID(as_uuid=True), index=True, nullable=False
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), index=True, nullable=False
+        UUID(as_uuid=True), index=True, nullable=False
     )
     role: Mapped[MembershipRole] = mapped_column(
         Enum(MembershipRole, name="tenant_role"), nullable=False
@@ -93,10 +93,10 @@ class WorkspaceMembership(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+        UUID(as_uuid=True), index=True, nullable=False
     )
     workspace_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), index=True, nullable=False
+        UUID(as_uuid=True), index=True, nullable=False
     )
     role: Mapped[MembershipRole] = mapped_column(
         Enum(MembershipRole, name="workspace_role"), nullable=False
@@ -114,7 +114,7 @@ class RefreshToken(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+        UUID(as_uuid=True), index=True, nullable=False
     )
     jti: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), unique=True, index=True, nullable=False

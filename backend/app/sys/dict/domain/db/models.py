@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, SmallInteger, String, UniqueConstraint, text
+from sqlalchemy import DateTime, SmallInteger, String, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -29,7 +29,6 @@ class SysDict(Base):
     )
     workspace_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("workspaces.id", ondelete="CASCADE"),
         index=True,
         nullable=False,
     )
@@ -55,13 +54,11 @@ class SysDictItem(Base):
     )
     dict_uuid: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("sys_dict.id", ondelete="CASCADE"),
         index=True,
         nullable=False,
     )
     parent_uuid: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("sys_dict_item.id", ondelete="RESTRICT"),
         nullable=True,
     )
     code: Mapped[str] = mapped_column(String(64), nullable=False)

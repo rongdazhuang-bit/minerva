@@ -1,8 +1,10 @@
 # 分布式定时任务调度设计（Celery + Beat）
 
+**状态**：已实现（2026-05-18 按代码回填；Worker 回写 `last_*`/`next_run_at` 未做）
+
 ## 1. 背景与目标
 
-当前系统仅存在 `sys_celery` 数据表，后端尚未落地 Celery/Beat 调度模块，前端 `scheduler` 仍为占位页面。  
+~~当前系统仅存在 `sys_celery` 数据表，后端尚未落地 Celery/Beat 调度模块，前端 `scheduler` 仍为占位页面。~~（已实现，见 §10。）  
 本次目标是在最新 Celery（含 Beat）基础上实现可用的分布式定时任务调度能力，并满足以下要求：
 
 - 服务启动时从 `sys_celery` 加载定时任务配置；
@@ -232,3 +234,18 @@
 - 操作列具备编辑、删除、立即执行、停止/启用能力。
 - 按工作空间执行语义生效，同任务在不同工作空间互不干扰。
 - 前端新增/编辑支持 Cron 生成器，表达式可预览、可校验、可提交。
+
+---
+
+## 10. 实现对照（以代码为准，2026-05-18）
+
+| 项 | 代码 |
+|----|------|
+| API | `/workspaces/{id}/celery-jobs`（CRUD + run/stop/start） |
+| 模块 | `backend/app/sys/celery/` |
+| UI | `/app/settings/celery` → `CeleryPage` + `CronBuilder` |
+| Beat | DB 真源 + Redis 通知 + 60s 对账（`beat_sync_service`） |
+| 示例任务 | `demo.default_job` |
+| **缺口** | Worker **未回写** `last_run_at` / `last_status` / `last_error` / `next_run_at` |
+| 列表响应 | 仅 `items` + `total`（**无** `page`/`page_size` 字段） |
+| ORM | 仍保留 `status` 列（spec 建议由 `enabled` 统一） |

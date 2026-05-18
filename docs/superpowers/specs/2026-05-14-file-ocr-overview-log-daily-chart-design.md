@@ -1,7 +1,7 @@
 # 文件 OCR「概览」按日日志统计折线图设计说明
 
 **日期**：2026-05-14  
-**状态**：已确认，待实现  
+**状态**：已实现（2026-05-18 按代码回填；`schema_postgresql.sql` 仍滞后）  
 **依赖**：现有 `ocr_file_log` 表与 ORM `OcrFileLog`（`backend/app/file_ocr/domain/db/models_log.py`）；现有概览页 `RulesFileOcrOverviewPage` 与 `GET .../ocr-files/overview-stats`；鉴权与 `require_workspace_member` 一致。
 
 ---
@@ -93,3 +93,15 @@
 | 日期 | 说明 |
 |------|------|
 | 2026-05-14 | 初版：头脑风暴确认后定稿。 |
+| 2026-05-18 | 按代码回填实现对照 §9。 |
+
+---
+
+## 9. 实现对照（以代码为准，2026-05-18）
+
+| 项 | 代码 |
+|----|------|
+| API | `GET .../ocr-files/overview-log-daily-stats`（30 天四序列） |
+| ORM | `OcrFileLog`：`start_at`/`finish_at`/`ocr_type`/`RUNNING\|SUCCESS\|FAILED` |
+| UI | `FileOcrTaskPage.tsx` 内 `RulesFileOcrOverviewPage` + Recharts |
+| **文档滞后** | `schema_postgresql.sql` 中 `ocr_file_log` 仍为旧列/旧状态注释 |

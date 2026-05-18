@@ -1,7 +1,7 @@
 # 按 `dict_code` 拉取数据字典（含树形子项）与前端 Query 统一方案
 
 **日期**：2026-04-27  
-**状态**：已评审待实现  
+**状态**：已实现（2026-05-18 按代码回填；`DictSelect` 未做）  
 **范围**：后端在现有 `GET /workspaces/{workspace_id}/dicts` 上增加可选 `code` 查询，并在有值时**在单响应内**返回多级 `item_tree`；`minerva-ui` 增加 `@tanstack/react-query`，以 **Query 为全站数据缓存与去重基座**，并提供可在表单、表格中复用的字典能力（`useQuery` + 小组件/Hook）。
 
 **设计依据（对话）**：`code` 过滤 + 响应 B（同包 `item_tree`）+ 多级树；全站采用 **方案 2（TanStack Query）**。
@@ -111,3 +111,17 @@
 ## 6. 与既有文档关系
 
 - 数据表与主从 CRUD 见 `2026-04-25-dictionary-management-design.md`；本 spec 在其上增加**只读聚合查询**与 **UI 复用/Query 化** 约定。
+
+---
+
+## 7. 实现对照（以代码为准，2026-05-18）
+
+| 项 | 代码 |
+|----|------|
+| `GET .../dicts?code=` + `item_tree` | `backend/app/sys/dict/api/router.py` |
+| Query | `minerva-ui/src/hooks/useDictItemTree.ts`，`staleTime` 3min / `gcTime` 5min |
+| Key | `constants/dictQueryKeys.ts` |
+| `DictText` | `components/dict/DictText.tsx` |
+| 写后失效 | `DictionaryPage` → `dictQueryKeys.all(workspaceId)` |
+| **`DictSelect` 封装** | **未实现**（各页自建 Select） |
+| 全站迁移 Query | **渐进**（如 `ModelProvidersPage` 仍直接 `listAllDicts`） |

@@ -1,7 +1,7 @@
 # AI 调用模块（OpenAI 兼容 + 策略模式 + LiteLLM）设计说明
 
 **日期**：2026-04-28  
-**状态**：已评审待实现  
+**状态**：已实现（2026-05-18 按代码回填；`sys_models` 解析未做）  
 **范围**：在 `backend/app/llm/` 实现以 **OpenAI Chat Completions 请求/响应形态** 为标准的统一调用能力；默认策略使用 **官方 OpenAI Python SDK（异步）** 并通过 `base_url` 对接 **LiteLLM 代理及一切 OpenAI 兼容网关**；**同步（阻塞）与非同步 SSE 流式** 两种数据流并存；火山云、阿里云等非兼容厂商以 **策略占位** 预留；**首期以项目内部服务端调用为主**，不将「对外开放公网集成」作为本期必达项。
 
 ---
@@ -151,11 +151,25 @@ backend/app/llm/
 |----|------|
 | 占位符 / TBD | 无未决 TBD；`sys_models` 解析为可选增强，已写明优先级。 |
 | 一致性 | 默认策略与 LiteLLM/OpenAI 兼容前提一致；流式与阻塞均经同一策略接口。 |
-| 范围 | 单模块 + 可选 HTTP + 文档，适合一份实现计划；厂商真实对接拆到后续 spec。 |
+| 范围 | 单模块 + 可选 HTTP + 文档，适合一份实现计划；**volcengine 已实现**，见 `2026-05-17-volcengine-compatible-llm-design.md`。 |
 | 歧义 | 「内部使用为主」已明确：不将公网对外开放作为本期目标；HTTP 仍可存在用于联调。 |
 
 ---
 
 ## 11. 后续工作入口
 
-实现计划获批后，使用 **`writing-plans`** 产出分步实现清单（依赖安装、目录脚手架、`openai_compatible` 实现、SSE、`ChatService`、路由、测试、`docs/ai-api.md`）。**不在本 spec 中写具体代码。**
+实现计划获批后，使用 **`writing-plans`** 产出分步实现清单。**已完成**，见 §12。
+
+---
+
+## 12. 实现对照（以代码为准，2026-05-18）
+
+| 项 | 代码 |
+|----|------|
+| 模块 | `backend/app/llm/`（`domain` / `strategies` / `service` / `api`） |
+| HTTP | `POST /workspaces/{id}/llm/chat/completions` |
+| 策略 | `openai_compatible`（实现）、`volcengine`（实现）、`aliyun`（501 占位） |
+| 文档 | `docs/ai-api.md` |
+| **未做** | 仅传 `model_id` + `workspace_id` 从 `sys_models` 解析 |
+| **未做** | HTTP schema 暴露 `tools` / `tool_choice` |
+| 测试 | `backend/tests/test_llm.py` |

@@ -6,10 +6,17 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import and_, delete, desc, func, or_, select
+from sqlalchemy import and_, delete, desc, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agent.domain.db.models import AgentMessage, AgentRun, AgentRunNode, AgentSession
+from app.agent.domain.db.models import (
+    AgentLongTermMemory,
+    AgentMessage,
+    AgentPlan,
+    AgentRun,
+    AgentRunNode,
+    AgentSession,
+)
 
 RECENT_AGENT_SESSIONS_DEFAULT_LIMIT: int = 20
 
@@ -50,13 +57,49 @@ async def delete_agent_session(
     workspace_id: uuid.UUID,
     session_id: uuid.UUID,
 ) -> bool:
-    """删除会话；依赖库表 FK ``ON DELETE CASCADE`` 级联删除 message / run / run_node。"""
+    """删除会话及其 message / run / plan / run_node / 会话级长期记忆（应用层级联）。"""
 
     row = await get_agent_session(
         session, workspace_id=workspace_id, session_id=session_id
     )
     if row is None:
         return False
+
+    run_ids = list(
+        (
+            await session.execute(
+                select(AgentRun.id).where(
+                    AgentRun.session_id == session_id,
+                    AgentRun.workspace_id == workspace_id,
+                )
+            )
+        ).scalars().all()
+    )
+
+    if run_ids:
+        await session.execute(delete(AgentRunNode).where(AgentRunNode.run_id.in_(run_ids)))
+        await session.execute(delete(AgentPlan).where(AgentPlan.run_id.in_(run_ids)))
+        await session.execute(
+            update(AgentLongTermMemory)
+            .where(AgentLongTermMemory.source_run_id.in_(run_ids))
+            .values(source_run_id=None)
+        )
+
+    await session.execute(
+        delete(AgentMessage).where(AgentMessage.session_id == session_id)
+    )
+    await session.execute(
+        delete(AgentLongTermMemory).where(
+            AgentLongTermMemory.session_id == session_id,
+            AgentLongTermMemory.workspace_id == workspace_id,
+        )
+    )
+    await session.execute(
+        delete(AgentRun).where(
+            AgentRun.session_id == session_id,
+            AgentRun.workspace_id == workspace_id,
+        )
+    )
     await session.delete(row)
     await session.flush()
     return True

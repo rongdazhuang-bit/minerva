@@ -1,8 +1,9 @@
--- Minerva 表结构（PostgreSQL），与 Alembic 迁移链一致：
--- 3552a1daa5cc (identity) -> 947e36be8860 (rules) -> bbec5fe9111a (executions)；并含 Agent 智能体相关表。
+-- Minerva 表结构（PostgreSQL）
+--
+-- 约定：不在库层声明 FOREIGN KEY；表间关联由应用层删除/校验维护。
+-- 已有库若含历史外键，可执行: psql -f backend/sql/patches/drop-foreign-keys.sql
 --
 -- 使用: psql -U minerva -d minerva -f schema_postgresql.sql
--- 推荐仍用: cd backend && alembic upgrade head
 
 DO $$ BEGIN
   CREATE TYPE tenant_role AS ENUM ('owner', 'admin', 'member');
@@ -40,8 +41,7 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
   expires_at TIMESTAMPTZ  NOT NULL,
   revoked_at TIMESTAMPTZ  NULL,
   created_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
-  PRIMARY KEY (id),
-  CONSTRAINT refresh_tokens_user_id_fk FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+  PRIMARY KEY (id)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ix_refresh_tokens_jti ON refresh_tokens (jti);
 CREATE INDEX IF NOT EXISTS ix_refresh_tokens_user_id ON refresh_tokens (user_id);
@@ -52,9 +52,7 @@ CREATE TABLE IF NOT EXISTS tenant_memberships (
   tenant_id UUID         NOT NULL,
   role      tenant_role  NOT NULL,
   PRIMARY KEY (id),
-  CONSTRAINT uq_tenant_membership UNIQUE (user_id, tenant_id),
-  CONSTRAINT tenant_memberships_user_id_fk FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-  CONSTRAINT tenant_memberships_tenant_id_fk FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE
+  CONSTRAINT uq_tenant_membership UNIQUE (user_id, tenant_id)
 );
 CREATE INDEX IF NOT EXISTS ix_tenant_memberships_tenant_id ON tenant_memberships (tenant_id);
 CREATE INDEX IF NOT EXISTS ix_tenant_memberships_user_id ON tenant_memberships (user_id);
@@ -65,8 +63,7 @@ CREATE TABLE IF NOT EXISTS workspaces (
   name      VARCHAR(200) NOT NULL,
   slug      VARCHAR(64)  NOT NULL,
   PRIMARY KEY (id),
-  CONSTRAINT uq_workspaces_tenant_slug UNIQUE (tenant_id, slug),
-  CONSTRAINT workspaces_tenant_id_fk FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE
+  CONSTRAINT uq_workspaces_tenant_slug UNIQUE (tenant_id, slug)
 );
 CREATE INDEX IF NOT EXISTS ix_workspaces_tenant_id ON workspaces (tenant_id);
 
@@ -76,9 +73,7 @@ CREATE TABLE IF NOT EXISTS workspace_memberships (
   workspace_id UUID            NOT NULL,
   role         workspace_role  NOT NULL,
   PRIMARY KEY (id),
-  CONSTRAINT uq_workspace_membership UNIQUE (user_id, workspace_id),
-  CONSTRAINT workspace_memberships_user_id_fk FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-  CONSTRAINT workspace_memberships_workspace_id_fk FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
+  CONSTRAINT uq_workspace_membership UNIQUE (user_id, workspace_id)
 );
 CREATE INDEX IF NOT EXISTS ix_workspace_memberships_user_id ON workspace_memberships (user_id);
 CREATE INDEX IF NOT EXISTS ix_workspace_memberships_workspace_id ON workspace_memberships (workspace_id);
@@ -98,8 +93,7 @@ CREATE TABLE IF NOT EXISTS public.sys_ocr_tool (
   remark VARCHAR(128) NULL,
   create_at TIMESTAMPTZ NULL DEFAULT now(),
   update_at TIMESTAMPTZ NULL,
-  CONSTRAINT sys_ocr_tool_pk PRIMARY KEY (id),
-  CONSTRAINT sys_ocr_tool_workspace_id_fk FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
+  CONSTRAINT sys_ocr_tool_pk PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS ix_sys_ocr_tool_workspace_id ON sys_ocr_tool (workspace_id);
 COMMENT ON TABLE public.sys_ocr_tool IS 'OCR工具';
@@ -124,8 +118,7 @@ CREATE TABLE public.sys_dict (
      create_at timestamptz NULL,
      update_at timestamptz NULL,
      CONSTRAINT sys_dict_pk PRIMARY KEY (id),
-     CONSTRAINT uq_sys_dict_workspace_dict_code UNIQUE (workspace_id, dict_code),
-     CONSTRAINT sys_dict_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE
+     CONSTRAINT uq_sys_dict_workspace_dict_code UNIQUE (workspace_id, dict_code)
 );
 COMMENT ON TABLE public.sys_dict IS '字典编码';
 
@@ -147,9 +140,7 @@ CREATE TABLE public.sys_dict_item (
   create_at timestamptz NULL,
   update_at timestamptz NULL,
   CONSTRAINT sys_dict_item_pk PRIMARY KEY (id),
-  CONSTRAINT uq_sys_dict_item_dict_code UNIQUE (dict_uuid, code),
-  CONSTRAINT sys_dict_item_dict_uuid_fkey FOREIGN KEY (dict_uuid) REFERENCES public.sys_dict(id) ON DELETE CASCADE,
-  CONSTRAINT sys_dict_item_parent_uuid_fkey FOREIGN KEY (parent_uuid) REFERENCES public.sys_dict_item(id) ON DELETE RESTRICT
+  CONSTRAINT uq_sys_dict_item_dict_code UNIQUE (dict_uuid, code)
 );
 COMMENT ON TABLE public.sys_dict_item IS '字典明细';
 
@@ -180,8 +171,7 @@ CREATE TABLE public.sys_models (
 	model_config text NULL,
 	create_at timestamptz NULL,
 	update_at timestamptz NULL,
-	CONSTRAINT sys_models_pk PRIMARY KEY (id),
-	CONSTRAINT sys_models_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE
+	CONSTRAINT sys_models_pk PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS ix_sys_models_workspace_id ON public.sys_models (workspace_id);
 COMMENT ON TABLE public.sys_models IS '模型配置';
@@ -337,19 +327,6 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1
     FROM pg_constraint
-    WHERE conname = 'sys_celery_workspace_id_fk'
-      AND conrelid = 'public.sys_celery'::regclass
-  ) THEN
-    ALTER TABLE public.sys_celery
-      ADD CONSTRAINT sys_celery_workspace_id_fk
-      FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
-  END IF;
-END $$;
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_constraint
     WHERE conname = 'uq_sys_celery_workspace_task_code'
       AND conrelid = 'public.sys_celery'::regclass
   ) THEN
@@ -461,9 +438,7 @@ CREATE TABLE IF NOT EXISTS public.agent_session (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NULL,
   summary_text text NULL,
-  PRIMARY KEY (id),
-  CONSTRAINT agent_session_workspace_id_fk FOREIGN KEY (workspace_id) REFERENCES public.workspaces (id) ON DELETE CASCADE,
-  CONSTRAINT agent_session_created_by_fk FOREIGN KEY (created_by) REFERENCES public.users (id) ON DELETE SET NULL
+  PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS ix_agent_session_workspace_id ON public.agent_session (workspace_id);
 CREATE INDEX IF NOT EXISTS ix_agent_session_workspace_updated ON public.agent_session (workspace_id, updated_at);
@@ -493,10 +468,7 @@ CREATE TABLE IF NOT EXISTS public.agent_run (
   error_message text NULL,
   usage_json jsonb NULL,
   request_meta_json jsonb NULL,
-  PRIMARY KEY (id),
-  CONSTRAINT agent_run_session_id_fk FOREIGN KEY (session_id) REFERENCES public.agent_session (id) ON DELETE CASCADE,
-  CONSTRAINT agent_run_workspace_id_fk FOREIGN KEY (workspace_id) REFERENCES public.workspaces (id) ON DELETE CASCADE,
-  CONSTRAINT agent_run_triggered_by_fk FOREIGN KEY (triggered_by) REFERENCES public.users (id) ON DELETE SET NULL
+  PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS ix_agent_run_session_id ON public.agent_run (session_id);
 CREATE INDEX IF NOT EXISTS ix_agent_run_workspace_id ON public.agent_run (workspace_id);
@@ -531,9 +503,7 @@ CREATE TABLE IF NOT EXISTS public.agent_message (
   message_json jsonb NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (id),
-  CONSTRAINT uq_agent_message_session_seq UNIQUE (session_id, seq),
-  CONSTRAINT agent_message_session_id_fk FOREIGN KEY (session_id) REFERENCES public.agent_session (id) ON DELETE CASCADE,
-  CONSTRAINT agent_message_run_id_fk FOREIGN KEY (run_id) REFERENCES public.agent_run (id) ON DELETE SET NULL
+  CONSTRAINT uq_agent_message_session_seq UNIQUE (session_id, seq)
 );
 CREATE INDEX IF NOT EXISTS ix_agent_message_session_id ON public.agent_message (session_id);
 CREATE INDEX IF NOT EXISTS ix_agent_message_session_seq ON public.agent_message (session_id, seq);
@@ -558,8 +528,7 @@ CREATE TABLE IF NOT EXISTS public.agent_plan (
   steps_json jsonb NOT NULL,
   status varchar(16) NOT NULL DEFAULT 'active',
   created_at timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (id),
-  CONSTRAINT agent_plan_run_id_fk FOREIGN KEY (run_id) REFERENCES public.agent_run (id) ON DELETE CASCADE
+  PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS ix_agent_plan_run_id ON public.agent_plan (run_id);
 COMMENT ON TABLE public.agent_plan IS '单次 run 的结构化计划';
@@ -575,10 +544,7 @@ CREATE TABLE IF NOT EXISTS public.agent_long_term_memory (
   source_run_id uuid NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   expires_at timestamptz NULL,
-  PRIMARY KEY (id),
-  CONSTRAINT agent_ltm_workspace_id_fk FOREIGN KEY (workspace_id) REFERENCES public.workspaces (id) ON DELETE CASCADE,
-  CONSTRAINT agent_ltm_session_id_fk FOREIGN KEY (session_id) REFERENCES public.agent_session (id) ON DELETE CASCADE,
-  CONSTRAINT agent_ltm_source_run_id_fk FOREIGN KEY (source_run_id) REFERENCES public.agent_run (id) ON DELETE SET NULL
+  PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS ix_agent_ltm_workspace_id ON public.agent_long_term_memory (workspace_id);
 CREATE INDEX IF NOT EXISTS ix_agent_ltm_session_id ON public.agent_long_term_memory (session_id);
@@ -600,9 +566,7 @@ CREATE TABLE IF NOT EXISTS public.agent_run_node (
   started_at timestamptz NULL,
   finished_at timestamptz NULL,
   meta_json jsonb NULL,
-  PRIMARY KEY (id),
-  CONSTRAINT agent_run_node_run_id_fk FOREIGN KEY (run_id) REFERENCES public.agent_run (id) ON DELETE CASCADE,
-  CONSTRAINT agent_run_node_parent_node_id_fk FOREIGN KEY (parent_node_id) REFERENCES public.agent_run_node (id) ON DELETE SET NULL
+  PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS ix_agent_run_node_run_id ON public.agent_run_node (run_id);
 CREATE INDEX IF NOT EXISTS ix_agent_run_node_parent_node_id ON public.agent_run_node (parent_node_id);

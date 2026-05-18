@@ -171,6 +171,15 @@ async def test_delete_ocr_file_removes_row() -> None:
         assert create.status_code == 201, create.text
         ocr_id = create.json()["items"][0]["id"]
 
+        async with engine.begin() as conn:
+            await conn.execute(
+                text(
+                    "INSERT INTO ocr_file_paddleocr (id, workspace_id, file_id, page_index, markdown_text) "
+                    "VALUES (gen_random_uuid(), CAST(:wid AS uuid), CAST(:fid AS uuid), 0, 'orphan-test')"
+                ),
+                {"wid": workspace_id, "fid": ocr_id},
+            )
+
         deleted = await ac.delete(
             f"/workspaces/{workspace_id}/ocr-files/{ocr_id}",
             headers=headers,
@@ -182,6 +191,26 @@ async def test_delete_ocr_file_removes_row() -> None:
             headers=headers,
         )
         assert again.status_code == 404, again.text
+
+        async with engine.connect() as conn:
+            paddle_n = (
+                await conn.execute(
+                    text(
+                        "SELECT COUNT(*)::int FROM ocr_file_paddleocr WHERE file_id = CAST(:fid AS uuid)"
+                    ),
+                    {"fid": ocr_id},
+                )
+            ).scalar_one()
+            log_n = (
+                await conn.execute(
+                    text(
+                        "SELECT COUNT(*)::int FROM ocr_file_log WHERE ocr_file_id = CAST(:fid AS uuid)"
+                    ),
+                    {"fid": ocr_id},
+                )
+            ).scalar_one()
+        assert int(paddle_n or 0) == 0
+        assert int(log_n or 0) == 0
 
 
 @pytest.mark.asyncio

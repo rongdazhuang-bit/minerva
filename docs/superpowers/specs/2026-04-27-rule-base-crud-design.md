@@ -1,8 +1,8 @@
 # 规则库「规则列表」CRUD（`rule_base`）设计说明
 
 **日期**：2026-04-27  
-**状态**：已确认，待实现  
-**范围**：后端在 **`app/sys/rule`** 按项目规范分层实现 `public.rule_base` 的列表、创建、更新、**物理删除**；前端在菜单 **规则库 → 规则列表**（路由 `/app/rules/management`）实现表格与表单，**专业**、**文档类型** 通过数据字典 **`RULE_SUBJECT`**、**`RULE_DOC_TYPE`** 下拉选择并存储字典项 **`code`**。
+**状态**：已实现（2026-05-18 按代码回填）  
+**范围**：后端 **`backend/app/rule/`**；前端 `/app/rules/management`。字典已演进为 **`RULE_ENG_SUBJECT_DOC`** 三级 + **`engineering_code`** 列（见 §实现对照）。
 
 **包路径说明**：使用 `from app.sys.rule...` 等完整限定导入，避免与标准库或其它 `rule` 命名冲突。
 
@@ -119,3 +119,14 @@
 ## 7. 自审（规格一致性）
 
 - 已明确：**方案 A 目录**、**物理删除**、字典编码 **`RULE_SUBJECT`** / **`RULE_DOC_TYPE`**、路径前缀 **`/rule-base`**、前端落点 **`RulesManagementPage`**。
+
+---
+
+## 8. 实现对照（以代码为准，2026-05-18）
+
+| 本 spec | 当前代码 |
+|---------|----------|
+| 包路径 `app/sys/rule` | **`backend/app/rule/`** |
+| 字典 `RULE_SUBJECT` + `RULE_DOC_TYPE` | **`RULE_ENG_SUBJECT_DOC`** + `engineering_code` / `subject_code` / `document_type` |
+| API `/rule-base` CRUD | **已实现** + 筛选 `status`/`engineering_code`/`subject_code`/`document_type` |
+| 额外 | `review_rules_ai` 列；`POST .../rule-base/polish-review-rules` |

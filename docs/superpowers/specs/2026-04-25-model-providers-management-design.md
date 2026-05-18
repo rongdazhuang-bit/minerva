@@ -1,7 +1,7 @@
 # 模型供应商管理（sys_models + 管理端 UI）设计说明
 
 **日期**：2026-04-25  
-**状态**：已评审待实现  
+**状态**：已实现（2026-05-18 按代码回填）  
 **范围**：仅设置/管理端完成“模型供应商”页面 CRUD；存储统一落在 `sys_models`；页面按 `provider_name` 分组展示；本期不改对话/任务引擎读取逻辑，但为后续读取保留稳定边界。
 
 ---
@@ -197,3 +197,16 @@ app/sys/model_provider/
 - [x] 字典映射与落库存储规则明确（存 name）。
 - [x] 分组视图为“视图层语义”，不引入新增存储实体。
 - [x] 范围与非目标边界清晰，可直接进入实现计划。
+
+---
+
+## 10. 实现对照（以代码为准，2026-05-18）
+
+| 项 | 代码 |
+|----|------|
+| API | `/workspaces/{id}/model-providers/models`（CRUD + `grouped`） |
+| 模块 | `backend/app/sys/model_provider/` |
+| UI | `/app/settings/models` → `ModelProvidersPage` |
+| 脱敏 | `has_api_key` / `has_password` |
+| **未做** | 响应附带 `provider_code` / `model_type_code`（spec 可选） |
+| 测试 | `backend/tests/test_model_providers_api.py` |

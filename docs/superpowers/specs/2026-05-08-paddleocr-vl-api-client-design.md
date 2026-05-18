@@ -1,7 +1,7 @@
 # PaddleOCR-VL 服务化 API 客户端（app/ocr/paddleocr）设计说明
 
 **日期**：2026-05-08  
-**状态**：已澄清待评审  
+**状态**：已实现（2026-05-18 按代码回填）  
 **依据**：[PaddleOCR-VL 使用教程 — 4.3 客户端调用方式](https://www.paddleocr.ai/main/version3.x/pipeline_usage/PaddleOCR-VL.html#43-%E5%AE%A2%E6%88%B7%E7%AB%AF%E8%B0%83%E7%94%A8%E6%96%B9%E5%BC%8F)（`infer` / `restructurePages` 的请求与响应字段）。
 
 ---
@@ -151,4 +151,16 @@
 
 ## 10. 后续步骤
 
-评审通过后，使用 **writing-plans** 技能输出实现计划（文件组织、命名、`httpx` 异步/同步选择、与现有 `httpx` 超时配置是否复用 `Settings` 等——若复用 `Settings`，仅允许在 **工厂函数** 或 **调用方** 注入超时，避免 `paddleocr` 直接依赖 `app.config`；首选 **调用方传入 `timeout` / `client`** 以保持模块无全局配置依赖）。
+评审通过后，使用 **writing-plans** 技能输出实现计划。**已完成**。
+
+---
+
+## 11. 实现对照（以代码为准，2026-05-18）
+
+| 项 | 代码 |
+|----|------|
+| 模块 | `backend/app/ocr/paddleocr/`（`client.py`, `schemas.py`, `errors.py`, `pruned_result.py`） |
+| API | `post_layout_parsing`、`post_restructure_pages`；完整 URL POST |
+| 依赖 | 调用方注入 `timeout` / `httpx` client；**不读** `SysOcrTool` |
+| 集成 | `file_ocr` 扫描策略 `strategies/paddle.py` |
+| 测试 | `backend/tests/` 中 file_ocr 相关 mock 测试 |

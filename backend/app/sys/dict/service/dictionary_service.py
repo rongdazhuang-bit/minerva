@@ -7,6 +7,7 @@ from collections import defaultdict
 from datetime import UTC, datetime
 from typing import Any
 
+from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -150,6 +151,7 @@ async def delete_dict(
     dict_id: uuid.UUID,
 ) -> None:
     row = await get_dict(session, workspace_id=workspace_id, dict_id=dict_id)
+    await session.execute(delete(SysDictItem).where(SysDictItem.dict_uuid == dict_id))
     await session.delete(row)
     try:
         await session.commit()

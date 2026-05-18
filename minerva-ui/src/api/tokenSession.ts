@@ -1,6 +1,6 @@
 import { jwtDecode } from 'jwt-decode'
 
-import { apiOrigin } from '@/api/config'
+import { apiOrigin, AUTH_API_FETCH_TIMEOUT_MS } from '@/api/config'
 
 export const STORAGE_ACCESS = 'access_token'
 export const STORAGE_REFRESH = 'refresh_token'
@@ -101,6 +101,7 @@ export async function refreshTokens(): Promise<boolean> {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: refresh }),
+        signal: AbortSignal.timeout(AUTH_API_FETCH_TIMEOUT_MS),
       })
       if (!res.ok) return false
       const data = (await res.json()) as {

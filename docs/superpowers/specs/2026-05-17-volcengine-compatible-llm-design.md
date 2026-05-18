@@ -1,7 +1,7 @@
 # Volcengine Ark（OpenAI 兼容）LLM 策略实现设计
 
 **日期**：2026-05-17  
-**状态**：已评审待实现  
+**状态**：已实现（2026-05-18 按代码回填）  
 **范围**：将 `app.llm` 中火山引擎（Volcengine Ark）策略从占位改为基于 **OpenAI Python SDK（异步）** 的真实对接；重命名策略文件；HTTP 层默认流式输出。
 
 **前置规格**：`docs/superpowers/specs/2026-04-28-ai-api-openai-compatible-design.md`
@@ -159,12 +159,12 @@ Authorization: Bearer <token>
 
 ---
 
-## 8. 实现检查清单
+## 8. 实现检查清单（2026-05-18 核对）
 
-- [ ] `volcengine_compatible.py` 实现 `VolcengineCompatibleStrategy`
-- [ ] 删除 `volcengine_placeholder.py`
-- [ ] `strategies/__init__.py` 注册与导出
-- [ ] `schemas.py`：`stream: bool = True`
-- [ ] `test_llm.py` 更新
-- [ ] `docs/ai-api.md` 更新
-- [ ] `pytest backend/tests/test_llm.py -q` 通过
+- [x] `volcengine_compatible.py` 实现 `VolcengineCompatibleStrategy`
+- [x] 删除 `volcengine_placeholder.py`
+- [x] `strategies/__init__.py` 注册与导出
+- [x] `schemas.py`：`stream: bool = True`
+- [x] `test_llm.py` 更新
+- [x] `docs/ai-api.md` 更新
+- [x] `pytest backend/tests/test_llm.py -q` 通过

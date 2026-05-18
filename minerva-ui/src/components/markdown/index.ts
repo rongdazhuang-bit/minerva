@@ -44,6 +44,7 @@ export {
   normalizeMermaidSourceForRender,
   prepareMarkdownFencedDiagrams,
   repairMermaidFencedBlocks,
+  repairMermaidSyntaxLines,
   splitInlineOpeningCodeFences,
 } from '@/components/markdown/normalizeMarkdownFences'
 export {

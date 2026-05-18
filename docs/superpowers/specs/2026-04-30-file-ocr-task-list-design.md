@@ -1,8 +1,10 @@
 # 文件OCR任务列表与新增流程设计（直改版）
 
+**状态**：已实现（2026-05-18 按代码回填；向导关闭约束、取消任务有缺口）
+
 ## 1. 背景与目标
 
-当前 `文件OCR > 任务列表` 页面仅有统计与占位内容，尚未提供完整任务管理能力。  
+~~当前 `文件OCR > 任务列表` 页面仅有统计与占位内容，尚未提供完整任务管理能力。~~（已实现，见 §12。）  
 本次按“前后端一体直改（最快）”落地以下能力：
 
 - 任务列表查询与条件过滤；
@@ -271,3 +273,18 @@
 - 对话框流程中不可关闭。
 - 新建任务初始为 `INIT`，`page_count` 初始为空。
 - `file_uri` 已移除，列表路径展示 `object_key`。
+
+---
+
+## 12. 实现对照（以代码为准，2026-05-18）
+
+| 项 | 代码 |
+|----|------|
+| 模块 | `backend/app/file_ocr/` |
+| UI | `/app/file-ocr/tasks` → `FileOcrTaskPage` |
+| API | `GET/POST/DELETE .../ocr-files`；**已实现** `retry`、`GET .../logs` |
+| 状态 | `INIT`/`PROCESS`/`SUCCESS`/`FAILED` |
+| OCR 类型 | `PADDLE_OCR` / `MINERU` |
+| 向导 | 4 步 UI；**缺口**：`maskClosable` 在 step 1–2 仍可关（spec 要求全程不可关） |
+| 取消处理中 | **仅占位 toast**，无 API |
+| 详情 Drawer | 见 `2026-05-13-file-ocr-task-detail-drawer-design.md` |

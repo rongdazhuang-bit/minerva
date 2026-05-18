@@ -76,6 +76,22 @@ describe('tokenSession', () => {
     expect(localStorage.getItem(STORAGE_ACCESS)).toBe(newAccess)
   })
 
+  it('refreshTokens uses fetch timeout', async () => {
+    localStorage.setItem(STORAGE_REFRESH, 'r1')
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          access_token: makeJwt(Math.floor(Date.now() / 1000) + 3600),
+          refresh_token: 'r2',
+        }),
+        { status: 200 },
+      ),
+    )
+    await refreshTokens()
+    const init = vi.mocked(fetch).mock.calls[0]?.[1] as RequestInit | undefined
+    expect(init?.signal).toBeDefined()
+  })
+
   it('refreshTokens dedupes concurrent calls', async () => {
     localStorage.setItem(STORAGE_REFRESH, 'r1')
     let resolveFetch!: (v: Response) => void

@@ -1,10 +1,10 @@
 # Agent `file` 技能：工作区本地沙箱文件 CRUD 设计说明
 
 **日期**：2026-05-16  
-**状态**：待实现  
-**范围**：新增 `file` 技能包（细粒度多工具）；实现 `AgentFileSandbox` 与 `SkillToolContext`；扩展 `load_tools_for_skills` / `AgentRunService` 注入 `workspace_id`；注册 `INDEX.md` 与 `skill_resolver` 关键词。
+**状态**：已实现（2026-05-18 按代码回填；集成于 LangGraph v2）  
+**范围**：`file` 技能包（6 工具 + 沙箱）；经 `skill_loader` + `executor_node` 注入 `SkillToolContext`；Planner 根据 `SKILL.md` 触发词路由。
 
-**关系**：本设计为 `docs/superpowers/specs/2026-05-16-agent-system-datetime-skill-design.md` 的 **增量**，复用既有技能加载、工具循环、skills HTTP API 与前端 `/` 菜单机制。
+**关系**：与 `datetime` 技能并列；编排见 `2026-05-16-agent-langgraph-redesign-design.md`。原 v1 `AgentRunService` / `skill_resolver` **已移除**。
 
 ---
 
@@ -45,9 +45,9 @@
 | 技能工具 | `backend/app/agent/skills/file/tools.py` | `register(registry, ctx)`，绑定 6 个 handler |
 | 技能说明 | `backend/app/agent/skills/file/SKILL.md` | 何时调用、路径规则、工具一览 |
 | 加载器 | `skill_tools.py` | `load_tools_for_skills(skill_ids, *, ctx=...)`，按签名调用 `register` |
-| 解析器 | `skill_resolver.py` | `SKILL_KEYWORDS["file"]` |
+| 路由 | `skill_resolver`（v1） | Planner + `skill_loader.match_skill_for_planner_message` / `SKILL.md` 触发词 |
 | 配置 | `app/config.py` | `agent_files_root`、`agent_file_max_bytes` |
-| Run 服务 | `agent_run_service.py` | 构造 `SkillToolContext` 并传入 loader |
+| Run 集成 | `AgentRunService`（v1） | `graphs/nodes/executor.py` 构造 `SkillToolContext` |
 
 ### 2.2 数据流
 
@@ -279,6 +279,20 @@ registry = skill_tools.load_tools_for_skills(
 
 ## 11. 与既有 spec 的关系
 
-- 不修改 `GET .../agent/skills` 契约与前端 `/` 交互。
-- 不引入新 SSE 事件类型。
-- 工具循环轮次与 `system_datetime` 设计一致（当前实现为 2 轮 LLM）；多步文件任务依赖单轮多 `tool_calls` 或第二轮汇总。
+- `GET .../agent/v2/skills` 列表含 `file`（来自 `INDEX.md`）。
+- SSE 使用 v2 `tool.started` / `tool.finished`（非 v1 `tool.start`）。
+- 子 Agent ReAct 深度受 `agent_subagent_recursion_limit`（默认 16）约束，非 v1 固定 2 轮。
+
+---
+
+## 12. 实现对照（以代码为准，2026-05-18）
+
+| 项 | 代码位置 |
+|----|----------|
+| 沙箱 | `backend/app/agent/infrastructure/agent_file_sandbox.py` |
+| 工具 | `backend/app/agent/skills/file/tools.py`（`register_tools(ctx)` + `@tool`） |
+| 说明 | `backend/app/agent/skills/file/SKILL.md` |
+| 索引 | `backend/app/agent/skills/INDEX.md`（id=`file`） |
+| API 列表 | `GET /workspaces/{workspace_id}/agent/v2/skills` |
+| 6 工具名 | `list_dir`, `read_file`, `write_file`, `delete_path`, `mkdir`, `move_path` |
+| 前端 `/file` 前缀 | **未接线**（`AgentsPage` 未使用 `agentSkillUi.ts`） |

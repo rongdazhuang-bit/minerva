@@ -8,9 +8,11 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Iterable
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import AppError
+from app.rule.domain.db.models import RuleConfigPrompt
 from app.sys.dict.service import dictionary_service as dict_service
 from app.sys.model_provider.domain.db.models import SysModel
 from app.sys.model_provider.infrastructure import repository as repo
@@ -204,6 +206,20 @@ async def delete_model(
     session: AsyncSession, *, workspace_id: uuid.UUID, model_id: uuid.UUID
 ) -> None:
     row = await get_model(session, workspace_id=workspace_id, model_id=model_id)
+    ref_count = await session.scalar(
+        select(func.count())
+        .select_from(RuleConfigPrompt)
+        .where(
+            RuleConfigPrompt.workspace_id == workspace_id,
+            RuleConfigPrompt.model_id == model_id,
+        )
+    )
+    if ref_count and int(ref_count) > 0:
+        raise AppError(
+            "model.in_use",
+            "Cannot delete model while rule config prompts still reference it",
+            409,
+        )
     await session.delete(row)
     await session.commit()
 
