@@ -1,7 +1,7 @@
 # 服务启动脚本与多环境配置设计
 
 **日期**：2026-05-19  
-**状态**：待实现  
+**状态**：已实现（2026-05-19）  
 **依据**：头脑风暴——将 FastAPI 主服务与 Celery Worker/Beat 拆分为独立启动脚本（Windows + Linux）；环境配置改为「单 profile → 单 `.env.<profile>` 文件」，无叠加；`run-backend` 无参默认 `local`；`run-celery` 必须显式 `<profile> <worker|beat>`，不支持 `both`。
 
 ---
@@ -209,10 +209,10 @@ return (str(path),) if path.is_file() else None
 
 ## 7. 文档同步清单
 
-- [ ] `backend/.env.example` 头部注释
-- [ ] `README.md` / `README.en.md` 启动章节（`run-backend` + `run-celery`、`.env.local`）
-- [ ] `.cursor/skills/minerva-conventions/SKILL.md` §3
-- [ ] `scripts/run-frontend.*` 注释（可选，指向 `run-backend`）
+- [x] `backend/.env.example` 头部注释
+- [x] `README.md` / `README.en.md` 启动章节（`run-backend` + `run-celery`、`.env.local`）
+- [x] `.cursor/skills/minerva-conventions/SKILL.md` §3
+- [x] `scripts/run-frontend.*` 注释（可选，指向 `run-backend`）
 
 ---
 
@@ -226,12 +226,12 @@ return (str(path),) if path.is_file() else None
 
 ---
 
-## 9. 实现对照（以代码为准，待填）
+## 9. 实现对照（以代码为准，2026-05-19）
 
-| spec 条目 | 计划代码位置 | 状态 |
-|-----------|--------------|------|
-| `run-backend` 仅 uvicorn | `scripts/run-backend.*` | 待实现 |
-| `run-celery` | `scripts/run-celery.*` | 待实现 |
-| `_backend-common` | `scripts/_backend-common.*` | 待实现 |
-| 单文件 env 加载 | `backend/app/config.py` | 待实现 |
-| 文档同步 | README、`.env.example`、`minerva-conventions` | 待实现 |
+| spec 条目 | 代码位置 | 状态 |
+|-----------|----------|------|
+| `run-backend` 仅 uvicorn | `scripts/run-backend.cmd`, `scripts/run-backend.sh` | 已实现 |
+| `run-celery` 严格两参数 | `scripts/run-celery.cmd`, `scripts/run-celery.sh` | 已实现 |
+| `_backend-common` | `scripts/_backend-common.cmd`, `scripts/_backend-common.sh` | 已实现 |
+| 单文件 env 加载 | `backend/app/config.py`, `backend/tests/test_config_env_loading.py` | 已实现 |
+| 文档同步 | `README.md`, `README.en.md`, `backend/.env.example`, `minerva-conventions` | 已实现 |
