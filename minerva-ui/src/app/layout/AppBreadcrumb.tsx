@@ -39,6 +39,21 @@ function rulesBreadcrumb(
   return [home, rulesBase, { title: t('nav.rulesOverview') }]
 }
 
+function agentsBreadcrumb(
+  pathname: string,
+  t: (k: string) => string,
+  home: ItemType,
+): ItemType[] | null {
+  if (!pathname.startsWith('/app/agents')) return null
+  const agentsBase: ItemType = {
+    title: <Link to="/app/agents/chat">{t('nav.agents')}</Link>,
+  }
+  if (pathname.startsWith('/app/agents/skills')) {
+    return [home, agentsBase, { title: t('nav.agentsSkills') }]
+  }
+  return [home, agentsBase, { title: t('nav.agentsChat') }]
+}
+
 function fileOcrBreadcrumb(
   pathname: string,
   t: (k: string) => string,
@@ -61,9 +76,8 @@ export function AppBreadcrumb() {
   const items: ItemType[] = useMemo(() => {
     const home: ItemType = { title: <Link to="/app/overview">{t('breadcrumb.home')}</Link> }
 
-    if (pathname.startsWith('/app/agents')) {
-      return [home, { title: t('nav.agents') }]
-    }
+    const agents = agentsBreadcrumb(pathname, t, home)
+    if (agents) return agents
     if (pathname.startsWith('/app/knowledge-base')) {
       return [home, { title: t('nav.knowledgeBase') }]
     }

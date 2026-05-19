@@ -2,6 +2,7 @@ import {
   ApiOutlined,
   BarChartOutlined,
   BookOutlined,
+  CommentOutlined,
   ClockCircleOutlined,
   DashboardOutlined,
   DatabaseOutlined,
@@ -16,6 +17,7 @@ import {
   SettingOutlined,
   SlidersOutlined,
   TagsOutlined,
+  ThunderboltOutlined,
   UnorderedListOutlined,
   UserOutlined,
 } from '@ant-design/icons'
@@ -39,6 +41,7 @@ const SUB_SETTINGS = 'sub-settings'
 const SUB_RULES = 'sub-rules'
 const SUB_RULES_CONFIG = 'sub-rules-config'
 const SUB_FILE_OCR = 'sub-file-ocr'
+const SUB_AGENTS = 'sub-agents'
 
 const siderStyle: CSSProperties = {
   background: 'var(--minerva-surface, #1b2838)',
@@ -109,7 +112,7 @@ const contentScrollStyle: CSSProperties = {
 
 /** 智能体路由：顶/底由页内承担；左缘略收紧使对话区向左靠，右缘保持 20px 与面包屑/滚动条习惯一致。 */
 function contentScrollStyleForPath(pathname: string): CSSProperties {
-  if (pathname.startsWith('/app/agents')) {
+  if (pathname.startsWith('/app/agents/chat')) {
     return {
       ...contentScrollStyle,
       padding: '0 20px 0 10px',
@@ -134,7 +137,10 @@ function menuKeyForPath(pathname: string): string {
   if (pathname.startsWith('/app/settings/dictionary')) return 'settings-dictionary'
   if (pathname.startsWith('/app/settings/celery')) return 'settings-celery'
   if (pathname.startsWith('/app/settings')) return 'settings-models'
-  if (pathname.startsWith('/app/agents')) return 'agents'
+  if (pathname.startsWith('/app/agents/skills')) return 'agents-skills'
+  if (pathname.startsWith('/app/agents/chat') || pathname.match(/^\/app\/agents\/?$/)) {
+    return 'agents-chat'
+  }
   if (pathname.startsWith('/app/knowledge-base')) return 'knowledge-base'
   if (pathname.startsWith('/app/smart-review')) return 'smart-review'
   if (pathname.startsWith('/app/file-ocr')) return 'file-ocr-overview'
@@ -185,6 +191,11 @@ export function AppLayout() {
         if (!next.includes(SUB_FILE_OCR)) next.push(SUB_FILE_OCR)
       } else {
         next = next.filter((k) => k !== SUB_FILE_OCR)
+      }
+      if (pathname.startsWith('/app/agents')) {
+        if (!next.includes(SUB_AGENTS)) next.push(SUB_AGENTS)
+      } else {
+        next = next.filter((k) => k !== SUB_AGENTS)
       }
       return next
     })
@@ -257,10 +268,23 @@ export function AppLayout() {
                   onClick: () => void nav('/app/overview'),
                 },
                 {
-                  key: 'agents',
+                  key: SUB_AGENTS,
                   icon: <RobotOutlined />,
                   label: t('nav.agents'),
-                  onClick: () => void nav('/app/agents'),
+                  children: [
+                    {
+                      key: 'agents-chat',
+                      icon: <CommentOutlined />,
+                      label: t('nav.agentsChat'),
+                      onClick: () => void nav('/app/agents/chat'),
+                    },
+                    {
+                      key: 'agents-skills',
+                      icon: <ThunderboltOutlined />,
+                      label: t('nav.agentsSkills'),
+                      onClick: () => void nav('/app/agents/skills'),
+                    },
+                  ],
                 },
                 {
                   key: 'knowledge-base',
