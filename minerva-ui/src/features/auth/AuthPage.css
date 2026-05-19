@@ -203,6 +203,14 @@ html.minerva-auth-page .login-shell {
   padding: 0 20px;
 }
 
+/* 登录/注册卡片主体宽度；避免 flex 子项随表单内容收缩 */
+html.minerva-auth-page .login-panel,
+html.minerva-auth-page .login-center > .ant-app {
+  width: min(480px, 100%);
+  max-width: 480px;
+  box-sizing: border-box;
+}
+
 /* 各强调色下微弱霓虹氛围，底层与主背景同色以便切换时整页联动 */
 .login-shell::before {
   content: '';
@@ -229,7 +237,7 @@ html.minerva-auth-page .login-shell {
 .login-card {
   position: relative;
   width: 100%;
-  max-width: 480px;
+  max-width: 100%;
   margin: 0;
   background: var(--minerva-surface, #1a2836);
   border: 1px solid var(--minerva-border, #2a3f58);
@@ -423,6 +431,47 @@ html.minerva-auth-page .login-card .ant-input-affix-wrapper:has(input.ant-input:
 
 .login-card .ant-checkbox {
   color: #94a3b8;
+}
+
+.auth-captcha-field {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.auth-captcha-field .auth-captcha-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.auth-captcha-image-btn {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 120px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--minerva-border, #2a3f58);
+  border-radius: 8px;
+  background: #0f172a;
+  cursor: pointer;
+}
+
+.auth-captcha-image-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.auth-captcha-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 7px;
+  user-select: none;
+  pointer-events: none;
 }
 
 /* ========== 阳光：浅色白底（与暗色五主题区分）========== */

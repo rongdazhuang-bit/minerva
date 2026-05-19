@@ -26,10 +26,17 @@ from app.core.domain.identity.services import (
     revoke_refresh_token_row,
 )
 from app.exceptions import AppError
+from app.config import settings
 from app.core.infrastructure.security.jwt_tokens import (
     create_access_token,
     create_refresh_token,
     decode_token,
+)
+from app.core.infrastructure.security.login_captcha import (
+    create_login_captcha,
+    create_register_captcha,
+    verify_login_captcha,
+    verify_register_captcha,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -40,6 +47,8 @@ class RegisterIn(BaseModel):
 
     email: EmailStr
     password: str = Field(min_length=8, max_length=200)
+    captcha_id: str = ""
+    captcha_code: str = ""
 
 
 class LoginIn(BaseModel):
@@ -47,6 +56,15 @@ class LoginIn(BaseModel):
 
     email: EmailStr
     password: str
+    captcha_id: str = ""
+    captcha_code: str = ""
+
+
+class AuthCaptchaOut(BaseModel):
+    """CAPTCHA challenge for login or register forms."""
+
+    captcha_id: str
+    image: str
 
 
 class RefreshIn(BaseModel):
@@ -102,6 +120,8 @@ async def _issue_tokens(
 async def register(body: RegisterIn, session: AsyncSession = Depends(get_db)) -> TokenOut:
     """Register a user and return freshly minted bearer tokens."""
 
+    if settings.auth_login_captcha_enabled:
+        verify_register_captcha(body.captcha_id, body.captcha_code)
     r = await register_user(session, email=body.email, password=body.password)
     out, jti = await _issue_tokens(
         session,
@@ -113,10 +133,32 @@ async def register(body: RegisterIn, session: AsyncSession = Depends(get_db)) ->
     return out
 
 
+@router.get("/login/captcha", response_model=AuthCaptchaOut)
+async def login_captcha() -> AuthCaptchaOut:
+    """Return a one-time SVG CAPTCHA image for the login form."""
+
+    if not settings.auth_login_captcha_enabled:
+        raise AppError("auth.captcha_disabled", "Login captcha is disabled", 404)
+    captcha_id, image = create_login_captcha()
+    return AuthCaptchaOut(captcha_id=captcha_id, image=image)
+
+
+@router.get("/register/captcha", response_model=AuthCaptchaOut)
+async def register_captcha() -> AuthCaptchaOut:
+    """Return a one-time SVG CAPTCHA image for the register form."""
+
+    if not settings.auth_login_captcha_enabled:
+        raise AppError("auth.captcha_disabled", "Register captcha is disabled", 404)
+    captcha_id, image = create_register_captcha()
+    return AuthCaptchaOut(captcha_id=captcha_id, image=image)
+
+
 @router.post("/login", response_model=TokenOut)
 async def login(body: LoginIn, session: AsyncSession = Depends(get_db)) -> TokenOut:
     """Authenticate existing credentials and persist a new refresh row."""
 
+    if settings.auth_login_captcha_enabled:
+        verify_login_captcha(body.captcha_id, body.captcha_code)
     out = await authenticate_user(session, email=body.email, password=body.password)
     if out is None:
         raise AppError("auth.invalid_credentials", "Invalid email or password", 401)

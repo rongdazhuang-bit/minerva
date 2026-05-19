@@ -27,6 +27,7 @@ import {
   Form,
   Input,
   Modal,
+  Popconfirm,
   Progress,
   Result,
   Row,
@@ -845,16 +846,20 @@ export function RulesFileOcrTaskPage() {
               key: 'delete',
               danger: true,
               icon: <DeleteOutlined />,
-              label: t('fileOcr.tasks.action.delete'),
-              onClick: () => {
-                Modal.confirm({
-                  title: t('fileOcr.tasks.deleteConfirm'),
-                  okText: t('common.yes'),
-                  cancelText: t('common.cancel'),
-                  okButtonProps: { danger: true },
-                  onOk: () => void handleDeleteOcrTask(row.id),
-                })
-              },
+              label: (
+                <Popconfirm
+                  title={t('fileOcr.tasks.deleteConfirm')}
+                  okText={t('common.yes')}
+                  cancelText={t('common.cancel')}
+                  okButtonProps={{ danger: true }}
+                  onConfirm={() => void handleDeleteOcrTask(row.id)}
+                  onCancel={(e) => e?.stopPropagation()}
+                >
+                  <span onClick={(e) => e.stopPropagation()}>
+                    {t('fileOcr.tasks.action.delete')}
+                  </span>
+                </Popconfirm>
+              ),
             },
           ]
           return (

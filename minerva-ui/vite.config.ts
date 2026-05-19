@@ -23,13 +23,18 @@ const devApiProxy = {
   proxyTimeout: devApiProxyTimeoutMs,
 }
 
-/** ``/auth`` 下仅有 POST API；GET 为 SPA 路由，须回退到 ``index.html``。 */
+/** /auth POST 走 API；GET 多为 SPA，但 /auth/login/captcha 与 register/captcha 须代理到后端。 */
 const authApiProxy = {
   ...devApiProxy,
   bypass(req) {
-    if (req.method === 'GET' || req.method === 'HEAD') {
-      return '/index.html'
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      return
     }
+    const path = (req.url ?? '').split('?')[0] ?? ''
+    if (path.endsWith('/captcha')) {
+      return
+    }
+    return '/index.html'
   },
 }
 

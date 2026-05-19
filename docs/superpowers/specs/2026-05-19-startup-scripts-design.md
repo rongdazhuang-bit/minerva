@@ -77,14 +77,13 @@ run-celery[.cmd|.sh] <profile> <worker|beat>
 
 - **必须恰好 2 个参数**；否则打印用法并 `exit 1`。
 - 第二参数仅允许 `worker` 或 `beat`；**不支持 `both`**。
-- 同时需要 Worker 与 Beat：开两个终端（或 Windows 下执行两次，各开一个 `cmd /k` 窗口）：
+- 同时需要 Worker 与 Beat：开两个终端（Windows / Linux 各执行一次，均在当前窗口前台运行）：
   - `run-celery.cmd local worker`
   - `run-celery.cmd local beat`
 
 | 平台 | 行为 |
 |------|------|
-| Windows | 每次调用 `start "Minerva Celery Worker|Beat" cmd /k "..."` 打开独立窗口后退出 |
-| Linux | 当前终端前台运行对应 `celery` 子进程 |
+| Windows / Linux | 当前终端前台运行对应 `celery` 子进程（`run-celery.cmd` 与 `.sh` 行为一致） |
 
 Celery 命令（与现有一致）：
 
@@ -218,7 +217,7 @@ return (str(path),) if path.is_file() else None
 
 ## 8. 验收清单
 
-1. Windows：`run-backend.cmd` 仅 uvicorn；`run-celery.cmd local worker` / `local beat` 各开独立窗口。
+1. Windows：`run-backend.cmd` 仅 uvicorn；`run-celery.cmd local worker` / `local beat` 在当前 cmd 窗口前台运行。
 2. Linux：`bash scripts/run-backend.sh` 仅 uvicorn；`bash scripts/run-celery.sh local worker` 前台 worker。
 3. `APP_ENV=dev` 且存在 `.env.dev` 时，`settings.database_url` 来自 `.env.dev`，不混入 `.env.local`。
 4. `run-backend` 无 Celery 代码；grep 无 `MINERVA_SKIP_CELERY`。

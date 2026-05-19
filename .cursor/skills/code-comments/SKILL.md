@@ -10,7 +10,8 @@ description: >-
   lists: default 10 per page (shared constants in `app/pagination.py` and
   `minerva-ui/src/constants/pagination.ts`); (7) minerva-ui scrollbar widths via shared
   classes in `appLayoutScroll.css` (`minerva-scrollbar-thin` 4px vs
-  `minerva-scrollbar-styled` 5px). Cross-cutting rules (no DB foreign keys / doc-first fixes):
+  `minerva-scrollbar-styled` 5px); (8) secondary confirmations use Ant Design Popconfirm only
+  (see `minerva-conventions` §4). Cross-cutting rules (no DB foreign keys / doc-first fixes):
   see `minerva-conventions` skill. Use when adding
   or editing comments, documenting APIs, reviewing comment quality, scaffolding
   `app/sys/tool/<name>`, building settings/auth forms, enforcing comment rules repo-wide,
@@ -136,6 +137,10 @@ export const queryClient = ...
 - 对 **`export` 的函数/常量**：若行为非一目了然，用 **1～3 行**块注释或简短 JSDoc（`@param` 仅当类型不足以表达时）。
 - **Hooks**：在 `useEffect`/`useLayoutEffect` 中注明**依赖项含义**与**与 DOM/布局相关的顺序**（先同步 class 再持久化等）。
 - **与全局样式联动**：若依赖 `document.documentElement` 的 class 或 `index.css` 变量，在 **单一同步函数**处集中说明，避免在多处散写。
+
+### minerva-ui：二次确认（Popconfirm）
+
+凡需用户二次确认的操作（删除、退出登录等），**统一使用 Ant Design `Popconfirm`** 包裹触发按钮；**禁止** `Modal.confirm` / `window.confirm`。细则与示例见 **`minerva-conventions` Skill §4**。
 
 ### minerva-ui：Ant Design 表单可清除
 

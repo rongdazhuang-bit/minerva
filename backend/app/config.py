@@ -58,6 +58,34 @@ class Settings(BaseSettings):
     jwt_access_ttl_minutes: int = 60
     jwt_refresh_ttl_days: int = 7
     bcrypt_rounds: int = 12
+    auth_login_captcha_enabled: bool = Field(
+        default=True,
+        description="为 True 时 POST /auth/login 与 /auth/register 须携带有效图形验证码。",
+        validation_alias=AliasChoices(
+            "AUTH_LOGIN_CAPTCHA_ENABLED",
+            "auth_login_captcha_enabled",
+        ),
+    )
+    auth_login_captcha_ttl_seconds: int = Field(
+        default=300,
+        ge=60,
+        le=900,
+        description="登录验证码在 Redis 中的存活秒数。",
+        validation_alias=AliasChoices(
+            "AUTH_LOGIN_CAPTCHA_TTL_SECONDS",
+            "auth_login_captcha_ttl_seconds",
+        ),
+    )
+    auth_login_captcha_length: int = Field(
+        default=4,
+        ge=4,
+        le=6,
+        description="登录验证码字符个数（大写字母与数字）。",
+        validation_alias=AliasChoices(
+            "AUTH_LOGIN_CAPTCHA_LENGTH",
+            "auth_login_captcha_length",
+        ),
+    )
     auto_create_tables: bool = Field(
         default=True,
         description="为 True 时启动时按 ORM 元数据补建缺表；生产建议 False 并仅用 Alembic。",

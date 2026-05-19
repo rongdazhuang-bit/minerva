@@ -52,6 +52,30 @@ export async function authFetch(url: string, init?: RequestInit): Promise<Respon
   return attempt(false)
 }
 
+/**
+ * 无需登录的 JSON 请求（验证码等公开 ``/auth`` 读接口）。
+ */
+export async function publicApiJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers)
+  const res = await fetch(`${base}${path}`, {
+    ...init,
+    headers,
+    signal: init?.signal ?? AbortSignal.timeout(AUTH_API_FETCH_TIMEOUT_MS),
+  })
+  const text = await res.text()
+  if (!res.ok) {
+    try {
+      const j = JSON.parse(text) as { code?: string; message?: string }
+      throw new ApiError(j.code ?? 'error', j.message ?? text)
+    } catch (e) {
+      if (e instanceof ApiError) throw e
+      throw new ApiError('http', text || res.statusText)
+    }
+  }
+  if (!text) return null as T
+  return JSON.parse(text) as T
+}
+
 export async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers)
   const hasBody = init?.body !== undefined

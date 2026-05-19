@@ -1,5 +1,5 @@
 import { LogoutOutlined } from '@ant-design/icons'
-import { Button, Tooltip } from 'antd'
+import { Button, Popconfirm } from 'antd'
 import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMinervaTone } from '@/app/useMinervaTone'
@@ -23,15 +23,19 @@ export function AppHeaderToolbar({ onLogout }: Props) {
   return (
     <div className="app-header-toolbar">
       <MinervaLangThemeControls tone={tone} onToneChange={onToneChange} />
-      <Tooltip title={t('auth.logout')}>
+      <Popconfirm
+        title={t('auth.logoutConfirm')}
+        okText={t('auth.logout')}
+        cancelText={t('common.cancel')}
+        onConfirm={onLogout}
+      >
         <Button
           type="text"
           className="auth-page-toolbar-btn"
           icon={<LogoutOutlined />}
-          onClick={onLogout}
           aria-label={t('auth.logout')}
         />
-      </Tooltip>
+      </Popconfirm>
     </div>
   )
 }

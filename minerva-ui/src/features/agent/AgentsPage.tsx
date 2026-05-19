@@ -15,7 +15,7 @@ import {
   Dropdown,
   Flex,
   Input,
-  Modal,
+  Popconfirm,
   Select,
   Spin,
   Typography,
@@ -414,34 +414,28 @@ export function AgentsPage() {
     [workspaceId, sessionId, streaming, handleNewChat, queryClient, t],
   )
 
-  const confirmDeleteSession = useCallback(
-    (targetSessionId: string) => {
-      Modal.confirm({
-        title: t('agents.deleteSessionConfirm'),
-        okText: t('agents.deleteSession'),
-        okButtonProps: { danger: true },
-        cancelText: t('common.cancel'),
-        onOk: () => handleDeleteSession(targetSessionId),
-      })
-    },
-    [t, handleDeleteSession],
-  )
-
   const buildSessionRowMenu = useCallback(
     (targetSessionId: string): MenuProps => ({
       items: [
         {
           key: 'delete',
-          label: t('agents.deleteSession'),
           danger: true,
-          onClick: ({ domEvent }) => {
-            domEvent.stopPropagation()
-            confirmDeleteSession(targetSessionId)
-          },
+          label: (
+            <Popconfirm
+              title={t('agents.deleteSessionConfirm')}
+              okText={t('agents.deleteSession')}
+              cancelText={t('common.cancel')}
+              okButtonProps={{ danger: true }}
+              onConfirm={() => void handleDeleteSession(targetSessionId)}
+              onCancel={(e) => e?.stopPropagation()}
+            >
+              <span onClick={(e) => e.stopPropagation()}>{t('agents.deleteSession')}</span>
+            </Popconfirm>
+          ),
         },
       ],
     }),
-    [t, confirmDeleteSession],
+    [t, handleDeleteSession],
   )
 
   /** 发起一轮助手流式回复（新提问或基于已有用户消息重新生成）。 */

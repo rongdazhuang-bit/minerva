@@ -2,6 +2,7 @@ import { loginApi } from '@/api/auth'
 import { ApiError } from '@/api/client'
 import { useAuth } from '@/app/AuthContext'
 import { useAppMessage } from '@/app/useAppMessage'
+import { AuthCaptchaField } from '@/features/auth/AuthCaptchaField'
 import { AuthPasswordInput } from '@/features/auth/AuthPasswordInput'
 import { AuthPageToolbar } from '@/features/auth/AuthPageToolbar'
 import { getAuthPageTheme, type AuthTone } from '@/features/auth/authTheme'
@@ -15,6 +16,12 @@ import './AuthPage.css'
 
 const RE_MEMBER = 'minerva_remember_email'
 
+type LoginFormValues = {
+  email: string
+  password: string
+  captcha_code: string
+}
+
 export function LoginPage() {
   useAuthPageBodyLock()
   const { tone, setTone } = useAuthPageTone()
@@ -23,11 +30,13 @@ export function LoginPage() {
     <div className={`login-shell tone-${tone}`}>
       <AuthPageToolbar tone={tone} onToneChange={setTone} />
       <div className="login-center">
-        <ConfigProvider theme={getAuthPageTheme(tone)}>
-          <AntdApp>
-            <LoginPageCard tone={tone} />
-          </AntdApp>
-        </ConfigProvider>
+        <div className="login-panel">
+          <ConfigProvider theme={getAuthPageTheme(tone)}>
+            <AntdApp>
+              <LoginPageCard tone={tone} />
+            </AntdApp>
+          </ConfigProvider>
+        </div>
       </div>
       <p className="login-footer">© {new Date().getFullYear()} Minerva</p>
     </div>
@@ -39,10 +48,13 @@ function LoginPageCard({ tone }: { tone: AuthTone }) {
   const messageApi = useAppMessage()
   const { setTokens } = useAuth()
   const nav = useNavigate()
-  const [form] = Form.useForm()
+  const [form] = Form.useForm<LoginFormValues>()
   const [remember, setRemember] = useState(
     () => localStorage.getItem(RE_MEMBER) != null,
   )
+  const [captchaId, setCaptchaId] = useState('')
+  const [captchaRefreshKey, setCaptchaRefreshKey] = useState(0)
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     const stored = localStorage.getItem(RE_MEMBER)
@@ -68,14 +80,19 @@ function LoginPageCard({ tone }: { tone: AuthTone }) {
         layout="vertical"
         requiredMark={false}
         onFinish={async (v) => {
-          const { email, password } = v as { email: string; password: string }
+          const { email, password, captcha_code: captchaCode } = v
+          if (!captchaId) {
+            void messageApi.error(t('auth.captchaRequired'))
+            return
+          }
+          setSubmitting(true)
           try {
             if (remember) {
               localStorage.setItem(RE_MEMBER, String(email).trim())
             } else {
               localStorage.removeItem(RE_MEMBER)
             }
-            const o = await loginApi(email, password)
+            const o = await loginApi(email, password, captchaId, captchaCode)
             setTokens(o.access_token, o.refresh_token)
             void messageApi.success('OK')
             void nav('/app/overview')
@@ -85,6 +102,10 @@ function LoginPageCard({ tone }: { tone: AuthTone }) {
             } else {
               void messageApi.error(t('common.error'))
             }
+            form.setFieldValue('captcha_code', '')
+            setCaptchaRefreshKey((k) => k + 1)
+          } finally {
+            setSubmitting(false)
           }
         }}
       >
@@ -98,6 +119,7 @@ function LoginPageCard({ tone }: { tone: AuthTone }) {
             type="email"
             autoComplete="email"
             placeholder="name@example.com"
+            disabled={submitting}
           />
         </Form.Item>
         <Form.Item
@@ -105,10 +127,29 @@ function LoginPageCard({ tone }: { tone: AuthTone }) {
           label={t('auth.password')}
           rules={[{ required: true, message: t('auth.passwordRequired') }]}
         >
-          <AuthPasswordInput allowClear autoComplete="current-password" />
+          <AuthPasswordInput
+            allowClear
+            autoComplete="current-password"
+            disabled={submitting}
+          />
+        </Form.Item>
+        <Form.Item
+          name="captcha_code"
+          label={t('auth.captchaLabel')}
+          rules={[{ required: true, message: t('auth.captchaRequired') }]}
+        >
+          <AuthCaptchaField
+            key={captchaRefreshKey}
+            scope="login"
+            onCaptchaIdChange={setCaptchaId}
+          />
         </Form.Item>
         <Form.Item>
-          <Checkbox checked={remember} onChange={(e) => setRemember(e.target.checked)}>
+          <Checkbox
+            checked={remember}
+            disabled={submitting}
+            onChange={(e) => setRemember(e.target.checked)}
+          >
             {t('auth.remember')}
           </Checkbox>
         </Form.Item>
@@ -118,6 +159,7 @@ function LoginPageCard({ tone }: { tone: AuthTone }) {
             htmlType="submit"
             block
             size="large"
+            loading={submitting}
             style={{ height: 44, fontWeight: 600 }}
           >
             {t('auth.loginAction')}

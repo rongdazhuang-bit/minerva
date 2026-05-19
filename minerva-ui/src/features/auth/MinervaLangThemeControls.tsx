@@ -8,7 +8,7 @@ import {
   StarOutlined,
   SunOutlined,
 } from '@ant-design/icons'
-import { Button, Dropdown, Tooltip, type MenuProps } from 'antd'
+import { Button, Dropdown, type MenuProps } from 'antd'
 import { useCallback, useMemo, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { type AuthTone, AUTH_TONES } from '@/features/auth/authTheme'
@@ -101,61 +101,56 @@ export function MinervaLangThemeControls({ tone, onToneChange }: Props) {
 
   return (
     <>
-      {/* antd Tooltip Trigger attaches a ref to its child; span wraps each Dropdown+Button for a DOM ref target. */}
-      <Tooltip title={t('auth.langSwitch')}>
-        <span className="auth-toolbar-dropdown-wrap">
-          <Dropdown
-            classNames={{ root: 'auth-toolbar-dropdown' }}
-            getPopupContainer={() => document.body}
-            styles={{ root: { zIndex: 2000 } }}
-            destroyOnHidden
-            menu={{
-              items: langItems,
-              onClick: onLangClick,
-              selectedKeys: [langKey],
-            }}
-            trigger={['hover', 'click']}
-            placement="bottomRight"
-            mouseEnterDelay={0.05}
-            mouseLeaveDelay={leaveDelay}
-          >
-            <Button
-              type="text"
-              className="auth-page-toolbar-btn"
-              icon={<GlobalOutlined />}
-              aria-label={t('auth.langSwitch')}
-              aria-haspopup="menu"
-            />
-          </Dropdown>
-        </span>
-      </Tooltip>
-      <Tooltip title={t('auth.themeToggle')}>
-        <span className="auth-toolbar-dropdown-wrap">
-          <Dropdown
-            classNames={{ root: 'auth-toolbar-dropdown auth-toolbar-dropdown--theme' }}
-            getPopupContainer={() => document.body}
-            styles={{ root: { zIndex: 2000 } }}
-            destroyOnHidden
-            menu={{
-              items: themeItems,
-              onClick: onThemeClick,
-              selectedKeys: [tone],
-            }}
-            trigger={['hover', 'click']}
-            placement="bottomRight"
-            mouseEnterDelay={0.05}
-            mouseLeaveDelay={leaveDelay}
-          >
-            <Button
-              type="text"
-              className="auth-page-toolbar-btn"
-              icon={<BgColorsOutlined />}
-              aria-label={t('auth.themeToggle')}
-              aria-haspopup="menu"
-            />
-          </Dropdown>
-        </span>
-      </Tooltip>
+      <span className="auth-toolbar-dropdown-wrap">
+        <Dropdown
+          classNames={{ root: 'auth-toolbar-dropdown' }}
+          getPopupContainer={() => document.body}
+          styles={{ root: { zIndex: 2000 } }}
+          destroyOnHidden
+          menu={{
+            items: langItems,
+            onClick: onLangClick,
+            selectedKeys: [langKey],
+          }}
+          trigger={['hover', 'click']}
+          placement="bottomRight"
+          mouseEnterDelay={0.05}
+          mouseLeaveDelay={leaveDelay}
+        >
+          <Button
+            type="text"
+            className="auth-page-toolbar-btn"
+            icon={<GlobalOutlined />}
+            aria-label={t('auth.langSwitch')}
+            aria-haspopup="menu"
+          />
+        </Dropdown>
+      </span>
+      <span className="auth-toolbar-dropdown-wrap">
+        <Dropdown
+          classNames={{ root: 'auth-toolbar-dropdown auth-toolbar-dropdown--theme' }}
+          getPopupContainer={() => document.body}
+          styles={{ root: { zIndex: 2000 } }}
+          destroyOnHidden
+          menu={{
+            items: themeItems,
+            onClick: onThemeClick,
+            selectedKeys: [tone],
+          }}
+          trigger={['hover', 'click']}
+          placement="bottomRight"
+          mouseEnterDelay={0.05}
+          mouseLeaveDelay={leaveDelay}
+        >
+          <Button
+            type="text"
+            className="auth-page-toolbar-btn"
+            icon={<BgColorsOutlined />}
+            aria-label={t('auth.themeToggle')}
+            aria-haspopup="menu"
+          />
+        </Dropdown>
+      </span>
     </>
   )
 }

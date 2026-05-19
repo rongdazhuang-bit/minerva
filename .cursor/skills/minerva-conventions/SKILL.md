@@ -3,10 +3,12 @@ name: minerva-conventions
 description: >-
   Minerva 仓库级开发约定：(1) 数据库表设计禁止外键与 ON DELETE 级联，关联与删除在业务代码层实现；
   (2) 修 bug/改行为时先查 docs/superpowers/specs 与设计文档，改代码后再回填修订文档；
-  (3) 环境变量在 app/config.py 或代码中新增/删除/更名/改默认值时，须同步 backend/.env.example 与 backend/.env.dev。
+  (3) 环境变量在 app/config.py 或代码中新增/删除/更名/改默认值时，须同步 backend/.env.example 与 backend/.env.dev；
+  (4) minerva-ui 所有二次确认统一使用 Ant Design Popconfirm，禁止 Modal.confirm 等替代。
   Use when designing tables, writing schema/SQL/ORM, implementing delete APIs, cascading cleanup,
-  changing Settings or os.getenv, or when fixing bugs, aligning code with specs, or updating requirements/design docs after code changes.
-  Triggers: 外键、级联删除、CASCADE、RESTRICT、schema、建表、删除接口、需求文档、设计文档、spec 回填、环境变量、.env、Settings、config.py.
+  changing Settings or os.getenv, fixing bugs, aligning code with specs, updating requirements/design docs after code changes,
+  or adding minerva-ui destructive actions and confirmation UX.
+  Triggers: 外键、级联删除、CASCADE、RESTRICT、schema、建表、删除接口、需求文档、设计文档、spec 回填、环境变量、.env、Settings、config.py、Popconfirm、二次确认、Modal.confirm、退出登录.
 ---
 
 # Minerva 项目约定
@@ -130,9 +132,54 @@ description: >-
 
 ---
 
-## 4. 与其他 Skill 的关系
+## 4. minerva-ui：二次确认统一使用 Popconfirm
 
-- **注释与目录**：`/.cursor/skills/code-comments/SKILL.md`（类/方法注释、`app/sys/tool` 分层、分页与 UI 约定）。
-- **本 Skill**：库表无外键 + 文档驱动修改闭环 + 环境变量配置文件同步。
+### 规则（硬性）
+
+- 在 `minerva-ui` 中，凡需用户**二次确认**的操作（删除、退出登录、不可逆提交、批量危险操作等），**必须**使用 Ant Design **`Popconfirm`**，将确认气泡锚定在触发控件上。
+- **禁止**使用 `Modal.confirm`、`window.confirm` 或自定义全屏确认弹层作为常规二次确认手段（除非产品 spec 明确要求全屏阻断式对话框，且须在 PR 中说明例外原因）。
+
+### 推荐写法
+
+```tsx
+<Popconfirm
+  title={t('…Confirm')}
+  okText={t('common.confirm')}  // 或业务动词，如 auth.logout
+  cancelText={t('common.cancel')}
+  onConfirm={() => void doAction()}
+>
+  <Button type="text" danger icon={<DeleteOutlined />} aria-label={t('…')} />
+</Popconfirm>
+```
+
+- **`title`**：一句说明后果的问句或陈述（走 i18n，键名建议 `*.…Confirm`）。
+- **`okText` / `cancelText`**：与项目现有页面一致；删除类危险操作可对确认按钮设 `okButtonProps={{ danger: true }}`。
+- **触发元素**：须为可接收 ref 的单个 DOM 节点（通常为 `Button`）；图标按钮保留 `aria-label`。
+- **异步 `onConfirm`**：若需 await 接口，返回 Promise；Popconfirm 会在 Promise 挂起时显示 loading。
+
+### 仓库对照
+
+| 场景 | 位置 |
+|------|------|
+| 退出登录 | `minerva-ui/src/app/layout/AppHeaderToolbar.tsx` |
+| 删除字典 / 模型 / OCR 配置等 | `DictionaryPage.tsx`、`ModelProvidersPage.tsx`、`OcrSettingsPage.tsx` 等 |
+
+### 实现检查清单
+
+1. 新增危险按钮时，用 `Popconfirm` 包裹触发器，**不要**在 `onClick` 里调 `Modal.confirm`。
+2. 文案键加入 `minerva-ui/src/i18n/locales/zh-CN.json` 与 `en.json`。
+3. Code review：搜索 `Modal.confirm`，若无 spec 例外说明则要求改为 `Popconfirm`。
+
+### 禁止
+
+- 为「统一风格」在部分页面用 Popconfirm、部分用 Modal.confirm 混用。
+- 无确认文案、仅依赖图标颜色的破坏性操作。
+
+---
+
+## 5. 与其他 Skill 的关系
+
+- **注释与目录**：`/.cursor/skills/code-comments/SKILL.md`（类/方法注释、`app/sys/tool` 分层、分页、表单与滚动条等 UI 约定）。
+- **本 Skill**：库表无外键 + 文档驱动修改闭环 + 环境变量配置文件同步 + **二次确认 Popconfirm**。
 
 两者同时适用时，均应遵守。

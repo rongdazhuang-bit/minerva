@@ -67,15 +67,24 @@ export function isOnAuthUi(pathname = window.location.pathname): boolean {
   )
 }
 
-/** 请求 URL 是否属于认证 API（不参与 401 自动 refresh）。 */
-export function isAuthApiPath(pathOrUrl: string): boolean {
-  if (pathOrUrl.startsWith('/auth/')) return true
+function authPathname(pathOrUrl: string): string {
+  if (pathOrUrl.startsWith('/')) return pathOrUrl.split('?')[0] ?? pathOrUrl
   try {
-    const u = new URL(pathOrUrl, window.location.origin)
-    return u.pathname.startsWith('/auth/')
+    return new URL(pathOrUrl, window.location.origin).pathname
   } catch {
-    return false
+    return pathOrUrl
   }
+}
+
+/** 登录/注册验证码 GET（无需 Bearer，须放行）。 */
+export function isAuthCaptchaApiPath(pathOrUrl: string): boolean {
+  const p = authPathname(pathOrUrl)
+  return p === '/auth/login/captcha' || p === '/auth/register/captcha'
+}
+
+/** 请求 URL 是否属于认证 API（不附带 token、不参与 401 自动 refresh）。 */
+export function isAuthApiPath(pathOrUrl: string): boolean {
+  return authPathname(pathOrUrl).startsWith('/auth/')
 }
 
 /** 清 token；若不在认证页则跳转登录。 */
