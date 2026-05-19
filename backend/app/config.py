@@ -1,4 +1,4 @@
-"""Application settings: env vars, merged dotenv files, and typed defaults."""
+"""Application settings: env vars, single dotenv file per profile, typed defaults."""
 
 from __future__ import annotations
 
@@ -12,34 +12,16 @@ _BACKEND_DIR = Path(__file__).resolve().parent.parent  # backend/ root (parent o
 
 
 def _discover_app_env() -> str:
-    """APP_ENV: shell / process env 优先，其次从根 .env.dev 里读取，默认 dev。"""
+    """APP_ENV: 进程环境变量优先；未设置时默认 local（对应 .env.local）。"""
     v = os.environ.get("APP_ENV", "").strip()
-    if v:
-        return v
-    base = _BACKEND_DIR / ".env.dev"
-    if not base.is_file():
-        return "dev"
-    try:
-        for raw in base.read_text(encoding="utf-8").splitlines():
-            line = raw.split("#", 1)[0].strip()
-            if not line:
-                continue
-            if line.upper().startswith("APP_ENV="):
-                return line.split("=", 1)[1].strip().strip("'\"") or "dev"
-    except OSError:
-        return "dev"
-    return "dev"
+    return v or "local"
 
 
 def _env_file_paths() -> tuple[str, ...] | None:
-    """多环境：先 .env.dev 共享配置，再 .env.dev.<APP_ENV> 覆盖（文件存在才加载）。"""
+    """单环境：仅加载 backend/.env.<APP_ENV>（文件存在才加载）。"""
     app_env = _discover_app_env()
-    out: list[str] = []
-    for name in (".env.dev", f".env.dev.{app_env}"):
-        p = _BACKEND_DIR / name
-        if p.is_file():
-            out.append(str(p))
-    return tuple(out) or None
+    path = _BACKEND_DIR / f".env.{app_env}"
+    return (str(path),) if path.is_file() else None
 
 
 _APP_ENV = _discover_app_env()
@@ -56,7 +38,10 @@ class Settings(BaseSettings):
     app_name: str = "minerva-api"
     app_env: str = Field(
         default=_APP_ENV,
-        description="运行环境名。优先通过环境变量 APP_ENV 或根 .env.dev 中的 APP_ENV 选择要合并的 .env.dev.<name> 文件。",
+        description=(
+            "运行环境 profile 名。启动脚本在调用 Python 前设置 APP_ENV；"
+            "仅加载 backend/.env.<profile> 单个文件（无叠加）。"
+        ),
         validation_alias=AliasChoices("APP_ENV", "app_env"),
     )
     database_url: str = Field(
