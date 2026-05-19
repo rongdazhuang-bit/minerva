@@ -1,5 +1,5 @@
 import zhCN from 'antd/locale/zh_CN'
-import { ConfigProvider } from 'antd'
+import { App as AntdApp, ConfigProvider } from 'antd'
 import { useEffect, useLayoutEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import {
@@ -36,9 +36,11 @@ export function AppThemedLayout() {
       theme={getAppLayoutTheme(tone)}
       wave={{ disabled: true }}
     >
-      <div className="minerva-route-surface">
-        <Outlet />
-      </div>
+      <AntdApp>
+        <div className="minerva-route-surface">
+          <Outlet />
+        </div>
+      </AntdApp>
     </ConfigProvider>
   )
 }

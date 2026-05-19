@@ -12,12 +12,10 @@ import {
   Switch,
   Table,
   Typography,
-  message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ApiError } from '@/api/client'
 import type { SysDictItem } from '@/api/dicts'
 import {
   createFileStorage,
@@ -30,6 +28,8 @@ import {
   type FileStorageListItem,
 } from '@/api/fileStorage'
 import { useAuth } from '@/app/AuthContext'
+import { showAppError, useAppMessage } from '@/app/useAppMessage'
+import type { MessageInstance } from 'antd/es/message/interface'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
 import { useDictItemTree } from '@/hooks/useDictItemTree'
 import './FileStoragePage.css'
@@ -81,23 +81,18 @@ function sortDictItems(items: SysDictItem[]) {
   )
 }
 
-/** Show API errors if available, else fallback message. */
-function showErr(t: (key: string) => string, e: unknown) {
-  if (e instanceof ApiError) {
-    void message.error(e.message)
-    return
-  }
-  void message.error(t('common.error'))
-}
-
 /** Render copyable text for non-empty plain values. */
-function renderCopyable(value: string | null | undefined, t: (key: string) => string) {
+function renderCopyable(
+  value: string | null | undefined,
+  t: (key: string) => string,
+  messageApi: MessageInstance,
+) {
   const v = value?.trim()
   if (!v) return '—'
   return (
     <Typography.Text
       copyable={{
-        onCopy: () => void message.success(t('common.copied')),
+        onCopy: () => void messageApi.success(t('common.copied')),
       }}
       style={{ wordBreak: 'break-all' }}
     >
@@ -130,6 +125,7 @@ function toPayload(values: FileStorageFormValues): FileStorageCreateBody {
 /** Render the system settings page for file storage CRUD. */
 export function FileStoragePage() {
   const { t } = useTranslation()
+  const messageApi = useAppMessage()
   const { workspaceId } = useAuth()
   const [form] = Form.useForm<FileStorageFormValues>()
   const [loading, setLoading] = useState(false)
@@ -240,7 +236,7 @@ export function FileStoragePage() {
       setItems(data.items)
       setTotal(data.total)
     } catch (e) {
-      showErr(t, e)
+      showAppError(messageApi, t, e)
     } finally {
       setLoading(false)
     }
@@ -279,7 +275,7 @@ export function FileStoragePage() {
       })
       setOpen(true)
     } catch (e) {
-      showErr(t, e)
+      showAppError(messageApi, t, e)
     } finally {
       setSubmitting(false)
     }
@@ -295,7 +291,7 @@ export function FileStoragePage() {
       const detail = await getFileStorage(workspaceId, storageId)
       setViewDetail(detail)
     } catch (e) {
-      showErr(t, e)
+      showAppError(messageApi, t, e)
       setViewOpen(false)
     } finally {
       setViewLoading(false)
@@ -310,16 +306,16 @@ export function FileStoragePage() {
       const payload = toPayload(values)
       if (editingId) {
         await patchFileStorage(workspaceId, editingId, payload)
-        void message.success(t('settings.fileStorageUpdated'))
+        void messageApi.success(t('settings.fileStorageUpdated'))
       } else {
         await createFileStorage(workspaceId, payload)
-        void message.success(t('settings.fileStorageCreated'))
+        void messageApi.success(t('settings.fileStorageCreated'))
         setPage(1)
       }
       setOpen(false)
       setRev((n) => n + 1)
     } catch (e) {
-      showErr(t, e)
+      showAppError(messageApi, t, e)
     } finally {
       setSubmitting(false)
     }
@@ -330,10 +326,10 @@ export function FileStoragePage() {
     if (!workspaceId) return
     try {
       await deleteFileStorage(workspaceId, storageId)
-      void message.success(t('settings.fileStorageDeleted'))
+      void messageApi.success(t('settings.fileStorageDeleted'))
       setRev((n) => n + 1)
     } catch (e) {
-      showErr(t, e)
+      showAppError(messageApi, t, e)
     }
   }
 
@@ -352,7 +348,7 @@ export function FileStoragePage() {
       )
       setViewDetail((prev) => (prev && prev.id === storageId ? { ...prev, enabled } : prev))
     } catch (e) {
-      showErr(t, e)
+      showAppError(messageApi, t, e)
     } finally {
       setUpdatingStatusIds((prev) => {
         const next = new Set(prev)
@@ -504,12 +500,12 @@ export function FileStoragePage() {
       </Card>
 
       <Drawer
-        width={760}
+        size={760}
         placement="right"
         open={open}
         title={editingId ? t('settings.fileStorageEdit') : t('settings.fileStorageAdd')}
         onClose={() => setOpen(false)}
-        destroyOnClose
+        destroyOnHidden
         classNames={{ body: 'minerva-scrollbar-styled' }}
         extra={
           <Space>
@@ -616,14 +612,14 @@ export function FileStoragePage() {
 
       <Drawer
         title={t('settings.fileStorageView')}
-        width={760}
+        size={760}
         placement="right"
         open={viewOpen}
         onClose={() => {
           setViewOpen(false)
           setViewDetail(null)
         }}
-        destroyOnClose
+        destroyOnHidden
         classNames={{ body: 'minerva-scrollbar-styled' }}
       >
         {viewLoading ? (
@@ -637,7 +633,7 @@ export function FileStoragePage() {
               {resolveStorageTypeLabel(viewDetail.type)}
             </Descriptions.Item>
             <Descriptions.Item label={t('settings.fileStorageBucketName')}>
-              {renderCopyable(viewDetail.bucket_name, t)}
+              {renderCopyable(viewDetail.bucket_name, t, messageApi)}
             </Descriptions.Item>
             <Descriptions.Item label={t('settings.fileStorageEnabled')}>
               {viewDetail.enabled
@@ -648,23 +644,23 @@ export function FileStoragePage() {
               {resolveAuthTypeLabel(viewDetail.auth_type)}
             </Descriptions.Item>
             <Descriptions.Item label={t('settings.fileStorageEndpointUrl')}>
-              {renderCopyable(viewDetail.endpoint_url, t)}
+              {renderCopyable(viewDetail.endpoint_url, t, messageApi)}
             </Descriptions.Item>
             {canonicalFileStorageAuthType(viewDetail.auth_type) === 'API_KEY' ? (
               <>
                 <Descriptions.Item label={t('settings.fileStorageApiKey')}>
-                  {renderCopyable(viewDetail.api_key, t)}
+                  {renderCopyable(viewDetail.api_key, t, messageApi)}
                 </Descriptions.Item>
                 <Descriptions.Item label={t('settings.fileStorageSecretKey')}>
-                  {renderCopyable(viewDetail.secret_key, t)}
+                  {renderCopyable(viewDetail.secret_key, t, messageApi)}
                 </Descriptions.Item>
               </>
             ) : null}
             <Descriptions.Item label={t('settings.fileStorageAuthName')}>
-              {renderCopyable(viewDetail.auth_name, t)}
+              {renderCopyable(viewDetail.auth_name, t, messageApi)}
             </Descriptions.Item>
             <Descriptions.Item label={t('settings.fileStorageAuthPasswd')}>
-              {renderCopyable(viewDetail.auth_passwd, t)}
+              {renderCopyable(viewDetail.auth_passwd, t, messageApi)}
             </Descriptions.Item>
             <Descriptions.Item label={t('settings.fileStorageCreatedAt')}>
               {formatDateTime(viewDetail.create_at)}

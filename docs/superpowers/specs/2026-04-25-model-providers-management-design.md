@@ -14,7 +14,7 @@
 - **字典约束**：
   - `provider_name` 取值来自字典 `MODEL_PROVIDER`。
   - `model_type` 取值来自字典 `MODEL_TYPE`。
-  - 两个字段均落库存储字典 **name**（非 code）。
+  - `provider_name` 落库存字典项 **name**；`model_type` 落库存字典项 **code**（key）。
 - **唯一性策略**：不增加唯一约束，允许重复记录；由后续业务消费阶段自行区分。
 - **成功标准**：同一 workspace 内 owner/admin 可完整 CRUD，member 仅查看；跨 workspace 数据不可见；敏感字段不在列表中明文返回。
 
@@ -105,7 +105,7 @@ app/sys/model_provider/
 - 跨 workspace 访问一律返回 404（避免泄漏资源存在性）。
 - 列表/分组接口不返回敏感字段明文（`api_key`、`auth_passwd`）。
 - 详情接口可返回编辑所需字段；严禁记录敏感值日志。
-- 由于 `provider_name`/`model_type` 落库存 `name`，返回体可附带反查的 `provider_code` / `model_type_code`（非持久化字段）作为后续引擎过渡辅助信息。
+- `provider_name` 落库存字典项 `name`；`model_type` 落库存字典项 `code`（key）。返回体可附带反查的 `provider_code`（非持久化字段）作为后续引擎过渡辅助信息。
 
 ---
 
@@ -115,7 +115,7 @@ app/sys/model_provider/
 
 - `provider_name`：必填，必须命中字典 `MODEL_PROVIDER.name`。
 - `model_name`：必填，长度不超过 128。
-- `model_type`：必填，必须命中字典 `MODEL_TYPE.name`。
+- `model_type`：必填，必须命中字典 `MODEL_TYPE.code`（key）。
 - `enabled`、`load_balancing_enabled`：布尔值。
 - `endpoint_url`：可空；非空时需通过 URL 合法性校验。
 - `context_size`、`max_tokens_to_sample`：可空；非空时为正整数。

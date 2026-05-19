@@ -17,7 +17,6 @@ import {
   Switch,
   Table,
   Typography,
-  message,
   type DescriptionsProps,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -36,6 +35,7 @@ import {
   type ModelProviderGroupItem,
 } from '@/api/modelProviders'
 import { useAuth } from '@/app/AuthContext'
+import { useAppMessage } from '@/app/useAppMessage'
 import {
   OCR_AUTH_API_KEY,
   OCR_AUTH_BASIC,
@@ -98,8 +98,8 @@ function normModelConfigField(v: unknown): string | null {
   return s === '' ? null : s
 }
 
-/** 将详情转为表单值；编辑时省略凭据，复制新增时保留凭据。 */
-function detailToFormValues(detail: ModelProviderDetail, omitSecrets: boolean): FormValues {
+/** 将详情转为表单值；编辑时可省略密码，API Key 始终明文回填。 */
+function detailToFormValues(detail: ModelProviderDetail, omitPassword: boolean): FormValues {
   const rawAuth = detail.auth_type
   const authType = rawAuth != null ? canonicalOcrAuthType(rawAuth) || rawAuth : undefined
   return {
@@ -111,8 +111,8 @@ function detailToFormValues(detail: ModelProviderDetail, omitSecrets: boolean): 
     auth_type: authType,
     endpoint_url: detail.endpoint_url ?? '',
     auth_name: detail.auth_name ?? '',
-    auth_passwd: omitSecrets ? '' : detail.auth_passwd ?? '',
-    api_key: omitSecrets ? '' : detail.api_key ?? '',
+    auth_passwd: omitPassword ? '' : detail.auth_passwd ?? '',
+    api_key: detail.api_key ?? '',
     context_size: detail.context_size ?? null,
     max_tokens_to_sample: detail.max_tokens_to_sample ?? null,
     model_config: normModelConfigField(detail.model_config) ?? '',
@@ -127,6 +127,7 @@ const viewDrawerDescriptionStyles: NonNullable<DescriptionsProps['styles']> = {
 
 export function ModelProvidersPage() {
   const { t } = useTranslation()
+  const message = useAppMessage()
   const { workspaceId, isWorkspaceManager, workspaceRole, isAuthenticated } = useAuth()
   const [form] = Form.useForm<FormValues>()
 
@@ -258,8 +259,38 @@ export function ModelProvidersPage() {
     if (sorted.length === 0) {
       return []
     }
-    return sorted.map((i) => ({ value: i.name, label: `${i.name} (${i.code})` }))
+    return sorted.map((i) => ({ value: i.code, label: i.name }))
   }, [typeItems])
+
+  const modelTypeLabelByCode = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const i of sortDictItems(typeItems)) {
+      m.set(i.code, i.name)
+    }
+    return m
+  }, [typeItems])
+
+  const resolveModelTypeLabel = useCallback(
+    (stored: string) => {
+      const exact = modelTypeLabelByCode.get(stored)
+      if (exact) return exact
+      const byName = typeItems.find((i) => i.name === stored)
+      return byName?.name ?? stored
+    },
+    [modelTypeLabelByCode, typeItems],
+  )
+
+  /** 编辑/复制时：库内可能是历史 name，表单 Select 需用 code。 */
+  const resolveModelTypeForForm = useCallback(
+    (stored: string) => {
+      const s = stored.trim()
+      if (!s) return s
+      if (typeItems.some((i) => i.code === s)) return s
+      const byName = typeItems.find((i) => i.name === s)
+      return byName?.code ?? s
+    },
+    [typeItems],
+  )
 
   const booleanOptions = useMemo(
     () => [
@@ -326,7 +357,9 @@ export function ModelProvidersPage() {
     try {
       const detail = await getModelProvider(workspaceId, modelId)
       setEditingBase(detail)
-      form.setFieldsValue(detailToFormValues(detail, true))
+      const fv = detailToFormValues(detail, true)
+      fv.model_type = resolveModelTypeForForm(fv.model_type)
+      form.setFieldsValue(fv)
       setOpen(true)
     } catch {
       void message.error(t('common.error'))
@@ -344,7 +377,9 @@ export function ModelProvidersPage() {
     try {
       const detail = await getModelProvider(workspaceId, modelId)
       form.resetFields()
-      form.setFieldsValue(detailToFormValues(detail, false))
+      const fv = detailToFormValues(detail, false)
+      fv.model_type = resolveModelTypeForForm(fv.model_type)
+      form.setFieldsValue(fv)
       setOpen(true)
     } catch {
       void message.error(t('common.error'))
@@ -417,8 +452,12 @@ export function ModelProvidersPage() {
         if (normModelConfigField(next.model_config) !== normModelConfigField(editingBase.model_config)) {
           patch.model_config = next.model_config
         }
-        if (!isSecretUnchanged(next.api_key, editingBase.api_key) && isOcrApiKeyAuth(merged.auth_type ?? '')) {
-          patch.api_key = next.api_key
+        if (isOcrApiKeyAuth(merged.auth_type ?? '')) {
+          const nextKey = (next.api_key ?? '').trim()
+          const prevKey = (editingBase.api_key ?? '').trim()
+          if (nextKey !== prevKey) {
+            patch.api_key = next.api_key
+          }
         }
         if (!isSecretUnchanged(next.auth_passwd, editingBase.auth_passwd) && isOcrBasicAuth(merged.auth_type ?? '')) {
           patch.auth_passwd = next.auth_passwd
@@ -502,7 +541,13 @@ export function ModelProvidersPage() {
       width: Math.round(tableScrollX * 0.2),
       ellipsis: true,
     },
-    { title: t('settings.modelProvidersColType'), dataIndex: 'model_type', key: 'model_type', width: 140 },
+    {
+      title: t('settings.modelProvidersColType'),
+      dataIndex: 'model_type',
+      key: 'model_type',
+      width: 140,
+      render: (v) => resolveModelTypeLabel(String(v)),
+    },
     {
       title: t('settings.modelProvidersColEndpoint'),
       dataIndex: 'endpoint_url',
@@ -688,11 +733,11 @@ export function ModelProvidersPage() {
 
       <Drawer
         title={editingId ? t('settings.modelProvidersEdit') : t('settings.modelProvidersAdd')}
-        width={640}
+        size={640}
         placement="right"
         open={open}
         onClose={() => setOpen(false)}
-        destroyOnClose
+        destroyOnHidden
         classNames={{ body: 'minerva-scrollbar-styled' }}
         extra={
           <Space>
@@ -793,13 +838,8 @@ export function ModelProvidersPage() {
               name="api_key"
               label={t('settings.ocrToolsApiKey')}
               rules={[{ required: !editingId, message: t('settings.ocrToolsApiKeyRequired') }]}
-              extra={editingId ? t('settings.modelProvidersSecretKeepHint') : undefined}
             >
-              <Input
-                allowClear
-                autoComplete="off"
-                placeholder={editingId ? t('settings.modelProvidersApiKeyPlaceholder') : undefined}
-              />
+              <Input allowClear autoComplete="off" />
             </Form.Item>
           ) : null}
           {isNone ? (
@@ -823,11 +863,11 @@ export function ModelProvidersPage() {
 
       <Drawer
         title={t('settings.modelProvidersView')}
-        width={640}
+        size={640}
         placement="right"
         open={viewOpen}
         onClose={() => setViewOpen(false)}
-        destroyOnClose
+        destroyOnHidden
         classNames={{ body: 'minerva-scrollbar-styled' }}
       >
         {viewLoading || !viewDetail ? (
@@ -839,7 +879,9 @@ export function ModelProvidersPage() {
                 {viewDetail.provider_name}
               </Descriptions.Item>
               <Descriptions.Item label={t('settings.modelProvidersFieldModelName')}>{viewDetail.model_name}</Descriptions.Item>
-              <Descriptions.Item label={t('settings.modelProvidersFieldModelType')}>{viewDetail.model_type}</Descriptions.Item>
+              <Descriptions.Item label={t('settings.modelProvidersFieldModelType')}>
+                {resolveModelTypeLabel(viewDetail.model_type)}
+              </Descriptions.Item>
               <Descriptions.Item label={t('settings.modelProvidersFieldEnabled')}>
                 {viewDetail.enabled ? t('common.yes') : t('common.no')}
               </Descriptions.Item>

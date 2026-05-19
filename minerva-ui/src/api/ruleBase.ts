@@ -1,3 +1,4 @@
+import { AI_LLM_FETCH_TIMEOUT_MS } from '@/api/config'
 import { apiJson } from '@/api/client'
 
 export type RuleBaseListItem = {
@@ -125,6 +126,7 @@ export function polishReviewRules(workspaceId: string, body: PolishReviewRulesBo
     {
       method: 'POST',
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(AI_LLM_FETCH_TIMEOUT_MS),
     },
   )
 }

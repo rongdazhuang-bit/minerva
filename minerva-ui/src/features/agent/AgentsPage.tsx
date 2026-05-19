@@ -19,7 +19,6 @@ import {
   Select,
   Spin,
   Typography,
-  message as antdMessage,
   type InputRef,
   type MenuProps,
 } from 'antd'
@@ -50,6 +49,7 @@ import {
 import { ApiError } from '@/api/client'
 import { listModelProviders, type ModelProviderListItem } from '@/api/modelProviders'
 import { useAuth } from '@/app/AuthContext'
+import { useAppMessage } from '@/app/useAppMessage'
 import { copyTextToClipboard } from '@/components/markdown/copyToClipboard'
 import { AgentAssistantMarkdown } from '@/features/agent/AgentAssistantMarkdown'
 import './AgentsPage.css'
@@ -82,6 +82,7 @@ function savePrefs(p: UiPrefs) {
 /** 工作区智能体对话主界面（类 Kimi：侧栏 + 主区 + 底部合成器，右侧选模型）。 */
 export function AgentsPage() {
   const { t, i18n } = useTranslation()
+  const message = useAppMessage()
   const queryClient = useQueryClient()
   const { workspaceId } = useAuth()
   const [prefs, setPrefs] = useState<UiPrefs>(() => loadPrefs())
@@ -152,8 +153,11 @@ export function AgentsPage() {
     maybeLoadMoreSessions()
   }, [maybeLoadMoreSessions])
 
-  /** Forward vertical wheel over Q&A markdown to the main session scroller. */
-  const handleMessageAreaWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+  /**
+   * 将问答区 Markdown 上的纵向滚轮转给主消息滚动容器。
+   * 须用非 passive 原生监听才能 ``preventDefault``（React ``onWheel`` 在多数环境下为 passive）。
+   */
+  const forwardMessageWheelToChat = useCallback((e: WheelEvent) => {
     const chat = chatScrollRef.current
     if (!chat || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) {
       return
@@ -182,8 +186,16 @@ export function AgentsPage() {
     chat.scrollTop = Math.max(0, Math.min(maxScroll, prev + e.deltaY))
     if (chat.scrollTop !== prev) {
       e.preventDefault()
+      e.stopPropagation()
     }
   }, [])
+
+  useEffect(() => {
+    const chat = chatScrollRef.current
+    if (!chat) return
+    chat.addEventListener('wheel', forwardMessageWheelToChat, { passive: false, capture: true })
+    return () => chat.removeEventListener('wheel', forwardMessageWheelToChat, { capture: true })
+  }, [forwardMessageWheelToChat])
 
   /** Keep wheel inside history scroller; load more when already at bottom. */
   const handleHistoryWheel = useCallback(
@@ -283,8 +295,8 @@ export function AgentsPage() {
   const copyMessageBody = useCallback(
     async (text: string) => {
       const ok = await copyTextToClipboard(text)
-      if (ok) antdMessage.success(t('agents.copySuccess'))
-      else antdMessage.error(t('agents.copyFailed'))
+      if (ok) message.success(t('agents.copySuccess'))
+      else message.error(t('agents.copyFailed'))
     },
     [t],
   )
@@ -340,10 +352,15 @@ export function AgentsPage() {
     setSessionId(null)
     setSessionLoadingId(null)
     setMessages([])
+    setDraft('')
     setTraceOpenKeys([])
     setStreaming(false)
-    antdMessage.info(t('agents.newChatHint'))
-  }, [t])
+    userScrolledUpRef.current = false
+    message.info(t('agents.newChatHint'))
+    window.requestAnimationFrame(() => {
+      draftInputRef.current?.focus({ preventScroll: true })
+    })
+  }, [t, message])
 
   const loadSession = useCallback(
     async (id: string) => {
@@ -361,8 +378,8 @@ export function AgentsPage() {
         setSessionId(detail.session.id)
         setMessages(agentMessagesToChat(detail.messages))
       } catch (e) {
-        if (e instanceof ApiError) antdMessage.error(e.message)
-        else antdMessage.error(String(e))
+        if (e instanceof ApiError) message.error(e.message)
+        else message.error(String(e))
       } finally {
         setSessionLoadingId(null)
       }
@@ -379,19 +396,19 @@ export function AgentsPage() {
     async (targetSessionId: string) => {
       if (!workspaceId) return
       if (streaming) {
-        antdMessage.warning(t('agents.deleteSessionWhileStreaming'))
+        message.warning(t('agents.deleteSessionWhileStreaming'))
         return
       }
       try {
         await deleteAgentSession(workspaceId, targetSessionId)
-        antdMessage.success(t('agents.deleteSessionSuccess'))
+        message.success(t('agents.deleteSessionSuccess'))
         if (sessionId === targetSessionId) {
           handleNewChat()
         }
         void queryClient.invalidateQueries({ queryKey: ['agent-sessions', workspaceId] })
       } catch (e) {
-        if (e instanceof ApiError) antdMessage.error(e.message)
-        else antdMessage.error(String(e))
+        if (e instanceof ApiError) message.error(e.message)
+        else message.error(String(e))
       }
     },
     [workspaceId, sessionId, streaming, handleNewChat, queryClient, t],
@@ -437,12 +454,12 @@ export function AgentsPage() {
       },
     ) => {
       if (!workspaceId) {
-        antdMessage.error(t('agents.noWorkspace'))
+        message.error(t('agents.noWorkspace'))
         return
       }
       const mid = prefs.selectedModelId
       if (!mid) {
-        antdMessage.warning(t('agents.pickModel'))
+        message.warning(t('agents.pickModel'))
         return
       }
       const apiBody = userMessage.trim()
@@ -452,7 +469,7 @@ export function AgentsPage() {
         options?.regenerateFromAssistantId || options?.regenerateLastAssistant,
       )
       if (isRegenerate && !sessionId) {
-        antdMessage.warning(t('agents.regenerateNoSession'))
+        message.warning(t('agents.regenerateNoSession'))
         return
       }
 
@@ -477,7 +494,7 @@ export function AgentsPage() {
           return [...prev.slice(0, truncateIdx), asstMsg]
         })
         if (!truncateOk) {
-          antdMessage.warning(t('agents.regenerateNoUserMessage'))
+          message.warning(t('agents.regenerateNoUserMessage'))
           return
         }
       } else {
@@ -513,7 +530,7 @@ export function AgentsPage() {
 
         if (!sid) {
           if (isRegenerate) {
-            antdMessage.warning(t('agents.regenerateNoSession'))
+            message.warning(t('agents.regenerateNoSession'))
             return
           }
           const sessionTitle = titleFromFirstQuestion(apiBody)
@@ -550,7 +567,7 @@ export function AgentsPage() {
             if (evt.kind === 'done') return
             if (evt.kind === 'error') {
               pushAsstLog(`[error] ${evt.code}: ${evt.message}`)
-              antdMessage.error(evt.message || evt.code)
+              message.error(evt.message || evt.code)
               return
             }
             const ev = evt.event
@@ -586,10 +603,10 @@ export function AgentsPage() {
         if ((e as Error).name === 'AbortError') {
           pushAsstLog('[aborted]')
         } else if (e instanceof ApiError) {
-          antdMessage.error(e.message)
+          message.error(e.message)
           pushAsstLog(`[api] ${e.code}: ${e.message}`)
         } else {
-          antdMessage.error(String(e))
+          message.error(String(e))
           pushAsstLog(`[error] ${String(e)}`)
         }
       } finally {
@@ -621,11 +638,11 @@ export function AgentsPage() {
   const onRegenerate = useCallback(
     async (assistantMsgId: string) => {
       if (streaming) {
-        antdMessage.warning(t('agents.regenerateWhileStreaming'))
+        message.warning(t('agents.regenerateWhileStreaming'))
         return
       }
       if (!sessionId) {
-        antdMessage.warning(t('agents.regenerateNoSession'))
+        message.warning(t('agents.regenerateNoSession'))
         return
       }
       const idx = messages.findIndex((m) => m.id === assistantMsgId)
@@ -639,13 +656,13 @@ export function AgentsPage() {
         }
       }
       if (!userMessage) {
-        antdMessage.warning(t('agents.regenerateNoUserMessage'))
+        message.warning(t('agents.regenerateNoUserMessage'))
         return
       }
       const isLastAssistant = messages[messages.length - 1]?.id === assistantMsgId
       const hasServerId = isAgentMessageUuid(assistantMsgId)
       if (!hasServerId && !isLastAssistant) {
-        antdMessage.warning(t('agents.regenerateStaleMessage'))
+        message.warning(t('agents.regenerateStaleMessage'))
         return
       }
       await runAgentTurn(userMessage, {
@@ -679,7 +696,7 @@ export function AgentsPage() {
           size="small"
           ghost
           bordered={false}
-          expandIconPosition="start"
+          expandIconPlacement="start"
           style={{ marginTop: 6, marginBottom: 4 }}
           items={[
             {
@@ -708,7 +725,7 @@ export function AgentsPage() {
           size="small"
           ghost
           bordered={false}
-          expandIconPosition="start"
+          expandIconPlacement="start"
           style={{ marginTop: 6, marginBottom: 4 }}
           items={[
             {
@@ -926,7 +943,6 @@ export function AgentsPage() {
                       <div
                         className="agents-page__msg-body"
                         style={{ flex: 1, minWidth: 0, textAlign: 'left' }}
-                        onWheel={handleMessageAreaWheel}
                       >
                         <AgentAssistantMarkdown markdown={m.content} />
                       </div>
@@ -934,7 +950,6 @@ export function AgentsPage() {
                       <div
                         className="agents-page__md-user-wrap agents-page__msg-body"
                         style={{ flex: 1, minWidth: 0 }}
-                        onWheel={handleMessageAreaWheel}
                       >
                         <AgentAssistantMarkdown markdown={m.content} />
                       </div>

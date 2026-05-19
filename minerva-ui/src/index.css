@@ -213,3 +213,14 @@ html.minerva-app-shell .minerva-route-surface {
   display: flex;
   flex-direction: column;
 }
+
+/* AntdApp 插入 flex 链后须参与收缩，否则智能体页等新对话时底部输入区会被裁出视口 */
+html.minerva-app-shell .ant-app {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}

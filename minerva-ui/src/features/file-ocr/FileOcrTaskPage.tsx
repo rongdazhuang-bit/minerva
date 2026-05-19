@@ -40,7 +40,6 @@ import {
   Tooltip,
   Typography,
   Upload,
-  message,
 } from 'antd'
 import {
   CartesianGrid,
@@ -78,6 +77,8 @@ import {
   type OcrFileOverviewLogDailyStatItem,
 } from '@/api/ocrTask'
 import { useAuth } from '@/app/AuthContext'
+import { useAppMessage } from '@/app/useAppMessage'
+import type { MessageInstance } from 'antd/es/message/interface'
 import { DictText } from '@/components/dict'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
 import { useCountUp } from '@/hooks/useCountUp'
@@ -166,14 +167,18 @@ function fileExt(fileName: string) {
 }
 
 /** Validate one source file against extension and size constraints. */
-function validateSourceFile(file: File, t: (key: string) => string) {
+function validateSourceFile(
+  file: File,
+  t: (key: string) => string,
+  messageApi: MessageInstance,
+) {
   const ext = fileExt(file.name)
   if (!ALLOWED_EXTS.has(ext)) {
-    void message.error(t('fileOcr.tasks.upload.invalidExt'))
+    void messageApi.error(t('fileOcr.tasks.upload.invalidExt'))
     return false
   }
   if (file.size > MAX_FILE_SIZE) {
-    void message.error(t('fileOcr.tasks.upload.tooLarge'))
+    void messageApi.error(t('fileOcr.tasks.upload.tooLarge'))
     return false
   }
   return true
@@ -452,6 +457,7 @@ export function RulesFileOcrOverviewPage() {
 /** Lists OCR tasks and hosts the modal wizard used to enqueue new OCR uploads. */
 export function RulesFileOcrTaskPage() {
   const { t } = useTranslation()
+  const messageApi = useAppMessage()
   const queryClient = useQueryClient()
   const { workspaceId } = useAuth()
   const [filterForm] = Form.useForm<FilterFormValues>()
@@ -555,7 +561,7 @@ export function RulesFileOcrTaskPage() {
 
   /** Build one disabled placeholder action callback. */
   const onPendingAction = useCallback((nameKey: string) => {
-    void message.info(t('fileOcr.tasks.actionPending', { action: t(nameKey) }))
+    void messageApi.info(t('fileOcr.tasks.actionPending', { action: t(nameKey) }))
   }, [t])
 
   /** Delete one task row and refresh list plus overview KPI cache. */
@@ -564,12 +570,12 @@ export function RulesFileOcrTaskPage() {
       if (!workspaceId) return
       try {
         await deleteOcrFile(workspaceId, ocrFileId)
-        void message.success(t('fileOcr.tasks.deleteSuccess'))
+        void messageApi.success(t('fileOcr.tasks.deleteSuccess'))
         void queryClient.invalidateQueries({ queryKey: ['ocrFileOverviewStats', workspaceId] })
         setRefreshTick((n) => n + 1)
       } catch (e) {
-        if (e instanceof ApiError) void message.error(e.message)
-        else void message.error(t('common.error'))
+        if (e instanceof ApiError) void messageApi.error(e.message)
+        else void messageApi.error(t('common.error'))
       }
     },
     [queryClient, t, workspaceId],
@@ -581,12 +587,12 @@ export function RulesFileOcrTaskPage() {
       if (!workspaceId) return
       try {
         await retryOcrFile(workspaceId, ocrFileId)
-        void message.success(t('fileOcr.tasks.retrySuccess'))
+        void messageApi.success(t('fileOcr.tasks.retrySuccess'))
         void queryClient.invalidateQueries({ queryKey: ['ocrFileOverviewStats', workspaceId] })
         setRefreshTick((n) => n + 1)
       } catch (e) {
-        if (e instanceof ApiError) void message.error(e.message)
-        else void message.error(t('common.error'))
+        if (e instanceof ApiError) void messageApi.error(e.message)
+        else void messageApi.error(t('common.error'))
       }
     },
     [queryClient, t, workspaceId],
@@ -614,7 +620,7 @@ export function RulesFileOcrTaskPage() {
   const handleDownloadOcrMarkdown = useCallback(
     async (row: OcrFileListItem) => {
       if (row.status !== 'SUCCESS' || workspaceId == null) return
-      const hideLoading = message.loading(t('fileOcr.tasks.downloadPreparing'), 0)
+      const hideLoading = messageApi.loading(t('fileOcr.tasks.downloadPreparing'), 0)
       try {
         const data = await getOcrFileMarkdownPages(workspaceId, row.id)
         const docTitle = row.file_name?.trim() || t('fileOcr.tasks.detail.titleFallback')
@@ -626,19 +632,19 @@ export function RulesFileOcrTaskPage() {
         const base = sanitizeMarkdownDownloadBasename(row.file_name?.trim() || 'ocr-result')
         triggerMarkdownFileDownload(body, `${base}.md`)
         hideLoading()
-        void message.success(t('fileOcr.tasks.downloadSuccess'))
+        void messageApi.success(t('fileOcr.tasks.downloadSuccess'))
       } catch (e) {
         hideLoading()
         if (e instanceof ApiError) {
           if (e.code === 'ocr_file.detail_requires_success') {
-            void message.error(t('fileOcr.tasks.detail.err409'))
+            void messageApi.error(t('fileOcr.tasks.detail.err409'))
           } else if (e.code === 'ocr_file.unsupported_detail_type') {
-            void message.error(t('fileOcr.tasks.detail.err422'))
+            void messageApi.error(t('fileOcr.tasks.detail.err422'))
           } else {
-            void message.error(e.message)
+            void messageApi.error(e.message)
           }
         } else {
-          void message.error(t('common.error'))
+          void messageApi.error(t('common.error'))
         }
       }
     },
@@ -955,7 +961,7 @@ export function RulesFileOcrTaskPage() {
 
   const goPickToUploadStep = () => {
     if (uploadList.length === 0) {
-      void message.warning(t('fileOcr.tasks.upload.empty'))
+      void messageApi.warning(t('fileOcr.tasks.upload.empty'))
       return
     }
     setWizardStep(3)
@@ -978,9 +984,9 @@ export function RulesFileOcrTaskPage() {
   const uploadProps: UploadProps = {
     multiple: true,
     beforeUpload: (file) => {
-      if (!validateSourceFile(file, t)) return Upload.LIST_IGNORE
+      if (!validateSourceFile(file, t, messageApi)) return Upload.LIST_IGNORE
       if (uploadList.length >= MAX_FILE_COUNT) {
-        void message.error(t('fileOcr.tasks.upload.tooMany'))
+        void messageApi.error(t('fileOcr.tasks.upload.tooMany'))
         return Upload.LIST_IGNORE
       }
       return false
@@ -995,7 +1001,7 @@ export function RulesFileOcrTaskPage() {
   const onFinishCreate = async () => {
     if (!workspaceId || ocrType == null) return
     if (uploadList.length === 0) {
-      void message.warning(t('fileOcr.tasks.upload.empty'))
+      void messageApi.warning(t('fileOcr.tasks.upload.empty'))
       return
     }
     setSubmitting(true)
@@ -1005,7 +1011,7 @@ export function RulesFileOcrTaskPage() {
       for (const item of uploadList) {
         const source = item.originFileObj
         if (source == null) continue
-        if (!validateSourceFile(source, t)) continue
+        if (!validateSourceFile(source, t, messageApi)) continue
         try {
           const uploaded = await uploadOcrSourceFile(workspaceId, source, (percent) => {
             setProgressMap((prev) => ({ ...prev, [item.uid]: percent }))
@@ -1020,7 +1026,7 @@ export function RulesFileOcrTaskPage() {
         }
       }
       if (createBody.files.length === 0) {
-        void message.error(t('fileOcr.tasks.upload.noneSucceeded'))
+        void messageApi.error(t('fileOcr.tasks.upload.noneSucceeded'))
         return
       }
       await createOcrFiles(workspaceId, createBody)
@@ -1029,11 +1035,11 @@ export function RulesFileOcrTaskPage() {
       setRefreshTick((n) => n + 1)
     } catch (err) {
       if (err instanceof ApiError) {
-        void message.error(err.message)
+        void messageApi.error(err.message)
       } else if (err instanceof Error) {
-        void message.error(err.message)
+        void messageApi.error(err.message)
       } else {
-        void message.error(t('common.error'))
+        void messageApi.error(t('common.error'))
       }
     } finally {
       setSubmitting(false)
@@ -1133,13 +1139,13 @@ export function RulesFileOcrTaskPage() {
         title={t('fileOcr.tasks.logDrawer.title', {
           file: logTarget?.file_name?.trim() || t('fileOcr.tasks.logDrawer.unnamedFile'),
         })}
-        width={720}
+        size={720}
         open={logDrawerOpen}
         onClose={() => {
           setLogDrawerOpen(false)
           setLogTarget(null)
         }}
-        destroyOnClose
+        destroyOnHidden
         classNames={{ body: 'minerva-scrollbar-styled' }}
         styles={{
           body: {
@@ -1183,10 +1189,10 @@ export function RulesFileOcrTaskPage() {
             ? `${detailTarget.file_name.trim()} — ${t('fileOcr.tasks.action.view')}`
             : t('fileOcr.tasks.detail.titleFallback')
         }
-        width="80%"
+        size="80%"
         open={detailDrawerOpen}
         onClose={closeDetailDrawer}
-        destroyOnClose
+        destroyOnHidden
         classNames={{ body: 'minerva-scrollbar-styled' }}
         styles={{
           body: {
@@ -1245,11 +1251,11 @@ export function RulesFileOcrTaskPage() {
           },
         }}
         footer={null}
-        maskClosable={wizardStep === 4 || !submitting}
+        mask={{ closable: wizardStep === 4 || !submitting }}
         keyboard={wizardStep === 4 || !submitting}
         closable={wizardStep === 4 || !submitting}
         onCancel={cancelWizardModal}
-        destroyOnClose
+        destroyOnHidden
       >
         <div className="minerva-file-ocr-tasks__wizard-shell">
           <div className="minerva-file-ocr-tasks__wizard-scroll">

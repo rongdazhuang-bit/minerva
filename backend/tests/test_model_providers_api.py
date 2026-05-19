@@ -63,6 +63,9 @@ async def _add_dict_item(
     assert r.status_code in (201, 409), r.text
 
 
+MODEL_TYPE_DICT_CODE_CHAT = "CHAT"
+
+
 async def _seed_model_provider_dicts(
     ac: AsyncClient, workspace_id: str, headers: dict[str, str]
 ) -> None:
@@ -74,7 +77,9 @@ async def _seed_model_provider_dicts(
     )
 
     await _add_dict_item(ac, workspace_id, headers, p_id, f"p-{uuid.uuid4().hex[:8]}", "OpenAI")
-    await _add_dict_item(ac, workspace_id, headers, t_id, f"t-{uuid.uuid4().hex[:8]}", "chat")
+    await _add_dict_item(
+        ac, workspace_id, headers, t_id, MODEL_TYPE_DICT_CODE_CHAT, "chat"
+    )
 
 
 async def _add_user_to_workspace(*, user_email: str, workspace_id: str, role: MembershipRole) -> None:
@@ -144,7 +149,7 @@ async def test_model_providers_crud_and_isolation() -> None:
             json={
                 "provider_name": "OpenAI",
                 "model_name": "gpt-4o",
-                "model_type": "chat",
+                "model_type": MODEL_TYPE_DICT_CODE_CHAT,
                 "auth_type": "API_KEY",
                 "api_key": "secret-key",
             },
@@ -249,7 +254,7 @@ async def test_model_provider_member_cannot_write() -> None:
             json={
                 "provider_name": "OpenAI",
                 "model_name": "x",
-                "model_type": "chat",
+                "model_type": MODEL_TYPE_DICT_CODE_CHAT,
                 "auth_type": "NONE",
             },
         )
@@ -261,7 +266,7 @@ async def test_model_provider_member_cannot_write() -> None:
             json={
                 "provider_name": "OpenAI",
                 "model_name": "x",
-                "model_type": "chat",
+                "model_type": MODEL_TYPE_DICT_CODE_CHAT,
                 "auth_type": "NONE",
             },
         )
@@ -306,7 +311,7 @@ async def test_model_provider_dict_name_validation() -> None:
             json={
                 "provider_name": "NotARealProvider",
                 "model_name": "x",
-                "model_type": "chat",
+                "model_type": MODEL_TYPE_DICT_CODE_CHAT,
                 "auth_type": "NONE",
             },
         )

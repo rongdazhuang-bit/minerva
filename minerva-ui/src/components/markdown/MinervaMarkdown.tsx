@@ -2,7 +2,6 @@
  * Shared Markdown renderer: GFM, KaTeX, optional Prism + Mermaid (agent preset).
  */
 import { CopyOutlined } from '@ant-design/icons'
-import { message as antdMessage } from 'antd'
 import {
   Children,
   isValidElement,
@@ -17,6 +16,7 @@ import { useTranslation } from 'react-i18next'
 import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { useAppMessage } from '@/app/useAppMessage'
 import { copyTextToClipboard } from '@/components/markdown/copyToClipboard'
 import {
   MINERVA_MARKDOWN_REHYPE_PLUGINS,
@@ -85,11 +85,12 @@ const PrismCodeWithCopy = memo(function PrismCodeWithCopy({
   rawLanguage: string
 }) {
   const { t } = useTranslation()
+  const message = useAppMessage()
   const onCopy = useCallback(async () => {
     const ok = await copyTextToClipboard(code)
-    if (ok) void antdMessage.success(t('agents.copySuccess'))
-    else void antdMessage.error(t('agents.copyFailed'))
-  }, [code, t])
+    if (ok) void message.success(t('agents.copySuccess'))
+    else void message.error(t('agents.copyFailed'))
+  }, [code, t, message])
 
   const copyLabel = t('agents.copyCodeBlock')
   const languageLabel = formatCodeBlockLanguageLabel(

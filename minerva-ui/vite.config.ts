@@ -9,12 +9,18 @@ const devApiProxyTarget =
   process.env.VITE_DEV_API_PROXY_TARGET ??
   'http://127.0.0.1:8000'
 
+/**
+ * 开发代理超时（毫秒）。须大于后端 AI 读超时（默认 120s），否则润色/对话等长请求会得到 ERR_EMPTY_RESPONSE。
+ */
+const devApiProxyTimeoutMs = Number(
+  process.env.MINERVA_DEV_API_PROXY_TIMEOUT_MS ?? 180_000,
+)
+
 const devApiProxy = {
   target: devApiProxyTarget,
   changeOrigin: true,
-  /** 避免后端不可达时请求无限挂起。 */
-  timeout: 15_000,
-  proxyTimeout: 15_000,
+  timeout: devApiProxyTimeoutMs,
+  proxyTimeout: devApiProxyTimeoutMs,
 }
 
 /** ``/auth`` 下仅有 POST API；GET 为 SPA 路由，须回退到 ``index.html``。 */

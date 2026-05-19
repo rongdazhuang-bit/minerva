@@ -12,7 +12,6 @@ import {
   Space,
   Table,
   Tooltip,
-  message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -27,6 +26,7 @@ import {
 import { listModelProviders, type ModelProviderListItem } from '@/api/modelProviders'
 import { ApiError } from '@/api/client'
 import { useAuth } from '@/app/AuthContext'
+import { showAppError, useAppMessage } from '@/app/useAppMessage'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
 import { useDictItemTree } from '@/hooks/useDictItemTree'
 import {
@@ -49,16 +49,9 @@ type FormValues = {
   chat_memory?: string | null
 }
 
-function showErr(t: (k: string) => string, e: unknown) {
-  if (e instanceof ApiError) {
-    void message.error(e.message)
-    return
-  }
-  void message.error(t('common.error'))
-}
-
 export function RulesPromptManagementPage() {
   const { t } = useTranslation()
+  const messageApi = useAppMessage()
   const { workspaceId } = useAuth()
   const [form] = Form.useForm<FormValues>()
   const [loading, setLoading] = useState(false)
@@ -92,7 +85,7 @@ export function RulesPromptManagementPage() {
       const list = await listModelProviders(workspaceId)
       setModels(list)
     } catch (e) {
-      showErr(t, e)
+      showAppError(messageApi, t, e)
     } finally {
       setModelsLoading(false)
     }
@@ -113,7 +106,7 @@ export function RulesPromptManagementPage() {
       const maxPage = Math.max(1, Math.ceil(data.total / DEFAULT_PAGE_SIZE) || 1)
       if (page > maxPage) setPage(maxPage)
     } catch (e) {
-      showErr(t, e)
+      showAppError(messageApi, t, e)
     } finally {
       setLoading(false)
     }
@@ -121,11 +114,11 @@ export function RulesPromptManagementPage() {
 
   useEffect(() => {
     if (!engSubDocDictQ.isSuccess) return
-    if (!engSubDocDictQ.data?.listRow) void message.warning(t('rules.missingDictEngSubjectDoc'))
+    if (!engSubDocDictQ.data?.listRow) void messageApi.warning(t('rules.missingDictEngSubjectDoc'))
   }, [engSubDocDictQ.isSuccess, engSubDocDictQ.data?.listRow, t])
 
   useEffect(() => {
-    if (engSubDocDictQ.isError) showErr(t, engSubDocDictQ.error)
+    if (engSubDocDictQ.isError) showAppError(messageApi, t, engSubDocDictQ.error)
   }, [engSubDocDictQ.isError, engSubDocDictQ.error, t])
 
   useEffect(() => {
@@ -212,16 +205,16 @@ export function RulesPromptManagementPage() {
       }
       if (editingId) {
         await patchRuleConfigPrompt(workspaceId, editingId, body)
-        void message.success(t('rules.promptUpdateSuccess'))
+        void messageApi.success(t('rules.promptUpdateSuccess'))
       } else {
         await createRuleConfigPrompt(workspaceId, body)
-        void message.success(t('rules.promptCreateSuccess'))
+        void messageApi.success(t('rules.promptCreateSuccess'))
       }
       setOpen(false)
       await loadList()
     } catch (e) {
       if (e && typeof e === 'object' && 'errorFields' in (e as object)) return
-      showErr(t, e)
+      showAppError(messageApi, t, e)
     } finally {
       setSubmitting(false)
     }
@@ -232,10 +225,10 @@ export function RulesPromptManagementPage() {
       if (!workspaceId) return
       try {
         await deleteRuleConfigPrompt(workspaceId, id)
-        void message.success(t('rules.promptDeleted'))
+        void messageApi.success(t('rules.promptDeleted'))
         await loadList()
       } catch (e) {
-        showErr(t, e)
+        showAppError(messageApi, t, e)
       }
     },
     [loadList, t, workspaceId],
@@ -379,7 +372,7 @@ export function RulesPromptManagementPage() {
 
       <Drawer
         title={editingId ? t('rules.promptDrawerEdit') : t('rules.promptDrawerCreate')}
-        width={520}
+        size={520}
         open={open}
         onClose={() => setOpen(false)}
         destroyOnHidden
@@ -453,7 +446,7 @@ export function RulesPromptManagementPage() {
           setDetailOpen(false)
           setDetailRow(null)
         }}
-        width="50%"
+        size="50%"
         classNames={{ body: 'minerva-scrollbar-styled' }}
         footer={
           <div style={{ textAlign: 'right' }}>

@@ -22,7 +22,6 @@ import {
   Switch,
   Table,
   Tooltip,
-  message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -40,6 +39,7 @@ import {
 } from '@/api/ruleBase'
 import { ApiError } from '@/api/client'
 import { useAuth } from '@/app/AuthContext'
+import { showAppError, useAppMessage } from '@/app/useAppMessage'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
 import {
   ENG_SUBJECT_DOC_DICT_CODE,
@@ -65,15 +65,8 @@ type FormValues = {
   status: 'Y' | 'N'
 }
 
-function showErr(t: (k: string) => string, e: unknown) {
-  if (e instanceof ApiError) {
-    void message.error(e.message)
-    return
-  }
-  void message.error(t('common.error'))
-}
-
 export function RulesManagementPage() {
+  const messageApi = useAppMessage()
   const { t } = useTranslation()
   const { workspaceId } = useAuth()
   const [form] = Form.useForm<FormValues>()
@@ -119,20 +112,20 @@ export function RulesManagementPage() {
       const maxPage = Math.max(1, Math.ceil(data.total / DEFAULT_PAGE_SIZE) || 1)
       if (page > maxPage) setPage(maxPage)
     } catch (e) {
-      showErr(t, e)
+      showAppError(messageApi, t, e)
     } finally {
       setLoading(false)
     }
-  }, [workspaceId, page, t, appliedEngSubjectDoc, appliedStatus])
+  }, [workspaceId, page, t, appliedEngSubjectDoc, appliedStatus, messageApi])
 
   useEffect(() => {
     if (!engSubDocDictQ.isSuccess) return
-    if (!engSubDocDictQ.data?.listRow) void message.warning(t('rules.missingDictEngSubjectDoc'))
-  }, [engSubDocDictQ.isSuccess, engSubDocDictQ.data?.listRow, t])
+    if (!engSubDocDictQ.data?.listRow) void messageApi.warning(t('rules.missingDictEngSubjectDoc'))
+  }, [engSubDocDictQ.isSuccess, engSubDocDictQ.data?.listRow, t, messageApi])
 
   useEffect(() => {
-    if (engSubDocDictQ.isError) showErr(t, engSubDocDictQ.error)
-  }, [engSubDocDictQ.isError, engSubDocDictQ.error, t])
+    if (engSubDocDictQ.isError) showErr(messageApi, t, engSubDocDictQ.error)
+  }, [engSubDocDictQ.isError, engSubDocDictQ.error, t, messageApi])
 
   useEffect(() => {
     void loadList()
@@ -156,7 +149,7 @@ export function RulesManagementPage() {
     if (!workspaceId) return
     const rules = form.getFieldValue('review_rules') as string | undefined
     if (!rules?.trim()) {
-      void message.warning(t('rules.aiPolishNeedRules'))
+      void messageApi.warning(t('rules.aiPolishNeedRules'))
       return
     }
     const path = form.getFieldValue('eng_subject_doc') as string[] | undefined
@@ -170,13 +163,13 @@ export function RulesManagementPage() {
         document_type: document_type ?? undefined,
       })
       form.setFieldValue('review_rules_ai', review_rules_ai)
-      void message.success(t('rules.aiPolishSuccess'))
+      void messageApi.success(t('rules.aiPolishSuccess'))
     } catch (e) {
-      showErr(t, e)
+      showAppError(messageApi, t, e)
     } finally {
       setPolishingRules(false)
     }
-  }, [form, t, workspaceId])
+  }, [form, t, workspaceId, messageApi])
 
   const openCreate = useCallback(() => {
     setEditingId(null)
@@ -254,33 +247,33 @@ export function RulesManagementPage() {
       }
       if (editingId) {
         await patchRuleBase(workspaceId, editingId, body)
-        void message.success(t('rules.updateSuccess'))
+        void messageApi.success(t('rules.updateSuccess'))
       } else {
         await createRuleBase(workspaceId, body)
-        void message.success(t('rules.createSuccess'))
+        void messageApi.success(t('rules.createSuccess'))
       }
       setOpen(false)
       await loadList()
     } catch (e) {
       if (e && typeof e === 'object' && 'errorFields' in (e as object)) return
-      showErr(t, e)
+      showAppError(messageApi, t, e)
     } finally {
       setSubmitting(false)
     }
-  }, [editingId, form, loadList, t, workspaceId])
+  }, [editingId, form, loadList, t, workspaceId, messageApi])
 
   const onDelete = useCallback(
     async (id: string) => {
       if (!workspaceId) return
       try {
         await deleteRuleBase(workspaceId, id)
-        void message.success(t('rules.deleted'))
+        void messageApi.success(t('rules.deleted'))
         await loadList()
       } catch (e) {
-        showErr(t, e)
+        showAppError(messageApi, t, e)
       }
     },
-    [loadList, t, workspaceId],
+    [loadList, t, workspaceId, messageApi],
   )
 
   const onToggleStatus = useCallback(
@@ -293,14 +286,14 @@ export function RulesManagementPage() {
       try {
         await patchRuleBase(workspaceId, row.id, { status: next })
         setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, status: next } : r)))
-        void message.success(t('rules.updateSuccess'))
+        void messageApi.success(t('rules.updateSuccess'))
       } catch (e) {
-        showErr(t, e)
+        showAppError(messageApi, t, e)
       } finally {
         setStatusSavingId(null)
       }
     },
-    [t, workspaceId],
+    [t, workspaceId, messageApi],
   )
 
   const timeCell = (v: string | null) =>
@@ -503,8 +496,8 @@ export function RulesManagementPage() {
         title={editingId ? t('rules.drawerEdit') : t('rules.drawerCreate')}
         open={open}
         onClose={() => setOpen(false)}
-        width="50%"
-        destroyOnClose
+        size="50%"
+        destroyOnHidden
         classNames={{ body: 'minerva-scrollbar-styled' }}
         styles={{ body: { paddingBottom: 8 } }}
         footer={
@@ -644,7 +637,7 @@ export function RulesManagementPage() {
           setDetailOpen(false)
           setDetailRow(null)
         }}
-        width="50%"
+        size="50%"
         classNames={{ body: 'minerva-scrollbar-styled' }}
         footer={
           <div style={{ textAlign: 'right' }}>

@@ -14,7 +14,6 @@ import {
   Table,
   Tabs,
   Typography,
-  message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -32,6 +31,7 @@ import {
   type OcrToolListItem,
 } from '@/api/ocrTools'
 import { useAuth } from '@/app/AuthContext'
+import { useAppMessage } from '@/app/useAppMessage'
 import {
   MineruOcrParamsReadonly,
   OcrToolParamsTabs,
@@ -93,6 +93,7 @@ function sortDictItems(items: SysDictItem[]) {
 
 export function OcrSettingsPage() {
   const { t } = useTranslation()
+  const messageApi = useAppMessage()
   const { workspaceId } = useAuth()
   const [form] = Form.useForm<OcrFormValues>()
   const [loading, setLoading] = useState(false)
@@ -192,7 +193,7 @@ export function OcrSettingsPage() {
       const rows = await listOcrTools(workspaceId)
       setItems(rows)
     } catch {
-      void message.error(t('common.error'))
+      void messageApi.error(t('common.error'))
     } finally {
       setLoading(false)
     }
@@ -230,7 +231,7 @@ export function OcrSettingsPage() {
     return (
       <Typography.Text
         copyable={{
-          onCopy: () => void message.success(t('common.copied')),
+          onCopy: () => void messageApi.success(t('common.copied')),
         }}
         style={{ wordBreak: 'break-all' }}
       >
@@ -248,7 +249,7 @@ export function OcrSettingsPage() {
       const detail = await getOcrTool(workspaceId, toolId)
       setViewDetail(detail)
     } catch {
-      void message.error(t('common.error'))
+      void messageApi.error(t('common.error'))
       setViewOpen(false)
     } finally {
       setViewLoading(false)
@@ -366,7 +367,7 @@ export function OcrSettingsPage() {
       })
       setOpen(true)
     } catch {
-      void message.error(t('common.error'))
+      void messageApi.error(t('common.error'))
     } finally {
       setSubmitting(false)
     }
@@ -403,7 +404,7 @@ export function OcrSettingsPage() {
     } catch (e) {
       if (e instanceof Error && e.message.startsWith('invalid_json:')) {
         const field = e.message.slice('invalid_json:'.length)
-        void message.error(t('settings.ocrPaddleInvalidJson', { field }))
+        void messageApi.error(t('settings.ocrPaddleInvalidJson', { field }))
         return
       }
       throw e
@@ -412,15 +413,15 @@ export function OcrSettingsPage() {
     try {
       if (editingId) {
         await patchOcrTool(workspaceId, editingId, payload)
-        void message.success(t('settings.ocrToolsUpdated'))
+        void messageApi.success(t('settings.ocrToolsUpdated'))
       } else {
         await createOcrTool(workspaceId, payload)
-        void message.success(t('settings.ocrToolsCreated'))
+        void messageApi.success(t('settings.ocrToolsCreated'))
       }
       setOpen(false)
       await load()
     } catch {
-      void message.error(t('common.error'))
+      void messageApi.error(t('common.error'))
     } finally {
       setSubmitting(false)
     }
@@ -430,10 +431,10 @@ export function OcrSettingsPage() {
     if (!workspaceId) return
     try {
       await deleteOcrTool(workspaceId, toolId)
-      void message.success(t('settings.ocrToolsDeleted'))
+      void messageApi.success(t('settings.ocrToolsDeleted'))
       await load()
     } catch {
-      void message.error(t('common.error'))
+      void messageApi.error(t('common.error'))
     }
   }
 
@@ -449,10 +450,10 @@ export function OcrSettingsPage() {
         ocr_type: PADDLE_OCR_TYPE_CODE,
       })
       clearOcrSettings()
-      void message.success(t('settings.ocrImportDone'))
+      void messageApi.success(t('settings.ocrImportDone'))
       await load()
     } catch {
-      void message.error(t('common.error'))
+      void messageApi.error(t('common.error'))
     }
   }
 
@@ -499,11 +500,11 @@ export function OcrSettingsPage() {
 
       <Drawer
         title={editingId ? t('settings.ocrToolsEdit') : t('settings.ocrToolsAdd')}
-        width={920}
+        size={920}
         placement="right"
         open={open}
         onClose={() => setOpen(false)}
-        destroyOnClose
+        destroyOnHidden
         classNames={{ body: 'minerva-scrollbar-styled' }}
         extra={
           <Space>
@@ -593,11 +594,11 @@ export function OcrSettingsPage() {
 
       <Drawer
         title={t('settings.ocrToolsView')}
-        width={920}
+        size={920}
         placement="right"
         open={viewOpen}
         onClose={closeView}
-        destroyOnClose
+        destroyOnHidden
         classNames={{ body: 'minerva-scrollbar-styled' }}
       >
         {viewLoading ? (

@@ -14,7 +14,6 @@ import {
   Table,
   Tag,
   Tooltip,
-  message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useQuery } from '@tanstack/react-query'
@@ -22,6 +21,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '@/api/client'
 import { useAuth } from '@/app/AuthContext'
+import { useAppMessage } from '@/app/useAppMessage'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
 import {
   createCeleryJob,
@@ -64,6 +64,7 @@ function toListParams(values: FilterFormValues): CeleryJobListParams {
 /** Hosts filters, table pagination, and operation buttons for celery jobs. */
 export function CeleryPage() {
   const { t } = useTranslation()
+  const messageApi = useAppMessage()
   const { workspaceId } = useAuth()
   const [filterForm] = Form.useForm<FilterFormValues>()
   const [page, setPage] = useState(1)
@@ -137,15 +138,15 @@ export function CeleryPage() {
     try {
       if (formMode === 'create') {
         await createCeleryJob(workspaceId, payload as CeleryJobCreateBody)
-        void message.success(t('settings.celery.created'))
+        void messageApi.success(t('settings.celery.created'))
       } else if (editingRow != null) {
         await patchCeleryJob(workspaceId, editingRow.id, payload as CeleryJobPatchBody)
-        void message.success(t('settings.celery.updated'))
+        void messageApi.success(t('settings.celery.updated'))
       }
       closeFormModal()
       reloadList()
     } catch (error) {
-      void message.error(error instanceof ApiError ? error.message : t('common.error'))
+      void messageApi.error(error instanceof ApiError ? error.message : t('common.error'))
     } finally {
       setFormSubmitting(false)
     }
@@ -158,10 +159,10 @@ export function CeleryPage() {
     setActionLoading(actionKey, true)
     try {
       await deleteCeleryJob(workspaceId, row.id)
-      void message.success(t('settings.celery.deleted'))
+      void messageApi.success(t('settings.celery.deleted'))
       reloadList()
     } catch (error) {
-      void message.error(error instanceof ApiError ? error.message : t('common.error'))
+      void messageApi.error(error instanceof ApiError ? error.message : t('common.error'))
     } finally {
       setActionLoading(actionKey, false)
     }
@@ -174,10 +175,10 @@ export function CeleryPage() {
     setActionLoading(actionKey, true)
     try {
       const out = await runCeleryJobNow(workspaceId, row.id)
-      void message.success(t('settings.celery.runNowAccepted', { taskId: out.task_id }))
+      void messageApi.success(t('settings.celery.runNowAccepted', { taskId: out.task_id }))
       reloadList()
     } catch (error) {
-      void message.error(error instanceof ApiError ? error.message : t('common.error'))
+      void messageApi.error(error instanceof ApiError ? error.message : t('common.error'))
     } finally {
       setActionLoading(actionKey, false)
     }
@@ -191,14 +192,14 @@ export function CeleryPage() {
     try {
       if (row.enabled) {
         await stopCeleryJob(workspaceId, row.id)
-        void message.success(t('settings.celery.stopped'))
+        void messageApi.success(t('settings.celery.stopped'))
       } else {
         await startCeleryJob(workspaceId, row.id)
-        void message.success(t('settings.celery.enabled'))
+        void messageApi.success(t('settings.celery.enabled'))
       }
       reloadList()
     } catch (error) {
-      void message.error(error instanceof ApiError ? error.message : t('common.error'))
+      void messageApi.error(error instanceof ApiError ? error.message : t('common.error'))
     } finally {
       setActionLoading(actionKey, false)
     }

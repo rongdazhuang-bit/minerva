@@ -163,8 +163,8 @@ export function CeleryFormModal(props: CeleryFormModalProps) {
 
   return (
     <Drawer
-      width={820}
-      destroyOnClose
+      size={820}
+      destroyOnHidden
       open={props.open}
       placement="right"
       title={props.mode === 'create' ? t('settings.celery.createModalTitle') : t('settings.celery.editModalTitle')}

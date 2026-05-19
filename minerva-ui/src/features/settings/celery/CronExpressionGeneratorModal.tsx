@@ -45,6 +45,11 @@ const BOUNDS: Record<Exclude<CronGenTabKey, 'year'>, { min: number; max: number 
   weekday: { min: 0, max: 6 },
 }
 
+/** Select 下拉根节点 class，供 Cron 弹层内虚拟列表滚动条样式（`classNames.popup.root`）。 */
+const CRON_GEN_SELECT_POPUP_CLASS_NAMES = {
+  popup: { root: 'minerva-cron-gen-select-dropdown' },
+} as const
+
 /** 将「日」号数限制在 1–31，供最近工作日 `nW` 输入使用。 */
 function clampDayOfMonth(n: number): number {
   const { min, max } = BOUNDS.day
@@ -224,7 +229,7 @@ function SegmentConfigPanel(props: SegmentPanelProps) {
                     options={weekdayNameOpts}
                     value={segmentState.rangeLo}
                     getPopupContainer={() => document.body}
-                    popupClassName="minerva-cron-gen-select-dropdown"
+                    classNames={CRON_GEN_SELECT_POPUP_CLASS_NAMES}
                     onChange={(v) => patch({ rangeLo: v ?? 0 })}
                   />
                   <span>{t('settings.celery.cronGen.rangeDash')}</span>
@@ -236,7 +241,7 @@ function SegmentConfigPanel(props: SegmentPanelProps) {
                     options={weekdayNameOpts}
                     value={segmentState.rangeHi}
                     getPopupContainer={() => document.body}
-                    popupClassName="minerva-cron-gen-select-dropdown"
+                    classNames={CRON_GEN_SELECT_POPUP_CLASS_NAMES}
                     onChange={(v) => patch({ rangeHi: v ?? 0 })}
                   />
                 </>
@@ -339,7 +344,7 @@ function SegmentConfigPanel(props: SegmentPanelProps) {
                     options={weekdayNameOpts}
                     value={segmentState.weekNthDow}
                     getPopupContainer={() => document.body}
-                    popupClassName="minerva-cron-gen-select-dropdown"
+                    classNames={CRON_GEN_SELECT_POPUP_CLASS_NAMES}
                     onChange={(v) => patch({ weekNthDow: v ?? 0 })}
                   />
                 </Space>
@@ -355,7 +360,7 @@ function SegmentConfigPanel(props: SegmentPanelProps) {
                     options={weekdayNameOpts}
                     value={segmentState.weekLastDow}
                     getPopupContainer={() => document.body}
-                    popupClassName="minerva-cron-gen-select-dropdown"
+                    classNames={CRON_GEN_SELECT_POPUP_CLASS_NAMES}
                     onChange={(v) => patch({ weekLastDow: v ?? 0 })}
                   />
                 </Space>
@@ -376,7 +381,7 @@ function SegmentConfigPanel(props: SegmentPanelProps) {
                 placeholder={t('settings.celery.cronGen.listPlaceholder')}
                 getPopupContainer={() => document.body}
                 popupMatchSelectWidth={false}
-                popupClassName="minerva-cron-gen-select-dropdown"
+                classNames={CRON_GEN_SELECT_POPUP_CLASS_NAMES}
                 listHeight={256}
                 onChange={(vals) => patch({ list: (vals as number[]) ?? [] })}
               />
@@ -453,7 +458,7 @@ export function CronExpressionGeneratorModal(props: CronExpressionGeneratorModal
       width={880}
       className="minerva-cron-gen-modal"
       footer={null}
-      destroyOnClose
+      destroyOnHidden
     >
       <CronGenModalContext.Provider value={cronGenContextValue}>
         <Tabs className="minerva-cron-gen-tabs" items={tabItems} />

@@ -80,6 +80,22 @@ async def _load_dict_name_set(
     return {i.name.strip() for i in items if (i.name or "").strip()}
 
 
+async def _load_dict_code_set(
+    session: AsyncSession, *, workspace_id: uuid.UUID, dict_code: str
+) -> set[str]:
+    """字典项 code（key）集合，用于 model_type 等按编码落库的字段。"""
+    items = await dict_service.list_items_by_dict_code(
+        session, workspace_id=workspace_id, dict_code=dict_code
+    )
+    if not items:
+        raise AppError(
+            "model_provider.dict_not_configured",
+            f"Dictionary {dict_code} is missing or has no items",
+            422,
+        )
+    return {i.code.strip() for i in items if (i.code or "").strip()}
+
+
 async def _validate_model_fields(
     session: AsyncSession,
     *,
@@ -98,7 +114,7 @@ async def _validate_model_fields(
     if provider_name.strip() not in allowed_providers:
         raise AppError("model_provider.provider_name_invalid", "Invalid provider_name", 422)
 
-    allowed_types = await _load_dict_name_set(
+    allowed_types = await _load_dict_code_set(
         session, workspace_id=workspace_id, dict_code="MODEL_TYPE"
     )
     if model_type.strip() not in allowed_types:

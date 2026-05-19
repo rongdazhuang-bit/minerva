@@ -18,7 +18,7 @@
 .minerva-app-sider-scroll,
 .minerva-app-main-scroll,
 .minerva-scrollbar-styled,
-/* Cron 生成器等：Ant Select 下拉虚拟列表滚动容器（popupClassName 挂在根上，实际滚动在 holder）。 */
+/* Cron 生成器等：Ant Select 下拉虚拟列表滚动容器（classNames.popup.root 挂在根上，实际滚动在 holder）。 */
 .minerva-cron-gen-select-dropdown .rc-virtual-list-holder {
   /* Firefox: thin ≈ 与 WebKit 5px 细条同量级 */
   scrollbar-width: thin;

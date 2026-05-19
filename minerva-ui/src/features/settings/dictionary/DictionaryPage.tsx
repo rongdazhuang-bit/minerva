@@ -16,7 +16,6 @@ import {
   Table,
   TreeSelect,
   Typography,
-  message,
 } from 'antd'
 import type { TreeSelectProps } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -37,6 +36,7 @@ import {
   type SysDictListItem,
 } from '@/api/dicts'
 import { useAuth } from '@/app/AuthContext'
+import { showAppError, useAppMessage } from '@/app/useAppMessage'
 import { dictQueryKeys } from '@/constants/dictQueryKeys'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
 import './DictionaryPage.css'
@@ -111,14 +111,6 @@ function descendantIds(flat: SysDictItem[], itemId: string): Set<string> {
   return out
 }
 
-function showErr(t: (k: string) => string, e: unknown) {
-  if (e instanceof ApiError) {
-    void message.error(e.message)
-    return
-  }
-  void message.error(t('common.error'))
-}
-
 function buildParentTreeData(
   nodes: ItemRow[],
   forbidden: Set<string>,
@@ -147,7 +139,7 @@ function renderCodeCopyable(code: string, t: (k: string) => string) {
   return (
     <Typography.Text
       copyable={{
-        onCopy: () => void message.success(t('common.copied')),
+        onCopy: () => void messageApi.success(t('common.copied')),
       }}
       ellipsis={{ tooltip: v }}
       style={{ maxWidth: '100%' }}
@@ -159,6 +151,7 @@ function renderCodeCopyable(code: string, t: (k: string) => string) {
 
 export function DictionaryPage() {
   const { t } = useTranslation()
+  const messageApi = useAppMessage()
   const { workspaceId } = useAuth()
   const queryClient = useQueryClient()
   const invalidateWorkspaceDictCache = useCallback(() => {
@@ -202,7 +195,7 @@ export function DictionaryPage() {
         setDicts(data.items)
         setTotal(data.total)
       } catch (e) {
-        if (!cancelled) showErr(t, e)
+        if (!cancelled) showAppError(messageApi, t, e)
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -219,7 +212,7 @@ export function DictionaryPage() {
       const rows = await listDictItems(workspaceId, activeDict.id)
       setItemsFlat(rows)
     } catch (e) {
-      showErr(t, e)
+      showAppError(messageApi, t, e)
     } finally {
       setItemsLoading(false)
     }
@@ -267,10 +260,10 @@ export function DictionaryPage() {
       let saved: SysDictListItem
       if (editingDictId) {
         saved = await patchDict(workspaceId, editingDictId, payload)
-        void message.success(t('settings.dictUpdated'))
+        void messageApi.success(t('settings.dictUpdated'))
       } else {
         saved = await createDict(workspaceId, payload)
-        void message.success(t('settings.dictCreated'))
+        void messageApi.success(t('settings.dictCreated'))
       }
       setDictModalOpen(false)
       if (editingDictId && activeDict?.id === editingDictId) {
@@ -282,7 +275,7 @@ export function DictionaryPage() {
       setDictListRev((n) => n + 1)
       invalidateWorkspaceDictCache()
     } catch (e) {
-      showErr(t, e)
+      showAppError(messageApi, t, e)
     } finally {
       setDictSubmitting(false)
     }
@@ -292,7 +285,7 @@ export function DictionaryPage() {
     if (!workspaceId) return
     try {
       await deleteDict(workspaceId, id)
-      void message.success(t('settings.dictDeleted'))
+      void messageApi.success(t('settings.dictDeleted'))
       if (activeDict?.id === id) {
         setDrawerOpen(false)
         setActiveDict(null)
@@ -300,7 +293,7 @@ export function DictionaryPage() {
       setDictListRev((n) => n + 1)
       invalidateWorkspaceDictCache()
     } catch (e) {
-      showErr(t, e)
+      showAppError(messageApi, t, e)
     }
   }
 
@@ -340,16 +333,16 @@ export function DictionaryPage() {
       }
       if (editingItemId) {
         await patchDictItem(workspaceId, activeDict.id, editingItemId, payload)
-        void message.success(t('settings.dictItemUpdated'))
+        void messageApi.success(t('settings.dictItemUpdated'))
       } else {
         await createDictItem(workspaceId, activeDict.id, payload)
-        void message.success(t('settings.dictItemCreated'))
+        void messageApi.success(t('settings.dictItemCreated'))
       }
       setItemModalOpen(false)
       await loadItems()
       invalidateWorkspaceDictCache()
     } catch (e) {
-      showErr(t, e)
+      showAppError(messageApi, t, e)
     } finally {
       setItemSubmitting(false)
     }
@@ -359,11 +352,11 @@ export function DictionaryPage() {
     if (!workspaceId || !activeDict) return
     try {
       await deleteDictItem(workspaceId, activeDict.id, itemId)
-      void message.success(t('settings.dictItemDeleted'))
+      void messageApi.success(t('settings.dictItemDeleted'))
       await loadItems()
       invalidateWorkspaceDictCache()
     } catch (e) {
-      showErr(t, e)
+      showAppError(messageApi, t, e)
     }
   }
 
@@ -526,12 +519,12 @@ export function DictionaryPage() {
       </Card>
 
       <Drawer
-        width={640}
+        size={640}
         placement="right"
         open={dictModalOpen}
         title={editingDictId ? t('settings.dictEdit') : t('settings.dictAdd')}
         onClose={() => setDictModalOpen(false)}
-        destroyOnClose
+        destroyOnHidden
         classNames={{ body: 'minerva-scrollbar-styled' }}
         extra={
           <Space>
@@ -568,7 +561,7 @@ export function DictionaryPage() {
               {' ('}
               <Typography.Text
                 copyable={{
-                  onCopy: () => void message.success(t('common.copied')),
+                  onCopy: () => void messageApi.success(t('common.copied')),
                 }}
                 style={{ wordBreak: 'break-all' }}
               >
@@ -580,7 +573,7 @@ export function DictionaryPage() {
             t('settings.dictItems')
           )
         }
-        width={720}
+        size={720}
         placement="right"
         open={drawerOpen}
         onClose={() => {
@@ -613,12 +606,12 @@ export function DictionaryPage() {
       </Drawer>
 
       <Drawer
-        width={640}
+        size={640}
         placement="right"
         open={itemModalOpen}
         title={editingItemId ? t('settings.dictItemEdit') : t('settings.dictItemAdd')}
         onClose={() => setItemModalOpen(false)}
-        destroyOnClose
+        destroyOnHidden
         classNames={{ body: 'minerva-scrollbar-styled' }}
         extra={
           <Space>
