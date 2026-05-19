@@ -68,7 +68,8 @@ MODEL_TYPE_DICT_CODE_CHAT = "CHAT"
 
 async def _seed_model_provider_dicts(
     ac: AsyncClient, workspace_id: str, headers: dict[str, str]
-) -> None:
+) -> str:
+    """Seed MODEL_PROVIDER / MODEL_TYPE dicts; returns provider dict item code."""
     p_id = await _get_or_create_dict_id(
         ac, workspace_id, headers, "MODEL_PROVIDER", "Model providers"
     )
@@ -76,10 +77,12 @@ async def _seed_model_provider_dicts(
         ac, workspace_id, headers, "MODEL_TYPE", "Model types"
     )
 
-    await _add_dict_item(ac, workspace_id, headers, p_id, f"p-{uuid.uuid4().hex[:8]}", "OpenAI")
+    provider_code = f"p-{uuid.uuid4().hex[:8]}"
+    await _add_dict_item(ac, workspace_id, headers, p_id, provider_code, "OpenAI")
     await _add_dict_item(
         ac, workspace_id, headers, t_id, MODEL_TYPE_DICT_CODE_CHAT, "chat"
     )
+    return provider_code
 
 
 async def _add_user_to_workspace(*, user_email: str, workspace_id: str, role: MembershipRole) -> None:
@@ -135,7 +138,7 @@ async def test_model_providers_crud_and_isolation() -> None:
         h1 = {"Authorization": f"Bearer {token1}"}
         h2 = {"Authorization": f"Bearer {token2}"}
 
-        await _seed_model_provider_dicts(ac, workspace1, h1)
+        provider_code = await _seed_model_provider_dicts(ac, workspace1, h1)
 
         list_empty = await ac.get(
             f"/workspaces/{workspace1}/model-providers/models", headers=h1
@@ -147,7 +150,7 @@ async def test_model_providers_crud_and_isolation() -> None:
             f"/workspaces/{workspace1}/model-providers/models",
             headers=h1,
             json={
-                "provider_name": "OpenAI",
+                "provider_name": provider_code,
                 "model_name": "gpt-4o",
                 "model_type": MODEL_TYPE_DICT_CODE_CHAT,
                 "auth_type": "API_KEY",
@@ -157,6 +160,7 @@ async def test_model_providers_crud_and_isolation() -> None:
         assert create.status_code == 201, create.text
         body = create.json()
         model_id = body["id"]
+        assert body["provider_name"] == provider_code
         assert body["api_key"] == "secret-key"
 
         list_one = await ac.get(
@@ -177,7 +181,7 @@ async def test_model_providers_crud_and_isolation() -> None:
         assert grouped.status_code == 200, grouped.text
         groups = grouped.json()
         assert len(groups) == 1
-        assert groups[0]["provider_name"] == "OpenAI"
+        assert groups[0]["provider_name"] == provider_code
         assert len(groups[0]["items"]) == 1
         assert groups[0]["items"][0]["id"] == model_id
 
@@ -246,13 +250,13 @@ async def test_model_provider_member_cannot_write() -> None:
         h_member = {"Authorization": f"Bearer {member_tok}"}
 
         await _add_user_to_workspace(user_email=member_email, workspace_id=wid, role=MembershipRole.member)
-        await _seed_model_provider_dicts(ac, wid, h_owner)
+        provider_code = await _seed_model_provider_dicts(ac, wid, h_owner)
 
         create_forbidden = await ac.post(
             f"/workspaces/{wid}/model-providers/models",
             headers=h_member,
             json={
-                "provider_name": "OpenAI",
+                "provider_name": provider_code,
                 "model_name": "x",
                 "model_type": MODEL_TYPE_DICT_CODE_CHAT,
                 "auth_type": "NONE",
@@ -264,7 +268,7 @@ async def test_model_provider_member_cannot_write() -> None:
             f"/workspaces/{wid}/model-providers/models",
             headers=h_owner,
             json={
-                "provider_name": "OpenAI",
+                "provider_name": provider_code,
                 "model_name": "x",
                 "model_type": MODEL_TYPE_DICT_CODE_CHAT,
                 "auth_type": "NONE",
@@ -292,7 +296,7 @@ async def test_model_provider_member_cannot_write() -> None:
 
 
 @pytest.mark.asyncio
-async def test_model_provider_dict_name_validation() -> None:
+async def test_model_provider_dict_code_validation() -> None:
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
@@ -303,7 +307,7 @@ async def test_model_provider_dict_name_validation() -> None:
         token = reg.json()["access_token"]
         wid = _workspace_id_from_access_token(token)
         h = {"Authorization": f"Bearer {token}"}
-        await _seed_model_provider_dicts(ac, wid, h)
+        provider_code = await _seed_model_provider_dicts(ac, wid, h)
 
         bad_provider = await ac.post(
             f"/workspaces/{wid}/model-providers/models",
@@ -322,7 +326,7 @@ async def test_model_provider_dict_name_validation() -> None:
             f"/workspaces/{wid}/model-providers/models",
             headers=h,
             json={
-                "provider_name": "OpenAI",
+                "provider_name": provider_code,
                 "model_name": "x",
                 "model_type": "not-a-type",
                 "auth_type": "NONE",

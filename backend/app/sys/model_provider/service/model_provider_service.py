@@ -65,25 +65,10 @@ def _assert_auth_fields(
         return
 
 
-async def _load_dict_name_set(
-    session: AsyncSession, *, workspace_id: uuid.UUID, dict_code: str
-) -> set[str]:
-    items = await dict_service.list_items_by_dict_code(
-        session, workspace_id=workspace_id, dict_code=dict_code
-    )
-    if not items:
-        raise AppError(
-            "model_provider.dict_not_configured",
-            f"Dictionary {dict_code} is missing or has no items",
-            422,
-        )
-    return {i.name.strip() for i in items if (i.name or "").strip()}
-
-
 async def _load_dict_code_set(
     session: AsyncSession, *, workspace_id: uuid.UUID, dict_code: str
 ) -> set[str]:
-    """字典项 code（key）集合，用于 model_type 等按编码落库的字段。"""
+    """字典项 code（key）集合，用于 provider_name、model_type 等按编码落库的字段。"""
     items = await dict_service.list_items_by_dict_code(
         session, workspace_id=workspace_id, dict_code=dict_code
     )
@@ -108,7 +93,7 @@ async def _validate_model_fields(
     auth_passwd: str | None,
     strict_auth: bool,
 ) -> None:
-    allowed_providers = await _load_dict_name_set(
+    allowed_providers = await _load_dict_code_set(
         session, workspace_id=workspace_id, dict_code="MODEL_PROVIDER"
     )
     if provider_name.strip() not in allowed_providers:

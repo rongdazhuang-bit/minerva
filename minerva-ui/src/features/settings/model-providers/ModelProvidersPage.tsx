@@ -246,13 +246,54 @@ export function ModelProvidersPage() {
     form.setFieldsValue({ auth_type: next?.value })
   }, [open, editingId, baseAuthSelectOptions, form])
 
-  const providerOptions = useMemo(() => {
+  const baseProviderOptions = useMemo(() => {
     const sorted = sortDictItems(providerItems)
     if (sorted.length === 0) {
       return []
     }
-    return sorted.map((i) => ({ value: i.name, label: `${i.name} (${i.code})` }))
+    return sorted.map((i) => ({ value: i.code, label: i.name }))
   }, [providerItems])
+
+  const providerLabelByCode = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const i of sortDictItems(providerItems)) {
+      m.set(i.code, i.name)
+    }
+    return m
+  }, [providerItems])
+
+  const resolveProviderLabel = useCallback(
+    (stored: string) => {
+      const exact = providerLabelByCode.get(stored)
+      if (exact) return exact
+      const byName = providerItems.find((i) => i.name === stored)
+      return byName?.name ?? stored
+    },
+    [providerLabelByCode, providerItems],
+  )
+
+  /** 编辑/复制时：库内可能是历史 name，表单 Select 需用 code。 */
+  const resolveProviderForForm = useCallback(
+    (stored: string) => {
+      const s = stored.trim()
+      if (!s) return s
+      if (providerItems.some((i) => i.code === s)) return s
+      const byName = providerItems.find((i) => i.name === s)
+      return byName?.code ?? s
+    },
+    [providerItems],
+  )
+
+  const watchedProviderName = Form.useWatch('provider_name', form)
+
+  const providerOptions = useMemo(() => {
+    if (!open) return baseProviderOptions
+    const cur = watchedProviderName
+    if (cur != null && cur !== '' && !baseProviderOptions.some((o) => o.value === cur)) {
+      return [...baseProviderOptions, { value: cur, label: resolveProviderLabel(String(cur)) }]
+    }
+    return baseProviderOptions
+  }, [baseProviderOptions, open, watchedProviderName, resolveProviderLabel])
 
   const modelTypeOptions = useMemo(() => {
     const sorted = sortDictItems(typeItems)
@@ -340,7 +381,7 @@ export function ModelProvidersPage() {
     setEditingBase(null)
     form.resetFields()
     form.setFieldsValue({
-      provider_name: providerName,
+      provider_name: providerName != null ? resolveProviderForForm(providerName) : undefined,
       model_name: '',
       model_type: modelTypeOptions[0]?.value,
       enabled: true,
@@ -358,6 +399,7 @@ export function ModelProvidersPage() {
       const detail = await getModelProvider(workspaceId, modelId)
       setEditingBase(detail)
       const fv = detailToFormValues(detail, true)
+      fv.provider_name = resolveProviderForForm(fv.provider_name ?? '')
       fv.model_type = resolveModelTypeForForm(fv.model_type)
       form.setFieldsValue(fv)
       setOpen(true)
@@ -378,6 +420,7 @@ export function ModelProvidersPage() {
       const detail = await getModelProvider(workspaceId, modelId)
       form.resetFields()
       const fv = detailToFormValues(detail, false)
+      fv.provider_name = resolveProviderForForm(fv.provider_name ?? '')
       fv.model_type = resolveModelTypeForForm(fv.model_type)
       form.setFieldsValue(fv)
       setOpen(true)
@@ -687,7 +730,7 @@ export function ModelProvidersPage() {
                   label: (
                     <div className="minerva-model-providers__group-title">
                       <Text strong style={{ color: 'var(--minerva-ink, #e8f0f8)' }}>
-                        {g.provider_name}
+                        {resolveProviderLabel(g.provider_name)}
                       </Text>
                       <Text type="secondary" className="minerva-model-providers__group-count">
                         {t('settings.modelProvidersGroupCount', { count: g.items.length })}
@@ -876,7 +919,7 @@ export function ModelProvidersPage() {
           <div className="minerva-model-providers__view">
             <Descriptions column={1} size="small" bordered styles={viewDrawerDescriptionStyles}>
               <Descriptions.Item label={t('settings.modelProvidersFieldProvider')}>
-                {viewDetail.provider_name}
+                {resolveProviderLabel(viewDetail.provider_name)}
               </Descriptions.Item>
               <Descriptions.Item label={t('settings.modelProvidersFieldModelName')}>{viewDetail.model_name}</Descriptions.Item>
               <Descriptions.Item label={t('settings.modelProvidersFieldModelType')}>
