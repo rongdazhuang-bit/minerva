@@ -38,16 +38,18 @@ Minerva是一个基于现代技术栈构建的企业级智能应用平台，采�
 **Linux / macOS：**
 
 ```bash
-cp backend/.env.dev.example backend/.env.dev
+cp backend/.env.example backend/.env.local
 ```
 
 **Windows (PowerShell)：**
 
 ```powershell
-Copy-Item backend/.env.example backend/.env
+Copy-Item backend/.env.example backend/.env.local
 ```
 
-`backend/.env` 中默认同目录示例即可连接本机 `docker compose` 暴露的库（`127.0.0.1:5432`）。**生产或多人协作时请修改 `JWT_SECRET` 为足够长的随机串。**
+可选团队 dev 配置：`cp backend/.env.example backend/.env.dev`（使用 `run-backend dev` 时加载）。
+
+`backend/.env.local` 中默认同目录示例即可连接本机 `docker compose` 暴露的库（`127.0.0.1:5432`）。**生产或多人协作时请修改 `JWT_SECRET` 为足够长的随机串。**
 
 ## 三、后端：安装依赖与启动
 
@@ -90,7 +92,7 @@ Copy-Item backend/.env.example backend/.env
 
 ### 数据库迁移
 
-首次或代码更新后，建议执行 Alembic 迁移，使表结构与当前代码一致（需已配置 `backend/.env` 中的 `SYNC_DATABASE_URL` 等）：
+首次或代码更新后，建议执行 Alembic 迁移，使表结构与当前代码一致（需已配置 `backend/.env.local`（或当前 profile 对应文件）中的 `SYNC_DATABASE_URL` 等）：
 
 ```bash
 alembic upgrade head
@@ -104,10 +106,14 @@ alembic upgrade head
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-**可选：** 在**仓库根目录**也可使用脚本快速启动（会优先使用 `backend/.venv` 中的 Python；无 venv 时 Windows 依次尝试 `py -3.13` / `py -3.12` / `py -3.11` 与 `python`，**避免**使用易选中「3.13 自由线程版」的 `py -3`），端口可用 `MINERVA_BACKEND_PORT` 覆盖，默认 8000：
+**推荐：** 在**仓库根目录**使用脚本启动（会优先使用 `backend/.venv` 或 `backend/minerva` 中的 Python；无 venv 时 Windows 依次尝试 `py -3.13` / `py -3.12` / `py -3.11` 与 `python`，**避免**使用易选中「3.13 自由线程版」的 `py -3`）：
 
-- Windows：`scripts\run-backend.cmd`
-- Linux / macOS：`bash scripts/run-backend.sh`（或 `chmod +x` 后直接执行）
+1. **API**：`scripts\run-backend.cmd`（Windows）或 `bash scripts/run-backend.sh`（Linux/macOS）— 无参默认加载 `backend/.env.local`；`run-backend dev` 加载 `.env.dev`
+2. **Celery**（需 Redis；定时任务另需 Beat）：须显式指定 profile 与子命令，例如：
+   - `scripts\run-celery.cmd local worker` 与 `scripts\run-celery.cmd local beat`
+   - `bash scripts/run-celery.sh local worker` / `local beat`
+
+可选：`MINERVA_BACKEND_PORT` 覆盖 API 端口（默认 8000）。
 
 **排错（Windows + Python 3.13）：** 若报 `No module named 'pydantic_core._pydantic_core'`，多因启动或 `pip` 实际使用了 **3.13t**（`python3.13t.exe`）而 `pydantic-core` 无对应预编译包。请用 **标准 3.13** 建 venv 并装依赖：``py -3.13 -m venv .venv``，激活后再 ``pip install -e ".[dev]"``；或全局安装/修复时用 ``py -3.13 -m pip install --force-reinstall "pydantic" "pydantic-core"``，不要在此时使用 ``py -3 -m pip``（可能仍指向 3.13t）。
 
@@ -115,7 +121,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 **说明：**
 
-- 后端会读取 `backend/.env` 中的 `DATABASE_URL`、`SYNC_DATABASE_URL`（Alembic 使用同步 URL）、JWT 等配置。
+- 后端按 `APP_ENV` 读取单个 `backend/.env.<profile>`（如 `.env.local`）中的 `DATABASE_URL`、`SYNC_DATABASE_URL`（Alembic 使用同步 URL）、JWT 等配置。
 - 与前端联调时，在 `APP_ENV` 为 dev/development/local/test 时，CORS 允许 `http://localhost` 与 `http://127.0.0.1` 的**任意端口**（便于 Vite 占用 5174 等）；生产环境请按需收紧并仅列出真实站点来源。
 
 ## 四、启动前端

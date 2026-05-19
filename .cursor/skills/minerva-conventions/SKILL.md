@@ -90,7 +90,7 @@ description: >-
 
 1. **`app/config.py` `Settings` 字段**：增删字段、`Field(validation_alias=...)` 更名、默认值或 `description` 含义变化。
 2. **代码内直接读取**：`os.environ.get` / `os.getenv`（如 `MINERVA_CELERY_USE_PREFORK`、`MINERVA_SKIP_DB_TESTS`）。
-3. **启动脚本约定**：`scripts/run-backend.sh` 等文档化变量（`MINERVA_BACKEND_PORT`、`MINERVA_SKIP_CELERY_*`）。
+3. **启动脚本约定**：`scripts/run-backend.*`、`scripts/run-celery.*` 文档化变量（`MINERVA_BACKEND_PORT`、`APP_ENV` profile）。
 
 以下**通常不需要**写入 `.env.dev`（可仅在 `.env.example` 末尾以注释说明）：
 
@@ -111,7 +111,7 @@ description: >-
 - **键名**：与 `Settings` 的 `validation_alias` 或 Pydantic 大写蛇形名一致（如 `DATABASE_URL`、`AGENT_MAX_PLAN_STEPS`）。
 - **分组**：按「运行环境 / 数据库 / JWT / AI / Celery / Agent」等区块排列，与现有 `.env.example` 结构一致。
 - **权威来源**：`backend/app/config.py`；辅助检索 `os.getenv`、`scripts/run-backend.sh`。
-- **加载顺序**（写入 `.env.example` 头注释即可，勿重复发明）：进程环境变量 → `.env.dev` → `.env.dev.<APP_ENV>`（若存在）。
+- **加载顺序**（写入 `.env.example` 头注释即可，勿重复发明）：进程环境变量 → 单个 `backend/.env.<APP_ENV>`（无叠加；脚本无参默认 `local` → `.env.local`）。
 - **勿**在配置文件中添加应用未读取的键（历史 `REDIS_URL` 若仅备忘，须注释说明「应用不读取，以 `CELERY_*` 为准」）。
 
 ### 实现时的检查清单
@@ -120,7 +120,7 @@ description: >-
 2. 更新 `backend/.env.example`（含分组注释；脚本/测试专用项可注释列出）。
 3. 更新 `backend/.env.dev`（保留现有数据库/Redis/JWT 等真实 dev 值，不无故覆盖）。
 4. 若 spec / `docs/agent-module-design.md` 等文档列出了环境变量表，**一并回填**（见 §2）。
-5. 本地可执行：`cd backend && python -c "from app.config import settings; print(settings.model_dump())"` 确认从 `.env.dev` 加载无误。
+5. 本地可执行：`cd backend && set APP_ENV=dev && python -c "from app.config import settings; print(settings.app_env)"` 确认 profile 与对应 `.env.<profile>` 加载无误。
 
 ### 禁止
 

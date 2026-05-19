@@ -38,16 +38,18 @@ Copy `backend/.env.example` to `backend/.env` (if there's another `.env.example`
 **Linux / macOS:**
 
 ```bash
-cp backend/.env.dev.example backend/.env.dev
+cp backend/.env.example backend/.env.local
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
-Copy-Item backend/.env.example backend/.env
+Copy-Item backend/.env.example backend/.env.local
 ```
 
-The default configuration in `backend/.env` can connect to the database exposed by local `docker compose` (`127.0.0.1:5432`). **For production or team collaboration, modify `JWT_SECRET` to a sufficiently long random string.**
+Optional team dev config: `cp backend/.env.example backend/.env.dev` (loaded with `run-backend dev`).
+
+The default configuration in `backend/.env.local` can connect to the database exposed by local `docker compose` (`127.0.0.1:5432`). **For production or team collaboration, modify `JWT_SECRET` to a sufficiently long random string.**
 
 ## 3. Backend: Dependency Installation and Startup
 
@@ -90,7 +92,7 @@ Execute the following commands in the **`backend` directory** (first `cd backend
 
 ### Database Migration
 
-After initial setup or code updates, execute Alembic migration to synchronize table structure with current code (requires `SYNC_DATABASE_URL` etc. configured in `backend/.env`):
+After initial setup or code updates, execute Alembic migration to synchronize table structure with current code (requires `SYNC_DATABASE_URL` etc. configured in `backend/.env.local` or the active profile file):
 
 ```bash
 alembic upgrade head
@@ -104,10 +106,14 @@ With the **virtual environment activated** and (if needed) migration completed, 
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-**Optional:** In the **repository root directory**, you can also use scripts for quick startup (preferentially uses Python from `backend/.venv`; on Windows without venv, tries `py -3.13` / `py -3.12` / `py -3.11` and `python` in sequence, **avoiding** `py -3` which may select "3.13 free-threaded version"). Port can be overridden with `MINERVA_BACKEND_PORT`, default 8000:
+**Recommended:** In the **repository root directory**, use startup scripts (preferentially uses Python from `backend/.venv` or `backend/minerva`; on Windows without venv, tries `py -3.13` / `py -3.12` / `py -3.11` and `python` in sequence, **avoiding** `py -3` which may select "3.13 free-threaded version"):
 
-- Windows: `scripts\run-backend.cmd`
-- Linux / macOS: `bash scripts/run-backend.sh` (or execute directly after `chmod +x`)
+1. **API:** `scripts\run-backend.cmd` (Windows) or `bash scripts/run-backend.sh` (Linux/macOS) — no args loads `backend/.env.local`; `run-backend dev` loads `.env.dev`
+2. **Celery** (requires Redis; Beat needed for scheduled tasks): must pass profile and subcommand explicitly, e.g.:
+   - `scripts\run-celery.cmd local worker` and `scripts\run-celery.cmd local beat`
+   - `bash scripts/run-celery.sh local worker` / `local beat`
+
+Optional: `MINERVA_BACKEND_PORT` overrides API port (default 8000).
 
 **Troubleshooting (Windows + Python 3.13):** If encountering `No module named 'pydantic_core._pydantic_core'`, it's often because the startup or `pip` is using **3.13t** (`python3.13t.exe`) while `pydantic-core` has no corresponding precompiled package. Use **standard 3.13** to create venv and install dependencies: ``py -3.13 -m venv .venv``, activate it and then ``pip install -e ".[dev]"``; or for global installation/repair use ``py -3.13 -m pip install --force-reinstall "pydantic" "pydantic-core"``, do not use ``py -3 -m pip`` at this time (may still point to 3.13t).
 
@@ -115,7 +121,7 @@ After successful startup, access API documentation: [http://127.0.0.1:8000/docs]
 
 **Notes:**
 
-- Backend reads `DATABASE_URL`, `SYNC_DATABASE_URL` (Alembic uses synchronous URL), JWT, etc. from `backend/.env`.
+- Backend loads a single `backend/.env.<profile>` (e.g. `.env.local`) based on `APP_ENV` for `DATABASE_URL`, `SYNC_DATABASE_URL` (Alembic uses synchronous URL), JWT, etc.
 - For frontend integration debugging, when `APP_ENV` is dev/development/local/test, CORS allows **any port** for `http://localhost` and `http://127.0.0.1` (convenient for Vite using 5174, etc.); in production environment, tighten as needed and list only real site origins.
 
 ## 4. Start Frontend
