@@ -33,3 +33,4 @@ __pycache__/
 .worktrees/
 /backend/minerva/
 /backend/alembic/
+/backend/.env.local
