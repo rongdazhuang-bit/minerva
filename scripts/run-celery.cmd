@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableExtensions
-chcp 65001 >nul
+chcp 65001 >nul 2>&1
 REM 用法: run-celery.cmd <profile> <worker|beat>
 REM Windows: 每次调用打开独立 cmd 窗口；MINERVA_CELERY_USE_PREFORK=1 可启用 prefork（见 app.celery_app）
 

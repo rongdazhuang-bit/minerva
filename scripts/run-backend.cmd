@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableExtensions
-chcp 65001 >nul
+chcp 65001 >nul 2>&1
 REM 启动 FastAPI（仅 uvicorn）。用法: run-backend.cmd [profile]  默认 local
 REM 环境变量: MINERVA_BACKEND_PORT（默认 8000）
 REM 局域网：--host 0.0.0.0，其它设备可访问 http://<本机IP>:端口（开发环境 CORS 含私网段）。
