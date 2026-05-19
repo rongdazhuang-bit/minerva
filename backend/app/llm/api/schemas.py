@@ -17,7 +17,7 @@ class ChatMessageIn(BaseModel):
 class ChatCompletionRequest(BaseModel):
     """OpenAI-compatible chat completion request (internal HTTP surface)."""
 
-    provider_kind: ProviderKind = ProviderKind.openai_compatible
+    provider_kind: ProviderKind = ProviderKind.openai
     base_url: str = Field(min_length=1, description="OpenAI-compatible API root, e.g. http://localhost:4000/v1")
     api_key: str = Field(min_length=1)
     model: str = Field(min_length=1)

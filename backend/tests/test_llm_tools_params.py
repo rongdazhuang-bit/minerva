@@ -107,7 +107,7 @@ async def test_chat_service_complete_messages_passes_tools(monkeypatch: pytest.M
     ):
         tools = [{"type": "function", "function": {"name": "n", "parameters": {"type": "object"}}}]
         out = await chat_service.complete_messages(
-            provider_kind=ProviderKind.openai_compatible,
+            provider_kind=ProviderKind.openai,
             base_url="http://x/v1",
             api_key="k",
             model="m",
@@ -136,7 +136,7 @@ async def test_chat_service_stream_chunks_messages_yields(monkeypatch: pytest.Mo
     ):
         chunks: list[dict] = []
         async for ch in chat_service.stream_chunks_messages(
-            provider_kind=ProviderKind.openai_compatible,
+            provider_kind=ProviderKind.openai,
             base_url="http://x/v1",
             api_key="k",
             model="m",

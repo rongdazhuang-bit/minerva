@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 class ProviderKind(str, Enum):
     """Upstream vendor discriminator stored on HTTP requests."""
 
-    openai_compatible = "openai_compatible"
+    openai = "openai"
     volcengine = "volcengine"
     aliyun = "aliyun"
 

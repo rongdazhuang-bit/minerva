@@ -191,7 +191,7 @@ async def test_chat_service_complete_retries_on_rate_limit(monkeypatch: pytest.M
         return_value=MagicMock(complete=fake_complete),
     ):
         out = await chat_service.complete(
-            provider_kind=ProviderKind.openai_compatible,
+            provider_kind=ProviderKind.openai,
             base_url="http://x/v1",
             api_key="k",
             model="m",

@@ -182,7 +182,7 @@ def _api_key_for_model(model: SysModel) -> str:
     )
 
 
-def _openai_compatible_completion_text(payload: dict[str, Any]) -> str:
+def _openai_completion_text(payload: dict[str, Any]) -> str:
     choices = payload.get("choices") or []
     if not choices:
         raise AppError("ai.polish.empty_choices", "模型未返回内容", 502)
@@ -254,7 +254,7 @@ async def polish_review_rules(
     max_tokens = int(mt) if mt is not None else None
 
     payload = await chat_service.complete(
-        provider_kind=ProviderKind.openai_compatible,
+        provider_kind=ProviderKind.openai,
         base_url=endpoint.rstrip("/"),
         api_key=api_key,
         model=model_row.model_name.strip(),
@@ -264,4 +264,4 @@ async def polish_review_rules(
         temperature=None,
         max_tokens=max_tokens,
     )
-    return _openai_compatible_completion_text(payload)
+    return _openai_completion_text(payload)

@@ -21,14 +21,14 @@
 ### 1.2 成功标准
 
 - `provider_kind=volcengine` 且传入有效 Ark `base_url`、`api_key`、`model` 时，流式与阻塞调用均可返回上游 chunk/completion JSON（`model_dump(mode="json")` 形态）。
-- 显式 `"stream": false` 时走 `complete`，行为与 `openai_compatible` 一致。
+- 显式 `"stream": false` 时走 `complete`，行为与 `openai` 一致。
 - 占位 501（`ai.provider.not_implemented`）不再出现于 volcengine 路径。
 - `pytest backend/tests/test_llm.py` 中 volcengine 相关用例通过。
 
 ### 1.3 非目标（本期）
 
 - 从环境变量自动注入 `ARK_API_KEY` 或默认 `base_url`。
-- 抽取 `openai_compatible` / `volcengine_compatible` 公共基类或共享模块。
+- 抽取 `openai` / `volcengine_compatible` 公共基类或共享模块。
 - 实现 `aliyun` 占位策略。
 - 修改 Agent 模块默认 `provider_kind` 或 `sys_models` 解析逻辑。
 
@@ -53,9 +53,9 @@
 
 ```python
 _STRATEGIES = {
-    "openai_compatible": OpenAICompatibleStrategy(),
+    "openai": OpenAICompatibleStrategy(),
     "volcengine": VolcengineCompatibleStrategy(),
-    "aliyun": AliyunPlaceholderStrategy(),
+    "aliyun": AliyunCompatibleStrategy(),
 }
 ```
 
@@ -72,9 +72,9 @@ _STRATEGIES = {
 - `api_key`：调用方传入。
 - 调用：`client.chat.completions.create(..., stream=True|False)`。
 
-### 3.2 与 `openai_compatible` 的对齐项
+### 3.2 与 `openai` 的对齐项
 
-本文件内实现（本期不抽取共享模块），逻辑与 `openai_compatible.py` 对齐：
+本文件内实现（本期不抽取共享模块），逻辑与 `openai_compatible.py`（`ProviderKind.openai` 策略实现）对齐：
 
 - `_completion_kwargs`：`model`、`messages`、`stream`、`temperature`、`max_tokens`、`tools`、`tool_choice`。
 - `httpx.Timeout`：来自 `settings.ai_http_connect_timeout` / `ai_http_read_timeout`。
@@ -90,7 +90,7 @@ _STRATEGIES = {
 ### 3.4 `ChatService` 与重试
 
 - **不修改** `chat_service.py` 重试逻辑：仅 `complete` 路径重试；流式不重试。
-- volcengine 与 openai_compatible 在 service 层无差别，仅 `get_strategy(provider_kind)` 解析不同。
+- volcengine 与 openai 在 service 层无差别，仅 `get_strategy(provider_kind)` 解析不同。
 
 ---
 

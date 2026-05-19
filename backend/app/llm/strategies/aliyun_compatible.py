@@ -1,4 +1,4 @@
-"""Aliyun vendor stub returning HTTP 501 until implemented."""
+"""Aliyun OpenAI-compatible vendor stub returning HTTP 501 until implemented."""
 
 from __future__ import annotations
 
@@ -8,15 +8,15 @@ from app.llm.domain.models import ChatCallParams
 from app.exceptions import AppError
 
 
-class AliyunPlaceholderStrategy:
-    """Placeholder blocking/stream APIs until Aliyun wiring exists."""
+class AliyunCompatibleStrategy:
+    """OpenAI-compatible Aliyun strategy; blocking/stream APIs return 501 until wired."""
 
     async def complete(self, params: ChatCallParams) -> dict[str, Any]:
         """Reject synchronously with ``AppError``."""
 
         raise AppError(
             "ai.provider.not_implemented",
-            "Aliyun provider is not implemented yet.",
+            "Aliyun OpenAI-compatible provider is not implemented yet.",
             501,
         )
 
@@ -27,6 +27,6 @@ class AliyunPlaceholderStrategy:
             yield {}
         raise AppError(
             "ai.provider.not_implemented",
-            "Aliyun provider is not implemented yet.",
+            "Aliyun OpenAI-compatible provider is not implemented yet.",
             501,
         )

@@ -12,10 +12,10 @@
 
 - 提供 **内部可复用的领域模型与服务**，使 `rule`、后续任务/编排等模块能以 **统一入参**（`base_url`、`model`、系统提示词、用户提示词、历史对话 `messages`、API Key 及常用生成参数等）调用大模型。
 - **入参与出参字段语义**以 OpenAI Chat Completions API 为准（实现阶段可选用 Pydantic 模型对齐官方文档中的子集，避免一次性绑定全部边缘字段）。
-- **默认策略 `openai_compatible`**：使用 `AsyncOpenAI` + 可配置 `base_url`，兼容 LiteLLM 及自建 OpenAI 兼容网关。
+- **默认策略 `openai`**（`ProviderKind.openai`）：使用 `AsyncOpenAI` + 可配置 `base_url`，兼容 LiteLLM 及自建 OpenAI 兼容网关。
 - **阻塞式**：一次请求返回完整 `chat.completion` 形态结果（或项目内约定的等价 DTO）。
 - **流式**：以 **SSE** 向调用方推送增量内容；上游使用 OpenAI SDK 的 `stream=True`（或等价异步流式 API），将 chunk **规范映射** 为与 OpenAI 流式 chunk 一致的 JSON 行事件（`data: {...}\n\n`）。
-- **策略模式**：除 `openai_compatible` 外，为 **火山云、阿里云** 等单独策略类 **占位**（接口存在、实现可 `NotImplementedError` 或明确返回「未实现」业务错误），便于后续按厂商文档扩展而不破坏调用方。
+- **策略模式**：除 `openai` 外，为 **火山云、阿里云** 等单独策略类（`volcengine_compatible` / `aliyun_compatible`；阿里云本期未实现）预留扩展点，便于后续按厂商文档扩展而不破坏调用方。
 - **生产可用**：可配置超时、有限重试（仅针对网络类/429/503 等）、统一错误语义、日志 **不落 API Key**；单元与 API 级测试覆盖主路径与典型失败路径。
 - **文档**：FastAPI 若挂载路由则生成 OpenAPI；另提供 **Markdown 使用说明**（面向内部开发者：模块如何 import、如何配置 LiteLLM `base_url`、阻塞与流式调用约定、错误码）。
 
@@ -47,8 +47,8 @@ backend/app/llm/
     __init__.py
     base.py            # 协议/抽象：阻塞 + 流式异步生成器
     openai_compatible.py
-    volcengine_placeholder.py
-    aliyun_placeholder.py
+    volcengine_compatible.py
+    aliyun_compatible.py
   service/
     __init__.py
     chat_service.py    # 选策略、超时/重试、观测钩子
@@ -71,18 +71,19 @@ backend/app/llm/
 - **`complete(...)`**：阻塞式，返回完整 completion 结果（DTO）。
 - **`stream(...)`**：异步迭代器，逐项产出与 OpenAI 流式 chunk 对齐的 dict（或由 domain 定义的 `StreamChunk`），由上层封装为 SSE。
 
-策略由 **`provider_kind`**（或枚举）及未来配置决定；**默认** `openai_compatible`。
+策略由 **`provider_kind`**（或枚举）及未来配置决定；**默认** `openai`。
 
-### 3.2 `openai_compatible`（默认）
+### 3.2 `openai`（默认）
 
 - 依赖：`openai` SDK（异步客户端）。
 - `base_url` 由调用方传入（LiteLLM 示例：`http://<host>:<port>/v1` 以 SDK 要求为准）。
 - 将统一入参映射为 SDK 的 `chat.completions.create`（或异步等价）参数；`messages` 含 system / user / assistant 等角色，与 OpenAI 一致。
 - 流式：使用 SDK 流式 API，逐块转换为标准 SSE 事件负载。
 
-### 3.3 占位策略
+### 3.3 其它策略
 
-- `volcengine_placeholder`、`aliyun_placeholder`：类与注册存在，`complete` / `stream` 抛出明确异常或返回业务错误「未实现」，便于调用方与路由层统一处理。
+- `volcengine_compatible`：已实现（火山 Ark OpenAI 兼容）。
+- `aliyun_compatible`：类与注册存在，`complete` / `stream` 返回业务错误「未实现」（501），便于调用方与路由层统一处理。
 
 ---
 
@@ -132,7 +133,7 @@ backend/app/llm/
 
 ## 8. 测试
 
-- **单元测试**：`openai_compatible` 对上游使用 mock（`respx` 或 mock SDK），覆盖：成功 completion、流式若干 chunk、401、429、超时。
+- **单元测试**：`openai` 策略对上游使用 mock（`respx` 或 mock SDK），覆盖：成功 completion、流式若干 chunk、401、429、超时。
 - **API 测试**（若启用路由）：`TestClient` 验证阻塞 JSON 与流式 SSE 头及至少一行事件。
 - **占位策略**：断言调用即得到明确未实现行为。
 
@@ -168,7 +169,7 @@ backend/app/llm/
 |----|------|
 | 模块 | `backend/app/llm/`（`domain` / `strategies` / `service` / `api`） |
 | HTTP | `POST /workspaces/{id}/llm/chat/completions` |
-| 策略 | `openai_compatible`（实现）、`volcengine`（实现）、`aliyun`（501 占位） |
+| 策略 | `openai`（实现）、`volcengine`（实现）、`aliyun_compatible`（501 未实现） |
 | 文档 | `docs/ai-api.md` |
 | **未做** | 仅传 `model_id` + `workspace_id` 从 `sys_models` 解析 |
 | **未做** | HTTP schema 暴露 `tools` / `tool_choice` |

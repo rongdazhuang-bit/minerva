@@ -1,13 +1,13 @@
 """Registers concrete ``ChatCompletionStrategy`` implementations per ``ProviderKind``."""
 
 from app.llm.domain.models import ProviderKind
-from app.llm.strategies.aliyun_placeholder import AliyunPlaceholderStrategy
+from app.llm.strategies.aliyun_compatible import AliyunCompatibleStrategy
 from app.llm.strategies.base import ChatCompletionStrategy
 from app.llm.strategies.openai_compatible import OpenAICompatibleStrategy
 from app.llm.strategies.volcengine_compatible import VolcengineCompatibleStrategy
 
 __all__ = [
-    "AliyunPlaceholderStrategy",
+    "AliyunCompatibleStrategy",
     "ChatCompletionStrategy",
     "OpenAICompatibleStrategy",
     "VolcengineCompatibleStrategy",
@@ -15,9 +15,9 @@ __all__ = [
 ]
 
 _STRATEGIES: dict[str, ChatCompletionStrategy] = {  # Concrete singletons keyed by ``ProviderKind``.
-    "openai_compatible": OpenAICompatibleStrategy(),
+    "openai": OpenAICompatibleStrategy(),
     "volcengine": VolcengineCompatibleStrategy(),
-    "aliyun": AliyunPlaceholderStrategy(),
+    "aliyun": AliyunCompatibleStrategy(),
 }
 
 

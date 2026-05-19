@@ -17,7 +17,7 @@
 ## 模块结构
 
 - `app.llm.domain`：DTO（`ChatMessage`、`ChatCallParams`、`ProviderKind`）。
-- `app.llm.strategies`：`openai_compatible`（默认）、`volcengine_compatible`（火山 Ark OpenAI 兼容）、`aliyun` 占位。
+- `app.llm.strategies`：`openai`（默认）、`volcengine_compatible`（火山 Ark OpenAI 兼容）、`aliyun_compatible`（阿里云 OpenAI 兼容，未实现）。
 - `app.llm.service.chat_service`：`ChatService` 与单例 `chat_service`。
 - `app.llm.api.router`：HTTP 表面（需登录且为 workspace 成员）。
 
@@ -28,7 +28,7 @@ from app.llm import ProviderKind, chat_service
 
 # 阻塞：返回与 OpenAI Chat Completion 对齐的 dict（SDK model_dump）
 data = await chat_service.complete(
-    provider_kind=ProviderKind.openai_compatible,
+    provider_kind=ProviderKind.openai,
     base_url="http://127.0.0.1:4000/v1",  # LiteLLM OpenAI 兼容根路径
     api_key="...",
     model="gpt-4o-mini",
@@ -41,7 +41,7 @@ data = await chat_service.complete(
 
 # 流式：异步迭代 OpenAI 流 chunk dict
 async for chunk in chat_service.stream_chunks(
-    provider_kind=ProviderKind.openai_compatible,
+    provider_kind=ProviderKind.openai,
     base_url="http://127.0.0.1:4000/v1",
     api_key="...",
     model="gpt-4o-mini",
@@ -51,7 +51,7 @@ async for chunk in chat_service.stream_chunks(
 
 # SSE 字节行（data: ...\\n\\n，末尾 data: [DONE]）
 async for line in chat_service.stream_sse_lines(
-    provider_kind=ProviderKind.openai_compatible,
+    provider_kind=ProviderKind.openai,
     base_url="http://127.0.0.1:4000/v1",
     api_key="...",
     model="gpt-4o-mini",
