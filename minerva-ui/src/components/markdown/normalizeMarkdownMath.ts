@@ -16,6 +16,21 @@ const LATEX_MATH_COMMAND_RE =
 /** Parenthesized TeX that models often emit without ``$`` delimiters. */
 const BARE_TEX_IN_PARENS_RE = /([（(])\s*(\\[a-zA-Z][^）)\n]*?)\s*([）)])/g
 
+/** Parenthesized unit/math fragments without a leading ``\\`` (e.g. ``(m/s^{2})``). */
+const BARE_MATH_IN_PARENS_RE =
+  /([（(])([^（)(]*(?:\^\{[^{}]+\}|\^[0-9A-Za-z./]+|_\{[^{}]+\}|_[0-9A-Za-z]|\\[a-zA-Z]+)[^（)]*?)([）)])/g
+
+/** Superscripts, subscripts, or ``\\cmd`` outside ``$...$`` (OCR/HTML table cells). */
+export const BARE_LATEX_INDICATOR_RE =
+  /\^\{[^{}]+\}|\^[0-9A-Za-z./]|_\{[^{}]+\}|_[0-9A-Za-z]|\\[a-zA-Z]+/
+
+/** Inline bare-TeX runs (e.g. ``m/s^{2}``, ``10\\pm0.5``) after parenthesized spans are wrapped. */
+const BARE_LATEX_RUN_RE =
+  /(?:\d+(?:[.,]\d+)?)?(?:[A-Za-z0-9./+-]*(?:\^\{[^{}]+\}|\^[0-9A-Za-z./]+|_\{[^{}]+\}|_[0-9A-Za-z]|\\[a-zA-Z]+(?:\{[^{}]*\})?)*)+/g
+
+/** HTML ``<td>`` / ``<th>`` inner text (no nested tags). */
+const HTML_TABLE_CELL_RE = /<t([dh])([^>]*)>([^<]*)<\/t\1>/gi
+
 /** Strip redundant ``\\(...\\)`` wrappers inside a display-math body (already in math mode). */
 const REDUNDANT_INLINE_BRACKET_IN_DISPLAY_RE = /\\\(([\s\S]*?)\\\)/g
 
@@ -656,6 +671,56 @@ export function wrapBareTexInParentheses(text: string): string {
 }
 
 /**
+ * Whether ``text`` contains TeX-like markup not already wrapped in ``$...$``.
+ */
+export function containsBareLatex(text: string): boolean {
+  if (!text || text.includes('$')) return false
+  return BARE_LATEX_INDICATOR_RE.test(text)
+}
+
+/** Wrap one bare-TeX fragment for remark-math / KaTeX. */
+function wrapBareLatexFragment(fragment: string): string {
+  const inner = wrapCjkInMathBody(balanceExtraClosingBraces(fragment.trim()))
+  if (isProseLikeMathBody(inner)) return fragment
+  return `$${inner}$`
+}
+
+/**
+ * Wrap parenthesized and inline bare TeX (``(m/s^{2})``, ``10\\pm0.5``) in ``$...$``.
+ */
+export function wrapBareLatexSpansInPlainText(text: string): string {
+  return mapOutsideInlineMathFences(text, (chunk) => {
+    let out = chunk.replace(
+      BARE_MATH_IN_PARENS_RE,
+      (match, open: string, tex: string, close: string) => {
+        if (tex.includes('$') || !BARE_LATEX_INDICATOR_RE.test(tex)) return match
+        return `${open}${wrapBareLatexFragment(tex)}${close}`
+      },
+    )
+
+    out = mapOutsideInlineMathFences(out, (segment) =>
+      segment.replace(BARE_LATEX_RUN_RE, (run) => {
+        if (!BARE_LATEX_INDICATOR_RE.test(run)) return run
+        return wrapBareLatexFragment(run)
+      }),
+    )
+
+    return out
+  })
+}
+
+/**
+ * Inject ``$...$`` around bare TeX inside HTML ``<td>`` / ``<th>`` cells (OCR Paddle tables).
+ */
+export function wrapBareLatexInHtmlTableCells(text: string): string {
+  return text.replace(HTML_TABLE_CELL_RE, (full, tag: string, attrs: string, inner: string) => {
+    const trimmed = inner.trim()
+    if (!trimmed || !containsBareLatex(trimmed)) return full
+    return `<t${tag}${attrs}>${wrapBareLatexSpansInPlainText(inner)}</t${tag}>`
+  })
+}
+
+/**
  * Normalize each ``$...$`` span: trim stray ``}``, wrap CJK for KaTeX.
  */
 export function normalizeInlineMathSpans(text: string): string {
@@ -1118,12 +1183,13 @@ export function mapOutsideGfmTableRows(text: string, transform: (chunk: string) 
  */
 export function normalizeMarkdownForAgent(markdown: string): string {
   return mapOutsideFencedCodeBlocks(prepareMarkdownFencedDiagrams(markdown), (chunk) => {
+    const withHtmlTableMath = wrapBareLatexInHtmlTableCells(chunk)
     const base = ensureBlankLineBeforeDisplayMathFences(
       unindentDisplayMathFenceLines(
         unindentIndentedListContinuations(
           normalizeBoldWithInlineMath(
             repairDisplayMathFencesInMarkdown(
-              wrapBareLatexTextCommands(convertLatexBracketMathDelimiters(chunk)),
+              wrapBareLatexTextCommands(convertLatexBracketMathDelimiters(withHtmlTableMath)),
             ),
           ),
         ),
@@ -1162,7 +1228,7 @@ export function normalizeMarkdownForOcr(
         unwrapInlineMathFromBoldSpans(
           wrapBareLatexTextCommands(
             convertLatexBracketMathDelimiters(
-              prepareMarkdownFencedDiagrams(withImages),
+              wrapBareLatexInHtmlTableCells(prepareMarkdownFencedDiagrams(withImages)),
             ),
           ),
         ),

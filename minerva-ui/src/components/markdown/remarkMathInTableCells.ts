@@ -10,7 +10,9 @@ import type { Plugin } from 'unified'
 import { visit } from 'unist-util-visit'
 import {
   balanceExtraClosingBraces,
+  containsBareLatex,
   isProseLikeMathBody,
+  wrapBareLatexSpansInPlainText,
   wrapCjkInMathBody,
 } from '@/components/markdown/normalizeMarkdownMath'
 
@@ -90,10 +92,11 @@ export const remarkMathInTableCells: Plugin<[], Root> = function remarkMathInTab
   return (tree) => {
     visit(tree, 'tableCell', (cell) => {
       const source = isPlainTextTableCell(cell) ? cell.children[0].value : toString(cell)
-      if (!source.includes('$')) return
+      if (!source.includes('$') && !containsBareLatex(source)) return
       if (!isPlainTextTableCell(cell)) return
 
-      cell.children = parseTableCellPhrasing(source.trim())
+      const prepared = source.includes('$') ? source.trim() : wrapBareLatexSpansInPlainText(source.trim())
+      cell.children = parseTableCellPhrasing(prepared)
     })
 
     visit(tree, 'listItem', (item: ListItem) => {
