@@ -32,6 +32,7 @@ dependencies = [
   "langchain-openai>=1.2.1",
   "langgraph-checkpoint-postgres>=3.1.0",
   "psycopg[binary]>=3.3.4",
+  "python-pptx>=1.0.2",
 ]
 
 [project.optional-dependencies]

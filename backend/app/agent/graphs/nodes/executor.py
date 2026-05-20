@@ -63,7 +63,7 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
         status="running",
     )
 
-    ctx = SkillToolContext(workspace_id=deps.workspace_id)
+    ctx = SkillToolContext(workspace_id=deps.workspace_id, chat_model=deps.model)
     try:
         subagent = build_skill_react_agent(
             deps.model,

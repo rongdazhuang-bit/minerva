@@ -1,0 +1,4770 @@
+[
+  {
+    "layoutIndex": 0,
+    "name": "标题幻灯片",
+    "description": "封面页版式，适合整份 PPT 的主标题和副标题，不适合承载正文要点。",
+    "bestFor": [
+      "封面",
+      "主标题",
+      "副标题",
+      "开场页"
+    ],
+    "avoidFor": [
+      "正文要点",
+      "数据指标",
+      "多图展示"
+    ],
+    "selectionRules": "当页面是整份文档封面、只有主标题和副标题时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout1.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 1.667,
+        "y": 2.387,
+        "w": 10.0,
+        "h": 2.611
+      },
+      {
+        "idx": 1,
+        "type": "subtitle",
+        "label": "subtitle",
+        "x": 1.667,
+        "y": 5.217,
+        "w": 10.0,
+        "h": 0.399
+      }
+    ],
+    "contentSignals": {
+      "pageType": "cover",
+      "layoutType": "cover",
+      "columns": 1,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 0,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 2,
+      "placeholderCount": 2,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        1.7
+      ],
+      "distinctYPositions": [
+        2.4,
+        5.2
+      ]
+    }
+  },
+  {
+    "layoutIndex": 1,
+    "name": "自定义版式",
+    "description": "左右两栏正文版式，每栏包含一个标题和一段正文，适合两个对象、两个方案或两类信息并排展示。",
+    "bestFor": [
+      "二列对比",
+      "两个方案",
+      "两个对象",
+      "左右并列说明"
+    ],
+    "avoidFor": [
+      "三个及以上并列要点",
+      "大段单正文",
+      "图片内容"
+    ],
+    "selectionRules": "当页面有 2 个并列要点，且每个要点都有标题和正文时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout2.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.062,
+        "y": 0.087,
+        "w": 13.04,
+        "h": 0.485
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "left_title",
+        "x": 0.638,
+        "y": 1.758,
+        "w": 5.855,
+        "h": 0.618
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "left_body",
+        "x": 0.638,
+        "y": 2.667,
+        "w": 5.855,
+        "h": 3.463
+      },
+      {
+        "idx": 12,
+        "type": "body",
+        "label": "right_title",
+        "x": 6.884,
+        "y": 1.758,
+        "w": 5.855,
+        "h": 0.618
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "right_body",
+        "x": 6.884,
+        "y": 2.667,
+        "w": 5.855,
+        "h": 3.463
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "two_columns",
+      "columns": 2,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 2,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 5,
+      "placeholderCount": 5,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.6,
+        6.9
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.8,
+        2.7
+      ]
+    }
+  },
+  {
+    "layoutIndex": 2,
+    "name": "2_自定义版式",
+    "description": "左侧两组文字、右侧单图的图文版式，适合一张图片配两段说明或两个局部说明。",
+    "bestFor": [
+      "单图说明",
+      "产品截图解释",
+      "图片加两组文字",
+      "图文混排"
+    ],
+    "avoidFor": [
+      "无图片页面",
+      "多图页面",
+      "四个以上要点"
+    ],
+    "selectionRules": "当页面有 1 张图片，同时有 1-2 个文字要点时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout3.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.062,
+        "y": 0.087,
+        "w": 13.04,
+        "h": 0.485
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "col1_title",
+        "x": 0.566,
+        "y": 1.306,
+        "w": 5.855,
+        "h": 0.618
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "col1_body",
+        "x": 0.566,
+        "y": 2.099,
+        "w": 5.855,
+        "h": 1.651
+      },
+      {
+        "idx": 12,
+        "type": "body",
+        "label": "col2_title",
+        "x": 0.566,
+        "y": 4.139,
+        "w": 5.855,
+        "h": 0.618
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "col2_body",
+        "x": 0.566,
+        "y": 4.932,
+        "w": 5.855,
+        "h": 1.651
+      },
+      {
+        "idx": 14,
+        "type": "picture",
+        "label": "image",
+        "x": 6.667,
+        "y": 1.306,
+        "w": 6.304,
+        "h": 5.278
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "text_with_image",
+      "columns": 2,
+      "hasImage": true,
+      "imageCount": 1,
+      "maxItems": 2,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 6,
+      "placeholderCount": 6,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.6,
+        6.7
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.3,
+        2.1,
+        4.1,
+        4.9
+      ]
+    }
+  },
+  {
+    "layoutIndex": 3,
+    "name": "1_自定义版式",
+    "description": "2x2 四宫格正文版式，每格包含标题和正文，适合四个并列维度或四个模块。",
+    "bestFor": [
+      "四个维度",
+      "四类能力",
+      "四项原则",
+      "四模块说明"
+    ],
+    "avoidFor": [
+      "三项并列",
+      "六项并列",
+      "大数字指标"
+    ],
+    "selectionRules": "当页面有 4 个普通并列要点，且没有图片和指标数字时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout4.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.062,
+        "y": 0.087,
+        "w": 13.04,
+        "h": 0.485
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "col1_title",
+        "x": 0.638,
+        "y": 1.007,
+        "w": 5.855,
+        "h": 0.618
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "col2_body",
+        "x": 0.638,
+        "y": 1.801,
+        "w": 5.855,
+        "h": 1.782
+      },
+      {
+        "idx": 12,
+        "type": "body",
+        "label": "col2_title",
+        "x": 6.884,
+        "y": 1.007,
+        "w": 5.855,
+        "h": 0.618
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "col2_body",
+        "x": 6.884,
+        "y": 1.801,
+        "w": 5.855,
+        "h": 1.782
+      },
+      {
+        "idx": 14,
+        "type": "body",
+        "label": "col3_title",
+        "x": 0.638,
+        "y": 4.018,
+        "w": 5.855,
+        "h": 0.618
+      },
+      {
+        "idx": 15,
+        "type": "body",
+        "label": "col3_body",
+        "x": 0.638,
+        "y": 4.811,
+        "w": 5.855,
+        "h": 1.782
+      },
+      {
+        "idx": 16,
+        "type": "body",
+        "label": "col4_title",
+        "x": 6.884,
+        "y": 4.018,
+        "w": 5.855,
+        "h": 0.618
+      },
+      {
+        "idx": 17,
+        "type": "body",
+        "label": "col4_body",
+        "x": 6.884,
+        "y": 4.811,
+        "w": 5.855,
+        "h": 1.782
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "four_grid",
+      "columns": 2,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 4,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 9,
+      "placeholderCount": 9,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.6,
+        6.9
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.0,
+        1.8,
+        4.0,
+        4.8
+      ]
+    }
+  },
+  {
+    "layoutIndex": 4,
+    "name": "要点列表-纵向六条",
+    "description": "纵向要点列表版式，最多支持 6 个标题加正文的条目，适合作为普通正文页或低置信度兜底。 当前变体：要点列表-纵向六条。",
+    "bestFor": [
+      "普通要点列表",
+      "2-6 个条目",
+      "无法明确判断结构的正文页",
+      "兜底版式"
+    ],
+    "avoidFor": [
+      "强视觉对比页",
+      "大数字指标页",
+      "明确三列或四宫格结构"
+    ],
+    "selectionRules": "当内容是普通列表、结构意图不明确，或 AI 置信度较低时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout5.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "item1_title",
+        "x": 0.7,
+        "y": 0.923,
+        "w": 11.9,
+        "h": 0.433
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "item1_body",
+        "x": 0.7,
+        "y": 1.419,
+        "w": 11.9,
+        "h": 0.37
+      },
+      {
+        "idx": 12,
+        "type": "body",
+        "label": "item2_title",
+        "x": 0.7,
+        "y": 1.979,
+        "w": 11.9,
+        "h": 0.433
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "item2_body",
+        "x": 0.7,
+        "y": 2.474,
+        "w": 11.9,
+        "h": 0.37
+      },
+      {
+        "idx": 14,
+        "type": "body",
+        "label": "item3_title",
+        "x": 0.7,
+        "y": 3.034,
+        "w": 11.9,
+        "h": 0.433
+      },
+      {
+        "idx": 15,
+        "type": "body",
+        "label": "item3_body",
+        "x": 0.7,
+        "y": 3.53,
+        "w": 11.9,
+        "h": 0.37
+      },
+      {
+        "idx": 16,
+        "type": "body",
+        "label": "item4_title",
+        "x": 0.7,
+        "y": 4.09,
+        "w": 11.9,
+        "h": 0.433
+      },
+      {
+        "idx": 17,
+        "type": "body",
+        "label": "item4_body",
+        "x": 0.7,
+        "y": 4.585,
+        "w": 11.9,
+        "h": 0.37
+      },
+      {
+        "idx": 18,
+        "type": "body",
+        "label": "item5_title",
+        "x": 0.7,
+        "y": 5.145,
+        "w": 11.9,
+        "h": 0.433
+      },
+      {
+        "idx": 19,
+        "type": "body",
+        "label": "item5_body",
+        "x": 0.7,
+        "y": 5.641,
+        "w": 11.9,
+        "h": 0.37
+      },
+      {
+        "idx": 20,
+        "type": "body",
+        "label": "item6_title",
+        "x": 0.7,
+        "y": 6.201,
+        "w": 11.9,
+        "h": 0.433
+      },
+      {
+        "idx": 21,
+        "type": "body",
+        "label": "item6_body",
+        "x": 0.7,
+        "y": 6.697,
+        "w": 11.9,
+        "h": 0.37
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "bullet_list",
+      "columns": 1,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 6,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 13,
+      "placeholderCount": 13,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.7
+      ],
+      "distinctYPositions": [
+        0.1,
+        0.9,
+        1.4,
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.1,
+        4.6,
+        5.1,
+        5.6,
+        6.2,
+        6.7
+      ]
+    }
+  },
+  {
+    "layoutIndex": 5,
+    "name": "要点列表-横向四项",
+    "description": "纵向要点列表版式，最多支持 6 个标题加正文的条目，适合作为普通正文页或低置信度兜底。 当前变体：要点列表-横向四项。",
+    "bestFor": [
+      "普通要点列表",
+      "2-6 个条目",
+      "无法明确判断结构的正文页",
+      "兜底版式"
+    ],
+    "avoidFor": [
+      "强视觉对比页",
+      "大数字指标页",
+      "明确三列或四宫格结构"
+    ],
+    "selectionRules": "当内容是普通列表、结构意图不明确，或 AI 置信度较低时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout6.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "item1_title",
+        "x": 0.65,
+        "y": 1.35,
+        "w": 2.7,
+        "h": 0.52
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "item1_body",
+        "x": 0.65,
+        "y": 2.01,
+        "w": 2.7,
+        "h": 4.24
+      },
+      {
+        "idx": 12,
+        "type": "body",
+        "label": "item2_title",
+        "x": 3.78,
+        "y": 1.35,
+        "w": 2.7,
+        "h": 0.52
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "item2_body",
+        "x": 3.78,
+        "y": 2.01,
+        "w": 2.7,
+        "h": 4.24
+      },
+      {
+        "idx": 14,
+        "type": "body",
+        "label": "item3_title",
+        "x": 6.91,
+        "y": 1.35,
+        "w": 2.7,
+        "h": 0.52
+      },
+      {
+        "idx": 15,
+        "type": "body",
+        "label": "item3_body",
+        "x": 6.91,
+        "y": 2.01,
+        "w": 2.7,
+        "h": 4.24
+      },
+      {
+        "idx": 16,
+        "type": "body",
+        "label": "item4_title",
+        "x": 10.04,
+        "y": 1.35,
+        "w": 2.7,
+        "h": 0.52
+      },
+      {
+        "idx": 17,
+        "type": "body",
+        "label": "item4_body",
+        "x": 10.04,
+        "y": 2.01,
+        "w": 2.7,
+        "h": 4.24
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "bullet_list",
+      "columns": 1,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 4,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 9,
+      "placeholderCount": 9,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.7,
+        3.8,
+        6.9,
+        10.0
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.4,
+        2.0
+      ]
+    }
+  },
+  {
+    "layoutIndex": 6,
+    "name": "要点列表-双列六条",
+    "description": "纵向要点列表版式，最多支持 6 个标题加正文的条目，适合作为普通正文页或低置信度兜底。 当前变体：要点列表-双列六条。",
+    "bestFor": [
+      "普通要点列表",
+      "2-6 个条目",
+      "无法明确判断结构的正文页",
+      "兜底版式"
+    ],
+    "avoidFor": [
+      "强视觉对比页",
+      "大数字指标页",
+      "明确三列或四宫格结构"
+    ],
+    "selectionRules": "当内容是普通列表、结构意图不明确，或 AI 置信度较低时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout7.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "item1_title",
+        "x": 0.75,
+        "y": 1.1,
+        "w": 5.55,
+        "h": 0.394
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "item1_body",
+        "x": 0.75,
+        "y": 1.545,
+        "w": 5.55,
+        "h": 1.215
+      },
+      {
+        "idx": 12,
+        "type": "body",
+        "label": "item2_title",
+        "x": 0.75,
+        "y": 3.101,
+        "w": 5.55,
+        "h": 0.394
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "item2_body",
+        "x": 0.75,
+        "y": 3.546,
+        "w": 5.55,
+        "h": 1.215
+      },
+      {
+        "idx": 14,
+        "type": "body",
+        "label": "item3_title",
+        "x": 0.75,
+        "y": 5.118,
+        "w": 5.55,
+        "h": 0.394
+      },
+      {
+        "idx": 15,
+        "type": "body",
+        "label": "item3_body",
+        "x": 0.75,
+        "y": 5.563,
+        "w": 5.55,
+        "h": 1.215
+      },
+      {
+        "idx": 16,
+        "type": "body",
+        "label": "item4_title",
+        "x": 6.95,
+        "y": 1.1,
+        "w": 5.55,
+        "h": 0.394
+      },
+      {
+        "idx": 17,
+        "type": "body",
+        "label": "item4_body",
+        "x": 6.95,
+        "y": 1.545,
+        "w": 5.55,
+        "h": 1.215
+      },
+      {
+        "idx": 18,
+        "type": "body",
+        "label": "item5_title",
+        "x": 6.95,
+        "y": 3.101,
+        "w": 5.55,
+        "h": 0.394
+      },
+      {
+        "idx": 19,
+        "type": "body",
+        "label": "item5_body",
+        "x": 6.95,
+        "y": 3.546,
+        "w": 5.55,
+        "h": 1.215
+      },
+      {
+        "idx": 20,
+        "type": "body",
+        "label": "item6_title",
+        "x": 6.95,
+        "y": 5.118,
+        "w": 5.55,
+        "h": 0.394
+      },
+      {
+        "idx": 21,
+        "type": "body",
+        "label": "item6_body",
+        "x": 6.95,
+        "y": 5.563,
+        "w": 5.55,
+        "h": 1.215
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "bullet_list",
+      "columns": 1,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 6,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 13,
+      "placeholderCount": 13,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.8,
+        7.0
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.1,
+        1.5,
+        3.1,
+        3.5,
+        5.1,
+        5.6
+      ]
+    }
+  },
+  {
+    "layoutIndex": 7,
+    "name": "三列并列-等宽横排",
+    "description": "三列等权重并列版式，每列包含标题和正文，适合三个并列优势、方向、能力或模块。 当前变体：三列并列-等宽横排。",
+    "bestFor": [
+      "三大优势",
+      "三个方向",
+      "三类能力",
+      "三项并列说明"
+    ],
+    "avoidFor": [
+      "两个对象对比",
+      "四个模块",
+      "六个短要点",
+      "数字指标"
+    ],
+    "selectionRules": "当页面恰好有 3 个普通并列要点，且没有图片和指标数字时优先选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout8.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "col1_title",
+        "x": 0.7,
+        "y": 1.25,
+        "w": 3.65,
+        "h": 0.52
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "col1_body",
+        "x": 0.7,
+        "y": 1.91,
+        "w": 3.65,
+        "h": 4.677
+      },
+      {
+        "idx": 12,
+        "type": "body",
+        "label": "col2_title",
+        "x": 4.85,
+        "y": 1.25,
+        "w": 3.65,
+        "h": 0.52
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "col2_body",
+        "x": 4.85,
+        "y": 1.91,
+        "w": 3.65,
+        "h": 4.677
+      },
+      {
+        "idx": 14,
+        "type": "body",
+        "label": "col3_title",
+        "x": 9.0,
+        "y": 1.25,
+        "w": 3.65,
+        "h": 0.52
+      },
+      {
+        "idx": 15,
+        "type": "body",
+        "label": "col3_body",
+        "x": 9.0,
+        "y": 1.91,
+        "w": 3.65,
+        "h": 4.677
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "three_columns",
+      "columns": 3,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 3,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 7,
+      "placeholderCount": 7,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.7,
+        4.8,
+        9.0
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.2,
+        1.9
+      ]
+    }
+  },
+  {
+    "layoutIndex": 8,
+    "name": "三列并列-上标题下正文",
+    "description": "三列等权重并列版式，每列包含标题和正文，适合三个并列优势、方向、能力或模块。 当前变体：三列并列-上标题下正文。",
+    "bestFor": [
+      "三大优势",
+      "三个方向",
+      "三类能力",
+      "三项并列说明"
+    ],
+    "avoidFor": [
+      "两个对象对比",
+      "四个模块",
+      "六个短要点",
+      "数字指标"
+    ],
+    "selectionRules": "当页面恰好有 3 个普通并列要点，且没有图片和指标数字时优先选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout9.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "col1_title",
+        "x": 0.494,
+        "y": 1.698,
+        "w": 3.871,
+        "h": 0.52
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "col1_body",
+        "x": 0.494,
+        "y": 2.358,
+        "w": 3.871,
+        "h": 3.29
+      },
+      {
+        "idx": 12,
+        "type": "body",
+        "label": "col2_title",
+        "x": 4.644,
+        "y": 1.698,
+        "w": 3.871,
+        "h": 0.52
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "col2_body",
+        "x": 4.644,
+        "y": 2.358,
+        "w": 3.871,
+        "h": 3.29
+      },
+      {
+        "idx": 14,
+        "type": "body",
+        "label": "col3_title",
+        "x": 8.794,
+        "y": 1.698,
+        "w": 3.871,
+        "h": 0.52
+      },
+      {
+        "idx": 15,
+        "type": "body",
+        "label": "col3_body",
+        "x": 8.794,
+        "y": 2.358,
+        "w": 3.871,
+        "h": 3.29
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "three_columns",
+      "columns": 3,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 3,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 10,
+      "placeholderCount": 7,
+      "staticShapeCount": 3,
+      "distinctXPositions": [
+        0.1,
+        0.5,
+        4.6,
+        8.8
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.7,
+        2.4
+      ]
+    }
+  },
+  {
+    "layoutIndex": 9,
+    "name": "三列并列-错落分布",
+    "description": "三列等权重并列版式，每列包含标题和正文，适合三个并列优势、方向、能力或模块。 当前变体：三列并列-错落分布。",
+    "bestFor": [
+      "三大优势",
+      "三个方向",
+      "三类能力",
+      "三项并列说明"
+    ],
+    "avoidFor": [
+      "两个对象对比",
+      "四个模块",
+      "六个短要点",
+      "数字指标"
+    ],
+    "selectionRules": "当页面恰好有 3 个普通并列要点，且没有图片和指标数字时优先选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout10.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "col1_title",
+        "x": 0.75,
+        "y": 1.35,
+        "w": 3.5,
+        "h": 0.52
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "col1_body",
+        "x": 0.75,
+        "y": 2.01,
+        "w": 3.5,
+        "h": 3.54
+      },
+      {
+        "idx": 12,
+        "type": "body",
+        "label": "col2_title",
+        "x": 4.9,
+        "y": 1.9,
+        "w": 3.5,
+        "h": 0.52
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "col2_body",
+        "x": 4.9,
+        "y": 2.56,
+        "w": 3.5,
+        "h": 3.54
+      },
+      {
+        "idx": 14,
+        "type": "body",
+        "label": "col3_title",
+        "x": 9.05,
+        "y": 1.35,
+        "w": 3.5,
+        "h": 0.52
+      },
+      {
+        "idx": 15,
+        "type": "body",
+        "label": "col3_body",
+        "x": 9.05,
+        "y": 2.01,
+        "w": 3.5,
+        "h": 3.54
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "three_columns",
+      "columns": 3,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 3,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 7,
+      "placeholderCount": 7,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.8,
+        4.9,
+        9.1
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.4,
+        1.9,
+        2.0,
+        2.6
+      ]
+    }
+  },
+  {
+    "layoutIndex": 10,
+    "name": "二列对比-左右等分",
+    "description": "二列对比版式，适合两个对象、两个方案或两类信息的差异比较。 当前变体：二列对比-左右等分。",
+    "bestFor": [
+      "两个对象",
+      "两个方案",
+      "现状 vs 目标",
+      "优劣对比"
+    ],
+    "avoidFor": [
+      "三个及以上要点",
+      "单段正文",
+      "图片展示"
+    ],
+    "selectionRules": "当页面有 2 个并列要点，且语义上存在对比或左右并列关系时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout11.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "left_title",
+        "x": 0.75,
+        "y": 1.25,
+        "w": 5.55,
+        "h": 0.58
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "left_body",
+        "x": 0.75,
+        "y": 2.05,
+        "w": 5.55,
+        "h": 3.95
+      },
+      {
+        "idx": 12,
+        "type": "body",
+        "label": "right_title",
+        "x": 6.95,
+        "y": 1.25,
+        "w": 5.55,
+        "h": 0.58
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "right_body",
+        "x": 6.95,
+        "y": 2.05,
+        "w": 5.55,
+        "h": 3.95
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "two_columns_compare",
+      "columns": 2,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 2,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 5,
+      "placeholderCount": 5,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.8,
+        7.0
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.2,
+        2.0
+      ]
+    }
+  },
+  {
+    "layoutIndex": 11,
+    "name": "二列对比-上下排列",
+    "description": "二列对比版式，适合两个对象、两个方案或两类信息的差异比较。 当前变体：二列对比-上下排列。",
+    "bestFor": [
+      "两个对象",
+      "两个方案",
+      "现状 vs 目标",
+      "优劣对比"
+    ],
+    "avoidFor": [
+      "三个及以上要点",
+      "单段正文",
+      "图片展示"
+    ],
+    "selectionRules": "当页面有 2 个并列要点，且语义上存在对比或左右并列关系时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout12.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "left_title",
+        "x": 0.95,
+        "y": 1.25,
+        "w": 11.3,
+        "h": 0.52
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "left_body",
+        "x": 0.95,
+        "y": 1.95,
+        "w": 11.3,
+        "h": 1.6
+      },
+      {
+        "idx": 12,
+        "type": "body",
+        "label": "right_title",
+        "x": 0.95,
+        "y": 4.05,
+        "w": 11.3,
+        "h": 0.52
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "right_body",
+        "x": 0.95,
+        "y": 4.75,
+        "w": 11.3,
+        "h": 1.6
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "two_columns_compare",
+      "columns": 2,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 2,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 5,
+      "placeholderCount": 5,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.9
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.2,
+        1.9,
+        4.0,
+        4.8
+      ]
+    }
+  },
+  {
+    "layoutIndex": 12,
+    "name": "二列对比-左窄右宽",
+    "description": "二列对比版式，适合两个对象、两个方案或两类信息的差异比较。 当前变体：二列对比-左窄右宽。",
+    "bestFor": [
+      "两个对象",
+      "两个方案",
+      "现状 vs 目标",
+      "优劣对比"
+    ],
+    "avoidFor": [
+      "三个及以上要点",
+      "单段正文",
+      "图片展示"
+    ],
+    "selectionRules": "当页面有 2 个并列要点，且语义上存在对比或左右并列关系时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout13.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "left_title",
+        "x": 0.8,
+        "y": 1.35,
+        "w": 3.8,
+        "h": 0.58
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "left_body",
+        "x": 0.8,
+        "y": 2.15,
+        "w": 3.8,
+        "h": 3.75
+      },
+      {
+        "idx": 12,
+        "type": "body",
+        "label": "right_title",
+        "x": 5.15,
+        "y": 1.35,
+        "w": 7.1,
+        "h": 0.58
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "right_body",
+        "x": 5.15,
+        "y": 2.15,
+        "w": 7.1,
+        "h": 3.75
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "two_columns_compare",
+      "columns": 2,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 2,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 5,
+      "placeholderCount": 5,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.8,
+        5.2
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.4,
+        2.1
+      ]
+    }
+  },
+  {
+    "layoutIndex": 13,
+    "name": "1_大数字展示-横向四项",
+    "description": "大数字指标展示版式，最多支持 4 个指标，每个指标包含数字、指标名称和指标说明。 当前变体：1_大数字展示-横向四项。",
+    "bestFor": [
+      "KPI",
+      "阶段成果",
+      "统计数据",
+      "关键数字",
+      "百分比指标"
+    ],
+    "avoidFor": [
+      "无数字的普通要点",
+      "长段正文",
+      "图片页"
+    ],
+    "selectionRules": "当多个要点标题是数字、百分比、MW、万元等指标值，或页面主要表达数据成果时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout14.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "metric1_number",
+        "x": 0.637,
+        "y": 1.429,
+        "w": 3.698,
+        "h": 1.235
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "metric1_label",
+        "x": 0.637,
+        "y": 2.815,
+        "w": 3.698,
+        "h": 0.46
+      },
+      {
+        "idx": 12,
+        "type": "body",
+        "label": "metric1_desc",
+        "x": 0.637,
+        "y": 3.433,
+        "w": 3.698,
+        "h": 2.7
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "metric2_number",
+        "x": 4.817,
+        "y": 1.429,
+        "w": 3.698,
+        "h": 1.235
+      },
+      {
+        "idx": 14,
+        "type": "body",
+        "label": "metric2_label",
+        "x": 4.817,
+        "y": 2.815,
+        "w": 3.698,
+        "h": 0.46
+      },
+      {
+        "idx": 15,
+        "type": "body",
+        "label": "metric2_desc",
+        "x": 4.817,
+        "y": 3.433,
+        "w": 3.698,
+        "h": 2.7
+      },
+      {
+        "idx": 16,
+        "type": "body",
+        "label": "metric3_number",
+        "x": 8.998,
+        "y": 1.429,
+        "w": 3.698,
+        "h": 1.235
+      },
+      {
+        "idx": 17,
+        "type": "body",
+        "label": "metric3_label",
+        "x": 8.998,
+        "y": 2.815,
+        "w": 3.698,
+        "h": 0.46
+      },
+      {
+        "idx": 18,
+        "type": "body",
+        "label": "metric3_desc",
+        "x": 8.998,
+        "y": 3.433,
+        "w": 3.698,
+        "h": 2.7
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "metrics",
+      "columns": 3,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 3,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": true,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 10,
+      "placeholderCount": 10,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.6,
+        4.8,
+        9.0
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.4,
+        2.8,
+        3.4
+      ]
+    }
+  },
+  {
+    "layoutIndex": 14,
+    "name": "2_大数字展示-横向四项",
+    "description": "大数字指标展示版式，最多支持 4 个指标，每个指标包含数字、指标名称和指标说明。 当前变体：2_大数字展示-横向四项。",
+    "bestFor": [
+      "KPI",
+      "阶段成果",
+      "统计数据",
+      "关键数字",
+      "百分比指标"
+    ],
+    "avoidFor": [
+      "无数字的普通要点",
+      "长段正文",
+      "图片页"
+    ],
+    "selectionRules": "当多个要点标题是数字、百分比、MW、万元等指标值，或页面主要表达数据成果时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout15.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "metric1_number",
+        "x": 0.637,
+        "y": 1.429,
+        "w": 5.508,
+        "h": 1.235
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "metric1_label",
+        "x": 0.637,
+        "y": 3.021,
+        "w": 5.508,
+        "h": 0.46
+      },
+      {
+        "idx": 12,
+        "type": "body",
+        "label": "metric1_desc",
+        "x": 0.637,
+        "y": 3.64,
+        "w": 5.508,
+        "h": 2.329
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "metric2_number",
+        "x": 6.937,
+        "y": 1.429,
+        "w": 5.508,
+        "h": 1.235
+      },
+      {
+        "idx": 14,
+        "type": "body",
+        "label": "metric2_label",
+        "x": 6.937,
+        "y": 3.021,
+        "w": 5.508,
+        "h": 0.46
+      },
+      {
+        "idx": 15,
+        "type": "body",
+        "label": "metric2_desc",
+        "x": 6.937,
+        "y": 3.64,
+        "w": 5.508,
+        "h": 2.329
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "metrics",
+      "columns": 2,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 2,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": true,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 13,
+      "placeholderCount": 7,
+      "staticShapeCount": 6,
+      "distinctXPositions": [
+        0.1,
+        0.6,
+        6.9
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.4,
+        3.0,
+        3.6
+      ]
+    }
+  },
+  {
+    "layoutIndex": 15,
+    "name": "大数字展示-横向四项",
+    "description": "大数字指标展示版式，最多支持 4 个指标，每个指标包含数字、指标名称和指标说明。 当前变体：大数字展示-横向四项。",
+    "bestFor": [
+      "KPI",
+      "阶段成果",
+      "统计数据",
+      "关键数字",
+      "百分比指标"
+    ],
+    "avoidFor": [
+      "无数字的普通要点",
+      "长段正文",
+      "图片页"
+    ],
+    "selectionRules": "当多个要点标题是数字、百分比、MW、万元等指标值，或页面主要表达数据成果时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout16.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "metric1_number",
+        "x": 0.637,
+        "y": 1.429,
+        "w": 2.756,
+        "h": 1.235
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "metric1_label",
+        "x": 0.637,
+        "y": 2.815,
+        "w": 2.756,
+        "h": 0.46
+      },
+      {
+        "idx": 12,
+        "type": "body",
+        "label": "metric1_desc",
+        "x": 0.637,
+        "y": 3.433,
+        "w": 2.756,
+        "h": 2.7
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "metric2_number",
+        "x": 3.787,
+        "y": 1.429,
+        "w": 2.756,
+        "h": 1.235
+      },
+      {
+        "idx": 14,
+        "type": "body",
+        "label": "metric2_label",
+        "x": 3.787,
+        "y": 2.815,
+        "w": 2.756,
+        "h": 0.46
+      },
+      {
+        "idx": 15,
+        "type": "body",
+        "label": "metric2_desc",
+        "x": 3.787,
+        "y": 3.433,
+        "w": 2.756,
+        "h": 2.7
+      },
+      {
+        "idx": 16,
+        "type": "body",
+        "label": "metric3_number",
+        "x": 6.937,
+        "y": 1.429,
+        "w": 2.756,
+        "h": 1.235
+      },
+      {
+        "idx": 17,
+        "type": "body",
+        "label": "metric3_label",
+        "x": 6.937,
+        "y": 2.815,
+        "w": 2.756,
+        "h": 0.46
+      },
+      {
+        "idx": 18,
+        "type": "body",
+        "label": "metric3_desc",
+        "x": 6.937,
+        "y": 3.433,
+        "w": 2.756,
+        "h": 2.7
+      },
+      {
+        "idx": 19,
+        "type": "body",
+        "label": "metric4_number",
+        "x": 10.087,
+        "y": 1.429,
+        "w": 2.756,
+        "h": 1.235
+      },
+      {
+        "idx": 20,
+        "type": "body",
+        "label": "metric4_label",
+        "x": 10.087,
+        "y": 2.815,
+        "w": 2.756,
+        "h": 0.46
+      },
+      {
+        "idx": 21,
+        "type": "body",
+        "label": "metric4_desc",
+        "x": 10.087,
+        "y": 3.433,
+        "w": 2.756,
+        "h": 2.7
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "metrics",
+      "columns": 4,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 4,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": true,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 13,
+      "placeholderCount": 13,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.6,
+        3.8,
+        6.9,
+        10.1
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.4,
+        2.8,
+        3.4
+      ]
+    }
+  },
+  {
+    "layoutIndex": 16,
+    "name": "大数字展示-田字四项",
+    "description": "大数字指标展示版式，最多支持 4 个指标，每个指标包含数字、指标名称和指标说明。 当前变体：大数字展示-田字四项。",
+    "bestFor": [
+      "KPI",
+      "阶段成果",
+      "统计数据",
+      "关键数字",
+      "百分比指标"
+    ],
+    "avoidFor": [
+      "无数字的普通要点",
+      "长段正文",
+      "图片页"
+    ],
+    "selectionRules": "当多个要点标题是数字、百分比、MW、万元等指标值，或页面主要表达数据成果时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout17.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "metric1_number",
+        "x": 0.85,
+        "y": 1.038,
+        "w": 5.35,
+        "h": 0.953
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "metric1_label",
+        "x": 0.85,
+        "y": 2.108,
+        "w": 5.35,
+        "h": 0.46
+      },
+      {
+        "idx": 12,
+        "type": "body",
+        "label": "metric1_desc",
+        "x": 0.85,
+        "y": 2.658,
+        "w": 5.35,
+        "h": 1.175
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "metric2_number",
+        "x": 6.95,
+        "y": 1.038,
+        "w": 5.35,
+        "h": 0.953
+      },
+      {
+        "idx": 14,
+        "type": "body",
+        "label": "metric2_label",
+        "x": 6.95,
+        "y": 2.108,
+        "w": 5.35,
+        "h": 0.46
+      },
+      {
+        "idx": 15,
+        "type": "body",
+        "label": "metric2_desc",
+        "x": 6.95,
+        "y": 2.658,
+        "w": 5.35,
+        "h": 1.175
+      },
+      {
+        "idx": 16,
+        "type": "body",
+        "label": "metric3_number",
+        "x": 0.85,
+        "y": 4.113,
+        "w": 5.35,
+        "h": 0.953
+      },
+      {
+        "idx": 17,
+        "type": "body",
+        "label": "metric3_label",
+        "x": 0.85,
+        "y": 5.183,
+        "w": 5.35,
+        "h": 0.46
+      },
+      {
+        "idx": 18,
+        "type": "body",
+        "label": "metric3_desc",
+        "x": 0.85,
+        "y": 5.733,
+        "w": 5.35,
+        "h": 1.175
+      },
+      {
+        "idx": 19,
+        "type": "body",
+        "label": "metric4_number",
+        "x": 6.95,
+        "y": 4.113,
+        "w": 5.35,
+        "h": 0.953
+      },
+      {
+        "idx": 20,
+        "type": "body",
+        "label": "metric4_label",
+        "x": 6.95,
+        "y": 5.183,
+        "w": 5.35,
+        "h": 0.46
+      },
+      {
+        "idx": 21,
+        "type": "body",
+        "label": "metric4_desc",
+        "x": 6.95,
+        "y": 5.733,
+        "w": 5.35,
+        "h": 1.175
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "metrics",
+      "columns": 4,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 4,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": true,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 13,
+      "placeholderCount": 13,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.8,
+        7.0
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.0,
+        2.1,
+        2.7,
+        4.1,
+        5.2,
+        5.7
+      ]
+    }
+  },
+  {
+    "layoutIndex": 17,
+    "name": "大数字展示-三项居中",
+    "description": "大数字指标展示版式，最多支持 4 个指标，每个指标包含数字、指标名称和指标说明。 当前变体：大数字展示-三项居中。",
+    "bestFor": [
+      "KPI",
+      "阶段成果",
+      "统计数据",
+      "关键数字",
+      "百分比指标"
+    ],
+    "avoidFor": [
+      "无数字的普通要点",
+      "长段正文",
+      "图片页"
+    ],
+    "selectionRules": "当多个要点标题是数字、百分比、MW、万元等指标值，或页面主要表达数据成果时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout18.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "metric1_number",
+        "x": 1.15,
+        "y": 1.65,
+        "w": 3.1,
+        "h": 0.78
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "metric1_label",
+        "x": 1.15,
+        "y": 2.55,
+        "w": 3.1,
+        "h": 0.46
+      },
+      {
+        "idx": 12,
+        "type": "body",
+        "label": "metric1_desc",
+        "x": 1.15,
+        "y": 3.2,
+        "w": 3.1,
+        "h": 2.55
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "metric2_number",
+        "x": 5.0,
+        "y": 1.65,
+        "w": 3.1,
+        "h": 0.78
+      },
+      {
+        "idx": 14,
+        "type": "body",
+        "label": "metric2_label",
+        "x": 5.0,
+        "y": 2.55,
+        "w": 3.1,
+        "h": 0.46
+      },
+      {
+        "idx": 15,
+        "type": "body",
+        "label": "metric2_desc",
+        "x": 5.0,
+        "y": 3.2,
+        "w": 3.1,
+        "h": 2.55
+      },
+      {
+        "idx": 16,
+        "type": "body",
+        "label": "metric3_number",
+        "x": 8.85,
+        "y": 1.65,
+        "w": 3.1,
+        "h": 0.78
+      },
+      {
+        "idx": 17,
+        "type": "body",
+        "label": "metric3_label",
+        "x": 8.85,
+        "y": 2.55,
+        "w": 3.1,
+        "h": 0.46
+      },
+      {
+        "idx": 18,
+        "type": "body",
+        "label": "metric3_desc",
+        "x": 8.85,
+        "y": 3.2,
+        "w": 3.1,
+        "h": 2.55
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "metrics",
+      "columns": 3,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 3,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": true,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 10,
+      "placeholderCount": 10,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        1.1,
+        5.0,
+        8.8
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.6,
+        2.5,
+        3.2
+      ]
+    }
+  },
+  {
+    "layoutIndex": 18,
+    "name": "四宫格-田字分布",
+    "description": "2x2 宫格版式，每格包含标题和正文，适合四个等权重内容块。 当前变体：四宫格-田字分布。",
+    "bestFor": [
+      "四个关键方向",
+      "四个模块",
+      "四项原则",
+      "四类风险"
+    ],
+    "avoidFor": [
+      "三项并列",
+      "六项并列",
+      "单段正文",
+      "图片展示"
+    ],
+    "selectionRules": "当页面恰好有 4 个普通并列要点，且没有图片和指标数字时优先选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout19.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "grid1_title",
+        "x": 0.85,
+        "y": 1.2,
+        "w": 5.35,
+        "h": 0.52
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "grid1_body",
+        "x": 0.85,
+        "y": 1.86,
+        "w": 5.35,
+        "h": 1.54
+      },
+      {
+        "idx": 12,
+        "type": "body",
+        "label": "grid2_title",
+        "x": 6.95,
+        "y": 1.2,
+        "w": 5.35,
+        "h": 0.52
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "grid2_body",
+        "x": 6.95,
+        "y": 1.86,
+        "w": 5.35,
+        "h": 1.54
+      },
+      {
+        "idx": 14,
+        "type": "body",
+        "label": "grid3_title",
+        "x": 0.85,
+        "y": 4.05,
+        "w": 5.35,
+        "h": 0.52
+      },
+      {
+        "idx": 15,
+        "type": "body",
+        "label": "grid3_body",
+        "x": 0.85,
+        "y": 4.71,
+        "w": 5.35,
+        "h": 1.54
+      },
+      {
+        "idx": 16,
+        "type": "body",
+        "label": "grid4_title",
+        "x": 6.95,
+        "y": 4.05,
+        "w": 5.35,
+        "h": 0.52
+      },
+      {
+        "idx": 17,
+        "type": "body",
+        "label": "grid4_body",
+        "x": 6.95,
+        "y": 4.71,
+        "w": 5.35,
+        "h": 1.54
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "four_grid",
+      "columns": 2,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 4,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 9,
+      "placeholderCount": 9,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.8,
+        7.0
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.2,
+        1.9,
+        4.0,
+        4.7
+      ]
+    }
+  },
+  {
+    "layoutIndex": 19,
+    "name": "四宫格-横向四项",
+    "description": "2x2 宫格版式，每格包含标题和正文，适合四个等权重内容块。 当前变体：四宫格-横向四项。",
+    "bestFor": [
+      "四个关键方向",
+      "四个模块",
+      "四项原则",
+      "四类风险"
+    ],
+    "avoidFor": [
+      "三项并列",
+      "六项并列",
+      "单段正文",
+      "图片展示"
+    ],
+    "selectionRules": "当页面恰好有 4 个普通并列要点，且没有图片和指标数字时优先选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout20.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "grid1_title",
+        "x": 0.65,
+        "y": 1.3,
+        "w": 2.7,
+        "h": 0.52
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "grid1_body",
+        "x": 0.65,
+        "y": 1.96,
+        "w": 2.7,
+        "h": 4.24
+      },
+      {
+        "idx": 12,
+        "type": "body",
+        "label": "grid2_title",
+        "x": 3.78,
+        "y": 1.3,
+        "w": 2.7,
+        "h": 0.52
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "grid2_body",
+        "x": 3.78,
+        "y": 1.96,
+        "w": 2.7,
+        "h": 4.24
+      },
+      {
+        "idx": 14,
+        "type": "body",
+        "label": "grid3_title",
+        "x": 6.91,
+        "y": 1.3,
+        "w": 2.7,
+        "h": 0.52
+      },
+      {
+        "idx": 15,
+        "type": "body",
+        "label": "grid3_body",
+        "x": 6.91,
+        "y": 1.96,
+        "w": 2.7,
+        "h": 4.24
+      },
+      {
+        "idx": 16,
+        "type": "body",
+        "label": "grid4_title",
+        "x": 10.04,
+        "y": 1.3,
+        "w": 2.7,
+        "h": 0.52
+      },
+      {
+        "idx": 17,
+        "type": "body",
+        "label": "grid4_body",
+        "x": 10.04,
+        "y": 1.96,
+        "w": 2.7,
+        "h": 4.24
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "four_grid",
+      "columns": 2,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 4,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 9,
+      "placeholderCount": 9,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.7,
+        3.8,
+        6.9,
+        10.0
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.3,
+        2.0
+      ]
+    }
+  },
+  {
+    "layoutIndex": 20,
+    "name": "四宫格-纵向四项",
+    "description": "2x2 宫格版式，每格包含标题和正文，适合四个等权重内容块。 当前变体：四宫格-纵向四项。",
+    "bestFor": [
+      "四个关键方向",
+      "四个模块",
+      "四项原则",
+      "四类风险"
+    ],
+    "avoidFor": [
+      "三项并列",
+      "六项并列",
+      "单段正文",
+      "图片展示"
+    ],
+    "selectionRules": "当页面恰好有 4 个普通并列要点，且没有图片和指标数字时优先选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout21.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "grid1_title",
+        "x": 0.95,
+        "y": 0.91,
+        "w": 11.811,
+        "h": 0.433
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "grid1_body",
+        "x": 0.95,
+        "y": 1.432,
+        "w": 11.811,
+        "h": 0.858
+      },
+      {
+        "idx": 12,
+        "type": "body",
+        "label": "grid2_title",
+        "x": 0.95,
+        "y": 2.448,
+        "w": 11.811,
+        "h": 0.433
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "grid2_body",
+        "x": 0.95,
+        "y": 2.97,
+        "w": 11.811,
+        "h": 0.858
+      },
+      {
+        "idx": 14,
+        "type": "body",
+        "label": "grid3_title",
+        "x": 0.95,
+        "y": 4.066,
+        "w": 11.811,
+        "h": 0.433
+      },
+      {
+        "idx": 15,
+        "type": "body",
+        "label": "grid3_body",
+        "x": 0.95,
+        "y": 4.588,
+        "w": 11.811,
+        "h": 0.858
+      },
+      {
+        "idx": 16,
+        "type": "body",
+        "label": "grid4_title",
+        "x": 0.95,
+        "y": 5.669,
+        "w": 11.811,
+        "h": 0.433
+      },
+      {
+        "idx": 17,
+        "type": "body",
+        "label": "grid4_body",
+        "x": 0.95,
+        "y": 6.191,
+        "w": 11.811,
+        "h": 0.858
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "four_grid",
+      "columns": 2,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 4,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 9,
+      "placeholderCount": 9,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.9
+      ],
+      "distinctYPositions": [
+        0.1,
+        0.9,
+        1.4,
+        2.4,
+        3.0,
+        4.1,
+        4.6,
+        5.7,
+        6.2
+      ]
+    }
+  },
+  {
+    "layoutIndex": 21,
+    "name": "左图右文-左右均分",
+    "description": "左侧图片、右侧正文的单图图文版式，适合以图片为主要视觉证据，右侧解释说明。 当前变体：左图右文-左右均分。",
+    "bestFor": [
+      "产品图说明",
+      "场景图解释",
+      "案例图片",
+      "单图加正文"
+    ],
+    "avoidFor": [
+      "无图片页面",
+      "两张以上图片",
+      "纯数据指标"
+    ],
+    "selectionRules": "当页面有 1 张图片，且文字说明较多时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout22.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "picture",
+        "label": "image_main",
+        "x": 0.7,
+        "y": 1.15,
+        "w": 5.8,
+        "h": 5.25
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "body",
+        "x": 6.95,
+        "y": 1.35,
+        "w": 5.45,
+        "h": 4.75
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "image_left_text_right",
+      "columns": 2,
+      "hasImage": true,
+      "imageCount": 1,
+      "maxItems": 1,
+      "supportsTitle": true,
+      "supportsBody": true,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 3,
+      "placeholderCount": 3,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.7,
+        7.0
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.1,
+        1.4
+      ]
+    }
+  },
+  {
+    "layoutIndex": 22,
+    "name": "左图右文-小图大文",
+    "description": "左侧图片、右侧正文的单图图文版式，适合以图片为主要视觉证据，右侧解释说明。 当前变体：左图右文-小图大文。",
+    "bestFor": [
+      "产品图说明",
+      "场景图解释",
+      "案例图片",
+      "单图加正文"
+    ],
+    "avoidFor": [
+      "无图片页面",
+      "两张以上图片",
+      "纯数据指标"
+    ],
+    "selectionRules": "当页面有 1 张图片，且文字说明较多时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout23.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "picture",
+        "label": "image_main",
+        "x": 0.85,
+        "y": 1.35,
+        "w": 4.2,
+        "h": 3.15
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "body",
+        "x": 5.55,
+        "y": 1.2,
+        "w": 6.85,
+        "h": 5.05
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "image_left_text_right",
+      "columns": 2,
+      "hasImage": true,
+      "imageCount": 1,
+      "maxItems": 1,
+      "supportsTitle": true,
+      "supportsBody": true,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 3,
+      "placeholderCount": 3,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.8,
+        5.5
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.2,
+        1.4
+      ]
+    }
+  },
+  {
+    "layoutIndex": 23,
+    "name": "右图左文-左右均分",
+    "description": "左侧正文、右侧图片的单图图文版式，适合先说明再展示图片，作为左图右文的节奏变化。 当前变体：右图左文-左右均分。",
+    "bestFor": [
+      "单图加正文",
+      "产品截图说明",
+      "案例说明",
+      "视觉节奏变化"
+    ],
+    "avoidFor": [
+      "无图片页面",
+      "多图页面",
+      "纯指标页"
+    ],
+    "selectionRules": "当页面有 1 张图片且需要文字先行，或前后页面已使用左图右文时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout24.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "body",
+        "x": 0.85,
+        "y": 1.35,
+        "w": 5.45,
+        "h": 4.75
+      },
+      {
+        "idx": 11,
+        "type": "picture",
+        "label": "image_main",
+        "x": 6.85,
+        "y": 1.15,
+        "w": 5.8,
+        "h": 5.25
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "text_left_image_right",
+      "columns": 2,
+      "hasImage": true,
+      "imageCount": 1,
+      "maxItems": 1,
+      "supportsTitle": true,
+      "supportsBody": true,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 3,
+      "placeholderCount": 3,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.8,
+        6.8
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.1,
+        1.4
+      ]
+    }
+  },
+  {
+    "layoutIndex": 24,
+    "name": "右图左文-小图大文",
+    "description": "左侧正文、右侧图片的单图图文版式，适合先说明再展示图片，作为左图右文的节奏变化。 当前变体：右图左文-小图大文。",
+    "bestFor": [
+      "单图加正文",
+      "产品截图说明",
+      "案例说明",
+      "视觉节奏变化"
+    ],
+    "avoidFor": [
+      "无图片页面",
+      "多图页面",
+      "纯指标页"
+    ],
+    "selectionRules": "当页面有 1 张图片且需要文字先行，或前后页面已使用左图右文时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout25.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "body",
+        "x": 0.85,
+        "y": 1.2,
+        "w": 6.85,
+        "h": 5.05
+      },
+      {
+        "idx": 11,
+        "type": "picture",
+        "label": "image_main",
+        "x": 8.2,
+        "y": 1.35,
+        "w": 4.2,
+        "h": 3.15
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "text_left_image_right",
+      "columns": 2,
+      "hasImage": true,
+      "imageCount": 1,
+      "maxItems": 1,
+      "supportsTitle": true,
+      "supportsBody": true,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 3,
+      "placeholderCount": 3,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.8,
+        8.2
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.2,
+        1.4
+      ]
+    }
+  },
+  {
+    "layoutIndex": 25,
+    "name": "上图下文-半图",
+    "description": "上方大图、下方正文说明的版式，适合先展示场景图或截图，再补充简短说明。 当前变体：上图下文-半图。",
+    "bestFor": [
+      "场景图",
+      "截图展示",
+      "上图下文说明",
+      "视觉优先"
+    ],
+    "avoidFor": [
+      "文字很多的页面",
+      "无图片页面",
+      "多图页面"
+    ],
+    "selectionRules": "当页面有 1 张横向图片且文字较短时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout26.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "picture",
+        "label": "image_main",
+        "x": 0.75,
+        "y": 1.0,
+        "w": 11.85,
+        "h": 3.1
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "body",
+        "x": 0.95,
+        "y": 4.45,
+        "w": 11.45,
+        "h": 1.5
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "image_top_text_bottom",
+      "columns": 1,
+      "hasImage": true,
+      "imageCount": 1,
+      "maxItems": 1,
+      "supportsTitle": true,
+      "supportsBody": true,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 3,
+      "placeholderCount": 3,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.8,
+        0.9
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.0,
+        4.5
+      ]
+    }
+  },
+  {
+    "layoutIndex": 26,
+    "name": "上图下文-浅图",
+    "description": "上方大图、下方正文说明的版式，适合先展示场景图或截图，再补充简短说明。 当前变体：上图下文-浅图。",
+    "bestFor": [
+      "场景图",
+      "截图展示",
+      "上图下文说明",
+      "视觉优先"
+    ],
+    "avoidFor": [
+      "文字很多的页面",
+      "无图片页面",
+      "多图页面"
+    ],
+    "selectionRules": "当页面有 1 张横向图片且文字较短时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout27.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "picture",
+        "label": "image_main",
+        "x": 0.75,
+        "y": 1.0,
+        "w": 11.85,
+        "h": 2.25
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "body",
+        "x": 0.95,
+        "y": 3.7,
+        "w": 11.45,
+        "h": 2.45
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "image_top_text_bottom",
+      "columns": 1,
+      "hasImage": true,
+      "imageCount": 1,
+      "maxItems": 1,
+      "supportsTitle": true,
+      "supportsBody": true,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 3,
+      "placeholderCount": 3,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.8,
+        0.9
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.0,
+        3.7
+      ]
+    }
+  },
+  {
+    "layoutIndex": 27,
+    "name": "下图上文-半图",
+    "description": "上方文字、下方图片的单图图文版式，适合先说明后展示。 当前变体：下图上文-半图。",
+    "bestFor": [
+      "先文字后图片",
+      "单图说明",
+      "文字优先"
+    ],
+    "avoidFor": [
+      "无图片页面",
+      "多图页面"
+    ],
+    "selectionRules": "当页面有 1 张图片且需要文字先行时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout28.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "body",
+        "x": 0.95,
+        "y": 1.1,
+        "w": 11.45,
+        "h": 2.05
+      },
+      {
+        "idx": 11,
+        "type": "picture",
+        "label": "image_main",
+        "x": 0.75,
+        "y": 3.55,
+        "w": 11.85,
+        "h": 2.9
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "text_top_image_bottom",
+      "columns": 1,
+      "hasImage": true,
+      "imageCount": 1,
+      "maxItems": 1,
+      "supportsTitle": true,
+      "supportsBody": true,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 3,
+      "placeholderCount": 3,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.8,
+        0.9
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.1,
+        3.5
+      ]
+    }
+  },
+  {
+    "layoutIndex": 28,
+    "name": "小图大量文字-右上图",
+    "description": "小图配大量文字的图文版式，图片作为辅助说明，正文为主要内容。 当前变体：小图大量文字-右上图。",
+    "bestFor": [
+      "文字较多",
+      "辅助图片",
+      "说明型图文页"
+    ],
+    "avoidFor": [
+      "图片为主的展示页",
+      "多图页面"
+    ],
+    "selectionRules": "当页面有 1 张图片但文字明显多于图片说明时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout29.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "body",
+        "x": 0.85,
+        "y": 1.2,
+        "w": 7.4,
+        "h": 5.1
+      },
+      {
+        "idx": 11,
+        "type": "picture",
+        "label": "image_main",
+        "x": 8.75,
+        "y": 1.2,
+        "w": 3.65,
+        "h": 2.45
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "small_image_large_text",
+      "columns": 2,
+      "hasImage": true,
+      "imageCount": 1,
+      "maxItems": 1,
+      "supportsTitle": true,
+      "supportsBody": true,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 3,
+      "placeholderCount": 3,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.8,
+        8.8
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.2
+      ]
+    }
+  },
+  {
+    "layoutIndex": 29,
+    "name": "全图文字叠加-居中",
+    "description": "全页图片加文字叠加版式，适合视觉冲击型单图页面。 当前变体：全图文字叠加-居中。",
+    "bestFor": [
+      "全图展示",
+      "视觉冲击",
+      "图片背景加短文案"
+    ],
+    "avoidFor": [
+      "长正文",
+      "多图页面",
+      "需要强可读性的密集内容"
+    ],
+    "selectionRules": "当页面有 1 张主视觉图片，且叠加文字很短时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout30.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "picture",
+        "label": "image_main",
+        "x": 0.0,
+        "y": 0.0,
+        "w": 13.33,
+        "h": 7.5
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "body",
+        "x": 2.05,
+        "y": 2.65,
+        "w": 9.2,
+        "h": 1.4
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "full_image_text_overlay",
+      "columns": 1,
+      "hasImage": true,
+      "imageCount": 1,
+      "maxItems": 1,
+      "supportsTitle": true,
+      "supportsBody": true,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 3,
+      "placeholderCount": 3,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.0,
+        0.1,
+        2.0
+      ],
+      "distinctYPositions": [
+        0.0,
+        0.1,
+        2.6
+      ]
+    }
+  },
+  {
+    "layoutIndex": 30,
+    "name": "两图并排-带说明",
+    "description": "两张图片左右并排，并分别带说明，适合前后对比、两个方案、两个案例的视觉展示。 当前变体：两图并排-带说明。",
+    "bestFor": [
+      "两图对比",
+      "前后对比",
+      "两个案例",
+      "两个方案截图"
+    ],
+    "avoidFor": [
+      "一张图片",
+      "三张以上图片",
+      "无图片页面"
+    ],
+    "selectionRules": "当页面有 2 张图片，且两张图片地位相近时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout31.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "picture",
+        "label": "image1",
+        "x": 0.75,
+        "y": 1.2,
+        "w": 5.55,
+        "h": 4.1
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "image1_caption",
+        "x": 0.75,
+        "y": 5.42,
+        "w": 5.55,
+        "h": 0.48
+      },
+      {
+        "idx": 12,
+        "type": "picture",
+        "label": "image2",
+        "x": 6.95,
+        "y": 1.2,
+        "w": 5.55,
+        "h": 4.1
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "image2_caption",
+        "x": 6.95,
+        "y": 5.42,
+        "w": 5.55,
+        "h": 0.48
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "two_images",
+      "columns": 2,
+      "hasImage": true,
+      "imageCount": 2,
+      "maxItems": 2,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 5,
+      "placeholderCount": 5,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.8,
+        7.0
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.2,
+        5.4
+      ]
+    }
+  },
+  {
+    "layoutIndex": 31,
+    "name": "两图并排-无说明",
+    "description": "两张图片左右并排，并分别带说明，适合前后对比、两个方案、两个案例的视觉展示。 当前变体：两图并排-无说明。",
+    "bestFor": [
+      "两图对比",
+      "前后对比",
+      "两个案例",
+      "两个方案截图"
+    ],
+    "avoidFor": [
+      "一张图片",
+      "三张以上图片",
+      "无图片页面"
+    ],
+    "selectionRules": "当页面有 2 张图片，且两张图片地位相近时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout32.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "picture",
+        "label": "image1",
+        "x": 0.75,
+        "y": 1.2,
+        "w": 5.65,
+        "h": 5.1
+      },
+      {
+        "idx": 11,
+        "type": "picture",
+        "label": "image2",
+        "x": 6.85,
+        "y": 1.2,
+        "w": 5.65,
+        "h": 5.1
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "two_images",
+      "columns": 2,
+      "hasImage": true,
+      "imageCount": 2,
+      "maxItems": 2,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 3,
+      "placeholderCount": 3,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.8,
+        6.8
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.2
+      ]
+    }
+  },
+  {
+    "layoutIndex": 32,
+    "name": "三图横排-带说明",
+    "description": "三张图片横向并列，并分别带说明，适合三个场景、三个案例或三个步骤的图片展示。 当前变体：三图横排-带说明。",
+    "bestFor": [
+      "三张图片",
+      "三个案例",
+      "三个场景",
+      "三步图示"
+    ],
+    "avoidFor": [
+      "图片数量不是 3",
+      "文字很长",
+      "无图片页面"
+    ],
+    "selectionRules": "当页面有 3 张图片且每张图需要简短说明时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout33.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "picture",
+        "label": "image1",
+        "x": 0.65,
+        "y": 1.3,
+        "w": 3.75,
+        "h": 4.0
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "image1_caption",
+        "x": 0.65,
+        "y": 5.42,
+        "w": 3.75,
+        "h": 0.48
+      },
+      {
+        "idx": 12,
+        "type": "picture",
+        "label": "image2",
+        "x": 4.8,
+        "y": 1.3,
+        "w": 3.75,
+        "h": 4.0
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "image2_caption",
+        "x": 4.8,
+        "y": 5.42,
+        "w": 3.75,
+        "h": 0.48
+      },
+      {
+        "idx": 14,
+        "type": "picture",
+        "label": "image3",
+        "x": 8.95,
+        "y": 1.3,
+        "w": 3.75,
+        "h": 4.0
+      },
+      {
+        "idx": 15,
+        "type": "body",
+        "label": "image3_caption",
+        "x": 8.95,
+        "y": 5.42,
+        "w": 3.75,
+        "h": 0.48
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "three_images",
+      "columns": 3,
+      "hasImage": true,
+      "imageCount": 3,
+      "maxItems": 3,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 7,
+      "placeholderCount": 7,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.7,
+        4.8,
+        8.9
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.3,
+        5.4
+      ]
+    }
+  },
+  {
+    "layoutIndex": 33,
+    "name": "三图横排-无说明",
+    "description": "三张图片横向并列，并分别带说明，适合三个场景、三个案例或三个步骤的图片展示。 当前变体：三图横排-无说明。",
+    "bestFor": [
+      "三张图片",
+      "三个案例",
+      "三个场景",
+      "三步图示"
+    ],
+    "avoidFor": [
+      "图片数量不是 3",
+      "文字很长",
+      "无图片页面"
+    ],
+    "selectionRules": "当页面有 3 张图片且每张图需要简短说明时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout34.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "picture",
+        "label": "image1",
+        "x": 0.65,
+        "y": 1.3,
+        "w": 3.75,
+        "h": 5.05
+      },
+      {
+        "idx": 11,
+        "type": "picture",
+        "label": "image2",
+        "x": 4.8,
+        "y": 1.3,
+        "w": 3.75,
+        "h": 5.05
+      },
+      {
+        "idx": 12,
+        "type": "picture",
+        "label": "image3",
+        "x": 8.95,
+        "y": 1.3,
+        "w": 3.75,
+        "h": 5.05
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "three_images",
+      "columns": 3,
+      "hasImage": true,
+      "imageCount": 3,
+      "maxItems": 3,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 4,
+      "placeholderCount": 4,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.7,
+        4.8,
+        8.9
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.3
+      ]
+    }
+  },
+  {
+    "layoutIndex": 34,
+    "name": "四图宫格-带说明",
+    "description": "2x2 四图宫格版式，每张图可带简短说明，适合四个案例、四个场景或产品多角度展示。 当前变体：四图宫格-带说明。",
+    "bestFor": [
+      "四张图片",
+      "四个案例",
+      "产品多角度",
+      "图片合集"
+    ],
+    "avoidFor": [
+      "图片数量少于 4",
+      "长文本说明",
+      "无图片页面"
+    ],
+    "selectionRules": "当页面有 4 张图片，且图片重要性相近时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout35.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "picture",
+        "label": "image1",
+        "x": 0.85,
+        "y": 1.15,
+        "w": 5.4,
+        "h": 1.75
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "image1_caption",
+        "x": 0.85,
+        "y": 3.02,
+        "w": 5.4,
+        "h": 0.48
+      },
+      {
+        "idx": 12,
+        "type": "picture",
+        "label": "image2",
+        "x": 7.05,
+        "y": 1.15,
+        "w": 5.4,
+        "h": 1.75
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "image2_caption",
+        "x": 7.05,
+        "y": 3.02,
+        "w": 5.4,
+        "h": 0.48
+      },
+      {
+        "idx": 14,
+        "type": "picture",
+        "label": "image3",
+        "x": 0.85,
+        "y": 4.15,
+        "w": 5.4,
+        "h": 1.75
+      },
+      {
+        "idx": 15,
+        "type": "body",
+        "label": "image3_caption",
+        "x": 0.85,
+        "y": 6.02,
+        "w": 5.4,
+        "h": 0.48
+      },
+      {
+        "idx": 16,
+        "type": "picture",
+        "label": "image4",
+        "x": 7.05,
+        "y": 4.15,
+        "w": 5.4,
+        "h": 1.75
+      },
+      {
+        "idx": 17,
+        "type": "body",
+        "label": "image4_caption",
+        "x": 7.05,
+        "y": 6.02,
+        "w": 5.4,
+        "h": 0.48
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "four_images",
+      "columns": 2,
+      "hasImage": true,
+      "imageCount": 4,
+      "maxItems": 4,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 9,
+      "placeholderCount": 9,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.8,
+        7.0
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.1,
+        3.0,
+        4.2,
+        6.0
+      ]
+    }
+  },
+  {
+    "layoutIndex": 35,
+    "name": "四图宫格-无说明",
+    "description": "2x2 四图宫格版式，每张图可带简短说明，适合四个案例、四个场景或产品多角度展示。 当前变体：四图宫格-无说明。",
+    "bestFor": [
+      "四张图片",
+      "四个案例",
+      "产品多角度",
+      "图片合集"
+    ],
+    "avoidFor": [
+      "图片数量少于 4",
+      "长文本说明",
+      "无图片页面"
+    ],
+    "selectionRules": "当页面有 4 张图片，且图片重要性相近时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout36.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "picture",
+        "label": "image1",
+        "x": 0.85,
+        "y": 1.1,
+        "w": 5.4,
+        "h": 2.55
+      },
+      {
+        "idx": 11,
+        "type": "picture",
+        "label": "image2",
+        "x": 7.05,
+        "y": 1.1,
+        "w": 5.4,
+        "h": 2.55
+      },
+      {
+        "idx": 12,
+        "type": "picture",
+        "label": "image3",
+        "x": 0.85,
+        "y": 4.0,
+        "w": 5.4,
+        "h": 2.55
+      },
+      {
+        "idx": 13,
+        "type": "picture",
+        "label": "image4",
+        "x": 7.05,
+        "y": 4.0,
+        "w": 5.4,
+        "h": 2.55
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "four_images",
+      "columns": 2,
+      "hasImage": true,
+      "imageCount": 4,
+      "maxItems": 4,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 5,
+      "placeholderCount": 5,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.8,
+        7.0
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.1,
+        4.0
+      ]
+    }
+  },
+  {
+    "layoutIndex": 36,
+    "name": "大图小图组合-左大右二",
+    "description": "一张主图搭配多张小图的组合版式，适合主次关系明确的图片展示。 当前变体：大图小图组合-左大右二。",
+    "bestFor": [
+      "主图加细节图",
+      "主场景加局部",
+      "有主次的多图"
+    ],
+    "avoidFor": [
+      "图片地位完全均等",
+      "无图片页面"
+    ],
+    "selectionRules": "当页面有 3-4 张图片，且其中一张明显更重要时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout37.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "picture",
+        "label": "image1",
+        "x": 0.75,
+        "y": 1.1,
+        "w": 6.55,
+        "h": 5.3
+      },
+      {
+        "idx": 11,
+        "type": "picture",
+        "label": "image2",
+        "x": 7.75,
+        "y": 1.1,
+        "w": 4.85,
+        "h": 2.45
+      },
+      {
+        "idx": 12,
+        "type": "picture",
+        "label": "image3",
+        "x": 7.75,
+        "y": 3.95,
+        "w": 4.85,
+        "h": 2.45
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "hero_image_supporting",
+      "columns": 2,
+      "hasImage": true,
+      "imageCount": 3,
+      "maxItems": 3,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 4,
+      "placeholderCount": 4,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.8,
+        7.8
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.1,
+        4.0
+      ]
+    }
+  },
+  {
+    "layoutIndex": 37,
+    "name": "大图小图组合-左大右三",
+    "description": "一张主图搭配多张小图的组合版式，适合主次关系明确的图片展示。 当前变体：大图小图组合-左大右三。",
+    "bestFor": [
+      "主图加细节图",
+      "主场景加局部",
+      "有主次的多图"
+    ],
+    "avoidFor": [
+      "图片地位完全均等",
+      "无图片页面"
+    ],
+    "selectionRules": "当页面有 3-4 张图片，且其中一张明显更重要时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout38.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "picture",
+        "label": "image1",
+        "x": 0.75,
+        "y": 1.1,
+        "w": 6.4,
+        "h": 5.3
+      },
+      {
+        "idx": 11,
+        "type": "picture",
+        "label": "image2",
+        "x": 7.65,
+        "y": 1.1,
+        "w": 4.8,
+        "h": 1.55
+      },
+      {
+        "idx": 12,
+        "type": "picture",
+        "label": "image3",
+        "x": 7.65,
+        "y": 2.98,
+        "w": 4.8,
+        "h": 1.55
+      },
+      {
+        "idx": 13,
+        "type": "picture",
+        "label": "image4",
+        "x": 7.65,
+        "y": 4.85,
+        "w": 4.8,
+        "h": 1.55
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "hero_image_supporting",
+      "columns": 2,
+      "hasImage": true,
+      "imageCount": 4,
+      "maxItems": 4,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 5,
+      "placeholderCount": 5,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.8,
+        7.7
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.1,
+        3.0,
+        4.8
+      ]
+    }
+  },
+  {
+    "layoutIndex": 38,
+    "name": "五图版式-主次左大",
+    "description": "五张图片展示版式，支持主次型或均等型五图排布。 当前变体：五图版式-主次左大。",
+    "bestFor": [
+      "五张图片",
+      "产品系列",
+      "多场景展示"
+    ],
+    "avoidFor": [
+      "图片少于 5",
+      "长文本说明"
+    ],
+    "selectionRules": "当页面有 5 张图片时选择，并根据是否有主次选择具体变体。",
+    "sourcePart": "ppt/slideLayouts/slideLayout39.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "picture",
+        "label": "image1",
+        "x": 0.75,
+        "y": 1.1,
+        "w": 5.85,
+        "h": 5.3
+      },
+      {
+        "idx": 11,
+        "type": "picture",
+        "label": "image2",
+        "x": 7.05,
+        "y": 1.1,
+        "w": 2.55,
+        "h": 2.4
+      },
+      {
+        "idx": 12,
+        "type": "picture",
+        "label": "image3",
+        "x": 10.0,
+        "y": 1.1,
+        "w": 2.55,
+        "h": 2.4
+      },
+      {
+        "idx": 13,
+        "type": "picture",
+        "label": "image4",
+        "x": 7.05,
+        "y": 4.0,
+        "w": 2.55,
+        "h": 2.4
+      },
+      {
+        "idx": 14,
+        "type": "picture",
+        "label": "image5",
+        "x": 10.0,
+        "y": 4.0,
+        "w": 2.55,
+        "h": 2.4
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "five_images",
+      "columns": 3,
+      "hasImage": true,
+      "imageCount": 5,
+      "maxItems": 5,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 6,
+      "placeholderCount": 6,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.8,
+        7.0,
+        10.0
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.1,
+        4.0
+      ]
+    }
+  },
+  {
+    "layoutIndex": 39,
+    "name": "五图版式-均等上三下二",
+    "description": "五张图片展示版式，支持主次型或均等型五图排布。 当前变体：五图版式-均等上三下二。",
+    "bestFor": [
+      "五张图片",
+      "产品系列",
+      "多场景展示"
+    ],
+    "avoidFor": [
+      "图片少于 5",
+      "长文本说明"
+    ],
+    "selectionRules": "当页面有 5 张图片时选择，并根据是否有主次选择具体变体。",
+    "sourcePart": "ppt/slideLayouts/slideLayout40.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "picture",
+        "label": "image1",
+        "x": 0.75,
+        "y": 1.1,
+        "w": 3.65,
+        "h": 2.35
+      },
+      {
+        "idx": 11,
+        "type": "picture",
+        "label": "image2",
+        "x": 4.8,
+        "y": 1.1,
+        "w": 3.65,
+        "h": 2.35
+      },
+      {
+        "idx": 12,
+        "type": "picture",
+        "label": "image3",
+        "x": 8.85,
+        "y": 1.1,
+        "w": 3.65,
+        "h": 2.35
+      },
+      {
+        "idx": 13,
+        "type": "picture",
+        "label": "image4",
+        "x": 2.75,
+        "y": 4.05,
+        "w": 3.65,
+        "h": 2.35
+      },
+      {
+        "idx": 14,
+        "type": "picture",
+        "label": "image5",
+        "x": 6.95,
+        "y": 4.05,
+        "w": 3.65,
+        "h": 2.35
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "five_images",
+      "columns": 3,
+      "hasImage": true,
+      "imageCount": 5,
+      "maxItems": 5,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 6,
+      "placeholderCount": 6,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.8,
+        2.8,
+        4.8,
+        7.0,
+        8.8
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.1,
+        4.0
+      ]
+    }
+  },
+  {
+    "layoutIndex": 40,
+    "name": "六图宫格-3x2无说明",
+    "description": "六张图片的 3x2 宫格版式，可无说明或每图带简短说明。 当前变体：六图宫格-3x2无说明。",
+    "bestFor": [
+      "六张图片",
+      "案例集",
+      "图片墙",
+      "产品系列"
+    ],
+    "avoidFor": [
+      "图片少于 6",
+      "长文本说明"
+    ],
+    "selectionRules": "当页面有 6 张图片，且图片地位相近时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout41.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "picture",
+        "label": "image1",
+        "x": 0.75,
+        "y": 1.1,
+        "w": 3.6,
+        "h": 2.35
+      },
+      {
+        "idx": 11,
+        "type": "picture",
+        "label": "image2",
+        "x": 4.8,
+        "y": 1.1,
+        "w": 3.6,
+        "h": 2.35
+      },
+      {
+        "idx": 12,
+        "type": "picture",
+        "label": "image3",
+        "x": 8.85,
+        "y": 1.1,
+        "w": 3.6,
+        "h": 2.35
+      },
+      {
+        "idx": 13,
+        "type": "picture",
+        "label": "image4",
+        "x": 0.75,
+        "y": 4.0,
+        "w": 3.6,
+        "h": 2.35
+      },
+      {
+        "idx": 14,
+        "type": "picture",
+        "label": "image5",
+        "x": 4.8,
+        "y": 4.0,
+        "w": 3.6,
+        "h": 2.35
+      },
+      {
+        "idx": 15,
+        "type": "picture",
+        "label": "image6",
+        "x": 8.85,
+        "y": 4.0,
+        "w": 3.6,
+        "h": 2.35
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "six_images_grid",
+      "columns": 3,
+      "hasImage": true,
+      "imageCount": 6,
+      "maxItems": 6,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 7,
+      "placeholderCount": 7,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.8,
+        4.8,
+        8.8
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.1,
+        4.0
+      ]
+    }
+  },
+  {
+    "layoutIndex": 41,
+    "name": "六图宫格-3x2带说明",
+    "description": "六张图片的 3x2 宫格版式，可无说明或每图带简短说明。 当前变体：六图宫格-3x2带说明。",
+    "bestFor": [
+      "六张图片",
+      "案例集",
+      "图片墙",
+      "产品系列"
+    ],
+    "avoidFor": [
+      "图片少于 6",
+      "长文本说明"
+    ],
+    "selectionRules": "当页面有 6 张图片，且图片地位相近时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout42.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "picture",
+        "label": "image1",
+        "x": 0.75,
+        "y": 1.1,
+        "w": 3.6,
+        "h": 1.75
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "image1_caption",
+        "x": 0.75,
+        "y": 2.97,
+        "w": 3.6,
+        "h": 0.48
+      },
+      {
+        "idx": 12,
+        "type": "picture",
+        "label": "image2",
+        "x": 4.8,
+        "y": 1.1,
+        "w": 3.6,
+        "h": 1.75
+      },
+      {
+        "idx": 13,
+        "type": "body",
+        "label": "image2_caption",
+        "x": 4.8,
+        "y": 2.97,
+        "w": 3.6,
+        "h": 0.48
+      },
+      {
+        "idx": 14,
+        "type": "picture",
+        "label": "image3",
+        "x": 8.85,
+        "y": 1.1,
+        "w": 3.6,
+        "h": 1.75
+      },
+      {
+        "idx": 15,
+        "type": "body",
+        "label": "image3_caption",
+        "x": 8.85,
+        "y": 2.97,
+        "w": 3.6,
+        "h": 0.48
+      },
+      {
+        "idx": 16,
+        "type": "picture",
+        "label": "image4",
+        "x": 0.75,
+        "y": 3.95,
+        "w": 3.6,
+        "h": 1.75
+      },
+      {
+        "idx": 17,
+        "type": "body",
+        "label": "image4_caption",
+        "x": 0.75,
+        "y": 5.82,
+        "w": 3.6,
+        "h": 0.48
+      },
+      {
+        "idx": 18,
+        "type": "picture",
+        "label": "image5",
+        "x": 4.8,
+        "y": 3.95,
+        "w": 3.6,
+        "h": 1.75
+      },
+      {
+        "idx": 19,
+        "type": "body",
+        "label": "image5_caption",
+        "x": 4.8,
+        "y": 5.82,
+        "w": 3.6,
+        "h": 0.48
+      },
+      {
+        "idx": 20,
+        "type": "picture",
+        "label": "image6",
+        "x": 8.85,
+        "y": 3.95,
+        "w": 3.6,
+        "h": 1.75
+      },
+      {
+        "idx": 21,
+        "type": "body",
+        "label": "image6_caption",
+        "x": 8.85,
+        "y": 5.82,
+        "w": 3.6,
+        "h": 0.48
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "six_images_grid",
+      "columns": 3,
+      "hasImage": true,
+      "imageCount": 6,
+      "maxItems": 6,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 13,
+      "placeholderCount": 13,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        0.8,
+        4.8,
+        8.8
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.1,
+        3.0,
+        4.0,
+        5.8
+      ]
+    }
+  },
+  {
+    "layoutIndex": 42,
+    "name": "单段叙述-通栏正文",
+    "description": "大段正文叙述版式，适合一个标题配一整段说明文字。 当前变体：单段叙述-通栏正文。",
+    "bestFor": [
+      "背景说明",
+      "概述",
+      "政策说明",
+      "一段连续正文",
+      "长文本说明"
+    ],
+    "avoidFor": [
+      "多个并列要点",
+      "指标数字页",
+      "图片页",
+      "金句页"
+    ],
+    "selectionRules": "当页面只有一段正文，或者只有一个 item 且标题为空、正文较长时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout43.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "body",
+        "x": 1.0,
+        "y": 1.45,
+        "w": 11.3,
+        "h": 4.55
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "single_paragraph",
+      "columns": 1,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 1,
+      "supportsTitle": true,
+      "supportsBody": true,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 2,
+      "placeholderCount": 2,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        1.0
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.4
+      ]
+    }
+  },
+  {
+    "layoutIndex": 43,
+    "name": "单段叙述-窄栏正文",
+    "description": "大段正文叙述版式，适合一个标题配一整段说明文字。 当前变体：单段叙述-窄栏正文。",
+    "bestFor": [
+      "背景说明",
+      "概述",
+      "政策说明",
+      "一段连续正文",
+      "长文本说明"
+    ],
+    "avoidFor": [
+      "多个并列要点",
+      "指标数字页",
+      "图片页",
+      "金句页"
+    ],
+    "selectionRules": "当页面只有一段正文，或者只有一个 item 且标题为空、正文较长时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout44.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "body",
+        "x": 2.4,
+        "y": 1.55,
+        "w": 8.55,
+        "h": 4.4
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "single_paragraph",
+      "columns": 1,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 1,
+      "supportsTitle": true,
+      "supportsBody": true,
+      "supportsMetrics": false,
+      "supportsQuote": false
+    },
+    "shapeSignals": {
+      "shapeCount": 2,
+      "placeholderCount": 2,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        2.4
+      ],
+      "distinctYPositions": [
+        0.1,
+        1.6
+      ]
+    }
+  },
+  {
+    "layoutIndex": 44,
+    "name": "引言金句-居中",
+    "description": "强调一句核心观点的金句版式，适合短句、口号、章节引言或结论表达。 当前变体：引言金句-居中。",
+    "bestFor": [
+      "一句话观点",
+      "核心理念",
+      "章节引言",
+      "结论金句"
+    ],
+    "avoidFor": [
+      "长段正文",
+      "多条要点",
+      "数据指标",
+      "图片页"
+    ],
+    "selectionRules": "当页面只有一个短标题或一句短而强的观点，正文为空或很短时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout45.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "quote",
+        "x": 1.7,
+        "y": 2.35,
+        "w": 9.95,
+        "h": 1.55
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "quote_source",
+        "x": 4.55,
+        "y": 4.35,
+        "w": 4.2,
+        "h": 0.45
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "quote",
+      "columns": 1,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 1,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": true
+    },
+    "shapeSignals": {
+      "shapeCount": 3,
+      "placeholderCount": 3,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        1.7,
+        4.5
+      ],
+      "distinctYPositions": [
+        0.1,
+        2.4,
+        4.3
+      ]
+    }
+  },
+  {
+    "layoutIndex": 45,
+    "name": "引言金句-左对齐",
+    "description": "强调一句核心观点的金句版式，适合短句、口号、章节引言或结论表达。 当前变体：引言金句-左对齐。",
+    "bestFor": [
+      "一句话观点",
+      "核心理念",
+      "章节引言",
+      "结论金句"
+    ],
+    "avoidFor": [
+      "长段正文",
+      "多条要点",
+      "数据指标",
+      "图片页"
+    ],
+    "selectionRules": "当页面只有一个短标题或一句短而强的观点，正文为空或很短时选择。",
+    "sourcePart": "ppt/slideLayouts/slideLayout46.xml",
+    "placeholders": [
+      {
+        "idx": 0,
+        "type": "title",
+        "label": "title",
+        "x": 0.08,
+        "y": 0.1,
+        "w": 13.1,
+        "h": 0.48
+      },
+      {
+        "idx": 10,
+        "type": "body",
+        "label": "quote",
+        "x": 1.0,
+        "y": 2.1,
+        "w": 9.8,
+        "h": 1.65
+      },
+      {
+        "idx": 11,
+        "type": "body",
+        "label": "quote_source",
+        "x": 1.0,
+        "y": 4.25,
+        "w": 4.2,
+        "h": 0.45
+      }
+    ],
+    "contentSignals": {
+      "pageType": "content",
+      "layoutType": "quote",
+      "columns": 1,
+      "hasImage": false,
+      "imageCount": 0,
+      "maxItems": 1,
+      "supportsTitle": true,
+      "supportsBody": false,
+      "supportsMetrics": false,
+      "supportsQuote": true
+    },
+    "shapeSignals": {
+      "shapeCount": 3,
+      "placeholderCount": 3,
+      "staticShapeCount": 0,
+      "distinctXPositions": [
+        0.1,
+        1.0
+      ],
+      "distinctYPositions": [
+        0.1,
+        2.1,
+        4.2
+      ]
+    }
+  }
+]

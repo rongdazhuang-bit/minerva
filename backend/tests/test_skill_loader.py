@@ -25,7 +25,7 @@ def test_index_lists_builtin_skills_in_order() -> None:
     """INDEX.md defines skill ids and planner routing priority."""
 
     ids = list_indexed_skill_ids()
-    assert ids == ["datetime", "file", "general"]
+    assert ids == ["datetime", "file", "ppt", "general"]
     entries = parse_index_skill_entries(load_index_markdown())
     assert entries[0].id == "datetime"
     assert "get_system_datetime" in entries[0].description
@@ -52,8 +52,20 @@ def test_register_tools_file_and_datetime() -> None:
     assert len(dt_tools) == 1
     assert dt_tools[0].name == "get_system_datetime"
 
+    ppt_tools = load_tools_for_skill("ppt", ctx)
+    assert len(ppt_tools) == 2
+    ppt_names = {t.name for t in ppt_tools}
+    assert "draft_ppt_outline" in ppt_names
+    assert "generate_ppt" in ppt_names
+
     general_tools = load_tools_for_skill("general", ctx)
     assert general_tools == []
+
+
+def test_match_skill_for_planner_message_ppt() -> None:
+    """PPT SKILL.md Planner 路由 matches presentation requests."""
+
+    assert match_skill_for_planner_message("帮我做 PPT") == "ppt"
 
 
 def test_get_system_datetime_ok_json() -> None:
