@@ -18,6 +18,7 @@ import {
   SlidersOutlined,
   TagsOutlined,
   ThunderboltOutlined,
+  TranslationOutlined,
   UnorderedListOutlined,
   UserOutlined,
 } from '@ant-design/icons'
@@ -42,6 +43,7 @@ const SUB_RULES = 'sub-rules'
 const SUB_RULES_CONFIG = 'sub-rules-config'
 const SUB_FILE_OCR = 'sub-file-ocr'
 const SUB_AGENTS = 'sub-agents'
+const SUB_DOC_TRANSLATE = 'sub-doc-translate'
 
 const siderStyle: CSSProperties = {
   background: 'var(--minerva-surface, #1b2838)',
@@ -112,7 +114,7 @@ const contentScrollStyle: CSSProperties = {
 
 /** 智能体路由：顶/底由页内承担；左缘略收紧使对话区向左靠，右缘保持 20px 与面包屑/滚动条习惯一致。 */
 function contentScrollStyleForPath(pathname: string): CSSProperties {
-  if (pathname.startsWith('/app/agents/chat')) {
+  if (pathname.startsWith('/app/agents/chat') || pathname.startsWith('/app/translate')) {
     return {
       ...contentScrollStyle,
       padding: '0 20px 0 10px',
@@ -140,6 +142,9 @@ function menuKeyForPath(pathname: string): string {
   if (pathname.startsWith('/app/agents/skills')) return 'agents-skills'
   if (pathname.startsWith('/app/agents/chat') || pathname.match(/^\/app\/agents\/?$/)) {
     return 'agents-chat'
+  }
+  if (pathname.startsWith('/app/translate')) {
+    return 'doc-translate-translate'
   }
   if (pathname.startsWith('/app/knowledge-base')) return 'knowledge-base'
   if (pathname.startsWith('/app/smart-review')) return 'smart-review'
@@ -196,6 +201,11 @@ export function AppLayout() {
         if (!next.includes(SUB_AGENTS)) next.push(SUB_AGENTS)
       } else {
         next = next.filter((k) => k !== SUB_AGENTS)
+      }
+      if (pathname.startsWith('/app/translate')) {
+        if (!next.includes(SUB_DOC_TRANSLATE)) next.push(SUB_DOC_TRANSLATE)
+      } else {
+        next = next.filter((k) => k !== SUB_DOC_TRANSLATE)
       }
       return next
     })
@@ -283,6 +293,19 @@ export function AppLayout() {
                       icon: <ThunderboltOutlined />,
                       label: t('nav.agentsSkills'),
                       onClick: () => void nav('/app/agents/skills'),
+                    },
+                  ],
+                },
+                {
+                  key: SUB_DOC_TRANSLATE,
+                  icon: <TranslationOutlined />,
+                  label: t('nav.docTranslate'),
+                  children: [
+                    {
+                      key: 'doc-translate-translate',
+                      icon: <FileTextOutlined />,
+                      label: t('nav.docTranslateTranslate'),
+                      onClick: () => void nav('/app/translate'),
                     },
                   ],
                 },

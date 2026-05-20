@@ -13,6 +13,7 @@ from app.file_ocr.api.router import file_router as ocr_files_router
 from app.sys.tool.ocr.api.router import router as ocr_tools_router
 from app.llm.api.router import router as llm_router
 from app.agent.api.v2.router import router as agent_router
+from app.translate.api.router import router as translate_router
 from app.sys.celery.api.router import router as celery_jobs_router
 
 api = APIRouter()
@@ -23,6 +24,7 @@ api.include_router(ocr_tools_router)
 api.include_router(ocr_files_router)
 api.include_router(llm_router)
 api.include_router(agent_router)
+api.include_router(translate_router)
 api.include_router(model_providers_router)
 api.include_router(file_storages_router)
 api.include_router(s3_files_router)

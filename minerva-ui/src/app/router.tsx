@@ -6,6 +6,7 @@ import { AppThemedLayout } from '@/app/AppThemedLayout'
 import { AppLayout } from '@/app/layout/AppLayout'
 import { RulesFileOcrOverviewPage, RulesFileOcrTaskPage } from '@/features/file-ocr'
 import { AgentSkillsPage, AgentsPage } from '@/features/agent'
+import { TranslatePage } from '@/features/translate'
 import { KnowledgeBasePage } from '@/features/workspace/KnowledgeBasePage'
 import { OverviewPage } from '@/features/workspace/OverviewPage'
 import { SmartReviewPage } from '@/features/workspace/SmartReviewPage'
@@ -57,6 +58,7 @@ const router = createBrowserRouter([
           { path: 'agents', element: <Navigate to="agents/chat" replace /> },
           { path: 'agents/chat', element: <AgentsPage /> },
           { path: 'agents/skills', element: <AgentSkillsPage /> },
+          { path: 'translate', element: <TranslatePage /> },
           { path: 'knowledge-base', element: <KnowledgeBasePage /> },
           { path: 'smart-review', element: <SmartReviewPage /> },
           {

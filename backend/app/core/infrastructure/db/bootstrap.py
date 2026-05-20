@@ -80,6 +80,7 @@ def _import_models() -> None:
     import app.file_ocr.domain.db.models_result  # noqa: F401
     import app.sys.tool.ocr.domain.db.models  # noqa: F401
     import app.agent.domain.db.models  # noqa: F401
+    import app.translate.domain.db.models  # noqa: F401
 
 
 async def create_missing_tables() -> None:

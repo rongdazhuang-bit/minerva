@@ -645,3 +645,83 @@ CREATE INDEX IF NOT EXISTS ix_checkpoint_writes_create_at ON public.checkpoint_w
 COMMENT ON TABLE public.checkpoint_writes IS 'LangGraph checkpoint 写入缓冲';
 COMMENT ON COLUMN public.checkpoint_writes.create_at IS '行创建时间（清理依据）';
 COMMENT ON COLUMN public.checkpoint_writes.update_at IS '行最后更新时间';
+
+-- ---------------------------------------------------------------------------
+-- Document translation（文档翻译）：任务与段落（与 ORM 一致，无库级外键）
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.doc_translate_job (
+  id uuid NOT NULL,
+  workspace_id uuid NOT NULL,
+  created_by uuid NULL,
+  title varchar(256) NULL,
+  file_name varchar(256) NULL,
+  file_ext varchar(16) NOT NULL,
+  source_lang varchar(32) NOT NULL,
+  target_lang varchar(32) NOT NULL,
+  model_id uuid NOT NULL,
+  status varchar(32) NOT NULL,
+  source_object_key varchar(1024) NOT NULL,
+  result_object_key varchar(1024) NULL,
+  ocr_file_id uuid NULL,
+  progress smallint NOT NULL DEFAULT 0,
+  segment_total integer NOT NULL DEFAULT 0,
+  segment_done integer NOT NULL DEFAULT 0,
+  error_code varchar(64) NULL,
+  error_message text NULL,
+  create_at timestamptz NULL DEFAULT now(),
+  update_at timestamptz NULL,
+  PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS ix_doc_translate_job_workspace_id ON public.doc_translate_job (workspace_id);
+CREATE INDEX IF NOT EXISTS ix_doc_translate_job_workspace_updated ON public.doc_translate_job (workspace_id, updated_at);
+CREATE INDEX IF NOT EXISTS ix_doc_translate_job_created_by ON public.doc_translate_job (created_by);
+CREATE INDEX IF NOT EXISTS ix_doc_translate_job_model_id ON public.doc_translate_job (model_id);
+CREATE INDEX IF NOT EXISTS ix_doc_translate_job_ocr_file_id ON public.doc_translate_job (ocr_file_id);
+COMMENT ON TABLE public.doc_translate_job IS '文档翻译任务（一条侧栏历史）';
+COMMENT ON COLUMN public.doc_translate_job.id IS '任务主键';
+COMMENT ON COLUMN public.doc_translate_job.workspace_id IS '工作空间 id';
+COMMENT ON COLUMN public.doc_translate_job.created_by IS '发起人用户 id（逻辑关联，无 FK）';
+COMMENT ON COLUMN public.doc_translate_job.title IS '侧栏展示标题';
+COMMENT ON COLUMN public.doc_translate_job.file_name IS '原始文件名';
+COMMENT ON COLUMN public.doc_translate_job.file_ext IS '规范化小写后缀';
+COMMENT ON COLUMN public.doc_translate_job.source_lang IS '源语言字典 code';
+COMMENT ON COLUMN public.doc_translate_job.target_lang IS '目标语言字典 code';
+COMMENT ON COLUMN public.doc_translate_job.model_id IS 'sys_models.id（逻辑关联，无 FK）';
+COMMENT ON COLUMN public.doc_translate_job.status IS 'PENDING/OCR_RUNNING/EXTRACTING/TRANSLATING/ASSEMBLING/SUCCESS/FAILED';
+COMMENT ON COLUMN public.doc_translate_job.source_object_key IS 'S3 源文件 object_key';
+COMMENT ON COLUMN public.doc_translate_job.result_object_key IS 'S3 译文 object_key';
+COMMENT ON COLUMN public.doc_translate_job.ocr_file_id IS '扫描 PDF 时关联 ocr_file.id（逻辑关联，无 FK）';
+COMMENT ON COLUMN public.doc_translate_job.progress IS '进度 0-100';
+COMMENT ON COLUMN public.doc_translate_job.segment_total IS '总段落数';
+COMMENT ON COLUMN public.doc_translate_job.segment_done IS '已完成段落数';
+COMMENT ON COLUMN public.doc_translate_job.error_code IS '失败错误码';
+COMMENT ON COLUMN public.doc_translate_job.error_message IS '失败详情';
+COMMENT ON COLUMN public.doc_translate_job.create_at IS '创建时间';
+COMMENT ON COLUMN public.doc_translate_job.update_at IS '更新时间';
+
+CREATE TABLE IF NOT EXISTS public.doc_translate_segment (
+  id uuid NOT NULL,
+  job_id uuid NOT NULL,
+  workspace_id uuid NOT NULL,
+  seq integer NOT NULL,
+  source_text text NOT NULL,
+  translated_text text NULL,
+  status varchar(16) NOT NULL,
+  anchor_json jsonb NULL,
+  error_message text NULL,
+  PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS ix_doc_translate_segment_job_id ON public.doc_translate_segment (job_id);
+CREATE INDEX IF NOT EXISTS ix_doc_translate_segment_workspace_id ON public.doc_translate_segment (workspace_id);
+CREATE INDEX IF NOT EXISTS ix_doc_translate_segment_job_seq ON public.doc_translate_segment (job_id, seq);
+COMMENT ON TABLE public.doc_translate_segment IS '文档翻译段落（左右对照数据源）';
+COMMENT ON COLUMN public.doc_translate_segment.id IS '段落主键';
+COMMENT ON COLUMN public.doc_translate_segment.job_id IS '所属 doc_translate_job.id（逻辑关联，无 FK）';
+COMMENT ON COLUMN public.doc_translate_segment.workspace_id IS '工作空间 id';
+COMMENT ON COLUMN public.doc_translate_segment.seq IS '段落序号（从 0 起）';
+COMMENT ON COLUMN public.doc_translate_segment.source_text IS '原文段落';
+COMMENT ON COLUMN public.doc_translate_segment.translated_text IS '译文段落';
+COMMENT ON COLUMN public.doc_translate_segment.status IS 'PENDING/DONE/FAILED';
+COMMENT ON COLUMN public.doc_translate_segment.anchor_json IS '策略写回锚点 JSON';
+COMMENT ON COLUMN public.doc_translate_segment.error_message IS '单段失败信息';

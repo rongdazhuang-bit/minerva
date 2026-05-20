@@ -39,6 +39,18 @@ function rulesBreadcrumb(
   return [home, rulesBase, { title: t('nav.rulesOverview') }]
 }
 
+function docTranslateBreadcrumb(
+  pathname: string,
+  t: (k: string) => string,
+  home: ItemType,
+): ItemType[] | null {
+  if (!pathname.startsWith('/app/translate')) return null
+  const docTranslateBase: ItemType = {
+    title: <Link to="/app/translate">{t('nav.docTranslate')}</Link>,
+  }
+  return [home, docTranslateBase, { title: t('nav.docTranslateTranslate') }]
+}
+
 function agentsBreadcrumb(
   pathname: string,
   t: (k: string) => string,
@@ -78,6 +90,8 @@ export function AppBreadcrumb() {
 
     const agents = agentsBreadcrumb(pathname, t, home)
     if (agents) return agents
+    const docTranslate = docTranslateBreadcrumb(pathname, t, home)
+    if (docTranslate) return docTranslate
     if (pathname.startsWith('/app/knowledge-base')) {
       return [home, { title: t('nav.knowledgeBase') }]
     }

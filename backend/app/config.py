@@ -284,6 +284,71 @@ class Settings(BaseSettings):
         description="Agent file 技能单文件读/写最大字节数。",
         validation_alias=AliasChoices("AGENT_FILE_MAX_BYTES", "agent_file_max_bytes"),
     )
+    doc_translate_max_file_bytes: int = Field(
+        default=20971520,
+        ge=1024,
+        description="文档翻译单文件最大字节数（默认 20MB）。",
+        validation_alias=AliasChoices(
+            "DOC_TRANSLATE_MAX_FILE_BYTES",
+            "doc_translate_max_file_bytes",
+        ),
+    )
+    doc_translate_segment_concurrency: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="文档翻译段落并发调用模型数。",
+        validation_alias=AliasChoices(
+            "DOC_TRANSLATE_SEGMENT_CONCURRENCY",
+            "doc_translate_segment_concurrency",
+        ),
+    )
+    doc_translate_ocr_poll_interval_seconds: float = Field(
+        default=2.0,
+        ge=0.5,
+        le=60.0,
+        description="扫描 PDF 等待 OCR 轮询间隔（秒）。",
+        validation_alias=AliasChoices(
+            "DOC_TRANSLATE_OCR_POLL_INTERVAL_SECONDS",
+            "doc_translate_ocr_poll_interval_seconds",
+        ),
+    )
+    doc_translate_ocr_timeout_seconds: int = Field(
+        default=1800,
+        ge=60,
+        le=7200,
+        description="扫描 PDF 等待 OCR 最大秒数。",
+        validation_alias=AliasChoices(
+            "DOC_TRANSLATE_OCR_TIMEOUT_SECONDS",
+            "doc_translate_ocr_timeout_seconds",
+        ),
+    )
+    doc_translate_default_ocr_type: str = Field(
+        default="PADDLE_OCR",
+        description="扫描 PDF 自动 OCR 使用的 ocr_type。",
+        validation_alias=AliasChoices(
+            "DOC_TRANSLATE_DEFAULT_OCR_TYPE",
+            "doc_translate_default_ocr_type",
+        ),
+    )
+    doc_translate_soffice_executable: str = Field(
+        default="",
+        description="LibreOffice soffice 可执行文件路径；空则自动从 PATH 或常见安装目录解析。",
+        validation_alias=AliasChoices(
+            "DOC_TRANSLATE_SOFFICE_EXECUTABLE",
+            "doc_translate_soffice_executable",
+        ),
+    )
+    doc_translate_soffice_timeout_seconds: int = Field(
+        default=120,
+        ge=30,
+        le=600,
+        description="LibreOffice 转换 .doc 超时（秒）。",
+        validation_alias=AliasChoices(
+            "DOC_TRANSLATE_SOFFICE_TIMEOUT_SECONDS",
+            "doc_translate_soffice_timeout_seconds",
+        ),
+    )
 
 
 def resolve_agent_files_root() -> Path:
