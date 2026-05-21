@@ -26,6 +26,7 @@ class MdTranslateStrategy(DocTranslateFormatStrategy):
         *,
         ocr_file_id: uuid.UUID | None = None,
         ocr_pages: list[tuple[int, str]] | None = None,
+        layout_document=None,
     ) -> list[SegmentDraft]:
         text = local_path.read_text(encoding="utf-8", errors="replace")
         blocks: list[str] = []

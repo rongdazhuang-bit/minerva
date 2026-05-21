@@ -349,6 +349,24 @@ class Settings(BaseSettings):
             "doc_translate_soffice_timeout_seconds",
         ),
     )
+    layout_page_raster_prefix: str = Field(
+        default="ocr/page-raster",
+        description="S3 module prefix for per-page OCR layout preview rasters.",
+        validation_alias=AliasChoices(
+            "LAYOUT_PAGE_RASTER_PREFIX",
+            "layout_page_raster_prefix",
+        ),
+    )
+    layout_schema_version: int = Field(
+        default=1,
+        ge=1,
+        le=32767,
+        description="Layout Document Model JSON schema version stored in OCR page rows.",
+        validation_alias=AliasChoices(
+            "LAYOUT_SCHEMA_VERSION",
+            "layout_schema_version",
+        ),
+    )
 
 
 def resolve_agent_files_root() -> Path:

@@ -161,6 +161,9 @@ export function retryOcrFile(workspaceId: string, ocrFileId: string) {
 }
 
 /** Load per-page markdown and image maps for a SUCCESS OCR task. */
+export { getOcrLayoutPages } from '@/api/layoutPages'
+export type { LayoutPagesOut, LayoutPageOut } from '@/api/layoutPages'
+
 export function getOcrFileMarkdownPages(
   workspaceId: string,
   ocrFileId: string,

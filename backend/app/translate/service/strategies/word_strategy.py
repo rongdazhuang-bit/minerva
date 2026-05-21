@@ -38,12 +38,14 @@ class WordTranslateStrategy(DocTranslateFormatStrategy):
         *,
         ocr_file_id: uuid.UUID | None = None,
         ocr_pages: list[tuple[int, str]] | None = None,
+        layout_document=None,
     ) -> list[SegmentDraft]:
         docx_path = self._docx_work_path(local_path)
         return self._docx.extract(
             docx_path,
             ocr_file_id=ocr_file_id,
             ocr_pages=ocr_pages,
+            layout_document=layout_document,
         )
 
     def assemble(

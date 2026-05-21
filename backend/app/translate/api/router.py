@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from fastapi.responses import RedirectResponse
@@ -13,6 +14,7 @@ from app.core.api.deps import get_current_user, require_workspace_member
 from app.core.domain.identity.models import User
 from app.dependencies import get_db
 from app.exceptions import AppError
+from app.file_ocr.api.schemas import OcrLayoutPagesOut
 from app.pagination import DEFAULT_PAGE_SIZE
 from app.s3.service.s3_file_service import S3FileService
 from app.translate.api.schemas import (
@@ -20,6 +22,7 @@ from app.translate.api.schemas import (
     DocTranslateJobDetailOut,
     DocTranslateJobListItemOut,
     DocTranslateJobListOut,
+    DocTranslateSegmentGroupOut,
     DocTranslateSegmentListOut,
     DocTranslateSegmentOut,
 )
@@ -30,6 +33,7 @@ from app.translate.domain.constants import (
 from app.translate.domain.db.models import DocTranslateJob
 from app.translate.infrastructure import repository as translate_repo
 from app.translate.service.job_delete import delete_doc_translate_job
+from app.translate.service.layout_pages import get_translate_job_layout_pages
 from app.translate.service.job_service import create_job_from_upload
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/translate", tags=["translate"])
@@ -144,10 +148,25 @@ async def get_translate_job(
     )
 
 
+@router.get("/jobs/{job_id}/layout-pages", response_model=OcrLayoutPagesOut)
+async def get_translate_job_layout_pages_endpoint(
+    workspace_id: uuid.UUID,
+    job_id: uuid.UUID,
+    _workspace: uuid.UUID = Depends(require_workspace_member),
+    session: AsyncSession = Depends(get_db),
+) -> OcrLayoutPagesOut:
+    """Return per-page layout blocks and bilingual markdown for preview."""
+
+    return await get_translate_job_layout_pages(
+        session=session, workspace_id=workspace_id, job_id=job_id
+    )
+
+
 @router.get("/jobs/{job_id}/segments", response_model=DocTranslateSegmentListOut)
 async def list_translate_job_segments(
     workspace_id: uuid.UUID,
     job_id: uuid.UUID,
+    group_by: Literal["page", "label", "none"] = Query(default="page"),
     _workspace: uuid.UUID = Depends(require_workspace_member),
     session: AsyncSession = Depends(get_db),
 ) -> DocTranslateSegmentListOut:
@@ -164,18 +183,37 @@ async def list_translate_job_segments(
         job_id=job_id,
         limit=DOC_TRANSLATE_SEGMENTS_MAX_RETURN,
     )
-    return DocTranslateSegmentListOut(
-        segments=[
-            DocTranslateSegmentOut(
-                id=s.id,
-                seq=s.seq,
-                source_text=s.source_text,
-                translated_text=s.translated_text,
-                status=s.status,
+    segment_outs = [
+        DocTranslateSegmentOut(
+            id=s.id,
+            seq=s.seq,
+            source_text=s.source_text,
+            translated_text=s.translated_text,
+            status=s.status,
+        )
+        for s in rows
+    ]
+    groups: list[DocTranslateSegmentGroupOut] | None = None
+    if group_by != "none":
+        bucket: dict[tuple[int | None, str | None], list[DocTranslateSegmentOut]] = {}
+        for out, row in zip(segment_outs, rows, strict=True):
+            anchor = row.anchor_json if isinstance(row.anchor_json, dict) else {}
+            page_index = anchor.get("page_index") if group_by == "page" else None
+            label = anchor.get("label") if group_by == "label" else None
+            if group_by == "page":
+                key = (int(page_index) if page_index is not None else None, None)
+            else:
+                key = (None, str(label) if label else None)
+            bucket.setdefault(key, []).append(out)
+        groups = [
+            DocTranslateSegmentGroupOut(
+                page_index=k[0],
+                label=k[1],
+                segments=v,
             )
-            for s in rows
+            for k, v in sorted(bucket.items(), key=lambda item: (item[0][0] is None, item[0][0] or 0, item[0][1] or ""))
         ]
-    )
+    return DocTranslateSegmentListOut(segments=segment_outs, groups=groups)
 
 
 @router.get("/jobs/{job_id}/download", response_model=None)

@@ -20,12 +20,15 @@ from app.file_ocr.api.schemas import (
     OcrFileListPageOut,
     OcrFileLogItemOut,
     OcrFileLogListPageOut,
+    OcrLayoutPagesOut,
     OcrFileMarkdownPagesOut,
     OcrFileOverviewLogDailyStatsOut,
     OcrFileOverviewStatsOut,
 )
 from app.file_ocr.domain.db.models import OcrFile
 from app.file_ocr.domain.db.models_log import OcrFileLog
+from app.file_ocr.service.layout_pages import get_ocr_file_layout_pages
+from app.file_ocr.service.layout_pages import get_ocr_file_layout_pages
 from app.file_ocr.service.markdown_pages import get_ocr_file_markdown_pages
 from app.file_ocr.service.overview_log_daily_stats import compute_overview_log_daily_stats
 from app.file_ocr.service.ocr_file_delete import delete_ocr_file_dependents
@@ -211,6 +214,21 @@ async def list_ocr_file_logs(
         )
     ).scalars().all()
     return OcrFileLogListPageOut(items=[_to_log_item(r) for r in rows], total=int(total or 0))
+
+
+@file_router.get("/{ocr_file_id}/layout-pages", response_model=OcrLayoutPagesOut)
+async def get_ocr_file_layout_pages_endpoint(
+    workspace_id: uuid.UUID,
+    ocr_file_id: uuid.UUID,
+    _user: User = Depends(get_current_user),
+    _workspace: uuid.UUID = Depends(require_workspace_member),
+    session: AsyncSession = Depends(get_db),
+) -> OcrLayoutPagesOut:
+    """Return per-page layout blocks, rasters, and derived markdown for preview."""
+
+    return await get_ocr_file_layout_pages(
+        session=session, workspace_id=workspace_id, ocr_file_id=ocr_file_id
+    )
 
 
 @file_router.get("/{ocr_file_id}/markdown-pages", response_model=OcrFileMarkdownPagesOut)

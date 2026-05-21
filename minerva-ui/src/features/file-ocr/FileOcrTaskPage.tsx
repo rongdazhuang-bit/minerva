@@ -37,6 +37,7 @@ import {
   Statistic,
   Steps,
   Table,
+  Tabs,
   Tag,
   Tooltip,
   Typography,
@@ -64,6 +65,8 @@ import {
   createOcrFiles,
   deleteOcrFile,
   getOcrFileMarkdownPages,
+  getOcrLayoutPages,
+  type LayoutPagesOut,
   getOcrFileOverviewLogDailyStats,
   getOcrFileOverviewStats,
   listOcrFileLogs,
@@ -87,6 +90,7 @@ import { useDictItemTree } from '@/hooks/useDictItemTree'
 import mineruLogo from './assets/mineru-logo.png'
 import paddleOcrLogo from './assets/paddleocr-logo.jpg'
 import { MinervaMarkdown } from '@/components/markdown'
+import { LayoutPageViewer } from '@/components/layout/LayoutPageViewer'
 import {
   buildOcrMarkdownDocumentForExport,
   sanitizeMarkdownDownloadBasename,
@@ -487,6 +491,8 @@ export function RulesFileOcrTaskPage() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState<string | null>(null)
   const [detailData, setDetailData] = useState<OcrFileMarkdownPages | null>(null)
+  const [detailLayoutData, setDetailLayoutData] = useState<LayoutPagesOut | null>(null)
+  const [detailTab, setDetailTab] = useState<'layout' | 'markdown'>('layout')
   const detailAbortRef = useRef<AbortController | null>(null)
   const tableWrapRef = useRef<HTMLDivElement | null>(null)
   const [tableBodyScrollY, setTableBodyScrollY] = useState(420)
@@ -613,8 +619,10 @@ export function RulesFileOcrTaskPage() {
     setDetailDrawerOpen(false)
     setDetailTarget(null)
     setDetailData(null)
+    setDetailLayoutData(null)
     setDetailError(null)
     setDetailLoading(false)
+    setDetailTab('layout')
   }, [])
 
   /** Fetch markdown pages and save one ``.md`` file with inlined images (same pipeline as the detail drawer). */
@@ -663,10 +671,21 @@ export function RulesFileOcrTaskPage() {
       setDetailDrawerOpen(true)
       setDetailError(null)
       setDetailData(null)
+      setDetailLayoutData(null)
       setDetailLoading(true)
       try {
-        const data = await getOcrFileMarkdownPages(workspaceId, row.id, { signal: ac.signal })
-        setDetailData(data)
+        const [layoutRes, mdRes] = await Promise.allSettled([
+          getOcrLayoutPages(workspaceId, row.id),
+          getOcrFileMarkdownPages(workspaceId, row.id, { signal: ac.signal }),
+        ])
+        if (mdRes.status === 'fulfilled') {
+          setDetailData(mdRes.value)
+        }
+        if (layoutRes.status === 'fulfilled') {
+          setDetailLayoutData(layoutRes.value)
+        } else if (mdRes.status !== 'fulfilled') {
+          throw mdRes.reason
+        }
       } catch (e) {
         const isAbort =
           (e instanceof DOMException && e.name === 'AbortError') ||
@@ -1216,29 +1235,65 @@ export function RulesFileOcrTaskPage() {
           <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
             <Spin />
           </div>
-        ) : detailError != null ? null : detailData != null && detailData.pages.length === 0 ? (
-          <Empty description={t('fileOcr.tasks.detail.empty')} />
-        ) : detailData != null ? (
-          <div>
-            {detailData.pages.map((page, idx) => {
-              const n = typeof page.page_index === 'number' ? page.page_index + 1 : idx + 1
-              return (
-                <section key={`${n}-${idx}`} style={{ marginBottom: 28 }}>
-                  <h2 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 12px' }}>
-                    {t('fileOcr.tasks.detail.pageTitle', { n })}
-                  </h2>
-                  <MinervaMarkdown
-                    preset="ocr"
-                    markdown={page.markdown_text ?? ''}
-                    images={page.images}
-                    emptyFallback={
-                      <span style={{ opacity: 0.65 }}>{t('fileOcr.tasks.detail.pageEmpty')}</span>
-                    }
-                  />
-                </section>
-              )
-            })}
-          </div>
+        ) : detailError != null ? null : detailLayoutData != null || detailData != null ? (
+          <Tabs
+            activeKey={detailTab}
+            onChange={(k) => setDetailTab(k as 'layout' | 'markdown')}
+            items={[
+              {
+                key: 'layout',
+                label: t('fileOcr.tasks.detail.tabLayout', { defaultValue: '版面预览' }),
+                children:
+                  detailLayoutData?.pages?.length ? (
+                    <LayoutPageViewer
+                      pages={detailLayoutData.pages}
+                      mode="source"
+                      pageTitle={(n) => t('fileOcr.tasks.detail.pageTitle', { n })}
+                    />
+                  ) : (
+                    <Alert
+                      type="info"
+                      showIcon
+                      message={t('fileOcr.tasks.detail.layoutUnavailable', {
+                        defaultValue: '暂无版面块数据（历史任务请查看 Markdown 标签）。',
+                      })}
+                    />
+                  ),
+              },
+              {
+                key: 'markdown',
+                label: t('fileOcr.tasks.detail.tabMarkdown', { defaultValue: 'Markdown' }),
+                children:
+                  detailData != null && detailData.pages.length > 0 ? (
+                    <div>
+                      {detailData.pages.map((page, idx) => {
+                        const n =
+                          typeof page.page_index === 'number' ? page.page_index + 1 : idx + 1
+                        return (
+                          <section key={`${n}-${idx}`} style={{ marginBottom: 28 }}>
+                            <h2 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 12px' }}>
+                              {t('fileOcr.tasks.detail.pageTitle', { n })}
+                            </h2>
+                            <MinervaMarkdown
+                              preset="ocr"
+                              markdown={page.markdown_text ?? ''}
+                              images={page.images}
+                              emptyFallback={
+                                <span style={{ opacity: 0.65 }}>
+                                  {t('fileOcr.tasks.detail.pageEmpty')}
+                                </span>
+                              }
+                            />
+                          </section>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <Empty description={t('fileOcr.tasks.detail.empty')} />
+                  ),
+              },
+            ]}
+          />
         ) : null}
       </Drawer>
 

@@ -168,6 +168,8 @@ async def update_doc_translate_job(
         "segment_done",
         "error_code",
         "error_message",
+        "layout_snapshot_json",
+        "layout_source",
     }
     values = {k: v for k, v in fields.items() if k in allowed}
     values["update_at"] = datetime.now(UTC)

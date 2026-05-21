@@ -10,7 +10,9 @@ import {
   FileTextOutlined,
   FolderOpenOutlined,
   IdcardOutlined,
+  MenuFoldOutlined,
   MenuOutlined,
+  MenuUnfoldOutlined,
   ReadOutlined,
   RobotOutlined,
   ScanOutlined,
@@ -22,7 +24,7 @@ import {
   UnorderedListOutlined,
   UserOutlined,
 } from '@ant-design/icons'
-import { Layout, Menu } from 'antd'
+import { Button, Layout, Menu } from 'antd'
 import { AppBreadcrumb } from '@/app/layout/AppBreadcrumb'
 import { AppHeaderToolbar } from '@/app/layout/AppHeaderToolbar'
 import type { CSSProperties } from 'react'
@@ -31,7 +33,11 @@ import { useTranslation } from 'react-i18next'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/app/AuthContext'
 import { useMinervaTone } from '@/app/useMinervaTone'
-import { SIDER_MIN_PX, useResizableSiderWidth } from '@/app/layout/useResizableSiderWidth'
+import {
+  SIDER_COLLAPSED_PX,
+  SIDER_MIN_PX,
+  useResizableSiderWidth,
+} from '@/app/layout/useResizableSiderWidth'
 import './appSiderResize.css'
 import './appSiderMenu.css'
 import './appLayoutScroll.css'
@@ -163,7 +169,14 @@ export function AppLayout() {
   const { clear } = useAuth()
   const tone = useMinervaTone()
   const shellLight = tone === 'sunshine'
-  const { rowRef, siderWidth, onResizeStart } = useResizableSiderWidth()
+  const {
+    rowRef,
+    siderWidth,
+    collapsed,
+    toggleCollapsed,
+    onResizeStart,
+    onResizeTouchStart,
+  } = useResizableSiderWidth()
 
   const selectedKeys = useMemo(() => [menuKeyForPath(pathname)], [pathname])
 
@@ -173,6 +186,22 @@ export function AppLayout() {
   )
 
   const [menuOpenKeys, setMenuOpenKeys] = useState<string[]>([])
+
+  /** 展开态用受控 openKeys；折叠态不传 openKeys，由 Menu 以浮层展示并可点击子项。 */
+  const siderMenuModeProps = useMemo(
+    () =>
+      collapsed
+        ? {
+            triggerSubMenuAction: 'click' as const,
+            getPopupContainer: () => document.body,
+            popupClassName: 'minerva-app-sider-menu-popup',
+          }
+        : {
+            openKeys: menuOpenKeys,
+            onOpenChange: setMenuOpenKeys,
+          },
+    [collapsed, menuOpenKeys],
+  )
 
   useEffect(() => {
     setMenuOpenKeys((prev) => {
@@ -249,27 +278,31 @@ export function AppLayout() {
 
       <div ref={rowRef} className="minerva-app-body-row" style={bodyRowStyle}>
         <Sider
+          collapsible
+          collapsed={collapsed}
+          collapsedWidth={SIDER_COLLAPSED_PX}
+          trigger={null}
           width={siderWidth}
           style={{
             ...siderStyle,
             flex: '0 0 auto',
-            maxWidth: '20%',
-            minWidth: SIDER_MIN_PX,
+            maxWidth: collapsed ? undefined : '20%',
+            minWidth: collapsed ? SIDER_COLLAPSED_PX : SIDER_MIN_PX,
           }}
           theme={shellLight ? 'light' : 'dark'}
         >
           <div
-            className="minerva-app-sider-scroll"
+            className="minerva-app-sider-scroll minerva-scrollbar-styled"
             style={{ flex: 1, minHeight: 0, overflow: 'auto' }}
           >
             <Menu
               mode="inline"
+              inlineCollapsed={collapsed}
               className="minerva-app-sider-menu"
               theme={shellLight ? 'light' : 'dark'}
               style={{ background: 'transparent', border: 'none', paddingTop: 8 }}
               selectedKeys={selectedKeys}
-              openKeys={menuOpenKeys}
-              onOpenChange={setMenuOpenKeys}
+              {...siderMenuModeProps}
               items={[
                 {
                   key: 'overview',
@@ -436,16 +469,29 @@ export function AppLayout() {
               ]}
             />
           </div>
+          <div className="minerva-app-sider-footer">
+            <Button
+              type="text"
+              className="minerva-app-sider-collapse-btn"
+              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              aria-label={collapsed ? t('layout.siderExpand') : t('layout.siderCollapse')}
+              title={collapsed ? t('layout.siderExpand') : t('layout.siderCollapse')}
+              onClick={toggleCollapsed}
+            />
+          </div>
         </Sider>
-        <div
-          className="minerva-sider-resize-handle"
-          role="separator"
-          aria-orientation="vertical"
-          aria-label={t('layout.siderResize')}
-          aria-valuenow={siderWidth}
-          title={t('layout.siderResize')}
-          onMouseDown={onResizeStart}
-        />
+        {!collapsed ? (
+          <div
+            className="minerva-sider-resize-handle"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={t('layout.siderResize')}
+            aria-valuenow={siderWidth}
+            title={t('layout.siderResize')}
+            onMouseDown={onResizeStart}
+            onTouchStart={onResizeTouchStart}
+          />
+        ) : null}
         <Content style={contentOuterStyle}>
           {showBreadcrumb ? (
             <div

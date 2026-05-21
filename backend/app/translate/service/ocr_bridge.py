@@ -12,11 +12,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.exceptions import AppError
 from app.file_ocr.domain.db.models import OcrFile
-from app.file_ocr.service.markdown_pages import get_ocr_file_markdown_pages
+from app.layout.load_ocr import load_layout_document_from_ocr_file
+from app.layout.models import LayoutDocument
 from app.translate.infrastructure import repository as translate_repo
 
 
-async def run_ocr_and_load_pages(
+async def run_ocr_and_load_layout(
     session: AsyncSession,
     *,
     workspace_id: uuid.UUID,
@@ -24,8 +25,8 @@ async def run_ocr_and_load_pages(
     source_object_key: str,
     file_name: str,
     file_size: int | None,
-) -> tuple[uuid.UUID, list[tuple[int, str]]]:
-    """Insert INIT ``ocr_file``, wait until SUCCESS, return page markdown tuples."""
+) -> tuple[uuid.UUID, LayoutDocument | None]:
+    """Insert INIT ``ocr_file``, wait until SUCCESS, return LDM when stored."""
 
     ocr_type = settings.doc_translate_default_ocr_type.strip()
     now = datetime.now(UTC)
@@ -61,14 +62,12 @@ async def run_ocr_and_load_pages(
         if row is None:
             raise AppError("translate.ocr_failed", "OCR 任务丢失。", 502)
         if row.status == "SUCCESS":
-            pages_out = await get_ocr_file_markdown_pages(
-                session=session,
+            layout_doc = await load_layout_document_from_ocr_file(
+                session,
                 workspace_id=workspace_id,
                 ocr_file_id=ocr_row.id,
             )
-            return ocr_row.id, [
-                (p.page_index, p.markdown_text) for p in pages_out.pages
-            ]
+            return ocr_row.id, layout_doc
         if row.status == "FAILED":
             raise AppError(
                 "translate.ocr_failed",

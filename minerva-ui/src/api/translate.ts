@@ -47,8 +47,15 @@ export type DocTranslateSegment = {
   status: string
 }
 
+export type DocTranslateSegmentGroup = {
+  page_index: number | null
+  label: string | null
+  segments: DocTranslateSegment[]
+}
+
 export type DocTranslateSegmentListOut = {
   segments: DocTranslateSegment[]
+  groups?: DocTranslateSegmentGroup[] | null
 }
 
 export type DocTranslateJobCreateOut = {
@@ -75,11 +82,19 @@ export function getTranslateJob(workspaceId: string, jobId: string) {
   )
 }
 
-export function listTranslateJobSegments(workspaceId: string, jobId: string) {
+export function listTranslateJobSegments(
+  workspaceId: string,
+  jobId: string,
+  groupBy: 'page' | 'label' | 'none' = 'page',
+) {
+  const q = groupBy === 'none' ? '' : `?group_by=${groupBy}`
   return apiJson<DocTranslateSegmentListOut>(
-    `/workspaces/${workspaceId}/translate/jobs/${jobId}/segments`,
+    `/workspaces/${workspaceId}/translate/jobs/${jobId}/segments${q}`,
   )
 }
+
+export { getTranslateLayoutPages } from '@/api/layoutPages'
+export type { LayoutPagesOut, LayoutPageOut } from '@/api/layoutPages'
 
 export async function createTranslateJob(
   workspaceId: string,

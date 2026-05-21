@@ -8,6 +8,8 @@ from typing import ClassVar
 
 import fitz
 
+from app.layout.models import LayoutDocument
+from app.layout.segments import layout_to_segment_drafts
 from app.translate.domain.dto import SegmentDraft, SegmentRecord
 from app.translate.service.strategies.base import DocTranslateFormatStrategy
 
@@ -37,7 +39,10 @@ class PdfTranslateStrategy(DocTranslateFormatStrategy):
         *,
         ocr_file_id: uuid.UUID | None = None,
         ocr_pages: list[tuple[int, str]] | None = None,
+        layout_document: LayoutDocument | None = None,
     ) -> list[SegmentDraft]:
+        if layout_document is not None:
+            return layout_to_segment_drafts(layout_document)
         if ocr_pages:
             drafts: list[SegmentDraft] = []
             seq = 0
@@ -94,20 +99,21 @@ class PdfTranslateStrategy(DocTranslateFormatStrategy):
                 if page_no >= len(doc):
                     continue
                 page = doc[page_no]
-                kind = anchor.get("kind")
-                if kind == "text_block" and "bbox" in anchor:
-                    bbox = anchor["bbox"]
+                bbox = anchor.get("bbox")
+                if isinstance(bbox, list) and len(bbox) >= 4:
                     rect = fitz.Rect(bbox[0], bbox[1], bbox[2], bbox[3])
                     page.add_redact_annot(rect, text="")
                     page.apply_redactions()
                     page.insert_textbox(
                         rect,
-                        seg.translated_text,
+                        seg.translated_text or "",
                         fontsize=10,
                         align=fitz.TEXT_ALIGN_LEFT,
                     )
+                elif anchor.get("skip_translate"):
+                    continue
                 else:
-                    page.insert_text((72, 72 + (seg.seq % 40) * 14), seg.translated_text)
+                    page.insert_text((72, 72 + (seg.seq % 40) * 14), seg.translated_text or "")
             doc.save(out_path)
         finally:
             doc.close()

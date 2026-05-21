@@ -23,6 +23,7 @@ class DocxTranslateStrategy(DocTranslateFormatStrategy):
         *,
         ocr_file_id: uuid.UUID | None = None,
         ocr_pages: list[tuple[int, str]] | None = None,
+        layout_document=None,
     ) -> list[SegmentDraft]:
         doc = Document(local_path)
         drafts: list[SegmentDraft] = []
@@ -35,7 +36,14 @@ class DocxTranslateStrategy(DocTranslateFormatStrategy):
                 SegmentDraft(
                     seq=seq,
                     source_text=text,
-                    anchor_json={"kind": "paragraph", "index": p_idx},
+                    anchor_json={
+                        "kind": "paragraph",
+                        "index": p_idx,
+                        "block_key": f"p0.p{p_idx}",
+                        "label": "text",
+                        "page_index": 0,
+                        "overflow_policy": "shrink",
+                    },
                 )
             )
             seq += 1
@@ -54,6 +62,10 @@ class DocxTranslateStrategy(DocTranslateFormatStrategy):
                                 "table": t_idx,
                                 "row": r_idx,
                                 "col": c_idx,
+                                "block_key": f"p0.t{t_idx}.r{r_idx}.c{c_idx}",
+                                "label": "table_cell",
+                                "page_index": 0,
+                                "overflow_policy": "expand",
                             },
                         )
                     )

@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import ClassVar
 
+from app.layout.models import LayoutDocument
 from app.translate.domain.dto import SegmentDraft, SegmentRecord
 
 
@@ -27,6 +28,7 @@ class DocTranslateFormatStrategy(ABC):
         *,
         ocr_file_id: uuid.UUID | None = None,
         ocr_pages: list[tuple[int, str]] | None = None,
+        layout_document: LayoutDocument | None = None,
     ) -> list[SegmentDraft]:
         """Split the document into ordered translatable paragraphs."""
 

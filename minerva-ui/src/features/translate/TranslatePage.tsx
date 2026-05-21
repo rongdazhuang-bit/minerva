@@ -15,6 +15,8 @@ import {
   DatePicker,
   Form,
   Input,
+  Collapse,
+  Empty,
   Modal,
   Popconfirm,
   Progress,
@@ -22,6 +24,7 @@ import {
   Skeleton,
   Space,
   Table,
+  Tabs,
   Tag,
   Tooltip,
   Typography,
@@ -31,7 +34,7 @@ import type { ColumnsType } from 'antd/es/table'
 import type { UploadProps } from 'antd/es/upload/interface'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Dayjs } from 'dayjs'
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { ApiError } from '@/api/client'
@@ -40,11 +43,15 @@ import {
   deleteTranslateJob,
   downloadTranslateJob,
   getTranslateJob,
+  getTranslateLayoutPages,
   listTranslateJobSegments,
   listTranslateJobs,
   type DocTranslateJobListItem,
   type DocTranslateJobListParams,
+  type DocTranslateSegmentGroup,
 } from '@/api/translate'
+import { LayoutPageViewer } from '@/components/layout/LayoutPageViewer'
+import { MinervaMarkdown } from '@/components/markdown'
 import { listModelProviders, type ModelProviderListItem } from '@/api/modelProviders'
 import { useAuth } from '@/app/AuthContext'
 import { useAppMessage } from '@/app/useAppMessage'
@@ -60,6 +67,8 @@ const { Text, Title } = Typography
 
 const ACCEPT = '.doc,.docx,.pdf,.txt,.md,.csv,.xls,.xlsx'
 const TABLE_SCROLL_GUTTER_PX = 48
+/** Popconfirm 关闭后短暂忽略行点击，避免确认钮下方的表格行收到穿透 click 打开详情。 */
+const ROW_DETAIL_CLICK_GUARD_MS = 350
 
 /** Render a single-line table cell: column width adapts; overflow is hidden with ellipsis. */
 function renderEllipsisTableCell(display: string) {
@@ -72,6 +81,54 @@ function renderEllipsisTableCell(display: string) {
     >
       {display}
     </Typography.Text>
+  )
+}
+
+/** 详情弹窗标题区骨架（任务元数据加载中）。 */
+function TranslateDetailTitleSkeleton() {
+  return (
+    <div className="translate-page__detail-title-skeleton" aria-hidden>
+      <Skeleton.Input active style={{ width: 280, height: 28 }} />
+      <Skeleton.Button active size="small" style={{ width: 72 }} />
+      <Skeleton.Button active size="small" style={{ width: 120 }} />
+      <Skeleton.Button active size="small" style={{ width: 88 }} />
+    </div>
+  )
+}
+
+/** 页面对照 Tab 骨架（版面数据加载中）。 */
+function TranslateDetailPagesSkeleton() {
+  return (
+    <div className="translate-page__detail-pages-skeleton">
+      {[0, 1].map((pageIdx) => (
+        <section key={pageIdx} className="translate-page__detail-pages-skeleton-page">
+          <Skeleton.Input active style={{ width: 100, height: 22, marginBottom: 12 }} />
+          <Skeleton.Button active block className="translate-page__detail-pages-skeleton-visual" />
+          <div className="translate-page__detail-pages-skeleton-cols">
+            <Skeleton active paragraph={{ rows: 5 }} className="translate-page__compare-skeleton" />
+            <Skeleton active paragraph={{ rows: 5 }} className="translate-page__compare-skeleton" />
+          </div>
+        </section>
+      ))}
+    </div>
+  )
+}
+
+/** 段落对照 Tab 骨架（段落列表加载中）。 */
+function TranslateDetailSegmentsSkeleton() {
+  return (
+    <div className="translate-page__compare">
+      <div className="translate-page__compare-header">
+        <Skeleton.Input active size="small" style={{ width: '90%' }} />
+        <Skeleton.Input active size="small" style={{ width: '90%' }} />
+      </div>
+      {Array.from({ length: 4 }, (_, i) => (
+        <div key={`seg-sk-${i}`} className="translate-page__compare-pair">
+          <Skeleton active paragraph={{ rows: 3 }} className="translate-page__compare-skeleton" />
+          <Skeleton active paragraph={{ rows: 3 }} className="translate-page__compare-skeleton" />
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -112,12 +169,17 @@ export function TranslatePage() {
   const [filters, setFilters] = useState<DocTranslateJobListParams>({})
   const [uploadOpen, setUploadOpen] = useState(false)
   const [detailJobId, setDetailJobId] = useState<string | null>(null)
+  const [detailTab, setDetailTab] = useState<'pages' | 'segments'>('pages')
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [sourceLang, setSourceLang] = useState<string>('en')
   const [targetLang, setTargetLang] = useState<string>('zh-CN')
   const [modelId, setModelId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  /** 正在调用删除接口的任务 id，用于表格「删除中」遮罩。 */
+  const [deletingJobId, setDeletingJobId] = useState<string | null>(null)
   const tableWrapRef = useRef<HTMLDivElement | null>(null)
+  /** 时间戳（ms）：此前表格行点击不打开详情 Modal。 */
+  const blockRowDetailUntilRef = useRef(0)
   const [tableBodyScrollY, setTableBodyScrollY] = useState(420)
   const [tableScrollX, setTableScrollX] = useState(0)
 
@@ -162,7 +224,18 @@ export function TranslatePage() {
 
   const segmentsQuery = useQuery({
     queryKey: ['translate-segments', workspaceId, detailJobId],
-    queryFn: () => listTranslateJobSegments(workspaceId!, detailJobId!),
+    queryFn: () => listTranslateJobSegments(workspaceId!, detailJobId!, 'page'),
+    enabled: Boolean(workspaceId && detailJobId),
+    refetchInterval: () => {
+      const st = jobQuery.data?.status
+      if (!st || TERMINAL.has(st)) return false
+      return 3000
+    },
+  })
+
+  const layoutPagesQuery = useQuery({
+    queryKey: ['translate-layout-pages', workspaceId, detailJobId],
+    queryFn: () => getTranslateLayoutPages(workspaceId!, detailJobId!),
     enabled: Boolean(workspaceId && detailJobId),
     refetchInterval: () => {
       const st = jobQuery.data?.status
@@ -270,7 +343,9 @@ export function TranslatePage() {
 
   const handleDeleteJob = useCallback(
     async (jobId: string) => {
-      if (!workspaceId) return
+      if (!workspaceId || deletingJobId != null) return
+      setDeletingJobId(jobId)
+      blockRowDetailUntilRef.current = Date.now() + ROW_DETAIL_CLICK_GUARD_MS
       try {
         await deleteTranslateJob(workspaceId, jobId)
         if (detailJobId === jobId) setDetailJobId(null)
@@ -278,9 +353,12 @@ export function TranslatePage() {
         message.success(t('translate.deleteSuccess'))
       } catch {
         message.error(t('translate.deleteFailed'))
+      } finally {
+        setDeletingJobId(null)
+        blockRowDetailUntilRef.current = Date.now() + ROW_DETAIL_CLICK_GUARD_MS
       }
     },
-    [workspaceId, detailJobId, queryClient, message, t],
+    [workspaceId, detailJobId, deletingJobId, queryClient, message, t],
   )
 
   const handleDownloadJob = useCallback(
@@ -305,6 +383,20 @@ export function TranslatePage() {
     },
     [workspaceId, message, t],
   )
+
+  const blockRowDetailBriefly = useCallback(() => {
+    blockRowDetailUntilRef.current = Date.now() + ROW_DETAIL_CLICK_GUARD_MS
+  }, [])
+
+  const shouldOpenDetailFromRowClick = useCallback((e: MouseEvent<HTMLElement>) => {
+    if (Date.now() < blockRowDetailUntilRef.current) return false
+    const el = e.target as HTMLElement
+    if (el.closest('.translate-page__table-actions')) return false
+    if (el.closest('button, a, .ant-popover, .ant-popconfirm, .ant-dropdown, .ant-select')) {
+      return false
+    }
+    return true
+  }, [])
 
   const uploadProps: UploadProps = {
     maxCount: 1,
@@ -337,13 +429,20 @@ export function TranslatePage() {
     }
   }, [workspaceId, uploadOpen, detailJobId, listQuery.data?.items?.length, pageSize])
 
+  const tableLoading = useMemo(() => {
+    if (deletingJobId != null) {
+      return { spinning: true, tip: t('translate.deleting') }
+    }
+    return listQuery.isFetching
+  }, [deletingJobId, listQuery.isFetching, t])
+
   const columns: ColumnsType<DocTranslateJobListItem> = useMemo(
     () => [
       {
         title: t('translate.table.fileName'),
         dataIndex: 'file_name',
         key: 'file_name',
-        width: 160,
+        width: 320,
         fixed: 'left',
         ellipsis: true,
         render: (_v, row) =>
@@ -439,7 +538,12 @@ export function TranslatePage() {
         width: 108,
         fixed: 'right',
         render: (_v, row) => (
-          <Space size={4} wrap={false} className="translate-page__table-actions">
+          <Space
+            size={4}
+            wrap={false}
+            className="translate-page__table-actions"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
             <Tooltip title={t('translate.table.view')}>
               <Button
                 type="text"
@@ -468,29 +572,46 @@ export function TranslatePage() {
             ) : null}
             <Popconfirm
               title={t('translate.deleteConfirm')}
-              onConfirm={() => void handleDeleteJob(row.id)}
-              onCancel={(e) => e?.stopPropagation()}
+              onOpenChange={(open) => {
+                if (!open) blockRowDetailBriefly()
+              }}
+              onConfirm={(e) => {
+                e?.stopPropagation()
+                blockRowDetailBriefly()
+                void handleDeleteJob(row.id)
+              }}
+              onCancel={(e) => {
+                e?.stopPropagation()
+                blockRowDetailBriefly()
+              }}
             >
-              <Tooltip title={t('translate.deleteJob')}>
-                <Button
-                  type="text"
-                  size="small"
-                  danger
-                  icon={<DeleteOutlined />}
-                  aria-label={t('translate.deleteJob')}
-                  onClick={(e) => e.stopPropagation()}
-                />
-              </Tooltip>
+              <span
+                className="translate-page__table-actions-popconfirm"
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <Tooltip title={t('translate.deleteJob')}>
+                  <Button
+                    type="text"
+                    size="small"
+                    danger
+                    icon={<DeleteOutlined />}
+                    aria-label={t('translate.deleteJob')}
+                  />
+                </Tooltip>
+              </span>
             </Popconfirm>
           </Space>
         ),
       },
     ],
-    [t, workspaceId, langLabel, handleDeleteJob, handleDownloadJob],
+    [t, langLabel, handleDeleteJob, handleDownloadJob, blockRowDetailBriefly],
   )
 
   const job = jobQuery.data
   const segments = segmentsQuery.data?.segments ?? []
+  const segmentGroups: DocTranslateSegmentGroup[] =
+    segmentsQuery.data?.groups ?? []
 
   if (!workspaceId) {
     return (
@@ -545,7 +666,7 @@ export function TranslatePage() {
           <div ref={tableWrapRef} className="translate-page__table-wrap">
             <Table<DocTranslateJobListItem>
               rowKey="id"
-              loading={listQuery.isFetching}
+              loading={tableLoading}
               columns={columns}
               dataSource={listQuery.data?.items ?? []}
               pagination={{
@@ -564,7 +685,10 @@ export function TranslatePage() {
               tableLayout="fixed"
               sticky
               onRow={(row) => ({
-                onClick: () => setDetailJobId(row.id),
+                onClick: (e) => {
+                  if (!shouldOpenDetailFromRowClick(e)) return
+                  setDetailJobId(row.id)
+                },
                 style: { cursor: 'pointer' },
               })}
             />
@@ -642,7 +766,9 @@ export function TranslatePage() {
       <Modal
         className="translate-page__detail-modal"
         title={
-          job ? (
+          jobQuery.isLoading && job == null ? (
+            <TranslateDetailTitleSkeleton />
+          ) : job ? (
             <div className="translate-page__detail-title">
               <Title level={5} style={{ margin: 0 }}>
                 {translateJobListLabel(job, t('translate.defaultTitle'))}
@@ -679,37 +805,98 @@ export function TranslatePage() {
         {job?.status === 'FAILED' && job.error_message ? (
           <Alert type="error" showIcon message={job.error_message} style={{ marginBottom: 16 }} />
         ) : null}
-        <div className="translate-page__compare">
-          <div className="translate-page__compare-header">
-            <div className="translate-page__compare-col-title">{t('translate.colSource')}</div>
-            <div className="translate-page__compare-col-title">{t('translate.colTarget')}</div>
-          </div>
-          {segmentsQuery.isLoading ? (
-            Array.from({ length: 4 }, (_, i) => (
-              <div key={`sk-${i}`} className="translate-page__compare-pair">
-                <Skeleton active paragraph={{ rows: 3 }} className="translate-page__compare-skeleton" />
-                <Skeleton active paragraph={{ rows: 3 }} className="translate-page__compare-skeleton" />
-              </div>
-            ))
-          ) : (
-            segments.map((s) => (
-              <div key={s.id} className="translate-page__compare-pair">
-                <div className="translate-page__segment-row translate-page__segment-row--source">
-                  {s.source_text}
-                </div>
-                <div className="translate-page__segment-row translate-page__segment-row--target">
-                  {s.translated_text?.trim() ? (
-                    s.translated_text
-                  ) : s.status === 'FAILED' ? (
-                    <Text type="danger">{t('translate.segmentFailed')}</Text>
+        <Tabs
+          activeKey={detailTab}
+          onChange={(k) => setDetailTab(k as 'pages' | 'segments')}
+          items={[
+            {
+              key: 'pages',
+              label: t('translate.detailTab.pages', { defaultValue: '页面对照' }),
+              children: layoutPagesQuery.isLoading ? (
+                <TranslateDetailPagesSkeleton />
+              ) : layoutPagesQuery.isError ? (
+                <Alert
+                  type="warning"
+                  showIcon
+                  message={t('translate.detailTab.layoutUnavailable', {
+                    defaultValue: '版面数据不可用，请查看段落对照。',
+                  })}
+                />
+              ) : layoutPagesQuery.data?.pages?.length ? (
+                <LayoutPageViewer
+                  pages={layoutPagesQuery.data.pages}
+                  mode="bilingual"
+                  pageTitle={(n) => t('translate.detailPageTitle', { n, defaultValue: `第 ${n} 页` })}
+                  colSourceTitle={t('translate.colSource')}
+                  colTargetTitle={t('translate.colTarget')}
+                />
+              ) : (
+                <Empty description={t('translate.detailTab.noPages', { defaultValue: '暂无页面数据' })} />
+              ),
+            },
+            {
+              key: 'segments',
+              label: t('translate.detailTab.segments', { defaultValue: '段落对照' }),
+              children: segmentsQuery.isLoading ? (
+                <TranslateDetailSegmentsSkeleton />
+              ) : (
+                <div className="translate-page__compare">
+                  <div className="translate-page__compare-header">
+                    <div className="translate-page__compare-col-title">{t('translate.colSource')}</div>
+                    <div className="translate-page__compare-col-title">{t('translate.colTarget')}</div>
+                  </div>
+                  {segmentGroups.length > 0 ? (
+                    <Collapse
+                      items={segmentGroups.map((g, gi) => ({
+                        key: String(gi),
+                        label:
+                          g.page_index != null
+                            ? t('translate.detailGroup.page', {
+                                n: g.page_index + 1,
+                                defaultValue: `第 ${g.page_index + 1} 页`,
+                              })
+                            : g.label ?? t('translate.detailGroup.other', { defaultValue: '其他' }),
+                        children: g.segments.map((s) => (
+                          <div key={s.id} className="translate-page__compare-pair">
+                            <div className="translate-page__segment-row translate-page__segment-row--source">
+                              <MinervaMarkdown preset="ocr" markdown={s.source_text} />
+                            </div>
+                            <div className="translate-page__segment-row translate-page__segment-row--target">
+                              {s.translated_text?.trim() ? (
+                                <MinervaMarkdown preset="ocr" markdown={s.translated_text} />
+                              ) : s.status === 'FAILED' ? (
+                                <Text type="danger">{t('translate.segmentFailed')}</Text>
+                              ) : (
+                                <Text type="secondary">{t('translate.segmentPending')}</Text>
+                              )}
+                            </div>
+                          </div>
+                        )),
+                      }))}
+                    />
                   ) : (
-                    <Text type="secondary">{t('translate.segmentPending')}</Text>
+                    segments.map((s) => (
+                      <div key={s.id} className="translate-page__compare-pair">
+                        <div className="translate-page__segment-row translate-page__segment-row--source">
+                          <MinervaMarkdown preset="ocr" markdown={s.source_text} />
+                        </div>
+                        <div className="translate-page__segment-row translate-page__segment-row--target">
+                          {s.translated_text?.trim() ? (
+                            <MinervaMarkdown preset="ocr" markdown={s.translated_text} />
+                          ) : s.status === 'FAILED' ? (
+                            <Text type="danger">{t('translate.segmentFailed')}</Text>
+                          ) : (
+                            <Text type="secondary">{t('translate.segmentPending')}</Text>
+                          )}
+                        </div>
+                      </div>
+                    ))
                   )}
                 </div>
-              </div>
-            ))
-          )}
-        </div>
+              ),
+            },
+          ]}
+        />
       </Modal>
     </>
   )

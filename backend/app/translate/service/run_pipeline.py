@@ -28,7 +28,9 @@ from app.translate.domain.constants import (
 from app.translate.domain.db.models import DocTranslateJob, DocTranslateSegment
 from app.translate.domain.dto import SegmentDraft, SegmentRecord
 from app.translate.infrastructure import repository as translate_repo
-from app.translate.service.ocr_bridge import run_ocr_and_load_pages
+from app.layout.models import LayoutDocument
+from app.layout.segments import segment_drafts_to_layout_document
+from app.translate.service.ocr_bridge import run_ocr_and_load_layout
 from app.translate.service.strategies.registry import get_doc_translate_strategy
 from app.translate.service.translate_llm import translate_segment
 
@@ -73,7 +75,8 @@ async def run_job_once(session: AsyncSession, job_id: uuid.UUID) -> dict[str, An
             )
 
             strategy = get_doc_translate_strategy(job.file_ext)
-            ocr_pages: list[tuple[int, str]] | None = None
+            layout_document: LayoutDocument | None = None
+            layout_source = "native"
             if strategy.needs_ocr(src_path):
                 await translate_repo.update_doc_translate_job(
                     session,
@@ -82,7 +85,7 @@ async def run_job_once(session: AsyncSession, job_id: uuid.UUID) -> dict[str, An
                     status=DOC_TRANSLATE_STATUS_OCR_RUNNING,
                 )
                 await session.commit()
-                _ocr_id, ocr_pages = await run_ocr_and_load_pages(
+                _ocr_id, layout_document = await run_ocr_and_load_layout(
                     session,
                     workspace_id=workspace_id,
                     job_id=job_id,
@@ -90,6 +93,13 @@ async def run_job_once(session: AsyncSession, job_id: uuid.UUID) -> dict[str, An
                     file_name=job.file_name or f"file.{job.file_ext}",
                     file_size=None,
                 )
+                await translate_repo.update_doc_translate_job(
+                    session,
+                    job_id=job_id,
+                    workspace_id=workspace_id,
+                    ocr_file_id=_ocr_id,
+                )
+                layout_source = "ocr" if layout_document else "hybrid"
 
             await translate_repo.update_doc_translate_job(
                 session,
@@ -102,10 +112,21 @@ async def run_job_once(session: AsyncSession, job_id: uuid.UUID) -> dict[str, An
             drafts: list[SegmentDraft] = strategy.extract(
                 src_path,
                 ocr_file_id=job.ocr_file_id,
-                ocr_pages=ocr_pages,
+                layout_document=layout_document,
             )
             if not drafts:
                 raise AppError("translate.extract_failed", "未能抽取可翻译段落。", 422)
+
+            snapshot = layout_document or segment_drafts_to_layout_document(
+                drafts, layout_source=layout_source
+            )
+            await translate_repo.update_doc_translate_job(
+                session,
+                job_id=job_id,
+                workspace_id=workspace_id,
+                layout_snapshot_json=snapshot.model_dump(mode="json"),
+                layout_source=snapshot.layout_source,
+            )
 
             await translate_repo.bulk_insert_segments(
                 session,
@@ -142,14 +163,18 @@ async def run_job_once(session: AsyncSession, job_id: uuid.UUID) -> dict[str, An
             done_count = 0
             for seg in seg_rows:
                 try:
-                    translated = await translate_segment(
-                        session,
-                        workspace_id=workspace_id,
-                        model_id=job.model_id,
-                        source_lang=job.source_lang,
-                        target_lang=job.target_lang,
-                        source_text=seg.source_text,
-                    )
+                    anchor = seg.anchor_json if isinstance(seg.anchor_json, dict) else {}
+                    if anchor.get("skip_translate"):
+                        translated = seg.source_text
+                    else:
+                        translated = await translate_segment(
+                            session,
+                            workspace_id=workspace_id,
+                            model_id=job.model_id,
+                            source_lang=job.source_lang,
+                            target_lang=job.target_lang,
+                            source_text=seg.source_text,
+                        )
                     await translate_repo.update_segment_translation(
                         session,
                         segment_id=seg.id,

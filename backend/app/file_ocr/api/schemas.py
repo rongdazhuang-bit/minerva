@@ -109,3 +109,36 @@ class OcrFileMarkdownPagesOut(BaseModel):
     file_id: uuid.UUID
     ocr_type: str
     pages: list[OcrFileMarkdownPageOut]
+
+
+class LayoutBlockOut(BaseModel):
+    """One layout block exposed to the UI preview layer."""
+
+    block_key: str
+    label: str
+    source_text: str
+    bbox: list[float] | None = None
+    overflow_policy: str
+    skip_translate: bool
+
+
+class OcrLayoutPageOut(BaseModel):
+    """Per-page layout preview with derived markdown."""
+
+    page_index: int
+    width: int | None = None
+    height: int | None = None
+    blocks: list[LayoutBlockOut]
+    page_raster_url: str | None = None
+    source_markdown: str
+    translated_markdown: str | None = None
+    images: dict[str, str] | None = None
+
+
+class OcrLayoutPagesOut(BaseModel):
+    """Full layout-pages payload for one SUCCESS ``ocr_file``."""
+
+    file_id: uuid.UUID
+    ocr_type: str
+    layout_version: int
+    pages: list[OcrLayoutPageOut]

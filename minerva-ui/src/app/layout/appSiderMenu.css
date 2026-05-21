@@ -42,3 +42,26 @@
   .ant-menu-item:hover:not(.ant-menu-item-selected) {
   background: rgba(0, 0, 0, 0.04) !important;
 }
+
+/* 折叠态子菜单浮层挂到 body，避免侧栏 overflow 裁切；z-index 高于主内容区 */
+.minerva-app-sider-menu-popup.ant-menu-submenu-popup {
+  z-index: 1100;
+}
+
+.minerva-app-sider-menu-popup.ant-menu-dark .ant-menu-item-selected {
+  background: rgba(56, 189, 248, 0.12) !important;
+}
+
+.minerva-app-sider-menu-popup.ant-menu-dark
+  .ant-menu-item:hover:not(.ant-menu-item-selected) {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.minerva-app-sider-menu-popup.ant-menu-light .ant-menu-item-selected {
+  background: rgba(37, 99, 235, 0.1) !important;
+}
+
+.minerva-app-sider-menu-popup.ant-menu-light
+  .ant-menu-item:hover:not(.ant-menu-item-selected) {
+  background: rgba(0, 0, 0, 0.04) !important;
+}

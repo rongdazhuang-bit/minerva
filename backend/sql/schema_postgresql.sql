@@ -365,6 +365,11 @@ CREATE TABLE public.ocr_file_paddleocr (
    page_index int2 NULL, -- 页面序号
    markdown_text text NULL, -- markdown文本
    markdown_images text NULL, -- markdown图片
+   page_width int4 NULL, -- 页宽（像素）
+   page_height int4 NULL, -- 页高（像素）
+   layout_blocks_json jsonb NULL, -- LayoutBlock[] 真源
+   page_raster_object_key varchar(1024) NULL, -- 页图 S3 object_key
+   layout_version int2 NULL DEFAULT 1, -- LDM schema 版本
    create_at timestamptz NULL, -- 创建日期
    update_at timestamptz NULL, -- 更新日期
    CONSTRAINT ocr_file_paddleocr_pk PRIMARY KEY (id)
@@ -376,6 +381,11 @@ COMMENT ON COLUMN public.ocr_file_paddleocr.file_id IS 'ocr_file.id';
 COMMENT ON COLUMN public.ocr_file_paddleocr.page_index IS '页面序号';
 COMMENT ON COLUMN public.ocr_file_paddleocr.markdown_text IS 'markdown文本';
 COMMENT ON COLUMN public.ocr_file_paddleocr.markdown_images IS 'markdown图片';
+COMMENT ON COLUMN public.ocr_file_paddleocr.page_width IS '页宽（像素）';
+COMMENT ON COLUMN public.ocr_file_paddleocr.page_height IS '页高（像素）';
+COMMENT ON COLUMN public.ocr_file_paddleocr.layout_blocks_json IS 'LayoutBlock[] 真源';
+COMMENT ON COLUMN public.ocr_file_paddleocr.page_raster_object_key IS '页图 S3 object_key';
+COMMENT ON COLUMN public.ocr_file_paddleocr.layout_version IS 'LDM schema 版本';
 COMMENT ON COLUMN public.ocr_file_paddleocr.create_at IS '创建日期';
 COMMENT ON COLUMN public.ocr_file_paddleocr.update_at IS '更新日期';
 
@@ -386,6 +396,11 @@ CREATE TABLE public.ocr_file_mineru (
     markdown_text text NULL, -- markdown文本
     markdown_images text NULL, -- markdown图片
     page_index int2 NULL, -- 页面序号
+    page_width int4 NULL, -- 页宽（像素）
+    page_height int4 NULL, -- 页高（像素）
+    layout_blocks_json jsonb NULL, -- LayoutBlock[] 真源
+    page_raster_object_key varchar(1024) NULL, -- 页图 S3 object_key
+    layout_version int2 NULL DEFAULT 1, -- LDM schema 版本
     create_at timestamptz NULL, -- 创建日期
     update_at timestamptz NULL, -- 更新日期
     CONSTRAINT ocr_file_mineru_pk PRIMARY KEY (id)
@@ -399,6 +414,11 @@ COMMENT ON COLUMN public.ocr_file_mineru.file_id IS 'ocr_file.id';
 COMMENT ON COLUMN public.ocr_file_mineru.markdown_text IS 'markdown文本';
 COMMENT ON COLUMN public.ocr_file_mineru.markdown_images IS 'markdown图片';
 COMMENT ON COLUMN public.ocr_file_mineru.page_index IS '页面序号';
+COMMENT ON COLUMN public.ocr_file_mineru.page_width IS '页宽（像素）';
+COMMENT ON COLUMN public.ocr_file_mineru.page_height IS '页高（像素）';
+COMMENT ON COLUMN public.ocr_file_mineru.layout_blocks_json IS 'LayoutBlock[] 真源';
+COMMENT ON COLUMN public.ocr_file_mineru.page_raster_object_key IS '页图 S3 object_key';
+COMMENT ON COLUMN public.ocr_file_mineru.layout_version IS 'LDM schema 版本';
 COMMENT ON COLUMN public.ocr_file_mineru.create_at IS '创建日期';
 COMMENT ON COLUMN public.ocr_file_mineru.update_at IS '更新日期';
 
@@ -669,6 +689,8 @@ CREATE TABLE IF NOT EXISTS public.doc_translate_job (
   segment_done integer NOT NULL DEFAULT 0,
   error_code varchar(64) NULL,
   error_message text NULL,
+  layout_snapshot_json jsonb NULL,
+  layout_source varchar(32) NULL,
   create_at timestamptz NULL DEFAULT now(),
   update_at timestamptz NULL,
   PRIMARY KEY (id)
@@ -697,6 +719,8 @@ COMMENT ON COLUMN public.doc_translate_job.segment_total IS '总段落数';
 COMMENT ON COLUMN public.doc_translate_job.segment_done IS '已完成段落数';
 COMMENT ON COLUMN public.doc_translate_job.error_code IS '失败错误码';
 COMMENT ON COLUMN public.doc_translate_job.error_message IS '失败详情';
+COMMENT ON COLUMN public.doc_translate_job.layout_snapshot_json IS '抽取完成后的 LDM 快照';
+COMMENT ON COLUMN public.doc_translate_job.layout_source IS 'native / ocr / hybrid';
 COMMENT ON COLUMN public.doc_translate_job.create_at IS '创建时间';
 COMMENT ON COLUMN public.doc_translate_job.update_at IS '更新时间';
 

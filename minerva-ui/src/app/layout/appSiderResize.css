@@ -32,3 +32,29 @@
 .minerva-app-body-row {
   min-width: 0;
 }
+
+.minerva-app-sider-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-top: 1px solid var(--minerva-border, #2d3f55);
+}
+
+.minerva-app-sider-collapse-btn {
+  color: var(--minerva-ink-muted, #94a3b8) !important;
+}
+
+.minerva-app-sider-collapse-btn:hover {
+  color: var(--minerva-link, var(--minerva-primary, #38bdf8)) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+html.minerva-tone-sunshine .minerva-app-sider-collapse-btn:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+}
+
+.ant-layout-sider-collapsed .minerva-app-sider-footer {
+  padding-inline: 8px;
+}

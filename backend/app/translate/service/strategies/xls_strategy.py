@@ -25,6 +25,7 @@ class XlsTranslateStrategy(DocTranslateFormatStrategy):
         *,
         ocr_file_id: uuid.UUID | None = None,
         ocr_pages: list[tuple[int, str]] | None = None,
+        layout_document=None,
     ) -> list[SegmentDraft]:
         book = xlrd.open_workbook(str(local_path))
         drafts: list[SegmentDraft] = []

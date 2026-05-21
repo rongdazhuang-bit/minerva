@@ -23,6 +23,7 @@ class XlsxTranslateStrategy(DocTranslateFormatStrategy):
         *,
         ocr_file_id: uuid.UUID | None = None,
         ocr_pages: list[tuple[int, str]] | None = None,
+        layout_document=None,
     ) -> list[SegmentDraft]:
         wb = load_workbook(local_path, read_only=True, data_only=True)
         drafts: list[SegmentDraft] = []

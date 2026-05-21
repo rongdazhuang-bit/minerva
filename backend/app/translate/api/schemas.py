@@ -53,10 +53,19 @@ class DocTranslateSegmentOut(BaseModel):
     status: str
 
 
+class DocTranslateSegmentGroupOut(BaseModel):
+    """Segments grouped for structured comparison UI."""
+
+    page_index: int | None = None
+    label: str | None = None
+    segments: list[DocTranslateSegmentOut]
+
+
 class DocTranslateSegmentListOut(BaseModel):
     """Ordered segments for one job."""
 
     segments: list[DocTranslateSegmentOut]
+    groups: list[DocTranslateSegmentGroupOut] | None = None
 
 
 class DocTranslateJobCreateOut(BaseModel):

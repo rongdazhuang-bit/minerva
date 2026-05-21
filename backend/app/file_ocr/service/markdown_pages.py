@@ -12,7 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.exceptions import AppError
 from app.file_ocr.api.schemas import OcrFileMarkdownPageOut, OcrFileMarkdownPagesOut
 from app.file_ocr.domain.db.models import OcrFile
+from app.file_ocr.domain.db.models_result import OcrFilePaddleocr
 from app.file_ocr.service.result_read.registry import get_file_ocr_result_read_strategy
+from app.layout.serialize import layout_page_from_blocks_json
+from app.layout.to_markdown import page_markdown
+from sqlalchemy import asc, nullslast, select
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -69,13 +73,40 @@ async def get_ocr_file_markdown_pages(
     raw_pages = await read_strategy.load_pages(
         session=session, workspace_id=workspace_id, file_id=ocr_file_id
     )
-    pages = [
-        OcrFileMarkdownPageOut(
-            page_index=p.page_index,
-            markdown_text=p.markdown_text,
-            images=_parse_markdown_images(p.markdown_images),
+    derived_by_index: dict[int, str] = {}
+    if row.ocr_type == "PADDLE_OCR":
+        paddle_rows = (
+            await session.execute(
+                select(OcrFilePaddleocr)
+                .where(
+                    OcrFilePaddleocr.workspace_id == workspace_id,
+                    OcrFilePaddleocr.file_id == ocr_file_id,
+                )
+                .order_by(nullslast(asc(OcrFilePaddleocr.page_index)), asc(OcrFilePaddleocr.id))
+            )
+        ).scalars().all()
+        for pr in paddle_rows:
+            if pr.layout_blocks_json and isinstance(pr.layout_blocks_json, list):
+                layout_page = layout_page_from_blocks_json(
+                    page_index=int(pr.page_index or 0),
+                    width=pr.page_width,
+                    height=pr.page_height,
+                    blocks_json=pr.layout_blocks_json,
+                )
+                derived_by_index[int(pr.page_index or 0)] = page_markdown(
+                    layout_page, use_translation=False
+                )
+
+    pages = []
+    for p in raw_pages:
+        idx = int(p.page_index or 0)
+        md_text = derived_by_index.get(idx, p.markdown_text)
+        pages.append(
+            OcrFileMarkdownPageOut(
+                page_index=p.page_index,
+                markdown_text=md_text,
+                images=_parse_markdown_images(p.markdown_images),
+            )
         )
-        for p in raw_pages
-    ]
     return OcrFileMarkdownPagesOut(file_id=row.id, ocr_type=row.ocr_type, pages=pages)
 

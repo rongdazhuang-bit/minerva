@@ -58,6 +58,10 @@ class DocTranslateJob(Base):
     segment_done: Mapped[int] = mapped_column(Integer, nullable=False, server_default=sa.text("0"))
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    layout_snapshot_json: Mapped[dict[str, Any] | list[Any] | None] = mapped_column(
+        JSONB, nullable=True
+    )
+    layout_source: Mapped[str | None] = mapped_column(String(32), nullable=True)
     create_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), nullable=True
     )
