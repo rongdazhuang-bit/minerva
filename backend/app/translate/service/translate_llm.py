@@ -79,6 +79,11 @@ async def translate_segment(
     )
     endpoint = (row.endpoint_url or "").strip()
     api_key = (row.api_key or "").strip()
+    configured_max = row.max_tokens_to_sample
+    # Avoid truncated translations when the model max output is smaller than the source.
+    estimated_out = min(32767, max(512, int(len(source_text) * 1.6) + 128))
+    max_tokens = min(32767, max(configured_max or 0, estimated_out))
+
     payload = await chat_service.complete(
         provider_kind=ProviderKind.openai,
         base_url=endpoint.rstrip("/"),
@@ -88,7 +93,7 @@ async def translate_segment(
         user_prompt=source_text,
         messages=[ChatMessage(role="user", content=source_text)],
         temperature=0.2,
-        max_tokens=row.max_tokens_to_sample,
+        max_tokens=max_tokens,
     )
     text = _openai_completion_text(payload)
     if not text:

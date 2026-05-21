@@ -111,6 +111,44 @@ async def list_doc_translate_jobs_recent(
     return rows[:cap], has_more
 
 
+async def list_doc_translate_jobs_filtered(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    page: int,
+    page_size: int,
+    file_name: str | None = None,
+    status: str | None = None,
+    create_at_start: datetime | None = None,
+    create_at_end: datetime | None = None,
+) -> tuple[list[DocTranslateJob], int]:
+    """Return jobs newest-first with offset pagination and optional filters."""
+
+    page = max(1, page)
+    page_size = max(1, min(page_size, 100))
+    sort_ts = func.coalesce(DocTranslateJob.update_at, DocTranslateJob.create_at)
+    stmt = select(DocTranslateJob).where(DocTranslateJob.workspace_id == workspace_id)
+    if file_name is not None and file_name.strip() != "":
+        stmt = stmt.where(DocTranslateJob.file_name.ilike(f"%{file_name.strip()}%"))
+    if status is not None and status.strip() != "":
+        stmt = stmt.where(DocTranslateJob.status == status.strip())
+    if create_at_start is not None:
+        stmt = stmt.where(DocTranslateJob.create_at >= create_at_start)
+    if create_at_end is not None:
+        stmt = stmt.where(DocTranslateJob.create_at <= create_at_end)
+
+    total_stmt = select(func.count()).select_from(stmt.subquery())
+    total = int(await session.scalar(total_stmt) or 0)
+    rows = (
+        await session.execute(
+            stmt.order_by(desc(sort_ts), desc(DocTranslateJob.id))
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+    ).scalars().all()
+    return list(rows), total
+
+
 async def update_doc_translate_job(
     session: AsyncSession,
     *,

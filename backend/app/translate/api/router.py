@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from fastapi.responses import RedirectResponse
@@ -12,6 +13,7 @@ from app.core.api.deps import get_current_user, require_workspace_member
 from app.core.domain.identity.models import User
 from app.dependencies import get_db
 from app.exceptions import AppError
+from app.pagination import DEFAULT_PAGE_SIZE
 from app.s3.service.s3_file_service import S3FileService
 from app.translate.api.schemas import (
     DocTranslateJobCreateOut,
@@ -22,16 +24,36 @@ from app.translate.api.schemas import (
     DocTranslateSegmentOut,
 )
 from app.translate.domain.constants import (
-    DOC_TRANSLATE_LIST_DEFAULT_LIMIT,
-    DOC_TRANSLATE_LIST_MAX_LIMIT,
     DOC_TRANSLATE_SEGMENTS_MAX_RETURN,
     DOC_TRANSLATE_STATUS_SUCCESS,
 )
+from app.translate.domain.db.models import DocTranslateJob
 from app.translate.infrastructure import repository as translate_repo
 from app.translate.service.job_delete import delete_doc_translate_job
 from app.translate.service.job_service import create_job_from_upload
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/translate", tags=["translate"])
+
+
+def _job_list_item(row: DocTranslateJob) -> DocTranslateJobListItemOut:
+    """Map one ORM job row to a list/table API item."""
+
+    return DocTranslateJobListItemOut(
+        id=row.id,
+        title=row.title,
+        file_name=row.file_name,
+        file_ext=row.file_ext,
+        source_lang=row.source_lang,
+        target_lang=row.target_lang,
+        source_object_key=row.source_object_key,
+        result_object_key=row.result_object_key,
+        segment_total=int(row.segment_total or 0),
+        segment_done=int(row.segment_done or 0),
+        status=row.status,
+        progress=int(row.progress or 0),
+        create_at=row.create_at,
+        update_at=row.update_at,
+    )
 
 
 @router.post("/jobs", response_model=DocTranslateJobCreateOut, status_code=status.HTTP_201_CREATED)
@@ -62,54 +84,28 @@ async def create_translate_job(
 @router.get("/jobs", response_model=DocTranslateJobListOut)
 async def list_translate_jobs(
     workspace_id: uuid.UUID,
-    limit: int = Query(default=DOC_TRANSLATE_LIST_DEFAULT_LIMIT, ge=1, le=DOC_TRANSLATE_LIST_MAX_LIMIT),
-    cursor: str | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
+    file_name: str | None = Query(default=None),
+    status: str | None = Query(default=None),
+    create_at_start: datetime | None = Query(default=None),
+    create_at_end: datetime | None = Query(default=None),
     _workspace: uuid.UUID = Depends(require_workspace_member),
     session: AsyncSession = Depends(get_db),
 ) -> DocTranslateJobListOut:
-    """List translation history for the sidebar."""
+    """List translation jobs with offset pagination and optional filters."""
 
-    cursor_update_at = None
-    cursor_id = None
-    if cursor:
-        try:
-            cursor_update_at, cursor_id = translate_repo.decode_doc_translate_job_cursor(cursor)
-        except ValueError as e:
-            raise AppError("translate.invalid_cursor", "任务列表游标无效。") from e
-
-    rows, has_more = await translate_repo.list_doc_translate_jobs_recent(
+    rows, total = await translate_repo.list_doc_translate_jobs_filtered(
         session,
         workspace_id=workspace_id,
-        limit=limit,
-        cursor_update_at=cursor_update_at,
-        cursor_id=cursor_id,
+        page=page,
+        page_size=page_size,
+        file_name=file_name,
+        status=status,
+        create_at_start=create_at_start,
+        create_at_end=create_at_end,
     )
-    next_cursor: str | None = None
-    if has_more and rows:
-        last = rows[-1]
-        ts = last.update_at or last.create_at
-        if ts is not None:
-            next_cursor = translate_repo.encode_doc_translate_job_cursor(ts, last.id)
-    return DocTranslateJobListOut(
-        jobs=[
-            DocTranslateJobListItemOut(
-                id=r.id,
-                title=r.title,
-                file_name=r.file_name,
-                file_ext=r.file_ext,
-                source_lang=r.source_lang,
-                target_lang=r.target_lang,
-                status=r.status,
-                progress=int(r.progress or 0),
-                segment_total=int(r.segment_total or 0),
-                segment_done=int(r.segment_done or 0),
-                create_at=r.create_at,
-                update_at=r.update_at,
-            )
-            for r in rows
-        ],
-        next_cursor=next_cursor,
-    )
+    return DocTranslateJobListOut(items=[_job_list_item(r) for r in rows], total=total)
 
 
 @router.get("/jobs/{job_id}", response_model=DocTranslateJobDetailOut)
@@ -133,15 +129,15 @@ async def get_translate_job(
         file_ext=row.file_ext,
         source_lang=row.source_lang,
         target_lang=row.target_lang,
-        status=row.status,
-        progress=int(row.progress or 0),
+        source_object_key=row.source_object_key,
+        result_object_key=row.result_object_key,
         segment_total=int(row.segment_total or 0),
         segment_done=int(row.segment_done or 0),
+        status=row.status,
+        progress=int(row.progress or 0),
         create_at=row.create_at,
         update_at=row.update_at,
         model_id=row.model_id,
-        source_object_key=row.source_object_key,
-        result_object_key=row.result_object_key,
         ocr_file_id=row.ocr_file_id,
         error_code=row.error_code,
         error_message=row.error_message,

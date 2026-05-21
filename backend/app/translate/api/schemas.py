@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 
 class DocTranslateJobListItemOut(BaseModel):
-    """One row in the translation history sidebar."""
+    """One row in the translation job table."""
 
     id: uuid.UUID
     title: str | None
@@ -17,27 +17,27 @@ class DocTranslateJobListItemOut(BaseModel):
     file_ext: str
     source_lang: str
     target_lang: str
-    status: str
-    progress: int
+    source_object_key: str
+    result_object_key: str | None = None
     segment_total: int
     segment_done: int
+    status: str
+    progress: int
     create_at: datetime | None
     update_at: datetime | None
 
 
 class DocTranslateJobListOut(BaseModel):
-    """Keyset-paginated job list."""
+    """Offset-paginated job list with optional filters."""
 
-    jobs: list[DocTranslateJobListItemOut]
-    next_cursor: str | None = None
+    items: list[DocTranslateJobListItemOut]
+    total: int = 0
 
 
 class DocTranslateJobDetailOut(DocTranslateJobListItemOut):
     """Job detail including error and download key."""
 
     model_id: uuid.UUID
-    source_object_key: str
-    result_object_key: str | None = None
     ocr_file_id: uuid.UUID | None = None
     error_code: str | None = None
     error_message: str | None = None

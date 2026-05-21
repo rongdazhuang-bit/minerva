@@ -1,16 +1,16 @@
-/** Formatting helpers for translation job sidebar rows. */
+/** Formatting helpers for translation job table and detail modals. */
 
-/** Format job list timestamp for sidebar display. */
-export function formatTranslateJobDate(iso: string | null | undefined): string {
+/** Format job timestamp as ``yyyy-MM-dd HH:mm:ss`` (local time). */
+export function formatTranslateJobDateTime(iso: string | null | undefined): string {
   if (!iso) return ''
   try {
     const d = new Date(iso)
-    return d.toLocaleString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
+    if (Number.isNaN(d.getTime())) return ''
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return (
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
+      `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+    )
   } catch {
     return ''
   }

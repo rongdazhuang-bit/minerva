@@ -20,8 +20,28 @@ def test_txt_roundtrip(tmp_path: Path) -> None:
     ]
     out = tmp_path / "a_out.txt"
     strategy.assemble(records, src, out)
-    assert "HELLO" in out.read_text(encoding="utf-8")
-    assert "WORLD" in out.read_text(encoding="utf-8")
+    text = out.read_text(encoding="utf-8")
+    assert "HELLO" in text
+    assert "WORLD" in text
+
+
+def test_txt_extract_splits_numbered_clauses(tmp_path: Path) -> None:
+    """Technical txt without blank lines between sub-clauses yields multiple segments."""
+
+    src = tmp_path / "std.txt"
+    src.write_text(
+        "2 术语\n"
+        "说明。\n"
+        "2.0.1 风电场 wind farm\n"
+        "定义一。\n"
+        "2.0.2 风电机组 wind turbine\n"
+        "定义二。\n",
+        encoding="utf-8",
+    )
+    drafts = TxtTranslateStrategy().extract(src)
+    assert len(drafts) >= 3
+    assert any("2.0.1" in d.source_text for d in drafts)
+    assert any("2.0.2" in d.source_text for d in drafts)
 
 
 def test_md_preserves_fence_block(tmp_path: Path) -> None:

@@ -9,7 +9,8 @@ from typing import ClassVar
 
 from app.translate.domain.dto import SegmentDraft, SegmentRecord
 from app.translate.service.strategies.base import DocTranslateFormatStrategy
-from app.translate.service.strategies.txt_strategy import TxtTranslateStrategy, _split_blank_line_paragraphs
+from app.translate.service.strategies.txt_strategy import TxtTranslateStrategy
+from app.translate.service.text_segmentation import split_plain_text_into_segments
 
 _FENCE_RE = re.compile(r"^```[\w-]*\s*$")
 
@@ -39,7 +40,7 @@ class MdTranslateStrategy(DocTranslateFormatStrategy):
                     in_fence = False
                 else:
                     if buf:
-                        blocks.extend(_split_blank_line_paragraphs("".join(buf)))
+                        blocks.extend(split_plain_text_into_segments("".join(buf)))
                         buf = []
                     in_fence = True
                     buf.append(line)
@@ -49,7 +50,7 @@ class MdTranslateStrategy(DocTranslateFormatStrategy):
             if in_fence:
                 blocks.append("".join(buf))
             else:
-                blocks.extend(_split_blank_line_paragraphs("".join(buf)))
+                blocks.extend(split_plain_text_into_segments("".join(buf)))
 
         drafts: list[SegmentDraft] = []
         seq = 0

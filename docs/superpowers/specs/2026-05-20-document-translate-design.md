@@ -1,8 +1,8 @@
 # 多格式文档翻译（段落级 + 保版式 + OCR 扫描 PDF）设计说明
 
 **日期**：2026-05-20  
-**状态**：已实现（2026-05-20；计划见 `docs/superpowers/plans/2026-05-20-document-translate.md`）  
-**范围**：工作区「文档翻译 → 翻译」：支持 Word / PDF / TXT / MD / CSV / XLSX；上传区选择源/目标语言与 `model_type=translate` 模型；后台 `backend/app/translate/`；前端 `minerva-ui/src/features/translate/`；左侧翻译历史、右侧上传或左右段落对照 + 译文下载；扫描 PDF 自动走现有 `file_ocr` 后再段落翻译；按文件后缀策略模式独立实现；单条 Celery 流水线；首期进度 HTTP 轮询。
+**状态**：已实现（2026-05-20；UI 重构 2026-05-21 见 `docs/superpowers/specs/2026-05-21-document-translate-ui-refresh-design.md`）  
+**范围**：工作区「文档翻译 → 翻译」：支持 Word / PDF / TXT / MD / CSV / XLSX；上传区选择源/目标语言与 `model_type=translate` 模型；后台 `backend/app/translate/`；前端 `minerva-ui/src/features/translate/`；**表格列表 + 顶部筛选**；**上传 Modal**；**全屏详情 Modal** 内左右段落对照 + 译文下载；扫描 PDF 自动走现有 `file_ocr` 后再段落翻译；按文件后缀策略模式独立实现；单条 Celery 流水线；首期进度 HTTP 轮询。
 
 ---
 
@@ -253,42 +253,45 @@ class DocTranslateFormatStrategy(ABC):
 - 单文件大小上限：**20MB**（常量，可配置）。
 - `model_id`：存在、属当前 `workspace_id`、`model_type` 为 translate 字典项、enabled、endpoint + api_key 有效。
 
-### 6.2 列表游标
+### 6.2 列表分页与筛选（2026-05-21）
 
-- 与 `agent_session` 相同：编码 `(update_at, id)` → `next_cursor`。
+| 参数 | 说明 |
+|------|------|
+| `page` / `page_size` | offset 分页，默认 `page_size=10` |
+| `file_name` | 可选，`ILIKE` 模糊 |
+| `status` | 可选，精确匹配 |
+| `create_at_start` / `create_at_end` | 可选 |
+
+响应：`{ items, total }`。keyset `cursor` 已不再用于列表 API。
 
 ---
 
-## 7. 前端 UI
+## 7. 前端 UI（2026-05-21 表格 + Modal）
 
-### 7.1 布局（参考 `AgentsPage`）
+### 7.1 布局（参考 `FileOcrTaskPage`）
 
-- CSS 类前缀 `translate-page` / `translate-page__sider` / `translate-page__main`，复用 `agents-page` 间距变量习惯（`--agents-chrome-inset` 或复制为 `--translate-chrome-inset`）。
-- `AppLayout` 对 `/app/translate` 应用与 `/app/agents/chat` 相同的主内容区 padding（无顶底 padding、隐藏外层纵向滚动）。
+- 单栏：`Card` + inline 筛选 Form + `Table`（`scroll.y` 自适应）。
+- `AppLayout` 对 `/app/translate` 使用标准列表页 padding（20px）。
 
-### 7.2 左侧历史
+### 7.2 任务表格
 
-- `useInfiniteQuery` + keyset `cursor` 拉取 `doc_translate_job` 列表。
-- 行展示：`title`、时间；选中高亮；`Popconfirm` 删除。
-- 空态文案 i18n。
+- `useQuery` + `page` / `page_size` / 筛选参数拉取列表。
+- 列：文件名、语言、状态、进度、创建时间、操作（查看 / 下载 / 删除）。
+- 行点击打开详情全屏 Modal。
 
-### 7.3 右侧：未选任务
+### 7.3 上传 Modal
 
-- `Upload.Dragger`（单文件，accept 六种后缀）。
-- 源语言 / 目标语言 `Select`（`allowClear` false，字典或静态列表，实现时与字典 `TRANSLATE_LANG` 对齐）。
-- 模型 `Select`：`listModelProviders` 过滤 `model_type === 'translate'` && enabled && endpoint && has_api_key。
-- 提交后创建 job，选中该项并开始 **3s 轮询** `GET /jobs/{id}` 与 `GET /segments`。
+- 「新建翻译」打开 Modal：`Upload.Dragger`、源/目标语言、translate 模型；`POST /jobs` 不变。
+- 成功后关闭 Modal、刷新表格、自动打开详情 Modal。
 
-### 7.4 右侧：已选任务
+### 7.4 详情全屏 Modal
 
-- 顶栏：状态 Tag、Progress、`segment_done/segment_total`、下载按钮（`SUCCESS`）。
-- 主体：两列网格，左 `source_text`，右 `translated_text`（未完成显示「翻译中…」或 Skeleton）。
-- 处理中轮询；`FAILED` 显示 `error_message`。
+- 顶栏：状态 Tag、Progress、`segment_done/total`、下载（`SUCCESS`）。
+- 主体：双列对照；非终态 **3s 轮询**；`FAILED` 显示 `error_message`。
 
 ### 7.5 i18n 键（示例）
 
-- `nav.docTranslate` / `nav.docTranslateTranslate`（已有，路径改为 `/app/translate`）
-- `translate.uploadTitle`, `translate.sourceLang`, `translate.targetLang`, `translate.selectModel`, `translate.history`, `translate.compareTitle`, `translate.download`, `translate.status.*`
+- `translate.filter.*`, `translate.table.*`, `translate.uploadModal.title`, `translate.detailModal.title`, `translate.newJob`, `translate.status.*`
 
 ---
 
@@ -346,7 +349,7 @@ class DocTranslateFormatStrategy(ABC):
 |----|------|
 | 架构 | 统一段落中间模型 + 单 Celery 流水线 |
 | 表名 | `doc_translate_job`、`doc_translate_segment` |
-| 历史 | 一条 job = 一条侧栏历史 |
+| 历史 | 一条 job = 表格一行（2026-05-21 起无侧栏） |
 | 语言 | 每任务上传区选择源 + 目标语言 |
 | 模型 | `model_type = translate` |
 | PDF 扫描件 | 自动 OCR 后翻译，版式尽力保留 |

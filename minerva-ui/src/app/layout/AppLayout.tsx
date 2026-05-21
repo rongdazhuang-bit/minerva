@@ -114,7 +114,7 @@ const contentScrollStyle: CSSProperties = {
 
 /** 智能体路由：顶/底由页内承担；左缘略收紧使对话区向左靠，右缘保持 20px 与面包屑/滚动条习惯一致。 */
 function contentScrollStyleForPath(pathname: string): CSSProperties {
-  if (pathname.startsWith('/app/agents/chat') || pathname.startsWith('/app/translate')) {
+  if (pathname.startsWith('/app/agents/chat')) {
     return {
       ...contentScrollStyle,
       padding: '0 20px 0 10px',

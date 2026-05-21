@@ -1,7 +1,7 @@
 # 文档翻译页 UI 重构（表格 + 筛选 + 弹窗）设计说明
 
 **日期**：2026-05-21  
-**状态**：已批准（待实现）  
+**状态**：已实现（2026-05-21）  
 **前置**：`docs/superpowers/specs/2026-05-20-document-translate-design.md`（流水线、策略、对照能力不变）  
 **范围**：`minerva-ui/src/features/translate/` 主页面交互重构；`GET /workspaces/{id}/translate/jobs` 列表 API 改为 offset 分页 + 筛选；上传与详情改为 Modal；**不**改动 `POST /jobs`、Celery、格式策略、段落翻译、删除与 S3 逻辑。
 
