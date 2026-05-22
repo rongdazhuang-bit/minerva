@@ -106,7 +106,7 @@ alembic upgrade head
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-**推荐：** 在**仓库根目录**使用脚本启动（会优先使用 `backend/.venv` 中的 Python；无 venv 时 Windows 依次尝试 `py -3.13` / `py -3.12` / `py -3.11` 与 `python`，**避免**使用易选中「3.13 自由线程版」的 `py -3`）：
+**推荐：** 在**仓库根目录**使用脚本启动（**默认且要求** `backend/.venv` 已创建；`run-backend` / `run-celery` 会使用其中的 Python。若无 venv 会报错并提示建环境；仅在设置 `MINERVA_ALLOW_SYSTEM_PYTHON=1` 时才回退系统 Python）：
 
 1. **API**：`scripts\run-backend.cmd`（Windows）或 `bash scripts/run-backend.sh`（Linux/macOS）— 无参默认加载 `backend/.env.local`；`run-backend dev` 加载 `.env.dev`
 2. **Celery**（需 Redis；定时任务另需 Beat）：须显式指定 profile 与子命令，例如：

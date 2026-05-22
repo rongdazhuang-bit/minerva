@@ -1,21 +1,24 @@
 #!/usr/bin/env bash
-# 启动 Celery Worker 或 Beat。用法: run-celery.sh <profile> <worker|beat>
+# Start Celery worker or beat. Usage: run-celery.sh <profile> <worker|beat>
+# Default Python: backend/.venv/bin/python (or Scripts/python.exe on Windows Git Bash)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+BACKEND_DIR="${REPO_ROOT}/backend"
+
 # shellcheck source=_backend-common.sh
 source "${SCRIPT_DIR}/_backend-common.sh"
 
 usage() {
   cat >&2 <<'EOF'
-用法: run-celery.sh <profile> <worker|beat>
-  profile  环境名，对应 backend/.env.<profile>
-  子命令   worker 或 beat（须同时跑两者时请各执行一次）
+Usage: run-celery.sh <profile> <worker|beat>
+  profile   env name, maps to backend/.env.<profile>
+  subcmd    worker or beat (run twice for both)
 
-示例:
+Examples:
   run-celery.sh local worker
   run-celery.sh local beat
-  run-celery.sh dev worker
 EOF
 }
 
@@ -30,11 +33,19 @@ SUBCMD="$2"
 case "${SUBCMD}" in
   worker|beat) ;;
   *)
-    echo "错误: 子命令必须是 worker 或 beat，收到: ${SUBCMD}" >&2
+    echo "[error] subcommand must be worker or beat, got: ${SUBCMD}" >&2
     usage
     exit 1
     ;;
 esac
+
+if [[ -z "${MINERVA_PYTHON:-}" ]]; then
+  if [[ -x "${BACKEND_DIR}/.venv/bin/python" ]]; then
+    export MINERVA_PYTHON="${BACKEND_DIR}/.venv/bin/python"
+  elif [[ -f "${BACKEND_DIR}/.venv/Scripts/python.exe" ]]; then
+    export MINERVA_PYTHON="${BACKEND_DIR}/.venv/Scripts/python.exe"
+  fi
+fi
 
 minerva_backend_setup "${PROFILE}"
 

@@ -106,7 +106,7 @@ With the **virtual environment activated** and (if needed) migration completed, 
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-**Recommended:** In the **repository root directory**, use startup scripts (preferentially uses Python from `backend/.venv`; on Windows without venv, tries `py -3.13` / `py -3.12` / `py -3.11` and `python` in sequence, **avoiding** `py -3` which may select "3.13 free-threaded version"):
+**Recommended:** In the **repository root directory**, use startup scripts (**default and require** `backend/.venv`; `run-backend` / `run-celery` use its Python. Without venv the script exits with setup hints. Set `MINERVA_ALLOW_SYSTEM_PYTHON=1` only to fall back to system Python):
 
 1. **API:** `scripts\run-backend.cmd` (Windows) or `bash scripts/run-backend.sh` (Linux/macOS) — no args loads `backend/.env.local`; `run-backend dev` loads `.env.dev`
 2. **Celery** (requires Redis; Beat needed for scheduled tasks): must pass profile and subcommand explicitly, e.g.:
