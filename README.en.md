@@ -113,6 +113,18 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
    - `scripts\run-celery.cmd local worker` and `scripts\run-celery.cmd local beat`
    - `bash scripts/run-celery.sh local worker` / `local beat`
 
+**Windows Celery troubleshooting**
+
+- **Two terminals**: Scheduled tasks and “run now” require **separate Worker and Beat terminals**. Worker-only means no scheduling; Beat-only means nothing consumes the queue.
+- **Worker pool**: On Windows, `run-celery.cmd` defaults to the **`threads` pool** (`MINERVA_CELERY_POOL`, `MINERVA_CELERY_CONCURRENCY`, default concurrency 4). `MINERVA_CELERY_USE_PREFORK=1` is a legacy switch equivalent to `MINERVA_CELERY_POOL=prefork`.
+- **Stuck / not consuming**: Check in order:
+  1. Redis reachable (startup scripts run broker preflight; or `cd backend` then `python -m app.sys.celery.service.broker_preflight`).
+  2. Beat terminal shows periodic `Scheduler: Sending due task`; Worker shows `ready` and `received` for tasks.
+  3. Queue depth: `redis-cli LLEN celery` (or the queue name from `CELERY_DEFAULT_QUEUE` in `.env`) keeps growing.
+  4. Singleton locks: if logs show many `already_running`, inspect and remove stale `minerva:celery:scheduled_singleton:*` keys, then retry run-now.
+- **Ctrl+C does not exit**: Run `scripts\stop-celery.cmd` first (kills `celery.exe` and Python trees whose command line contains `celery -A app.celery_app`); on Linux/macOS use `bash scripts/stop-celery.sh`.
+- **Optional**: Run Worker/Beat inside WSL2 or Docker (Linux) with `bash scripts/run-celery.sh`, keeping API and frontend on Windows; if the broker is Redis on the host, bind `0.0.0.0` and point `CELERY_BROKER_URL` at the host IP.
+
 Optional: `MINERVA_BACKEND_PORT` overrides API port (default 8000).
 
 **Troubleshooting (Windows + Python 3.13):** If encountering `No module named 'pydantic_core._pydantic_core'`, it's often because the startup or `pip` is using **3.13t** (`python3.13t.exe`) while `pydantic-core` has no corresponding precompiled package. Use **standard 3.13** to create venv and install dependencies: ``py -3.13 -m venv .venv``, activate it and then ``pip install -e ".[dev]"``; or for global installation/repair use ``py -3.13 -m pip install --force-reinstall "pydantic" "pydantic-core"``, do not use ``py -3 -m pip`` at this time (may still point to 3.13t).

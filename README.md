@@ -113,6 +113,18 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
    - `scripts\run-celery.cmd local worker` 与 `scripts\run-celery.cmd local beat`
    - `bash scripts/run-celery.sh local worker` / `local beat`
 
+**Windows Celery 排错**
+
+- **双终端**：定时任务与「立即执行」须 **Worker、Beat 各开一个终端**；仅开 Worker 时 Beat 不会调度，仅开 Beat 时队列无人消费。
+- **Worker 池**：Windows 上 `run-celery.cmd` 默认 **`threads` 池**（`MINERVA_CELERY_POOL`、`MINERVA_CELERY_CONCURRENCY`，默认并发 4）。`MINERVA_CELERY_USE_PREFORK=1` 为兼容旧开关，等价于 `MINERVA_CELERY_POOL=prefork`。
+- **假死 / 不消费**：按顺序排查：
+  1. Redis 可达（启动脚本会跑 broker 预检；亦可 `cd backend` 后 `python -m app.sys.celery.service.broker_preflight`）。
+  2. Beat 终端是否周期性出现 `Scheduler: Sending due task`；Worker 是否 `ready` 且对任务有 `received`。
+  3. 队列积压：`redis-cli LLEN celery`（或 `.env` 中 `CELERY_DEFAULT_QUEUE` 所指队列名）是否持续增长。
+  4. 单例锁：若日志大量 `already_running`，检查并视情况删除 `minerva:celery:scheduled_singleton:*` 对应 key 后重试「立即执行」。
+- **无法 Ctrl+C 退出**：优先执行 `scripts\stop-celery.cmd`（结束 `celery.exe` 及命令行含 `celery -A app.celery_app` 的 Python 进程树）；Linux/macOS 可用 `bash scripts/stop-celery.sh`。
+- **可选**：在 WSL2 或 Docker（Linux）内用 `bash scripts/run-celery.sh` 跑 Worker/Beat，Windows 本机仅跑 API 与前端；Broker 在本机 Redis 时需监听 `0.0.0.0` 并将 `CELERY_BROKER_URL` 指向宿主机 IP。
+
 可选：`MINERVA_BACKEND_PORT` 覆盖 API 端口（默认 8000）。
 
 **排错（Windows + Python 3.13）：** 若报 `No module named 'pydantic_core._pydantic_core'`，多因启动或 `pip` 实际使用了 **3.13t**（`python3.13t.exe`）而 `pydantic-core` 无对应预编译包。请用 **标准 3.13** 建 venv 并装依赖：``py -3.13 -m venv .venv``，激活后再 ``pip install -e ".[dev]"``；或全局安装/修复时用 ``py -3.13 -m pip install --force-reinstall "pydantic" "pydantic-core"``，不要在此时使用 ``py -3 -m pip``（可能仍指向 3.13t）。

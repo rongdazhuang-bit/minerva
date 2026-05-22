@@ -92,7 +92,13 @@ description: >-
 
 1. **`app/config.py` `Settings` 字段**：增删字段、`Field(validation_alias=...)` 更名、默认值或 `description` 含义变化。
 2. **代码内直接读取**：`os.environ.get` / `os.getenv`（如 `MINERVA_CELERY_USE_PREFORK`）。
-3. **启动脚本约定**：`scripts/run-backend.*`、`scripts/run-celery.*` 文档化变量（`MINERVA_BACKEND_PORT`、`APP_ENV` profile）。
+3. **启动脚本约定**：`scripts/run-backend.*`、`scripts/run-celery.*`、`scripts/stop-celery.*` 文档化变量（`MINERVA_BACKEND_PORT`、`APP_ENV` profile，以及下表 Celery Worker 项）。
+
+| 变量 | 说明 |
+|------|------|
+| `MINERVA_CELERY_POOL` | Worker 池：`threads` \| `solo` \| `prefork`；Windows `run-celery.cmd` 默认 `threads` |
+| `MINERVA_CELERY_CONCURRENCY` | 并发数（正整数）；`run-celery.*` 默认 `4`（`solo` 池忽略） |
+| `MINERVA_CELERY_USE_PREFORK` | **兼容**：`1` / `true` / `yes` 等价于 `MINERVA_CELERY_POOL=prefork`（见 `app/celery_app.py`） |
 
 以下**通常不需要**写入 `.env.dev`（可仅在 `.env.example` 末尾以注释说明）：
 
@@ -111,7 +117,7 @@ description: >-
 
 - **键名**：与 `Settings` 的 `validation_alias` 或 Pydantic 大写蛇形名一致（如 `DATABASE_URL`、`AGENT_MAX_PLAN_STEPS`）。
 - **分组**：按「运行环境 / 数据库 / JWT / AI / Celery / Agent」等区块排列，与现有 `.env.example` 结构一致。
-- **权威来源**：`backend/app/config.py`；辅助检索 `os.getenv`、`scripts/run-backend.sh`。
+- **权威来源**：`backend/app/config.py`；辅助检索 `os.getenv`、`scripts/run-backend.*`、`scripts/run-celery.*`、`scripts/stop-celery.*`。
 - **加载顺序**（写入 `.env.example` 头注释即可，勿重复发明）：进程环境变量 → 单个 `backend/.env.<APP_ENV>`（无叠加；脚本无参默认 `local` → `.env.local`）。
 - **勿**在配置文件中添加应用未读取的键（历史 `REDIS_URL` 若仅备忘，须注释说明「应用不读取，以 `CELERY_*` 为准」）。
 
