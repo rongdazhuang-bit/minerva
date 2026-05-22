@@ -1,7 +1,7 @@
 # Windows 环境 Celery Worker 可靠性设计
 
 **日期**：2026-05-22  
-**状态**：待实现  
+**状态**：已实现  
 **依据**：头脑风暴——Windows 上 Celery Worker 易假死、不消费 `sys_celery` 定时任务与「立即执行」、运行一段时间后退化、`Ctrl+C` 无法干净退出。
 
 ---
@@ -189,16 +189,16 @@ Beat **不**改 pool；Beat 进程仅调度，继续独立终端运行。
 
 ---
 
-## 10. 实现对照（待填）
+## 10. 实现对照
 
-| 项 | 状态 |
-|----|------|
-| `celery_app.py` pool 默认与 conf | 待实现 |
-| `config.py` + `.env.*` | 待实现 |
-| `run-celery.*` CLI 参数 | 待实现 |
-| `stop-celery.cmd` | 待实现 |
-| README 排错章节 | 待实现 |
-| `minerva-conventions` 更新 | 待实现 |
+| 项 | 状态 | 说明 |
+|----|------|------|
+| `celery_app.py` pool 默认与 conf | 已实现 | `424e770`：`backend/app/celery_app.py`（Windows 默认 `threads`、`resolve_worker_pool_name`、broker heartbeat、`worker_cancel_long_running_tasks_on_connection_loss`） |
+| `config.py` + `.env.*` | 已实现 | `3d300fe`：`backend/app/config.py`、`backend/.env.example`、`backend/.env.dev`（`MINERVA_CELERY_POOL`、`MINERVA_CELERY_CONCURRENCY`） |
+| `run-celery.*` CLI 参数 | 已实现 | `a01df6e`：`scripts/run-celery.cmd`、`scripts/run-celery.sh`（`--pool` / `--concurrency`） |
+| `stop-celery.cmd` | 已实现 | `a323012`：`scripts/stop-celery.cmd`、`scripts/stop-celery.sh` |
+| README 排错章节 | 已实现 | `README.md`、`README.en.md` §Windows Celery 排错（Task 5） |
+| `minerva-conventions` 更新 | 已实现 | `.cursor/skills/minerva-conventions/SKILL.md` §3：`stop-celery.*`、`MINERVA_CELERY_POOL` / `CONCURRENCY` / `USE_PREFORK`（Task 5） |
 
 ---
 
@@ -207,3 +207,4 @@ Beat **不**改 pool；Beat 进程仅调度，继续独立终端运行。
 | 日期 | 说明 |
 |------|------|
 | 2026-05-22 | 初稿：头脑风暴结论与用户确认（方案 B + 现象 A/B/D、任务类型 C、启动 A、Beat+run-now 均失败） |
+| 2026-05-22 | 按 plan `2026-05-22-windows-celery-reliability.md` 实现；§10 对照表回填（`3d300fe`–`a323012` 及 Task 5 文档） |
