@@ -47,12 +47,14 @@ async def run_ocr_and_load_layout(
     )
     session.add(ocr_row)
     await session.flush()
+    # 须在 commit/rollback 前缓存主键：rollback 会使实例过期，异步会话下访问 ocr_row.id 会触发 MissingGreenlet。
+    ocr_file_id = ocr_row.id
     await translate_repo.update_doc_translate_job(
         session,
         job_id=job_id,
         workspace_id=workspace_id,
         status="OCR_RUNNING",
-        ocr_file_id=ocr_row.id,
+        ocr_file_id=ocr_file_id,
     )
     await session.commit()
 
@@ -62,7 +64,7 @@ async def run_ocr_and_load_layout(
         await asyncio.sleep(interval)
         await session.rollback()
         row = (
-            await session.execute(select(OcrFile).where(OcrFile.id == ocr_row.id))
+            await session.execute(select(OcrFile).where(OcrFile.id == ocr_file_id))
         ).scalar_one_or_none()
         if row is None:
             raise AppError("translate.ocr_failed", "OCR 任务丢失。", 502)
@@ -70,7 +72,7 @@ async def run_ocr_and_load_layout(
             layout_doc = await load_layout_document_from_ocr_file(
                 session,
                 workspace_id=workspace_id,
-                ocr_file_id=ocr_row.id,
+                ocr_file_id=ocr_file_id,
             )
             if layout_doc is not None and not layout_to_segment_drafts(layout_doc):
                 layout_doc = None
@@ -79,10 +81,10 @@ async def run_ocr_and_load_layout(
                 pages = await load_ocr_markdown_pages_for_translate(
                     session,
                     workspace_id=workspace_id,
-                    ocr_file_id=ocr_row.id,
+                    ocr_file_id=ocr_file_id,
                 )
                 ocr_pages = pages or None
-            return ocr_row.id, layout_doc, ocr_pages
+            return ocr_file_id, layout_doc, ocr_pages
         if row.status == "FAILED":
             raise AppError(
                 "translate.ocr_failed",
