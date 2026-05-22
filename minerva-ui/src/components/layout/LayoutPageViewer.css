@@ -10,8 +10,10 @@
 
 .layout-page-viewer__visual {
   position: relative;
-  margin-bottom: 16px;
+  display: block;
+  width: fit-content;
   max-width: 100%;
+  margin-bottom: 16px;
 }
 
 .layout-page-viewer__raster {
