@@ -40,8 +40,19 @@ minerva_backend_setup "${PROFILE}"
 
 CELERY_APP="app.celery_app:celery_app"
 "${MINERVA_PYTHON}" -m app.sys.celery.service.broker_preflight
+export MINERVA_CELERY_POOL="${MINERVA_CELERY_POOL:-}"
+export MINERVA_CELERY_CONCURRENCY="${MINERVA_CELERY_CONCURRENCY:-4}"
 if [[ "${SUBCMD}" == "worker" ]]; then
-  exec "${MINERVA_PYTHON}" -m celery -A "${CELERY_APP}" worker --loglevel=INFO
+  POOL="${MINERVA_CELERY_POOL}"
+  if [[ -z "${POOL}" ]]; then
+    if [[ "$(uname -s 2>/dev/null || true)" == *MINGW* ]] || [[ "$(uname -s 2>/dev/null || true)" == *MSYS* ]]; then
+      POOL="threads"
+    else
+      POOL="prefork"
+    fi
+  fi
+  exec "${MINERVA_PYTHON}" -m celery -A "${CELERY_APP}" worker --loglevel=INFO \
+    --pool="${POOL}" --concurrency="${MINERVA_CELERY_CONCURRENCY}"
 else
   exec "${MINERVA_PYTHON}" -m celery -A "${CELERY_APP}" beat --loglevel=INFO
 fi
