@@ -20,6 +20,8 @@ if errorlevel 1 exit /b 1
 
 set "CELERY_APP=app.celery_app:celery_app"
 echo 目录: %MINERVA_BACKEND_DIR%  子命令: %SUBCMD%
+"%MINERVA_PYTHON%" -m app.sys.celery.service.broker_preflight
+if errorlevel 1 exit /b 1
 "%MINERVA_PYTHON%" -m celery -A %CELERY_APP% %SUBCMD% --loglevel=INFO
 exit /b %ERRORLEVEL%
 

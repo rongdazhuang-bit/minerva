@@ -12,6 +12,7 @@ from sqlalchemy import create_engine
 from app.agent.constants import AGENT_CHECKPOINT_PURGE_TASK_NAME
 from app.agent.service.checkpoint_purge_service import run_checkpoint_purge
 from app.config import settings
+from app.sys.celery.service.scheduled_task_guard import scheduled_singleton_guard
 
 log = logging.getLogger(__name__)
 logger = get_task_logger(__name__)
@@ -30,6 +31,7 @@ def _sync_engine():
 
 
 @shared_task(bind=True, name=AGENT_CHECKPOINT_PURGE_TASK_NAME)
+@scheduled_singleton_guard
 def purge_langgraph_checkpoints(self: Task, *args: Any, **kwargs: Any) -> dict[str, Any]:
     """Purge checkpoint tables older than configured retention (ignores beat args)."""
 

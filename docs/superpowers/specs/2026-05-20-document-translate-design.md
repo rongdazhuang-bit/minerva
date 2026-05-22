@@ -168,7 +168,7 @@ minerva-ui/src/api/translate.ts
 ### 4.2 Celery 任务
 
 - 任务名：`translate.run_job`（常量 `DOC_TRANSLATE_RUN_TASK_NAME`）。
-- 入参：`job_id`（UUID 字符串）。
+- 入参：`job_id`（**必须**为 `doc_translate_job.id` 的 UUID 字符串；**禁止**随机生成或 demo 占位符 `minerva`）。上传 API 创建任务后 `enqueue_task(..., args=[str(row.id)])` 自动入队；若在 `sys_celery` 配置周期/立即执行，须从文档翻译列表复制真实任务 id 填入 `args_json[0]` 或 `kwargs_json.job_id`。
 - Worker 步骤：
   1. 加载 job，下载 `source_object_key` 到临时目录。
   2. `registry.get_strategy(file_ext)`。

@@ -20,6 +20,7 @@ from app.translate.domain.constants import (
     DOC_TRANSLATE_STATUS_PENDING,
 )
 from app.translate.infrastructure import repository as translate_repo
+from app.translate.service.translate_dict_seed import ensure_translate_status_dicts
 from app.translate.service.translate_llm import _assert_translate_model
 
 
@@ -56,6 +57,7 @@ async def create_job_from_upload(
         raise AppError("translate.lang_required", "请选择源语言与目标语言。", 422)
 
     await _assert_translate_model(session, workspace_id=workspace_id, model_id=model_id)
+    await ensure_translate_status_dicts(session, workspace_id=workspace_id)
 
     s3 = S3FileService(session=session)
     upload = await s3.upload_file(

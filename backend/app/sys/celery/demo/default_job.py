@@ -10,6 +10,8 @@ from typing import Any
 from celery import Task, shared_task
 from celery.utils.log import get_task_logger
 
+from app.sys.celery.service.scheduled_task_guard import scheduled_singleton_guard
+
 # Celery wires this logger under ``celery.task`` so ``celery worker --loglevel=INFO`` prints it.
 logger = get_task_logger(__name__)
 
@@ -41,6 +43,7 @@ def _request_log_extra(request: Any) -> dict[str, Any]:
 
 
 @shared_task(bind=True, name="demo.default_job")
+@scheduled_singleton_guard
 def default_job(self: Task, *args: Any, **kwargs: Any) -> dict[str, Any]:
     """Execute a no-op demo job and write start/finish lines to the worker logger.
 

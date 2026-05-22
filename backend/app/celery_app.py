@@ -20,6 +20,7 @@ from typing import Any
 
 from app.config import settings
 from app.exceptions import AppError
+from app.sys.celery.service.redis_connection import celery_redis_transport_options
 from app.sys.celery.service.beat_runtime import (
     CeleryBeatRuntimeState,
     create_beat_runtime_state,
@@ -56,6 +57,8 @@ def _build_celery_app() -> Any:
         broker=settings.celery_broker_url,
         backend=settings.celery_result_backend,
     )
+    _redis_transport = celery_redis_transport_options()
+    _broker_retries = settings.celery_broker_connection_max_retries
     celery_app.conf.update(
         task_default_queue=settings.celery_default_queue,
         task_serializer="json",
@@ -64,6 +67,14 @@ def _build_celery_app() -> Any:
         enable_utc=True,
         # Let application/task loggers propagate; hijacking root often hides ``logging.getLogger(__name__)``.
         worker_hijack_root_logger=False,
+        broker_connection_retry=True,
+        broker_connection_retry_on_startup=True,
+        broker_connection_timeout=int(settings.celery_redis_socket_connect_timeout),
+        broker_connection_max_retries=None if _broker_retries == 0 else _broker_retries,
+        broker_transport_options=_redis_transport,
+        result_backend_transport_options=_redis_transport,
+        redis_backend_health_check_interval=int(settings.celery_redis_health_check_interval)
+        or None,
     )
 
     _win_prefork = os.getenv("MINERVA_CELERY_USE_PREFORK", "").strip().lower() in (
@@ -185,6 +196,7 @@ def enqueue_task(
     *,
     args: list[Any] | None = None,
     kwargs: dict[str, Any] | None = None,
+    headers: dict[str, Any] | None = None,
 ) -> str:
     """Send one task to Celery broker and return accepted task id."""
 
@@ -195,6 +207,7 @@ def enqueue_task(
             task_name,
             args=args or [],
             kwargs=kwargs or {},
+            headers=headers,
             queue=settings.celery_default_queue,
         )
     except AppError:

@@ -14,10 +14,12 @@ from app.exceptions import AppError
 from app.sys.celery.domain.db.models import SysCelery
 from app.sys.celery.infrastructure import repository as repo
 from app.sys.celery.service import beat_sync_service
+from app.sys.celery.service.scheduled_task_guard import build_schedule_run_headers
 from app.sys.celery.service.task_payload_codec import (
     normalize_task_args,
     normalize_task_kwargs,
 )
+from app.sys.celery.service.task_schedule_validation import validate_celery_schedule_payload
 
 
 _TASK_CODE_UNIQUE_CONSTRAINT = "uq_sys_celery_workspace_task_code"
@@ -77,6 +79,22 @@ def _normalize_task_kwargs(value: Any) -> dict[str, Any]:
             "kwargs_json must be an object when running task",
             422,
         ) from exc
+
+
+def _validate_row_task_payload(row: SysCelery) -> None:
+    """Reject persisted args/kwargs that cannot invoke the configured Celery task."""
+
+    task_name = (row.task or "").strip()
+    if not task_name:
+        raise AppError("celery_job.invalid_argument", "task cannot be blank", 422)
+    try:
+        validate_celery_schedule_payload(
+            task_name,
+            normalize_task_args(row.args_json),
+            normalize_task_kwargs(row.kwargs_json),
+        )
+    except ValueError as exc:
+        raise AppError("celery_job.invalid_task_payload", str(exc), 422) from exc
 
 
 def _normalize_kwargs_payload(value: Any) -> dict[str, Any] | None:
@@ -193,6 +211,7 @@ async def create_job(
         create_at=now,
         update_at=now,
     )
+    _validate_row_task_payload(row)
     session.add(row)
     try:
         await session.commit()
@@ -228,6 +247,7 @@ async def update_job(
         setattr(row, key, value)
     row.version = _next_version(row.version)
     row.update_at = _utc_now()
+    _validate_row_task_payload(row)
     try:
         await session.commit()
     except IntegrityError as exc:
@@ -308,5 +328,10 @@ async def send_task_now(
         row.task,
         args=_normalize_task_args(row.args_json),
         kwargs=_normalize_task_kwargs(row.kwargs_json),
+        headers=build_schedule_run_headers(
+            workspace_id=str(row.workspace_id),
+            job_id=str(row.id),
+            task_code=row.task_code,
+        ),
     )
     return task_id

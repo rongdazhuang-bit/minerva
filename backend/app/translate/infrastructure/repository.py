@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.translate.domain.constants import DOC_TRANSLATE_LIST_MAX_LIMIT
 from app.translate.domain.db.models import DocTranslateJob, DocTranslateSegment
+from app.translate.infrastructure.pg_text import sanitize_postgres_json, sanitize_postgres_text
 
 
 def encode_doc_translate_job_cursor(updated_at: datetime, job_id: uuid.UUID) -> str:
@@ -172,6 +173,10 @@ async def update_doc_translate_job(
         "layout_source",
     }
     values = {k: v for k, v in fields.items() if k in allowed}
+    if values.get("error_message") is not None:
+        values["error_message"] = sanitize_postgres_text(str(values["error_message"]))
+    if values.get("layout_snapshot_json") is not None:
+        values["layout_snapshot_json"] = sanitize_postgres_json(values["layout_snapshot_json"])
     values["update_at"] = datetime.now(UTC)
     if not values:
         return
@@ -201,11 +206,15 @@ async def bulk_insert_segments(
                 job_id=job_id,
                 workspace_id=workspace_id,
                 seq=int(item["seq"]),
-                source_text=str(item["source_text"]),
-                translated_text=item.get("translated_text"),
+                source_text=sanitize_postgres_text(str(item["source_text"])) or "",
+                translated_text=sanitize_postgres_text(
+                    str(item["translated_text"]) if item.get("translated_text") is not None else None
+                ),
                 status=str(item.get("status", "PENDING")),
-                anchor_json=item.get("anchor_json"),
-                error_message=item.get("error_message"),
+                anchor_json=sanitize_postgres_json(item.get("anchor_json")),
+                error_message=sanitize_postgres_text(
+                    str(item["error_message"]) if item.get("error_message") is not None else None
+                ),
             )
         )
     await session.flush()
@@ -250,9 +259,9 @@ async def update_segment_translation(
             DocTranslateSegment.workspace_id == workspace_id,
         )
         .values(
-            translated_text=translated_text,
+            translated_text=sanitize_postgres_text(translated_text),
             status=status,
-            error_message=error_message,
+            error_message=sanitize_postgres_text(error_message),
         )
     )
     await session.flush()

@@ -188,6 +188,32 @@
   word-break: break-word;
 }
 
+/* 页面对照：双栏流式正文，无段落边框（与段落对照区分） */
+.translate-page__page-compare {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.translate-page__page-compare-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.translate-page__page-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.translate-page__page-cell {
+  font-size: 13px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
 .translate-page__detail-modal .ant-upload-drag {
   min-height: 160px;
 }

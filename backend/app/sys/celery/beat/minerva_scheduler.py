@@ -12,7 +12,9 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import settings
 from app.sys.celery.domain.db.models import SysCelery
+from app.sys.celery.service.scheduled_task_guard import build_schedule_run_headers
 from app.sys.celery.service.task_payload_codec import normalize_task_args, normalize_task_kwargs
+from app.sys.celery.service.task_schedule_validation import validate_celery_schedule_payload
 
 from .cron_schedule import cron_expr_to_celery_schedule
 
@@ -137,7 +139,9 @@ class MinervaBeatScheduler(Scheduler):
         client = None
         pubsub = None
         try:
-            client = redis_mod.Redis.from_url(settings.celery_broker_url, decode_responses=True)
+            from app.sys.celery.service.redis_connection import create_celery_redis_client
+
+            client = create_celery_redis_client()
             pubsub = client.pubsub(ignore_subscribe_messages=True)
             pubsub.subscribe(settings.celery_schedule_sync_channel)
             while not self._listener_stop.is_set():
@@ -202,6 +206,12 @@ class MinervaBeatScheduler(Scheduler):
                     timezone_name=row.timezone or "Asia/Shanghai",
                 )
                 kwargs_payload = normalize_task_kwargs(row.kwargs_json)
+                task_args = list(normalize_task_args(row.args_json))
+                validate_celery_schedule_payload(
+                    row.task.strip(),
+                    task_args,
+                    kwargs_payload,
+                )
             except ValueError as exc:
                 _LOGGER.warning(
                     "minerva beat: skip job %s / %s: %s",
@@ -221,8 +231,15 @@ class MinervaBeatScheduler(Scheduler):
             out[name] = {
                 "task": row.task.strip(),
                 "schedule": sched,
-                "args": tuple(normalize_task_args(row.args_json)),
+                "args": tuple(task_args),
                 "kwargs": kwargs_payload,
-                "options": {"queue": settings.celery_default_queue},
+                "options": {
+                    "queue": settings.celery_default_queue,
+                    "headers": build_schedule_run_headers(
+                        workspace_id=str(row.workspace_id),
+                        job_id=str(row.id),
+                        task_code=row.task_code,
+                    ),
+                },
             }
         return out

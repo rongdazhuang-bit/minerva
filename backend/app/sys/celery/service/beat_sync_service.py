@@ -78,7 +78,9 @@ def publish_schedule_changed_event(
             import redis
         except ModuleNotFoundError:
             return False
-        client = redis.Redis.from_url(settings.celery_broker_url, decode_responses=True)
+        from app.sys.celery.service.redis_connection import create_celery_redis_client
+
+        client = create_celery_redis_client()
         close_client = True
 
     message = json.dumps(event, separators=(",", ":"), ensure_ascii=True)

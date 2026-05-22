@@ -311,3 +311,13 @@ backend/app/translate/    # extract → layout_snapshot；assemble → writers
 3. 翻译 `extract/assemble` 接 LDM + 公式跳过 + `layout_snapshot`。
 4. 翻译详情页级/段落 Markdown 对照 + `LayoutWriter` 下载。
 5. 页图渲染与 PDF 写回。
+
+---
+
+## 11. 实现对照（以代码为准，2026-05-22）
+
+| 条目 | 代码位置 | 备注 |
+|------|----------|------|
+| OCR 完成后翻译抽取 | `backend/app/translate/service/ocr_bridge.py` | 轮询前 `session.rollback()` 避免陈旧 ORM 状态；SUCCESS 后优先 LDM，无块则回退 `load_ocr_markdown_pages_for_translate` |
+| 流水线传参 | `backend/app/translate/service/run_pipeline.py` | `extract` 使用 `ocr_file_id` / `ocr_pages`，不再依赖未刷新的 `job.ocr_file_id` |
+| Markdown 回退加载 | `backend/app/layout/load_ocr.py` | `load_ocr_markdown_pages_for_translate`；空 `layout_blocks_json` 视为无 LDM |

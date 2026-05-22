@@ -165,6 +165,60 @@ class Settings(BaseSettings):
             "celery_beat_max_loop_seconds",
         ),
     )
+    celery_scheduled_task_lock_ttl_seconds: int = Field(
+        default=3600,
+        ge=60,
+        le=86400,
+        description=(
+            "Redis TTL for scheduled-task singleton locks; auto-releases if a worker dies mid-run."
+        ),
+        validation_alias=AliasChoices(
+            "CELERY_SCHEDULED_TASK_LOCK_TTL_SECONDS",
+            "celery_scheduled_task_lock_ttl_seconds",
+        ),
+    )
+    celery_redis_socket_connect_timeout: int = Field(
+        default=30,
+        ge=5,
+        le=300,
+        description="Redis socket connect timeout (seconds) for Celery broker and auxiliary clients.",
+        validation_alias=AliasChoices(
+            "CELERY_REDIS_SOCKET_CONNECT_TIMEOUT",
+            "celery_redis_socket_connect_timeout",
+        ),
+    )
+    celery_redis_socket_timeout: int = Field(
+        default=30,
+        ge=5,
+        le=300,
+        description="Redis socket read/write timeout (seconds) for Celery broker and auxiliary clients.",
+        validation_alias=AliasChoices(
+            "CELERY_REDIS_SOCKET_TIMEOUT",
+            "celery_redis_socket_timeout",
+        ),
+    )
+    celery_redis_health_check_interval: int = Field(
+        default=30,
+        ge=0,
+        le=600,
+        description="Redis connection pool health check interval (seconds); 0 disables.",
+        validation_alias=AliasChoices(
+            "CELERY_REDIS_HEALTH_CHECK_INTERVAL",
+            "celery_redis_health_check_interval",
+        ),
+    )
+    celery_broker_connection_max_retries: int = Field(
+        default=0,
+        ge=0,
+        le=1000,
+        description=(
+            "Celery broker connect retries on worker/beat startup; 0 means unlimited retries."
+        ),
+        validation_alias=AliasChoices(
+            "CELERY_BROKER_CONNECTION_MAX_RETRIES",
+            "celery_broker_connection_max_retries",
+        ),
+    )
     agent_max_plan_steps: int = Field(
         default=8,
         ge=1,

@@ -11,16 +11,15 @@ from typing import Any
 
 from app.config import settings
 from app.exceptions import AppError
+from app.sys.celery.service.redis_connection import create_celery_redis_client
 
 _CAPTCHA_KEY_PREFIX = "minerva:auth:captcha:"
 
 
 def _redis_client() -> Any:
-    """Return a synchronous Redis client using the Celery broker URL."""
+    """Return a synchronous Redis client using the Celery broker URL and transport timeouts."""
 
-    import redis
-
-    return redis.Redis.from_url(settings.celery_broker_url, decode_responses=True)
+    return create_celery_redis_client()
 
 
 def _random_code(length: int) -> str:

@@ -16,8 +16,10 @@ def _block_markdown_piece(block: LayoutBlock, *, use_translation: bool) -> str:
         return ""
     if block.skip_translate or not use_translation:
         text = block.source_text
-    elif block.translated_text is not None:
+    elif block.translated_text is not None and str(block.translated_text).strip():
         text = block.translated_text
+    elif use_translation:
+        text = ""
     else:
         text = block.source_text
     text = (text or "").strip()

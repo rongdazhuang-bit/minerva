@@ -28,13 +28,16 @@ from app.translate.api.schemas import (
 )
 from app.translate.domain.constants import (
     DOC_TRANSLATE_SEGMENTS_MAX_RETURN,
+    DOC_TRANSLATE_STATUS_PENDING,
     DOC_TRANSLATE_STATUS_SUCCESS,
 )
 from app.translate.domain.db.models import DocTranslateJob
 from app.translate.infrastructure import repository as translate_repo
 from app.translate.service.job_delete import delete_doc_translate_job
+from app.translate.service.layout_pages import _segment_page_index
 from app.translate.service.layout_pages import get_translate_job_layout_pages
 from app.translate.service.job_service import create_job_from_upload
+from app.translate.service.translate_dict_seed import ensure_translate_status_dicts
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/translate", tags=["translate"])
 
@@ -82,7 +85,7 @@ async def create_translate_job(
         target_lang=target_lang,
         model_id=model_id,
     )
-    return DocTranslateJobCreateOut(id=job_id, status="PENDING")
+    return DocTranslateJobCreateOut(id=job_id, status=DOC_TRANSLATE_STATUS_PENDING)
 
 
 @router.get("/jobs", response_model=DocTranslateJobListOut)
@@ -99,6 +102,7 @@ async def list_translate_jobs(
 ) -> DocTranslateJobListOut:
     """List translation jobs with offset pagination and optional filters."""
 
+    await ensure_translate_status_dicts(session, workspace_id=workspace_id)
     rows, total = await translate_repo.list_doc_translate_jobs_filtered(
         session,
         workspace_id=workspace_id,
@@ -198,10 +202,9 @@ async def list_translate_job_segments(
         bucket: dict[tuple[int | None, str | None], list[DocTranslateSegmentOut]] = {}
         for out, row in zip(segment_outs, rows, strict=True):
             anchor = row.anchor_json if isinstance(row.anchor_json, dict) else {}
-            page_index = anchor.get("page_index") if group_by == "page" else None
             label = anchor.get("label") if group_by == "label" else None
             if group_by == "page":
-                key = (int(page_index) if page_index is not None else None, None)
+                key = (_segment_page_index(row), None)
             else:
                 key = (None, str(label) if label else None)
             bucket.setdefault(key, []).append(out)

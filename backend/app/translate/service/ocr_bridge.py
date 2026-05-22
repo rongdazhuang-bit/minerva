@@ -12,8 +12,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.exceptions import AppError
 from app.file_ocr.domain.db.models import OcrFile
-from app.layout.load_ocr import load_layout_document_from_ocr_file
+from app.layout.load_ocr import (
+    load_layout_document_from_ocr_file,
+    load_ocr_markdown_pages_for_translate,
+)
 from app.layout.models import LayoutDocument
+from app.layout.segments import layout_to_segment_drafts
 from app.translate.infrastructure import repository as translate_repo
 
 
@@ -25,8 +29,8 @@ async def run_ocr_and_load_layout(
     source_object_key: str,
     file_name: str,
     file_size: int | None,
-) -> tuple[uuid.UUID, LayoutDocument | None]:
-    """Insert INIT ``ocr_file``, wait until SUCCESS, return LDM when stored."""
+) -> tuple[uuid.UUID, LayoutDocument | None, list[tuple[int, str]] | None]:
+    """Insert INIT ``ocr_file``, wait until SUCCESS, return LDM and optional markdown pages."""
 
     ocr_type = settings.doc_translate_default_ocr_type.strip()
     now = datetime.now(UTC)
@@ -56,6 +60,7 @@ async def run_ocr_and_load_layout(
     interval = float(settings.doc_translate_ocr_poll_interval_seconds)
     while asyncio.get_event_loop().time() < deadline:
         await asyncio.sleep(interval)
+        await session.rollback()
         row = (
             await session.execute(select(OcrFile).where(OcrFile.id == ocr_row.id))
         ).scalar_one_or_none()
@@ -67,7 +72,17 @@ async def run_ocr_and_load_layout(
                 workspace_id=workspace_id,
                 ocr_file_id=ocr_row.id,
             )
-            return ocr_row.id, layout_doc
+            if layout_doc is not None and not layout_to_segment_drafts(layout_doc):
+                layout_doc = None
+            ocr_pages: list[tuple[int, str]] | None = None
+            if layout_doc is None:
+                pages = await load_ocr_markdown_pages_for_translate(
+                    session,
+                    workspace_id=workspace_id,
+                    ocr_file_id=ocr_row.id,
+                )
+                ocr_pages = pages or None
+            return ocr_row.id, layout_doc, ocr_pages
         if row.status == "FAILED":
             raise AppError(
                 "translate.ocr_failed",

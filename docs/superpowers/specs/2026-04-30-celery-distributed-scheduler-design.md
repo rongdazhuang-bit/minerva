@@ -211,6 +211,7 @@
 - 热更新通知失败：记录错误日志，依赖 Beat 低频对账恢复一致性。
 - 立即执行失败：返回失败原因并写入 `last_error`。
 - 任务执行结果由 Worker 回写 `last_run_at/last_status/last_error`，并刷新 `next_run_at`。
+- **Broker Redis 不可达**：Worker/Beat 在 `kombu` `queue_declare` → `pipe.execute()` 处失败，多为 `redis.exceptions.ConnectionError`（含 WinError 10053 连接被重置、10061 端口拒绝）。`run-celery` 启动前执行 `app.sys.celery.service.broker_preflight`（可 `CELERY_SKIP_BROKER_PREFLIGHT=1` 跳过）；运行时由 `broker_connection_retry_on_startup` 与 `broker_connection_retry` 自动重试。共享超时/keepalive 见 `app/sys/celery/service/redis_connection.py`。
 
 ## 9. 测试与验收
 
@@ -247,5 +248,6 @@
 | Beat | DB 真源 + Redis 通知 + 60s 对账（`beat_sync_service`） |
 | 示例任务 | `demo.default_job` |
 | **缺口** | Worker **未回写** `last_run_at` / `last_status` / `last_error` / `next_run_at` |
+| Broker 预检 / 传输选项 | `broker_preflight.py`、`redis_connection.py`；`run-celery` 启动前 PING |
 | 列表响应 | 仅 `items` + `total`（**无** `page`/`page_size` 字段） |
 | ORM | 仍保留 `status` 列（spec 建议由 `enabled` 统一） |

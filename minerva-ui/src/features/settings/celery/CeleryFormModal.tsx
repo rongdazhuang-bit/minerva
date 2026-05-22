@@ -1,9 +1,17 @@
 /** Provides create/edit form modal for one celery job. */
 
 import { Button, Drawer, Form, Input, Select, Space, Typography } from 'antd'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CronBuilder } from './CronBuilder'
+import {
+  DEMO_DEFAULT_ARGS_JSON,
+  DEMO_DEFAULT_KWARGS_JSON,
+  DOC_TRANSLATE_RUN_TASK_NAME,
+  defaultPayloadJsonForTask,
+  isUuidString,
+  rawTranslateRunJobId,
+} from './taskPayloadHints'
 import type { CeleryJob, CeleryJobCreateBody, CeleryJobPatchBody } from './types'
 import './CeleryFormModal.css'
 
@@ -24,12 +32,6 @@ type CeleryFormValues = {
 type CeleryFormSubmitPayload = CeleryJobCreateBody | CeleryJobPatchBody
 
 const { Text } = Typography
-
-/** Default positional-args JSON when opening the create drawer (maps to Celery ``*args``). */
-const DEFAULT_CREATE_ARGS_JSON = JSON.stringify(['minerva'], null, 2)
-
-/** Default keyword-args JSON when opening the create drawer (maps to Celery ``**kwargs``). */
-const DEFAULT_CREATE_KWARGS_JSON = JSON.stringify({ source: 'scheduler' }, null, 2)
 
 type CeleryFormModalProps = {
   open: boolean
@@ -89,6 +91,8 @@ function toSubmitPayload(values: CeleryFormValues): CeleryFormSubmitPayload {
 export function CeleryFormModal(props: CeleryFormModalProps) {
   const { t } = useTranslation()
   const [form] = Form.useForm<CeleryFormValues>()
+  const watchedTask = Form.useWatch('task', form)
+  const prevTaskRef = useRef<string | undefined>(undefined)
 
   useEffect(() => {
     if (!props.open) return
@@ -113,11 +117,21 @@ export function CeleryFormModal(props: CeleryFormModalProps) {
       cron: '0 * * * * *',
       timezone: 'Asia/Shanghai',
       enabled: true,
-      args_json: DEFAULT_CREATE_ARGS_JSON,
-      kwargs_json: DEFAULT_CREATE_KWARGS_JSON,
+      args_json: DEMO_DEFAULT_ARGS_JSON,
+      kwargs_json: DEMO_DEFAULT_KWARGS_JSON,
       remark: '',
     })
   }, [form, props.job, props.mode, props.open])
+
+  useEffect(() => {
+    if (!props.open || props.mode !== 'create') return
+    const task = (watchedTask ?? '').trim()
+    const prev = prevTaskRef.current
+    prevTaskRef.current = task
+    if (!task || task === prev) return
+    const { args_json, kwargs_json } = defaultPayloadJsonForTask(task)
+    form.setFieldsValue({ args_json, kwargs_json })
+  }, [form, props.mode, props.open, watchedTask])
 
   /** Validates cron as 5-part (legacy) or 6-part (second-first) expression. */
   const validateCron = (_: unknown, value: string | undefined) => {
@@ -129,16 +143,45 @@ export function CeleryFormModal(props: CeleryFormModalProps) {
   /** Validates args_json as a JSON object/array when provided. */
   const validateArgsJson = (_: unknown, value: string | undefined) => {
     const raw = (value ?? '').trim()
-    if (raw === '') return Promise.resolve()
-    try {
-      const parsed = JSON.parse(raw) as unknown
-      if (Array.isArray(parsed) || (parsed != null && typeof parsed === 'object')) {
+    const task = (form.getFieldValue('task') ?? '').trim()
+    if (raw === '') {
+      if (task !== DOC_TRANSLATE_RUN_TASK_NAME) {
         return Promise.resolve()
       }
-      return Promise.reject(new Error(t('settings.celery.argsJsonInvalid')))
-    } catch {
-      return Promise.reject(new Error(t('settings.celery.argsJsonInvalid')))
     }
+    let parsed: unknown = []
+    if (raw !== '') {
+      try {
+        parsed = JSON.parse(raw) as unknown
+      } catch {
+        return Promise.reject(new Error(t('settings.celery.argsJsonInvalid')))
+      }
+      if (!Array.isArray(parsed) && (parsed == null || typeof parsed !== 'object')) {
+        return Promise.reject(new Error(t('settings.celery.argsJsonInvalid')))
+      }
+    }
+    if (task !== DOC_TRANSLATE_RUN_TASK_NAME) {
+      return Promise.resolve()
+    }
+    let kwargsParsed: unknown = null
+    const kwargsRaw = String(form.getFieldValue('kwargs_json') ?? '').trim()
+    if (kwargsRaw !== '') {
+      try {
+        kwargsParsed = JSON.parse(kwargsRaw) as unknown
+      } catch {
+        return Promise.reject(new Error(t('settings.celery.kwargsJsonInvalid')))
+      }
+    }
+    const jobId = rawTranslateRunJobId(parsed, kwargsParsed)
+    if (!jobId) {
+      return Promise.reject(new Error(t('settings.celery.translateRunJobIdRequired')))
+    }
+    if (!isUuidString(jobId)) {
+      return Promise.reject(
+        new Error(t('settings.celery.translateRunJobIdInvalid', { value: jobId })),
+      )
+    }
+    return Promise.resolve()
   }
 
   /** Validates kwargs_json as a JSON object when provided. */
@@ -260,13 +303,23 @@ export function CeleryFormModal(props: CeleryFormModalProps) {
           name="args_json"
           label={t('settings.celery.fieldArgsJson')}
           rules={[{ validator: validateArgsJson }]}
-          extra={<Text type="secondary">{t('settings.celery.fieldArgsJsonExtra')}</Text>}
+          extra={
+            <Text type="secondary">
+              {(watchedTask ?? '').trim() === DOC_TRANSLATE_RUN_TASK_NAME
+                ? t('settings.celery.fieldArgsJsonExtraTranslateRunJob')
+                : t('settings.celery.fieldArgsJsonExtra')}
+            </Text>
+          }
         >
           <Input.TextArea
             allowClear
             autoSize={{ minRows: 3, maxRows: 8 }}
             classNames={{ textarea: 'minerva-scrollbar-styled' }}
-            placeholder={t('settings.celery.fieldArgsJsonPh')}
+            placeholder={
+              (watchedTask ?? '').trim() === DOC_TRANSLATE_RUN_TASK_NAME
+                ? t('settings.celery.fieldArgsJsonPhTranslateRunJob')
+                : t('settings.celery.fieldArgsJsonPh')
+            }
           />
         </Form.Item>
         <Form.Item

@@ -39,6 +39,7 @@ esac
 minerva_backend_setup "${PROFILE}"
 
 CELERY_APP="app.celery_app:celery_app"
+"${MINERVA_PYTHON}" -m app.sys.celery.service.broker_preflight
 if [[ "${SUBCMD}" == "worker" ]]; then
   exec "${MINERVA_PYTHON}" -m celery -A "${CELERY_APP}" worker --loglevel=INFO
 else

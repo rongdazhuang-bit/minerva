@@ -15,7 +15,6 @@ import {
   DatePicker,
   Form,
   Input,
-  Collapse,
   Empty,
   Modal,
   Popconfirm,
@@ -34,7 +33,15 @@ import type { ColumnsType } from 'antd/es/table'
 import type { UploadProps } from 'antd/es/upload/interface'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Dayjs } from 'dayjs'
-import { useCallback, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+} from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { ApiError } from '@/api/client'
@@ -48,10 +55,20 @@ import {
   listTranslateJobs,
   type DocTranslateJobListItem,
   type DocTranslateJobListParams,
-  type DocTranslateSegmentGroup,
 } from '@/api/translate'
-import { LayoutPageViewer } from '@/components/layout/LayoutPageViewer'
+import { DictText } from '@/components/dict'
+import { TranslatePageLayoutCompare } from '@/features/translate/TranslatePageLayoutCompare'
 import { MinervaMarkdown } from '@/components/markdown'
+import {
+  DOC_TRANSLATE_SEGMENT_DONE,
+  DOC_TRANSLATE_SEGMENT_FAILED,
+  DOC_TRANSLATE_SEGMENT_PENDING,
+  DOC_TRANSLATE_STATUS_FAILED,
+  DOC_TRANSLATE_STATUS_SUCCESS,
+  TRANSLATE_SEGMENT_STATUS_DICT_CODE,
+  TRANSLATE_STATUS_DICT_CODE,
+} from '@/features/translate/constants'
+import { useDictItemTree } from '@/hooks/useDictItemTree'
 import { listModelProviders, type ModelProviderListItem } from '@/api/modelProviders'
 import { useAuth } from '@/app/AuthContext'
 import { useAppMessage } from '@/app/useAppMessage'
@@ -59,7 +76,10 @@ import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
 import {
   formatTranslateJobDateTime,
   isTranslateJobTerminal,
+  shouldShowTranslateDetailPagesSkeleton,
+  shouldShowTranslateDetailSegmentsSkeleton,
   translateJobListLabel,
+  translateJobStatusTagColor,
 } from '@/features/translate/translateJobUi'
 import './TranslatePage.css'
 
@@ -139,17 +159,7 @@ const LANG_OPTIONS = [
   { value: 'ko', labelKey: 'translate.lang.ko' },
 ] as const
 
-const JOB_STATUS_VALUES = [
-  'PENDING',
-  'OCR_RUNNING',
-  'EXTRACTING',
-  'TRANSLATING',
-  'ASSEMBLING',
-  'SUCCESS',
-  'FAILED',
-] as const
-
-const TERMINAL = new Set(['SUCCESS', 'FAILED'])
+const TERMINAL = new Set([DOC_TRANSLATE_STATUS_SUCCESS, DOC_TRANSLATE_STATUS_FAILED])
 
 type FilterFormValues = {
   file_name?: string
@@ -170,6 +180,12 @@ export function TranslatePage() {
   const [uploadOpen, setUploadOpen] = useState(false)
   const [detailJobId, setDetailJobId] = useState<string | null>(null)
   const [detailTab, setDetailTab] = useState<'pages' | 'segments'>('pages')
+  /** 每次打开详情弹窗时重置为页面对照 Tab。 */
+  useEffect(() => {
+    if (detailJobId != null) {
+      setDetailTab('pages')
+    }
+  }, [detailJobId])
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [sourceLang, setSourceLang] = useState<string>('en')
   const [targetLang, setTargetLang] = useState<string>('zh-CN')
@@ -188,6 +204,8 @@ export function TranslatePage() {
     queryFn: () => listModelProviders(workspaceId!),
     enabled: Boolean(workspaceId),
   })
+
+  const translateStatusDictQ = useDictItemTree(TRANSLATE_STATUS_DICT_CODE)
 
   const translateModels = useMemo(() => {
     const rows = modelsQuery.data ?? []
@@ -223,7 +241,18 @@ export function TranslatePage() {
   })
 
   const segmentsQuery = useQuery({
-    queryKey: ['translate-segments', workspaceId, detailJobId],
+    queryKey: ['translate-segments', workspaceId, detailJobId, 'none'],
+    queryFn: () => listTranslateJobSegments(workspaceId!, detailJobId!, 'none'),
+    enabled: Boolean(workspaceId && detailJobId),
+    refetchInterval: () => {
+      const st = jobQuery.data?.status
+      if (!st || TERMINAL.has(st)) return false
+      return 3000
+    },
+  })
+
+  const segmentsPageGroupsQuery = useQuery({
+    queryKey: ['translate-segments', workspaceId, detailJobId, 'page'],
     queryFn: () => listTranslateJobSegments(workspaceId!, detailJobId!, 'page'),
     enabled: Boolean(workspaceId && detailJobId),
     refetchInterval: () => {
@@ -265,11 +294,11 @@ export function TranslatePage() {
 
   const statusFilterOptions = useMemo(
     () =>
-      JOB_STATUS_VALUES.map((s) => ({
-        value: s,
-        label: t(`translate.status.${s}`, { defaultValue: s }),
+      (translateStatusDictQ.data?.flat ?? []).map((item) => ({
+        value: item.code,
+        label: item.name,
       })),
-    [t],
+    [translateStatusDictQ.data?.flat],
   )
 
   const toFilterParams = useCallback((values: FilterFormValues): DocTranslateJobListParams => {
@@ -363,7 +392,7 @@ export function TranslatePage() {
 
   const handleDownloadJob = useCallback(
     async (row: DocTranslateJobListItem) => {
-      if (!workspaceId || row.status !== 'SUCCESS') return
+      if (!workspaceId || row.status !== DOC_TRANSLATE_STATUS_SUCCESS) return
       const hide = message.loading(t('translate.downloadPreparing'), 0)
       try {
         const name =
@@ -496,8 +525,8 @@ export function TranslatePage() {
         width: 96,
         ellipsis: true,
         render: (status: string) => (
-          <Tag className="translate-page__status-tag">
-            {t(`translate.status.${status}`, { defaultValue: status })}
+          <Tag className="translate-page__status-tag" color={translateJobStatusTagColor(status)}>
+            <DictText dictCode={TRANSLATE_STATUS_DICT_CODE} value={status} />
           </Tag>
         ),
       },
@@ -506,7 +535,7 @@ export function TranslatePage() {
         key: 'progress',
         width: 108,
         render: (_v, row) => {
-          const percent = row.status === 'SUCCESS' ? 100 : row.progress
+          const percent = row.status === DOC_TRANSLATE_STATUS_SUCCESS ? 100 : row.progress
           return (
             <div className="translate-page__progress-cell">
               <Progress percent={percent} size="small" style={{ margin: 0 }} />
@@ -556,7 +585,7 @@ export function TranslatePage() {
                 }}
               />
             </Tooltip>
-            {row.status === 'SUCCESS' ? (
+            {row.status === DOC_TRANSLATE_STATUS_SUCCESS ? (
               <Tooltip title={t('translate.download')}>
                 <Button
                   type="text"
@@ -610,8 +639,16 @@ export function TranslatePage() {
 
   const job = jobQuery.data
   const segments = segmentsQuery.data?.segments ?? []
-  const segmentGroups: DocTranslateSegmentGroup[] =
-    segmentsQuery.data?.groups ?? []
+  const showPagesSkeleton = shouldShowTranslateDetailPagesSkeleton(
+    job,
+    layoutPagesQuery,
+    segmentsPageGroupsQuery,
+  )
+  const showSegmentsSkeleton = shouldShowTranslateDetailSegmentsSkeleton(
+    job,
+    segmentsQuery,
+    segments.length,
+  )
 
   if (!workspaceId) {
     return (
@@ -773,14 +810,16 @@ export function TranslatePage() {
               <Title level={5} style={{ margin: 0 }}>
                 {translateJobListLabel(job, t('translate.defaultTitle'))}
               </Title>
-              <Tag>{t(`translate.status.${job.status}`, { defaultValue: job.status })}</Tag>
+              <Tag color={translateJobStatusTagColor(job.status)}>
+                <DictText dictCode={TRANSLATE_STATUS_DICT_CODE} value={job.status} />
+              </Tag>
               {!isTranslateJobTerminal(job.status) ? (
                 <Progress percent={job.progress} size="small" style={{ width: 120, margin: 0 }} />
               ) : null}
               <Text type="secondary">
                 {job.segment_done}/{job.segment_total}
               </Text>
-              {job.status === 'SUCCESS' ? (
+              {job.status === DOC_TRANSLATE_STATUS_SUCCESS ? (
                 <Button
                   size="small"
                   icon={<DownloadOutlined />}
@@ -802,7 +841,7 @@ export function TranslatePage() {
         classNames={{ body: 'minerva-scrollbar-thin translate-page__detail-modal-body' }}
         destroyOnHidden
       >
-        {job?.status === 'FAILED' && job.error_message ? (
+        {job?.status === DOC_TRANSLATE_STATUS_FAILED && job.error_message ? (
           <Alert type="error" showIcon message={job.error_message} style={{ marginBottom: 16 }} />
         ) : null}
         <Tabs
@@ -812,7 +851,7 @@ export function TranslatePage() {
             {
               key: 'pages',
               label: t('translate.detailTab.pages', { defaultValue: '页面对照' }),
-              children: layoutPagesQuery.isLoading ? (
+              children: showPagesSkeleton ? (
                 <TranslateDetailPagesSkeleton />
               ) : layoutPagesQuery.isError ? (
                 <Alert
@@ -823,12 +862,9 @@ export function TranslatePage() {
                   })}
                 />
               ) : layoutPagesQuery.data?.pages?.length ? (
-                <LayoutPageViewer
+                <TranslatePageLayoutCompare
                   pages={layoutPagesQuery.data.pages}
-                  mode="bilingual"
-                  pageTitle={(n) => t('translate.detailPageTitle', { n, defaultValue: `第 ${n} 页` })}
-                  colSourceTitle={t('translate.colSource')}
-                  colTargetTitle={t('translate.colTarget')}
+                  groups={segmentsPageGroupsQuery.data?.groups ?? []}
                 />
               ) : (
                 <Empty description={t('translate.detailTab.noPages', { defaultValue: '暂无页面数据' })} />
@@ -837,7 +873,7 @@ export function TranslatePage() {
             {
               key: 'segments',
               label: t('translate.detailTab.segments', { defaultValue: '段落对照' }),
-              children: segmentsQuery.isLoading ? (
+              children: showSegmentsSkeleton ? (
                 <TranslateDetailSegmentsSkeleton />
               ) : (
                 <div className="translate-page__compare">
@@ -845,53 +881,34 @@ export function TranslatePage() {
                     <div className="translate-page__compare-col-title">{t('translate.colSource')}</div>
                     <div className="translate-page__compare-col-title">{t('translate.colTarget')}</div>
                   </div>
-                  {segmentGroups.length > 0 ? (
-                    <Collapse
-                      items={segmentGroups.map((g, gi) => ({
-                        key: String(gi),
-                        label:
-                          g.page_index != null
-                            ? t('translate.detailGroup.page', {
-                                n: g.page_index + 1,
-                                defaultValue: `第 ${g.page_index + 1} 页`,
-                              })
-                            : g.label ?? t('translate.detailGroup.other', { defaultValue: '其他' }),
-                        children: g.segments.map((s) => (
-                          <div key={s.id} className="translate-page__compare-pair">
-                            <div className="translate-page__segment-row translate-page__segment-row--source">
-                              <MinervaMarkdown preset="ocr" markdown={s.source_text} />
-                            </div>
-                            <div className="translate-page__segment-row translate-page__segment-row--target">
-                              {s.translated_text?.trim() ? (
-                                <MinervaMarkdown preset="ocr" markdown={s.translated_text} />
-                              ) : s.status === 'FAILED' ? (
-                                <Text type="danger">{t('translate.segmentFailed')}</Text>
-                              ) : (
-                                <Text type="secondary">{t('translate.segmentPending')}</Text>
-                              )}
-                            </div>
-                          </div>
-                        )),
-                      }))}
-                    />
-                  ) : (
-                    segments.map((s) => (
-                      <div key={s.id} className="translate-page__compare-pair">
-                        <div className="translate-page__segment-row translate-page__segment-row--source">
-                          <MinervaMarkdown preset="ocr" markdown={s.source_text} />
-                        </div>
-                        <div className="translate-page__segment-row translate-page__segment-row--target">
-                          {s.translated_text?.trim() ? (
-                            <MinervaMarkdown preset="ocr" markdown={s.translated_text} />
-                          ) : s.status === 'FAILED' ? (
-                            <Text type="danger">{t('translate.segmentFailed')}</Text>
-                          ) : (
-                            <Text type="secondary">{t('translate.segmentPending')}</Text>
-                          )}
-                        </div>
+                  {segments.map((s) => (
+                    <div key={s.id} className="translate-page__compare-pair">
+                      <div className="translate-page__segment-row translate-page__segment-row--source">
+                        <MinervaMarkdown preset="ocr" markdown={s.source_text} />
                       </div>
-                    ))
-                  )}
+                      <div className="translate-page__segment-row translate-page__segment-row--target">
+                        {s.translated_text?.trim() ? (
+                          <MinervaMarkdown preset="ocr" markdown={s.translated_text} />
+                        ) : s.status === DOC_TRANSLATE_SEGMENT_FAILED ? (
+                          <Text type="danger">
+                            <DictText
+                              dictCode={TRANSLATE_SEGMENT_STATUS_DICT_CODE}
+                              value={s.status}
+                            />
+                          </Text>
+                        ) : s.status === DOC_TRANSLATE_SEGMENT_DONE ? (
+                          <Text type="secondary">{t('translate.segmentMissing')}</Text>
+                        ) : (
+                          <Text type="secondary">
+                            <DictText
+                              dictCode={TRANSLATE_SEGMENT_STATUS_DICT_CODE}
+                              value={s.status || DOC_TRANSLATE_SEGMENT_PENDING}
+                            />
+                          </Text>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ),
             },
