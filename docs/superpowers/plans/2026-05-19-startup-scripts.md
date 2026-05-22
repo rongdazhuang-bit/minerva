@@ -194,8 +194,8 @@ minerva_backend_setup() {
 
   if [[ -f "${backend_dir}/.venv/bin/python" ]]; then
     MINERVA_PYTHON="${backend_dir}/.venv/bin/python"
-  elif [[ -f "${backend_dir}/minerva/Scripts/python.exe" ]]; then
-    MINERVA_PYTHON="${backend_dir}/minerva/Scripts/python.exe"
+  elif [[ -f "${backend_dir}/.venv/Scripts/python.exe" ]]; then
+    MINERVA_PYTHON="${backend_dir}/.venv/Scripts/python.exe"
   elif command -v python3 >/dev/null 2>&1; then
     MINERVA_PYTHON="python3"
   elif command -v python >/dev/null 2>&1; then
@@ -337,8 +337,8 @@ if not exist "%MINERVA_ENV_FILE%" (
 )
 
 set "MINERVA_PYTHON="
-if exist "%MINERVA_BACKEND_DIR%\minerva\Scripts\python.exe" (
-  set "MINERVA_PYTHON=%MINERVA_BACKEND_DIR%\minerva\Scripts\python.exe"
+if exist "%MINERVA_BACKEND_DIR%\.venv\Scripts\python.exe" (
+  set "MINERVA_PYTHON=%MINERVA_BACKEND_DIR%\.venv\Scripts\python.exe"
   goto :python_done
 )
 where py >nul 2>&1 && (

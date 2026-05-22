@@ -64,25 +64,25 @@ Execute the following commands in the **`backend` directory** (first `cd backend
    *PowerShell:*
 
    ```powershell
-   python -m venv minerva
-   .\minerva\Scripts\Activate.ps1
+   python -m venv .venv
+   .\.venv\Scripts\Activate.ps1
    ```
 
    *cmd:*
 
    ```bat
-   python -m venv minerva
-   .\minerva\Scripts\activate.bat
+   python -m venv .venv
+   .\.venv\Scripts\activate.bat
    ```
 
    **Linux / macOS:**
 
    ```bash
-   python3 -m venv minerva
-   source minerva/bin/activate
+   python3 -m venv .venv
+   source .venv/bin/activate
    ```
 
-2. **Install project dependencies (editable mode, including development dependencies like ruff, pytest, etc.)**
+2. **Install project dependencies (editable mode, including development dependencies like ruff, etc.)**
 
    ```bash
    pip install -e ".[dev]"
@@ -106,7 +106,7 @@ With the **virtual environment activated** and (if needed) migration completed, 
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-**Recommended:** In the **repository root directory**, use startup scripts (preferentially uses Python from `backend/.venv` or `backend/minerva`; on Windows without venv, tries `py -3.13` / `py -3.12` / `py -3.11` and `python` in sequence, **avoiding** `py -3` which may select "3.13 free-threaded version"):
+**Recommended:** In the **repository root directory**, use startup scripts (preferentially uses Python from `backend/.venv`; on Windows without venv, tries `py -3.13` / `py -3.12` / `py -3.11` and `python` in sequence, **avoiding** `py -3` which may select "3.13 free-threaded version"):
 
 1. **API:** `scripts\run-backend.cmd` (Windows) or `bash scripts/run-backend.sh` (Linux/macOS) — no args loads `backend/.env.local`; `run-backend dev` loads `.env.dev`
 2. **Celery** (requires Redis; Beat needed for scheduled tasks): must pass profile and subcommand explicitly, e.g.:
@@ -182,5 +182,5 @@ Open another terminal and operate in the **`minerva-ui` directory**:
 ## Contributing
 
 1. Fork this repository and create a new feature branch.
-2. Before submitting, execute `ruff check .` and `pytest` in backend directory, and `npm run build` in `minerva-ui` for basic validation.
+2. Before submitting, execute `ruff check .` in backend directory, and `npm run build` in `minerva-ui` for basic validation.
 3. Merge via Pull Request.

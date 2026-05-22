@@ -91,12 +91,11 @@ description: >-
 以下任一情况均须同步：
 
 1. **`app/config.py` `Settings` 字段**：增删字段、`Field(validation_alias=...)` 更名、默认值或 `description` 含义变化。
-2. **代码内直接读取**：`os.environ.get` / `os.getenv`（如 `MINERVA_CELERY_USE_PREFORK`、`MINERVA_SKIP_DB_TESTS`）。
+2. **代码内直接读取**：`os.environ.get` / `os.getenv`（如 `MINERVA_CELERY_USE_PREFORK`）。
 3. **启动脚本约定**：`scripts/run-backend.*`、`scripts/run-celery.*` 文档化变量（`MINERVA_BACKEND_PORT`、`APP_ENV` profile）。
 
 以下**通常不需要**写入 `.env.dev`（可仅在 `.env.example` 末尾以注释说明）：
 
-- 仅 pytest 使用的 `MINERVA_SKIP_DB_TESTS`。
 - 操作系统级 `TZ`（除非团队统一要求写入 dev 配置）。
 
 ### 两个文件的分工

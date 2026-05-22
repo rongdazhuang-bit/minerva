@@ -21,10 +21,6 @@ if not exist "%MINERVA_ENV_FILE%" (
 )
 
 set "MINERVA_PYTHON="
-if exist "%MINERVA_BACKEND_DIR%\minerva\Scripts\python.exe" (
-  set "MINERVA_PYTHON=%MINERVA_BACKEND_DIR%\minerva\Scripts\python.exe"
-  goto :python_done
-)
 if exist "%MINERVA_BACKEND_DIR%\.venv\Scripts\python.exe" (
   set "MINERVA_PYTHON=%MINERVA_BACKEND_DIR%\.venv\Scripts\python.exe"
   goto :python_done

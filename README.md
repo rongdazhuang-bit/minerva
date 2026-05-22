@@ -64,25 +64,25 @@ Copy-Item backend/.env.example backend/.env.local
    *PowerShell：*
 
    ```powershell
-   python -m venv minerva
-   .\minerva\Scripts\Activate.ps1
+   python -m venv .venv
+   .\.venv\Scripts\Activate.ps1
    ```
 
    *cmd：*
 
    ```bat
-   python -m venv minerva
-   .\minerva\Scripts\activate.bat
+   python -m venv .venv
+   .\.venv\Scripts\activate.bat
    ```
 
    **Linux / macOS：**
 
    ```bash
-   python3 -m venv minerva
-   source minerva/bin/activate
+   python3 -m venv .venv
+   source .venv/bin/activate
    ```
 
-2. **安装项目依赖（可编辑模式，含开发依赖 ruff、pytest 等）**
+2. **安装项目依赖（可编辑模式，含开发依赖 ruff 等）**
 
    ```bash
    pip install -e ".[dev]"
@@ -106,7 +106,7 @@ alembic upgrade head
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-**推荐：** 在**仓库根目录**使用脚本启动（会优先使用 `backend/.venv` 或 `backend/minerva` 中的 Python；无 venv 时 Windows 依次尝试 `py -3.13` / `py -3.12` / `py -3.11` 与 `python`，**避免**使用易选中「3.13 自由线程版」的 `py -3`）：
+**推荐：** 在**仓库根目录**使用脚本启动（会优先使用 `backend/.venv` 中的 Python；无 venv 时 Windows 依次尝试 `py -3.13` / `py -3.12` / `py -3.11` 与 `python`，**避免**使用易选中「3.13 自由线程版」的 `py -3`）：
 
 1. **API**：`scripts\run-backend.cmd`（Windows）或 `bash scripts/run-backend.sh`（Linux/macOS）— 无参默认加载 `backend/.env.local`；`run-backend dev` 加载 `.env.dev`
 2. **Celery**（需 Redis；定时任务另需 Beat）：须显式指定 profile 与子命令，例如：
@@ -182,5 +182,5 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ## 参与贡献
 
 1. Fork 本仓库并新建功能分支。  
-2. 提交前建议在后端目录执行 `ruff check .` 与 `pytest`，在 `minerva-ui` 执行 `npm run build` 作基本校验。  
+2. 提交前建议在后端目录执行 `ruff check .`，在 `minerva-ui` 执行 `npm run build` 作基本校验。  
 3. 通过 Pull Request 合并。

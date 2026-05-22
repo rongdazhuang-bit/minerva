@@ -1,4 +1,3 @@
-/// <reference types="vitest/config" />
 import path from 'node:path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -50,9 +49,5 @@ export default defineConfig({
       '^/(healthz|workspaces|docs|openapi\\.json|redoc)': devApiProxy,
       '^/(ratelimit-probe|validation-probe)': devApiProxy,
     },
-  },
-  test: {
-    environment: 'node',
-    include: ['src/**/*.test.ts'],
   },
 })

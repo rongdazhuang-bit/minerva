@@ -23,8 +23,8 @@ minerva_backend_setup() {
 
   if [[ -f "${backend_dir}/.venv/bin/python" ]]; then
     MINERVA_PYTHON="${backend_dir}/.venv/bin/python"
-  elif [[ -f "${backend_dir}/minerva/Scripts/python.exe" ]]; then
-    MINERVA_PYTHON="${backend_dir}/minerva/Scripts/python.exe"
+  elif [[ -f "${backend_dir}/.venv/Scripts/python.exe" ]]; then
+    MINERVA_PYTHON="${backend_dir}/.venv/Scripts/python.exe"
   elif command -v python3 >/dev/null 2>&1; then
     MINERVA_PYTHON="python3"
   elif command -v python >/dev/null 2>&1; then
