@@ -7,8 +7,9 @@ Beat process can reuse this module as a stable integration surface:
 
 On Windows the default prefork/billiard pool can leave ``trace._localized`` empty in worker
 children, causing ``ValueError: not enough values to unpack (expected 3, got 0)`` in
-``fast_trace_task``. This module defaults ``worker_pool`` to ``solo`` on Windows unless
-``MINERVA_CELERY_USE_PREFORK`` is set to opt into prefork.
+``fast_trace_task``. This module defaults ``worker_pool`` to ``threads`` on Windows unless
+``MINERVA_CELERY_POOL`` / ``settings.celery_worker_pool`` overrides it, or
+``MINERVA_CELERY_USE_PREFORK`` opts into prefork.
 """
 
 from __future__ import annotations
@@ -43,6 +44,34 @@ try:
 except ImportError:  # pragma: no cover - kombu ships with celery
     _KombuBrokerConnectionError = None  # type: ignore[misc, assignment]
 
+_VALID_CELERY_POOLS = frozenset({"solo", "threads", "prefork"})
+
+
+def resolve_worker_pool_name() -> str:
+    """Resolve Celery worker pool from settings, env, and platform defaults."""
+
+    legacy_prefork = os.getenv("MINERVA_CELERY_USE_PREFORK", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+    if legacy_prefork:
+        return "prefork"
+    raw = (
+        settings.celery_worker_pool or os.getenv("MINERVA_CELERY_POOL", "") or ""
+    ).strip().lower()
+    if raw in _VALID_CELERY_POOLS:
+        return raw
+    if sys.platform == "win32":
+        return "threads"
+    return "prefork"
+
+
+def resolve_worker_concurrency() -> int:
+    """Clamp configured worker concurrency to a safe operational range."""
+
+    return max(1, min(64, int(settings.celery_worker_concurrency)))
+
 
 def _build_celery_app() -> Any:
     """Build one shared Celery application from process settings."""
@@ -75,17 +104,14 @@ def _build_celery_app() -> Any:
         result_backend_transport_options=_redis_transport,
         redis_backend_health_check_interval=int(settings.celery_redis_health_check_interval)
         or None,
+        broker_heartbeat=30,
+        worker_cancel_long_running_tasks_on_connection_loss=True,
     )
 
-    _win_prefork = os.getenv("MINERVA_CELERY_USE_PREFORK", "").strip().lower() in (
-        "1",
-        "true",
-        "yes",
-    )
-    if sys.platform == "win32" and not _win_prefork:
-        # Celery CLI defaults ``--pool`` to prefork; ``WorkersPool`` replaces that with
-        # ``conf.worker_pool`` when the CLI value is still the prefork default (see celery.bin.worker).
-        celery_app.conf.worker_pool = "solo"
+    pool_name = resolve_worker_pool_name()
+    celery_app.conf.worker_pool = pool_name
+    if pool_name in ("threads", "prefork"):
+        celery_app.conf.worker_concurrency = resolve_worker_concurrency()
 
     celery_app.conf.beat_scheduler = (
         "app.sys.celery.beat.minerva_scheduler:MinervaBeatScheduler"
@@ -126,7 +152,7 @@ if celery_app is not None:
             which then unpacks ``_localized`` and raises
             ``ValueError: not enough values to unpack (expected 3, got 0)``.
 
-            Primary mitigation is ``conf.worker_pool = "solo"`` on Windows above; this
+            Primary mitigation is ``conf.worker_pool = "threads"`` on Windows above; this
             hook remains for operators who force prefork via ``MINERVA_CELERY_USE_PREFORK``.
 
             Do not gate on ``app.use_fast_trace_task``: that flag stays false in the
