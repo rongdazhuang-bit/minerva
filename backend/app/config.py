@@ -219,6 +219,29 @@ class Settings(BaseSettings):
             "celery_broker_connection_max_retries",
         ),
     )
+    celery_worker_pool: str | None = Field(
+        default=None,
+        description=(
+            "Celery worker pool override (threads|solo|prefork). "
+            "Empty uses platform default in celery_app (Windows: threads)."
+        ),
+        validation_alias=AliasChoices(
+            "MINERVA_CELERY_POOL",
+            "CELERY_WORKER_POOL",
+            "celery_worker_pool",
+        ),
+    )
+    celery_worker_concurrency: int = Field(
+        default=4,
+        ge=1,
+        le=64,
+        description="Worker concurrency when pool is threads or prefork.",
+        validation_alias=AliasChoices(
+            "MINERVA_CELERY_CONCURRENCY",
+            "CELERY_WORKER_CONCURRENCY",
+            "celery_worker_concurrency",
+        ),
+    )
     agent_max_plan_steps: int = Field(
         default=8,
         ge=1,
