@@ -11,6 +11,8 @@ import fitz
 
 from app.layout.models import LayoutDocument
 from app.layout.segments import layout_to_segment_drafts
+from app.layout.writers.base import WriteContext
+from app.layout.writers.pdf_writer import PdfWriter
 from app.translate.domain.dto import SegmentDraft, SegmentRecord
 from app.translate.service.strategies.base import DocTranslateFormatStrategy
 
@@ -184,32 +186,9 @@ class PdfTranslateStrategy(DocTranslateFormatStrategy):
         source_path: Path,
         out_path: Path,
     ) -> None:
-        doc = fitz.open(source_path)
-        try:
-            for seg in segments:
-                anchor = seg.anchor_json or {}
-                if anchor.get("skip_translate"):
-                    continue
-                page_no = int(anchor.get("page", 0))
-                if page_no >= len(doc):
-                    continue
-                page = doc[page_no]
-                bbox = anchor.get("bbox")
-                if isinstance(bbox, list) and len(bbox) >= 4:
-                    rect = fitz.Rect(bbox[0], bbox[1], bbox[2], bbox[3])
-                    page.add_redact_annot(rect, text="")
-                    page.apply_redactions()
-                    page.insert_textbox(
-                        rect,
-                        seg.translated_text or "",
-                        fontsize=10,
-                        align=fitz.TEXT_ALIGN_LEFT,
-                    )
-                else:
-                    page.insert_text((72, 72 + (seg.seq % 40) * 14), seg.translated_text or "")
-            doc.save(out_path)
-        finally:
-            doc.close()
+        PdfWriter().write(
+            WriteContext(source_path=source_path, out_path=out_path, segments=segments)
+        )
 
 
 def _split_ocr_markdown_blocks(md: str) -> list[str]:
