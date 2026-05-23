@@ -51,7 +51,9 @@ def test_agent_chat_model_factory_constructs_chat_openai(monkeypatch: pytest.Mon
     assert captured["api_key"] == "secret"
     assert captured["max_tokens"] == 512
     assert "base_url" not in captured
-    assert isinstance(captured["root_async_client"], AsyncOpenAI)
+    root_async_client = captured["root_async_client"]
+    assert isinstance(root_async_client, AsyncOpenAI)
+    assert captured["async_client"] is root_async_client.chat.completions
 
 
 def test_agent_chat_model_factory_rejects_wrong_workspace() -> None:
@@ -96,6 +98,16 @@ def test_agent_chat_model_factory_accepts_root_endpoint(monkeypatch: pytest.Monk
 
     client = captured["root_async_client"]
     assert isinstance(client, AsyncOpenAI)
+
+
+def test_agent_chat_model_factory_preserves_direct_endpoint_client() -> None:
+    """ChatOpenAI must keep the configured AsyncOpenAI instead of defaulting to OpenAI."""
+
+    row, workspace_id = _model_row()
+    model = ChatModelFactory.from_sys_model_row(row, workspace_id=workspace_id)
+
+    assert str(model.root_async_client.base_url).rstrip("/") == "https://example.com"
+    assert model.async_client is model.root_async_client.chat.completions
 
 
 def test_agent_chat_model_factory_rejects_missing_api_key() -> None:

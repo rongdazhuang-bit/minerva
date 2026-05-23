@@ -40,13 +40,16 @@ class ChatModelFactory:
         api_key = (row.api_key or "").strip()
         if not api_key:
             raise AppError("agent.model_misconfigured", "模型缺少 api_key。")
+        root_async_client = build_direct_endpoint_async_openai(
+            endpoint_url=endpoint_url,
+            api_key=api_key,
+        )
+        # LangChain recreates root_async_client when async_client is omitted; bind both.
         kwargs: dict = {
             "model": row.model_name,
             "api_key": api_key,
-            "root_async_client": build_direct_endpoint_async_openai(
-                endpoint_url=endpoint_url,
-                api_key=api_key,
-            ),
+            "root_async_client": root_async_client,
+            "async_client": root_async_client.chat.completions,
         }
         if temperature is not None:
             kwargs["temperature"] = temperature
