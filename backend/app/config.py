@@ -44,6 +44,45 @@ class Settings(BaseSettings):
         ),
         validation_alias=AliasChoices("APP_ENV", "app_env"),
     )
+    log_level: str = Field(
+        default="INFO",
+        description="Application log level: DEBUG, INFO, WARNING, ERROR, or CRITICAL.",
+        validation_alias=AliasChoices("LOG_LEVEL", "log_level"),
+    )
+    log_dir: str = Field(
+        default="logs",
+        description="Log directory relative to backend/ unless an absolute path is provided.",
+        validation_alias=AliasChoices("LOG_DIR", "log_dir"),
+    )
+    log_retention_days: int = Field(
+        default=7,
+        ge=1,
+        le=365,
+        description="Number of daily log files to keep.",
+        validation_alias=AliasChoices("LOG_RETENTION_DAYS", "log_retention_days"),
+    )
+    log_body_enabled: bool = Field(
+        default=True,
+        description="When True, HTTP middleware logs sanitized request and response bodies.",
+        validation_alias=AliasChoices("LOG_BODY_ENABLED", "log_body_enabled"),
+    )
+    log_body_max_chars: int = Field(
+        default=20000,
+        ge=0,
+        le=1_000_000,
+        description="Maximum characters kept for one logged HTTP request or response body.",
+        validation_alias=AliasChoices("LOG_BODY_MAX_CHARS", "log_body_max_chars"),
+    )
+    log_file_enabled: bool = Field(
+        default=True,
+        description="When True, application logs are written to rotating local log files.",
+        validation_alias=AliasChoices("LOG_FILE_ENABLED", "log_file_enabled"),
+    )
+    log_stdout_enabled: bool = Field(
+        default=True,
+        description="When True, application logs are written to stdout.",
+        validation_alias=AliasChoices("LOG_STDOUT_ENABLED", "log_stdout_enabled"),
+    )
     database_url: str = Field(
         default="postgresql+asyncpg://minerva:minerva@127.0.0.1:5432/minerva",
         description="Async SQLAlchemy URL (asyncpg driver).",
