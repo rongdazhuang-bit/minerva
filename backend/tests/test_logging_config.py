@@ -25,3 +25,18 @@ def test_configure_logging_suppresses_watchfiles_info() -> None:
 
     assert logging.getLogger("watchfiles").level == logging.WARNING
     assert logging.getLogger("watchfiles.main").isEnabledFor(logging.INFO) is False
+
+
+def test_configure_logging_suppresses_database_query_info() -> None:
+    """SQLAlchemy and DB driver INFO logs should not appear in application output."""
+
+    configure_logging(
+        process_type="api",
+        stdout_enabled=True,
+        file_enabled=False,
+        level_name="DEBUG",
+    )
+
+    assert logging.getLogger("sqlalchemy.engine").level == logging.WARNING
+    assert logging.getLogger("sqlalchemy.engine").isEnabledFor(logging.INFO) is False
+    assert logging.getLogger("psycopg.pool").level == logging.WARNING

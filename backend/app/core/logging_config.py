@@ -19,6 +19,19 @@ _PROCESS_LOG_FILES = {
     "worker": "worker.log",
     "beat": "beat.log",
 }
+# ORM/driver SQL and pool chatter stay off unless WARNING+.
+_QUIET_DATABASE_LOGGERS = (
+    "sqlalchemy",
+    "sqlalchemy.engine",
+    "sqlalchemy.pool",
+    "sqlalchemy.orm",
+    "sqlalchemy.dialects",
+    "psycopg",
+    "psycopg2",
+    "psycopg.pool",
+    "asyncpg",
+    "alembic",
+)
 _queue_listener: QueueListener | None = None
 _atexit_registered = False
 
@@ -74,6 +87,13 @@ def _mark_managed(handler: logging.Handler) -> logging.Handler:
     handler._minerva_logging = True  # type: ignore[attr-defined]
     handler.setFormatter(JsonLogFormatter())
     return handler
+
+
+def _configure_quiet_database_loggers() -> None:
+    """Suppress SQLAlchemy/psycopg/asyncpg INFO/DEBUG query logs on the app sinks."""
+
+    for logger_name in _QUIET_DATABASE_LOGGERS:
+        logging.getLogger(logger_name).setLevel(logging.WARNING)
 
 
 def configure_logging(
@@ -135,4 +155,5 @@ def configure_logging(
     logging.getLogger("uvicorn.access").propagate = True
     # Uvicorn --reload uses watchfiles; its INFO chatter is not useful in app logs.
     logging.getLogger("watchfiles").setLevel(logging.WARNING)
+    _configure_quiet_database_loggers()
     set_logging_context(process_type=process_type)

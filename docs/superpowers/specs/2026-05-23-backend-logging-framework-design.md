@@ -448,7 +448,7 @@ TimedRotatingFileHandler(
 | 日志 context | `backend/app/core/logging_context.py` | `request_id` / `task_id` / `process_type` 的 contextvars 管理。 |
 | 日志初始化与滚动文件 | `backend/app/core/logging_config.py` | stdout + `TimedRotatingFileHandler`，按进程文件。 |
 | 日志 Settings 与 env | `backend/app/config.py`、`backend/.env.example`、`backend/.env.dev` | 7 项日志配置已同步。 |
-| API 请求/响应报文日志 | `backend/app/core/logging_middleware.py` | 记录 request/response 摘要，返回 `X-Request-ID`；GET/流式请求不阻塞 ASGI。 |
+| API 请求/响应报文日志 | `backend/app/core/logging_middleware.py` | 记录 `http.request`（method、path、query、request_body）；`http.response` 仅 status/duration，**不记录响应 body**；返回 `X-Request-ID`；流式响应不再缓冲 body。 |
 | FastAPI 接入 | `backend/app/main.py`、`backend/app/errors.py` | 初始化日志、中间件、异常日志与 500 兜底。 |
 | Celery request_id 贯穿 | `backend/app/celery_app.py` | 入队 headers 注入，任务 prerun/postrun 恢复/清理 context。 |
 | 关键边界日志 | DB bootstrap、LangGraph checkpoint、Agent run、OCR scan、Translate pipeline、Beat scheduler | 记录开始、结束、失败摘要。 |

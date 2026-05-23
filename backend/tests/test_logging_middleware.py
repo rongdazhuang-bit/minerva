@@ -55,8 +55,8 @@ def _build_app() -> FastAPI:
     return app
 
 
-def test_http_logging_middleware_logs_sanitized_bodies(caplog: LogCaptureFixture) -> None:
-    """Middleware logs request and response bodies without breaking endpoint reads."""
+def test_http_logging_middleware_logs_request_params_only(caplog: LogCaptureFixture) -> None:
+    """Middleware logs request path/params and response status without response bodies."""
 
     caplog.set_level(logging.INFO)
     client = TestClient(_build_app())
@@ -71,16 +71,17 @@ def test_http_logging_middleware_logs_sanitized_bodies(caplog: LogCaptureFixture
     assert all(record.getMessage() in {"http.request", "http.response"} for record in http_records)
 
     messages = _http_log_messages(caplog)
-    assert any(message["event"] == "http.request" for message in messages)
-    assert any(message["event"] == "http.response" for message in messages)
     request_log = next(message for message in messages if message["event"] == "http.request")
     response_log = next(message for message in messages if message["event"] == "http.response")
+    assert request_log["path"] == "/echo"
     assert request_log["request_body"]["password"] == "[REDACTED]"
-    assert response_log["response_body"]["token"] == "[REDACTED]"
+    assert "response_body" not in response_log
+    assert response_log["status_code"] == 200
+    assert "duration_ms" in response_log
 
 
 def test_http_logging_middleware_does_not_consume_streams(caplog: LogCaptureFixture) -> None:
-    """Streaming responses are returned intact and logged as summaries."""
+    """Streaming responses are returned intact; response logs omit bodies."""
 
     caplog.set_level(logging.INFO)
     client = TestClient(_build_app())
@@ -93,7 +94,8 @@ def test_http_logging_middleware_does_not_consume_streams(caplog: LogCaptureFixt
     response_log = next(
         message for message in _http_log_messages(caplog) if message["event"] == "http.response"
     )
-    assert response_log["response_body"]["streaming"] is True
+    assert "response_body" not in response_log
+    assert response_log["status_code"] == 200
 
 
 def test_http_logging_middleware_post_sse_does_not_hang(caplog: LogCaptureFixture) -> None:
@@ -108,8 +110,8 @@ def test_http_logging_middleware_post_sse_does_not_hang(caplog: LogCaptureFixtur
     assert "ok" in response.text
 
 
-def test_http_logging_middleware_skips_octet_stream_body_buffer(caplog: LogCaptureFixture) -> None:
-    """Binary downloads are not buffered into response logs."""
+def test_http_logging_middleware_binary_stream_not_buffered(caplog: LogCaptureFixture) -> None:
+    """Large binary streams are not buffered for logging."""
 
     caplog.set_level(logging.INFO)
     client = TestClient(_build_app())
@@ -122,7 +124,4 @@ def test_http_logging_middleware_skips_octet_stream_body_buffer(caplog: LogCaptu
     response_log = next(
         message for message in _http_log_messages(caplog) if message["event"] == "http.response"
     )
-    assert response_log["response_body"] == {
-        "streaming": True,
-        "content_type": "application/octet-stream",
-    }
+    assert "response_body" not in response_log

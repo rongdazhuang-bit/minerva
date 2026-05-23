@@ -63,14 +63,14 @@ class Settings(BaseSettings):
     )
     log_body_enabled: bool = Field(
         default=True,
-        description="When True, HTTP middleware logs sanitized request and response bodies.",
+        description="When True, HTTP middleware logs sanitized request bodies (not responses).",
         validation_alias=AliasChoices("LOG_BODY_ENABLED", "log_body_enabled"),
     )
     log_body_max_chars: int = Field(
         default=20000,
         ge=0,
         le=1_000_000,
-        description="Maximum characters kept for one logged HTTP request or response body.",
+        description="Maximum characters kept for one logged HTTP request body.",
         validation_alias=AliasChoices("LOG_BODY_MAX_CHARS", "log_body_max_chars"),
     )
     log_file_enabled: bool = Field(
