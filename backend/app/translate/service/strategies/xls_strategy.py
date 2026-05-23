@@ -44,7 +44,9 @@ class XlsTranslateStrategy(DocTranslateFormatStrategy):
                             source_text=value,
                             anchor_json={
                                 "sheet": sheet_name,
+                                "sheet_name": sheet_name,
                                 "sheet_index": sheet_idx,
+                                "page_index": sheet_idx,
                                 "row": row_idx,
                                 "col": col_idx,
                                 "label": "table_cell",

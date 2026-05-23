@@ -123,6 +123,8 @@ def _segment_page_index(seg: DocTranslateSegment) -> int:
         return int(anchor["page_index"])
     if "page" in anchor:
         return int(anchor["page"])
+    if "sheet_index" in anchor:
+        return int(anchor["sheet_index"])
     parsed = _page_index_from_block_key(
         str(anchor["block_key"]) if anchor.get("block_key") else None
     )

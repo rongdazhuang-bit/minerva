@@ -32,7 +32,7 @@ class XlsxTranslateStrategy(DocTranslateFormatStrategy):
         drafts: list[SegmentDraft] = []
         seq = 0
         try:
-            for sheet_name in wb.sheetnames:
+            for sheet_idx, sheet_name in enumerate(wb.sheetnames):
                 ws = wb[sheet_name]
                 for row_idx, row in enumerate(ws.iter_rows(), start=1):
                     if row_idx == 1:
@@ -47,6 +47,8 @@ class XlsxTranslateStrategy(DocTranslateFormatStrategy):
                                 source_text=value,
                                 anchor_json={
                                     "sheet": sheet_name,
+                                    "sheet_name": sheet_name,
+                                    "page_index": sheet_idx,
                                     "row": row_idx,
                                     "col": col_idx,
                                     "label": "table_cell",

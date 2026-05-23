@@ -4,6 +4,7 @@ from pathlib import Path
 
 from openpyxl import Workbook, load_workbook
 
+from app.layout.segments import segment_drafts_to_layout_document
 from app.translate.domain.dto import SegmentRecord
 from app.translate.service.strategies.xlsx_strategy import XlsxTranslateStrategy
 
@@ -25,11 +26,27 @@ def test_xlsx_translates_cells_without_row_tab_join(tmp_path: Path) -> None:
     drafts = strategy.extract(source)
 
     assert any(
-        d.anchor_json == {"sheet": "Sheet1", "row": 2, "col": 1, "label": "table_cell"}
+        d.anchor_json
+        == {
+            "sheet": "Sheet1",
+            "sheet_name": "Sheet1",
+            "page_index": 0,
+            "row": 2,
+            "col": 1,
+            "label": "table_cell",
+        }
         for d in drafts
     )
     assert any(
-        d.anchor_json == {"sheet": "Sheet1", "row": 2, "col": 2, "label": "table_cell"}
+        d.anchor_json
+        == {
+            "sheet": "Sheet1",
+            "sheet_name": "Sheet1",
+            "page_index": 0,
+            "row": 2,
+            "col": 2,
+            "label": "table_cell",
+        }
         for d in drafts
     )
 
@@ -68,10 +85,53 @@ def test_xlsx_extracts_sparse_rows_without_empty_cell_coordinates(tmp_path: Path
     drafts = strategy.extract(source)
 
     assert any(
-        d.anchor_json == {"sheet": "Sheet1", "row": 2, "col": 2, "label": "table_cell"}
+        d.anchor_json
+        == {
+            "sheet": "Sheet1",
+            "sheet_name": "Sheet1",
+            "page_index": 0,
+            "row": 2,
+            "col": 2,
+            "label": "table_cell",
+        }
         for d in drafts
     )
     assert not any(
-        d.anchor_json == {"sheet": "Sheet1", "row": 2, "col": 1, "label": "table_cell"}
+        d.anchor_json
+        == {
+            "sheet": "Sheet1",
+            "sheet_name": "Sheet1",
+            "page_index": 0,
+            "row": 2,
+            "col": 1,
+            "label": "table_cell",
+        }
         for d in drafts
     )
+
+
+def test_xlsx_extracts_sheet_pages_for_layout_snapshot(tmp_path: Path) -> None:
+    """Extract multi-sheet anchors with stable page indices for layout snapshots."""
+    source = tmp_path / "source.xlsx"
+    wb = Workbook()
+    first = wb.active
+    first.title = "Sheet1"
+    first["A1"] = "name"
+    first["A2"] = "apple"
+    second = wb.create_sheet("Sheet2")
+    second["A1"] = "name"
+    second["A2"] = "orange"
+    wb.save(source)
+
+    drafts = XlsxTranslateStrategy().extract(source)
+
+    first_anchor = next(d.anchor_json for d in drafts if d.source_text == "apple")
+    second_anchor = next(d.anchor_json for d in drafts if d.source_text == "orange")
+    assert first_anchor["page_index"] == 0
+    assert first_anchor["sheet_name"] == "Sheet1"
+    assert second_anchor["page_index"] == 1
+    assert second_anchor["sheet_name"] == "Sheet2"
+
+    doc = segment_drafts_to_layout_document(drafts)
+
+    assert [page.page_index for page in doc.pages] == [0, 1]
