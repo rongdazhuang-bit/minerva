@@ -53,6 +53,8 @@ def _normalize_segment_anchor(anchor: dict[str, Any], *, seq: int) -> dict[str, 
         page_index = _page_index_from_block_key(
             str(anchor["block_key"]) if anchor.get("block_key") else None
         )
+    if page_index is None and "sheet_index" in anchor:
+        page_index = int(anchor["sheet_index"])
     if page_index is None:
         page_index = 0
     else:
@@ -68,6 +70,7 @@ def _normalize_segment_anchor(anchor: dict[str, Any], *, seq: int) -> dict[str, 
         "page_index": page_index,
         "block_key": str(block_key),
         "label": str(anchor.get("label", "text")),
+        "sheet_name": anchor.get("sheet_name", anchor.get("sheet")),
         "overflow_policy": anchor.get("overflow_policy", "shrink"),
         "skip_translate": bool(anchor.get("skip_translate", False)),
     }

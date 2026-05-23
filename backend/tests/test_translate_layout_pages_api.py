@@ -24,6 +24,32 @@ def test_layout_document_from_segments_uses_legacy_page_anchor() -> None:
     assert doc.pages[0].blocks[0].block_key == "p2.b3"
 
 
+def test_layout_document_from_segments_uses_legacy_sheet_index_pages() -> None:
+    """Fallback LDM preserves legacy spreadsheet sheet indices as pages."""
+
+    first = DocTranslateSegment(
+        seq=0,
+        source_text="Sheet one",
+        translated_text="表一",
+        status="DONE",
+        anchor_json={"sheet_index": 0, "sheet": "S1", "row": 0, "col": 0},
+    )
+    second = DocTranslateSegment(
+        seq=1,
+        source_text="Sheet two",
+        translated_text="表二",
+        status="DONE",
+        anchor_json={"sheet_index": 1, "sheet": "S2", "row": 0, "col": 0},
+    )
+
+    doc = _layout_document_from_segments([first, second])
+
+    assert doc is not None
+    assert [page.page_index for page in doc.pages] == [0, 1]
+    assert doc.pages[1].blocks[0].source_text == "Sheet two"
+    assert doc.pages[1].blocks[0].sheet_name == "S2"
+
+
 def test_segment_drafts_to_layout_document_uses_legacy_page_block_anchor() -> None:
     """Build LDM pages from legacy OCR anchors using ``page`` and ``block``."""
 
