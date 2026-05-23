@@ -17,10 +17,14 @@ from slowapi.errors import RateLimitExceeded
 
 from app.core.api.router import api
 from app.config import settings
+from app.core.logging_config import configure_logging
+from app.core.logging_middleware import HttpLoggingMiddleware
 from app.errors import register_exception_handlers
 from app.agent.infrastructure.langgraph_checkpointer import close_langgraph_checkpointer
 from app.core.infrastructure.db.bootstrap import create_missing_tables
 from app.limits import limiter
+
+configure_logging(process_type="api")
 
 
 @asynccontextmanager
@@ -58,5 +62,6 @@ _DEV_CORS_ORIGIN_REGEX = (
 )
 if settings.app_env in ("dev", "development", "local", "test"):
     _cors["allow_origin_regex"] = _DEV_CORS_ORIGIN_REGEX
+app.add_middleware(HttpLoggingMiddleware)
 app.add_middleware(CORSMiddleware, **_cors)
 app.include_router(api)
