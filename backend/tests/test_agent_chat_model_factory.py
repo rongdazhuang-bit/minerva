@@ -6,6 +6,7 @@ import uuid
 from types import SimpleNamespace
 
 import pytest
+from openai import AsyncOpenAI
 
 from app.agent.infrastructure.chat_model_factory import ChatModelFactory
 from app.exceptions import AppError
@@ -28,7 +29,7 @@ def _model_row(**overrides):
 
 
 def test_agent_chat_model_factory_constructs_chat_openai(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Agent should keep using LangChain ChatOpenAI with SysModel connection data."""
+    """Agent should use a direct-endpoint AsyncOpenAI client with SysModel connection data."""
 
     captured: dict = {}
 
@@ -46,12 +47,11 @@ def test_agent_chat_model_factory_constructs_chat_openai(monkeypatch: pytest.Mon
     model = ChatModelFactory.from_sys_model_row(row, workspace_id=workspace_id)
 
     assert isinstance(model, FakeChatOpenAI)
-    assert captured == {
-        "model": "gpt-compatible",
-        "base_url": "https://example.com/v1",
-        "api_key": "secret",
-        "max_tokens": 512,
-    }
+    assert captured["model"] == "gpt-compatible"
+    assert captured["api_key"] == "secret"
+    assert captured["max_tokens"] == 512
+    assert "base_url" not in captured
+    assert isinstance(captured["root_async_client"], AsyncOpenAI)
 
 
 def test_agent_chat_model_factory_rejects_wrong_workspace() -> None:
@@ -77,7 +77,7 @@ def test_agent_chat_model_factory_rejects_missing_endpoint() -> None:
 
 
 def test_agent_chat_model_factory_accepts_root_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Existing root-style Agent endpoints remain compatible during migration."""
+    """Configured endpoint URLs are passed through without stripping path suffixes."""
 
     captured: dict = {}
 
@@ -94,7 +94,8 @@ def test_agent_chat_model_factory_accepts_root_endpoint(monkeypatch: pytest.Monk
     row, workspace_id = _model_row(endpoint_url="https://example.com/v1/")
     ChatModelFactory.from_sys_model_row(row, workspace_id=workspace_id)
 
-    assert captured["base_url"] == "https://example.com/v1"
+    client = captured["root_async_client"]
+    assert isinstance(client, AsyncOpenAI)
 
 
 def test_agent_chat_model_factory_rejects_missing_api_key() -> None:

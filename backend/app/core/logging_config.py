@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import atexit
 import logging
+import queue
 import sys
-from logging.handlers import TimedRotatingFileHandler
+from logging.handlers import QueueHandler, QueueListener, TimedRotatingFileHandler
 from pathlib import Path
 
 from app.config import settings
@@ -17,6 +19,8 @@ _PROCESS_LOG_FILES = {
     "worker": "worker.log",
     "beat": "beat.log",
 }
+_queue_listener: QueueListener | None = None
+_atexit_registered = False
 
 
 def normalize_log_level(level_name: str) -> int:
@@ -45,9 +49,19 @@ def resolve_log_file_path(process_type: str, log_dir: str | Path | None = None) 
     return resolve_log_dir(log_dir) / file_name
 
 
+def _stop_queue_listener() -> None:
+    """Stop the background listener that drains the logging queue."""
+
+    global _queue_listener
+    if _queue_listener is not None:
+        _queue_listener.stop()
+        _queue_listener = None
+
+
 def _remove_managed_handlers(root: logging.Logger) -> None:
     """Detach and close handlers previously installed by this module."""
 
+    _stop_queue_listener()
     for handler in list(root.handlers):
         if getattr(handler, "_minerva_logging", False):
             root.removeHandler(handler)
@@ -73,6 +87,8 @@ def configure_logging(
 ) -> None:
     """Configure root and common third-party loggers for one backend process."""
 
+    global _queue_listener, _atexit_registered
+
     level = normalize_log_level(level_name or settings.log_level)
     root = logging.getLogger()
     root.setLevel(level)
@@ -81,10 +97,11 @@ def configure_logging(
     enable_stdout = settings.log_stdout_enabled if stdout_enabled is None else stdout_enabled
     enable_file = settings.log_file_enabled if file_enabled is None else file_enabled
 
+    sink_handlers: list[logging.Handler] = []
     if enable_stdout:
         stream_handler = _mark_managed(logging.StreamHandler(sys.stdout))
         stream_handler.setLevel(level)
-        root.addHandler(stream_handler)
+        sink_handlers.append(stream_handler)
 
     if enable_file:
         path = resolve_log_file_path(process_type, log_dir)
@@ -96,7 +113,22 @@ def configure_logging(
             encoding="utf-8",
         )
         file_handler.setLevel(level)
-        root.addHandler(_mark_managed(file_handler))
+        sink_handlers.append(_mark_managed(file_handler))
+
+    if sink_handlers:
+        log_queue: queue.Queue[logging.LogRecord] = queue.Queue(-1)
+        queue_handler = QueueHandler(log_queue)
+        queue_handler._minerva_logging = True  # type: ignore[attr-defined]
+        root.addHandler(queue_handler)
+        _queue_listener = QueueListener(
+            log_queue,
+            *sink_handlers,
+            respect_handler_level=True,
+        )
+        _queue_listener.start()
+        if not _atexit_registered:
+            atexit.register(_stop_queue_listener)
+            _atexit_registered = True
 
     for logger_name in ("uvicorn", "uvicorn.error", "celery"):
         logging.getLogger(logger_name).setLevel(level)

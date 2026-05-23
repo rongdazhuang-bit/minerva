@@ -8,20 +8,13 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_openai import ChatOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agent.infrastructure.direct_endpoint_openai_client import (
+    build_direct_endpoint_async_openai,
+)
 from app.exceptions import AppError
+from app.llm.strategies.openai_compatible import normalize_openai_base_url
 from app.sys.model_provider.domain.db.models import SysModel
 from app.sys.model_provider.infrastructure import repository as model_repo
-
-_CHAT_COMPLETIONS_SUFFIX = "/chat/completions"
-
-
-def _langchain_base_url(endpoint_url: str) -> str:
-    """Adapt a stored full Chat Completions URL for LangChain's API-root setting."""
-
-    normalized = endpoint_url.rstrip("/")
-    if normalized.endswith(_CHAT_COMPLETIONS_SUFFIX):
-        return normalized[: -len(_CHAT_COMPLETIONS_SUFFIX)].rstrip("/")
-    return normalized
 
 
 class ChatModelFactory:
@@ -41,16 +34,19 @@ class ChatModelFactory:
             raise AppError("agent.model_not_found", "模型不存在或不属于当前工作区。")
         if not row.enabled:
             raise AppError("agent.model_disabled", "模型未启用。")
-        base_url = (row.endpoint_url or "").strip()
-        if not base_url:
+        endpoint_url = normalize_openai_base_url((row.endpoint_url or "").strip())
+        if not endpoint_url:
             raise AppError("agent.model_misconfigured", "模型缺少 endpoint_url。")
         api_key = (row.api_key or "").strip()
         if not api_key:
             raise AppError("agent.model_misconfigured", "模型缺少 api_key。")
         kwargs: dict = {
             "model": row.model_name,
-            "base_url": _langchain_base_url(base_url),
             "api_key": api_key,
+            "root_async_client": build_direct_endpoint_async_openai(
+                endpoint_url=endpoint_url,
+                api_key=api_key,
+            ),
         }
         if temperature is not None:
             kwargs["temperature"] = temperature

@@ -82,7 +82,7 @@ HTTP 请求体仍接受 `provider_kind=openai|volcengine|aliyun`，用于兼容�
 
 ## Agent v2
 
-Agent v2 不调用 `app.llm.ChatService` 或 `/llm/chat/completions`，而是通过 `model_id` 读取 `sys_models` 并由 `ChatModelFactory` 构造 `langchain_openai.ChatOpenAI`。本模块的 `provider_kind` 兼容入口不影响 Agent 主链路。若模型配置中的 `endpoint_url` 是完整 `/chat/completions` URL，Agent 工厂会在构造 LangChain 客户端前转换为 API root，以适配 `ChatOpenAI` 的参数要求。
+Agent v2 不调用 `app.llm.ChatService` 或 `/llm/chat/completions`，而是通过 `model_id` 读取 `sys_models` 并由 `ChatModelFactory` 构造 `langchain_openai.ChatOpenAI`。本模块的 `provider_kind` 兼容入口不影响 Agent 主链路。Agent 与 `app.llm` 一致：**直接使用** `sys_models.endpoint_url` 作为上游请求地址，不再剥离或拼接 `/chat/completions` 路径。
 
 ## 设计规格
 

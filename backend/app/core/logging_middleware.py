@@ -17,7 +17,25 @@ from app.core.logging_context import use_logging_context
 from app.core.logging_redaction import redact_for_log
 
 _HTTP_LOGGER = logging.getLogger("app.http")
-_STREAMING_TYPES = ("text/event-stream",)
+_STREAMING_CONTENT_TYPES = (
+    "text/event-stream",
+    "application/octet-stream",
+)
+
+
+def _normalize_content_type(content_type: str) -> str:
+    """Return the media type portion of a Content-Type header."""
+
+    return content_type.lower().split(";", 1)[0].strip()
+
+
+def _is_streaming_content_type(content_type: str) -> bool:
+    """Return True when response bodies must not be buffered for logging."""
+
+    normalized = _normalize_content_type(content_type)
+    if normalized.startswith("multipart/"):
+        return True
+    return normalized in _STREAMING_CONTENT_TYPES
 
 
 def _parse_body(raw: bytes, headers: Headers, *, max_chars: int) -> Any:
@@ -42,6 +60,12 @@ def _safe_headers(headers: Headers, *, max_chars: int) -> dict[str, Any]:
     """Return sanitized request or response headers."""
 
     return redact_for_log(dict(headers.items()), max_chars=max_chars)
+
+
+def _emit_http_log(message: str, **fields: Any) -> None:
+    """Emit one structured HTTP log line without pre-serializing the payload."""
+
+    _HTTP_LOGGER.info(message, extra=fields)
 
 
 class HttpLoggingMiddleware:
@@ -77,30 +101,32 @@ class HttpLoggingMiddleware:
 
         downstream_receive: Receive = receive
         if has_request_body:
+            body_sent = False
 
-            async def replay_receive() -> Message:
-                """Replay the already-read request body for downstream handlers."""
+            async def receive_with_replay() -> Message:
+                """Replay the cached request body, then forward ASGI events."""
 
-                return {"type": "http.request", "body": raw_body, "more_body": False}
+                nonlocal body_sent
+                if not body_sent:
+                    body_sent = True
+                    return {"type": "http.request", "body": raw_body, "more_body": False}
+                return await receive()
 
-            downstream_receive = replay_receive
+            downstream_receive = receive_with_replay
 
         with use_logging_context(request_id=request_id):
             if self.body_enabled:
-                request_payload = {
-                    "event": "http.request",
-                    "request_id": request_id,
-                    "method": request.method,
-                    "path": request.url.path,
-                    "query": redact_for_log(dict(request.query_params), max_chars=self.body_max_chars),
-                    "client_ip": request.client.host if request.client else None,
-                    "headers": _safe_headers(request_headers, max_chars=self.body_max_chars),
-                    "content_type": request_headers.get("content-type"),
-                    "request_body": _parse_body(raw_body, request_headers, max_chars=self.body_max_chars),
-                }
-                _HTTP_LOGGER.info(
-                    json.dumps(request_payload, ensure_ascii=False),
-                    extra={"event": "http.request", "payload": request_payload},
+                _emit_http_log(
+                    "http.request",
+                    event="http.request",
+                    request_id=request_id,
+                    method=request.method,
+                    path=request.url.path,
+                    query=redact_for_log(dict(request.query_params), max_chars=self.body_max_chars),
+                    client_ip=request.client.host if request.client else None,
+                    headers=_safe_headers(request_headers, max_chars=self.body_max_chars),
+                    content_type=request_headers.get("content-type"),
+                    request_body=_parse_body(raw_body, request_headers, max_chars=self.body_max_chars),
                 )
             await self._send_with_response_logging(
                 scope,
@@ -125,21 +151,25 @@ class HttpLoggingMiddleware:
         response_headers: list[tuple[bytes, bytes]] = []
         body_parts: list[bytes] = []
         streaming = False
+        content_type = ""
 
         async def wrapped_send(message: Message) -> None:
             """Capture response metadata and forward each ASGI message."""
 
-            nonlocal status_code, response_headers, streaming
+            nonlocal status_code, response_headers, streaming, content_type
             if message["type"] == "http.response.start":
                 status_code = int(message["status"])
                 response_headers = list(message.get("headers", []))
                 response_headers.append((b"x-request-id", request_id.encode()))
                 message = {**message, "headers": response_headers}
+                content_type = Headers(raw=response_headers).get("content-type", "")
+                if _is_streaming_content_type(content_type):
+                    streaming = True
             elif message["type"] == "http.response.body":
                 body = message.get("body", b"")
                 if message.get("more_body", False):
                     streaming = True
-                elif body:
+                elif body and not streaming:
                     body_parts.append(body)
             await send(message)
 
@@ -148,8 +178,9 @@ class HttpLoggingMiddleware:
         finally:
             duration_ms = round((time.perf_counter() - started) * 1000, 3)
             headers = Headers(raw=response_headers)
-            content_type = headers.get("content-type", "")
-            is_stream = streaming or content_type.startswith(_STREAMING_TYPES)
+            if not content_type:
+                content_type = headers.get("content-type", "")
+            is_stream = streaming or _is_streaming_content_type(content_type)
             if is_stream:
                 response_body: Any = {"streaming": True, "content_type": content_type}
             elif self.body_enabled:
@@ -160,21 +191,14 @@ class HttpLoggingMiddleware:
                 )
             else:
                 response_body = None
-            response_payload = {
-                "event": "http.response",
-                "request_id": request_id,
-                "method": scope["method"],
-                "path": scope["path"],
-                "status_code": status_code,
-                "duration_ms": duration_ms,
-                "content_type": content_type,
-                "response_body": response_body,
-            }
-            _HTTP_LOGGER.info(
-                json.dumps(response_payload, ensure_ascii=False),
-                extra={
-                    "event": "http.response",
-                    "status_code": status_code,
-                    "payload": response_payload,
-                },
+            _emit_http_log(
+                "http.response",
+                event="http.response",
+                request_id=request_id,
+                method=scope["method"],
+                path=scope["path"],
+                status_code=status_code,
+                duration_ms=duration_ms,
+                content_type=content_type,
+                response_body=response_body,
             )
