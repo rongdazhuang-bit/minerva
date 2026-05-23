@@ -365,3 +365,13 @@ class DocTranslateFormatStrategy(ABC):
 - SSE 任务进度。
 - 失败段单独重试 / `PARTIAL_SUCCESS`。
 - 多文件打包翻译、术语表、翻译记忆库。
+
+---
+
+## 实现对照（以代码为准，2026-05-23）
+
+| 条目 | 当前代码位置 | 备注 |
+|------|--------------|------|
+| 结构化写回 | `backend/app/layout/writers/` | CSV / XLSX / DOCX / PDF 已收敛到 writer 层 |
+| Markdown skip | `backend/app/translate/service/strategies/md_strategy.py` | fenced code 使用 `skip_translate=true` |
+| doc/xls 支持 | `backend/app/translate/service/strategies/word_strategy.py`, `backend/app/translate/service/strategies/xls_strategy.py` | 作为当前实现支持范围记录 |
