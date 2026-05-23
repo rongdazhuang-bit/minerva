@@ -135,6 +135,8 @@
   "translate.table.view": "查看",
   "translate.uploadModal.title": "上传文档并翻译",
   "translate.detailModal.title": "翻译详情",
+  "translate.detailTab.layoutUnavailable": "该任务无版面数据，可切换到段落对照查看原文和译文。",
+  "translate.detailTab.noPages": "暂无页面数据",
   "placeholders.knowledgeBase": "知识库功能开发中。",
   "placeholders.rulesLibrary": "规则库功能开发中。",
   "placeholders.rulesOverview": "展示当前工作空间内规则数量及工程/专业/文档编码分布。",

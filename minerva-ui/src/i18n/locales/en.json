@@ -135,6 +135,8 @@
   "translate.table.view": "View",
   "translate.uploadModal.title": "Upload and translate",
   "translate.detailModal.title": "Translation detail",
+  "translate.detailTab.layoutUnavailable": "Layout data is unavailable for this job. Use segment comparison to view source and translation.",
+  "translate.detailTab.noPages": "No page data",
   "placeholders.knowledgeBase": "Knowledge base is under construction.",
   "placeholders.rulesLibrary": "Rule library is under construction.",
   "placeholders.rulesOverview": "Counts and engineering / discipline / document codes in this workspace.",
