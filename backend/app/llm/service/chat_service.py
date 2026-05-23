@@ -75,10 +75,10 @@ class ChatService:
     async def complete(
         self,
         *,
-        provider_kind: ProviderKind,
         base_url: str,
         api_key: str,
         model: str,
+        provider_kind: ProviderKind | str = ProviderKind.openai,
         system_prompt: str | None = None,
         user_prompt: str | None = None,
         messages: list[ChatMessage] | None = None,
@@ -87,7 +87,7 @@ class ChatService:
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Perform non-streaming completion via configured strategy."""
+        """Perform non-streaming completion via the unified OpenAI-compatible strategy."""
 
         strategy = get_strategy(provider_kind)
         params = ChatCallParams(
@@ -109,17 +109,17 @@ class ChatService:
     async def complete_messages(
         self,
         *,
-        provider_kind: ProviderKind,
         base_url: str,
         api_key: str,
         model: str,
         messages: list[dict[str, Any]],
+        provider_kind: ProviderKind | str = ProviderKind.openai,
         temperature: float | None = None,
         max_tokens: int | None = None,
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Non-streaming completion using a caller-built OpenAI-style ``messages`` array."""
+        """Non-streaming completion using caller-built OpenAI-style ``messages``."""
 
         strategy = get_strategy(provider_kind)
         params = ChatCallParams(
@@ -137,10 +137,10 @@ class ChatService:
     async def stream_chunks(
         self,
         *,
-        provider_kind: ProviderKind,
         base_url: str,
         api_key: str,
         model: str,
+        provider_kind: ProviderKind | str = ProviderKind.openai,
         system_prompt: str | None = None,
         user_prompt: str | None = None,
         messages: list[ChatMessage] | None = None,
@@ -149,7 +149,7 @@ class ChatService:
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | dict[str, Any] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
-        """Yield upstream chunks from streaming-capable strategies."""
+        """Yield upstream chunks from the unified OpenAI-compatible strategy."""
 
         strategy = get_strategy(provider_kind)
         params = ChatCallParams(
@@ -172,11 +172,11 @@ class ChatService:
     async def stream_chunks_messages(
         self,
         *,
-        provider_kind: ProviderKind,
         base_url: str,
         api_key: str,
         model: str,
         messages: list[dict[str, Any]],
+        provider_kind: ProviderKind | str = ProviderKind.openai,
         temperature: float | None = None,
         max_tokens: int | None = None,
         tools: list[dict[str, Any]] | None = None,
@@ -201,10 +201,10 @@ class ChatService:
     async def stream_sse_lines(
         self,
         *,
-        provider_kind: ProviderKind,
         base_url: str,
         api_key: str,
         model: str,
+        provider_kind: ProviderKind | str = ProviderKind.openai,
         system_prompt: str | None = None,
         user_prompt: str | None = None,
         messages: list[ChatMessage] | None = None,
@@ -213,7 +213,7 @@ class ChatService:
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | dict[str, Any] | None = None,
     ) -> AsyncIterator[bytes]:
-        """Emit SSE-formatted ``data:`` lines ending with ``[DONE]``."""
+        """Emit SSE-formatted data lines ending with ``[DONE]``."""
 
         async for chunk in self.stream_chunks(
             provider_kind=provider_kind,

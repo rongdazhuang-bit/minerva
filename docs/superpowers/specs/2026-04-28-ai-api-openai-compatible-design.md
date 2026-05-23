@@ -1,8 +1,8 @@
 # AI 调用模块（OpenAI 兼容 + 策略模式 + LiteLLM）设计说明
 
 **日期**：2026-04-28  
-**状态**：已实现（2026-05-18 按代码回填；`sys_models` 解析未做）  
-**范围**：在 `backend/app/llm/` 实现以 **OpenAI Chat Completions 请求/响应形态** 为标准的统一调用能力；默认策略使用 **官方 OpenAI Python SDK（异步）** 并通过 `base_url` 对接 **LiteLLM 代理及一切 OpenAI 兼容网关**；**同步（阻塞）与非同步 SSE 流式** 两种数据流并存；火山云、阿里云等非兼容厂商以 **策略占位** 预留；**首期以项目内部服务端调用为主**，不将「对外开放公网集成」作为本期必达项。
+**状态**：已实现（2026-05-18 按代码回填；2026-05-23 运行时策略统一为单一 OpenAI 兼容策略；`sys_models` 解析未做）  
+**范围**：在 `backend/app/llm/` 实现以 **OpenAI Chat Completions 请求/响应形态** 为标准的统一调用能力；默认策略使用直接 HTTP 调用，并通过数据库配置的完整 `base_url` 对接 **LiteLLM 代理及一切 OpenAI 兼容网关**；**同步（阻塞）与非同步 SSE 流式** 两种数据流并存；火山云、阿里云等非兼容厂商以 **策略占位** 预留；**首期以项目内部服务端调用为主**，不将「对外开放公网集成」作为本期必达项。
 
 ---
 
@@ -12,7 +12,7 @@
 
 - 提供 **内部可复用的领域模型与服务**，使 `rule`、后续任务/编排等模块能以 **统一入参**（`base_url`、`model`、系统提示词、用户提示词、历史对话 `messages`、API Key 及常用生成参数等）调用大模型。
 - **入参与出参字段语义**以 OpenAI Chat Completions API 为准（实现阶段可选用 Pydantic 模型对齐官方文档中的子集，避免一次性绑定全部边缘字段）。
-- **默认策略 `openai`**（`ProviderKind.openai`）：使用 `AsyncOpenAI` + 可配置 `base_url`，兼容 LiteLLM 及自建 OpenAI 兼容网关。
+- **默认策略 `openai`**（`ProviderKind.openai`）：使用 `httpx` 直接请求可配置完整 `base_url`，兼容 LiteLLM 及自建 OpenAI 兼容网关。
 - **阻塞式**：一次请求返回完整 `chat.completion` 形态结果（或项目内约定的等价 DTO）。
 - **流式**：以 **SSE** 向调用方推送增量内容；上游使用 OpenAI SDK 的 `stream=True`（或等价异步流式 API），将 chunk **规范映射** 为与 OpenAI 流式 chunk 一致的 JSON 行事件（`data: {...}\n\n`）。
 - **策略模式**：除 `openai` 外，为 **火山云、阿里云** 等单独策略类（`volcengine_compatible` / `aliyun_compatible`；阿里云本期未实现）预留扩展点，便于后续按厂商文档扩展而不破坏调用方。
@@ -76,7 +76,7 @@ backend/app/llm/
 ### 3.2 `openai`（默认）
 
 - 依赖：`openai` SDK（异步客户端）。
-- `base_url` 由调用方传入（LiteLLM 示例：`http://<host>:<port>/v1` 以 SDK 要求为准）。
+- `base_url` 由调用方传入完整 Chat Completions URL（LiteLLM 示例：`http://<host>:<port>/v1/chat/completions`），后端不再拼接路径。
 - 将统一入参映射为 SDK 的 `chat.completions.create`（或异步等价）参数；`messages` 含 system / user / assistant 等角色，与 OpenAI 一致。
 - 流式：使用 SDK 流式 API，逐块转换为标准 SSE 事件负载。
 
@@ -169,7 +169,7 @@ backend/app/llm/
 |----|------|
 | 模块 | `backend/app/llm/`（`domain` / `strategies` / `service` / `api`） |
 | HTTP | `POST /workspaces/{id}/llm/chat/completions` |
-| 策略 | `openai`（实现）、`volcengine`（实现）、`aliyun_compatible`（501 未实现） |
+| 策略 | 单一 `OpenAICompatibleStrategy`；`provider_kind=openai|volcengine|aliyun` 为兼容输入值 |
 | 文档 | `docs/ai-api.md` |
 | **未做** | 仅传 `model_id` + `workspace_id` 从 `sys_models` 解析 |
 | **未做** | HTTP schema 暴露 `tools` / `tool_choice` |

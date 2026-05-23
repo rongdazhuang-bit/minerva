@@ -1,12 +1,14 @@
 """Application services orchestrating Rule Base persistence, repositories, and AI polish."""
 
 from __future__ import annotations
+
+import uuid
 from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.llm.domain.models import ChatMessage, ProviderKind
+from app.llm.domain.models import ChatMessage
 from app.llm.service.chat_service import chat_service
 from app.exceptions import AppError
 from app.rule.domain.db.models import RuleBase
@@ -254,7 +256,6 @@ async def polish_review_rules(
     max_tokens = int(mt) if mt is not None else None
 
     payload = await chat_service.complete(
-        provider_kind=ProviderKind.openai,
         base_url=endpoint.rstrip("/"),
         api_key=api_key,
         model=model_row.model_name.strip(),

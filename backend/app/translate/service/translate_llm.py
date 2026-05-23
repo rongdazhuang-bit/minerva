@@ -8,7 +8,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import AppError
-from app.llm.domain.models import ChatMessage, ProviderKind
+from app.llm.domain.models import ChatMessage
 from app.llm.service.chat_service import chat_service
 from app.sys.dict.service import dictionary_service as dict_service
 from app.sys.model_provider.infrastructure import repository as model_repo
@@ -85,7 +85,6 @@ async def translate_segment(
     max_tokens = min(32767, max(configured_max or 0, estimated_out))
 
     payload = await chat_service.complete(
-        provider_kind=ProviderKind.openai,
         base_url=endpoint.rstrip("/"),
         api_key=api_key,
         model=row.model_name.strip(),

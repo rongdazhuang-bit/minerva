@@ -1,10 +1,12 @@
 # Volcengine Ark（OpenAI 兼容）LLM 策略实现设计
 
 **日期**：2026-05-17  
-**状态**：已实现（2026-05-18 按代码回填）  
+**状态**：已实现，2026-05-23 被统一 OpenAI 兼容运行时策略取代；本文保留为历史实现记录  
 **范围**：将 `app.llm` 中火山引擎（Volcengine Ark）策略从占位改为基于 **OpenAI Python SDK（异步）** 的真实对接；重命名策略文件；HTTP 层默认流式输出。
 
 **前置规格**：`docs/superpowers/specs/2026-04-28-ai-api-openai-compatible-design.md`
+
+> 2026-05-23 更新：独立 `VolcengineCompatibleStrategy` 已不再作为运行时策略存在。`provider_kind=volcengine` 仍可作为兼容输入，但实际调用进入 `OpenAICompatibleStrategy`。统一策略使用数据库配置的完整 URL 直接请求，不再通过 SDK 拼接 `/chat/completions`。
 
 ---
 

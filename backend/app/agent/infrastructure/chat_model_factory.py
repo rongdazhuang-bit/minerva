@@ -12,6 +12,17 @@ from app.exceptions import AppError
 from app.sys.model_provider.domain.db.models import SysModel
 from app.sys.model_provider.infrastructure import repository as model_repo
 
+_CHAT_COMPLETIONS_SUFFIX = "/chat/completions"
+
+
+def _langchain_base_url(endpoint_url: str) -> str:
+    """Adapt a stored full Chat Completions URL for LangChain's API-root setting."""
+
+    normalized = endpoint_url.rstrip("/")
+    if normalized.endswith(_CHAT_COMPLETIONS_SUFFIX):
+        return normalized[: -len(_CHAT_COMPLETIONS_SUFFIX)].rstrip("/")
+    return normalized
+
 
 class ChatModelFactory:
     """Resolve ``SysModel`` into a LangChain chat model for agent graphs."""
@@ -38,7 +49,7 @@ class ChatModelFactory:
             raise AppError("agent.model_misconfigured", "模型缺少 api_key。")
         kwargs: dict = {
             "model": row.model_name,
-            "base_url": base_url.rstrip("/"),
+            "base_url": _langchain_base_url(base_url),
             "api_key": api_key,
         }
         if temperature is not None:

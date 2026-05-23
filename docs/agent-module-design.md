@@ -31,6 +31,10 @@ Agent 模块是 Minerva 工作区内的**多轮智能对话与任务编排**后�
 - **持久化**：SQLAlchemy 2.x 异步 + 可选 `AsyncPostgresSaver` checkpoint
 - **API**：FastAPI，`/workspaces/{workspace_id}/agent/v2`
 
+### 1.3.1 与 `app/llm` 策略统一的关系
+
+Agent v2 不调用 `app.llm.ChatService` 或 `get_strategy()`，也不依赖 `provider_kind` 选择供应商策略。它通过 `model_id` 读取 `sys_models`，再由 `ChatModelFactory` 构造 `langchain_openai.ChatOpenAI`。因此 `app/llm` 在 2026-05-23 统一为单一 OpenAI 兼容策略后，Agent 主链路无需改造；回归验证重点是 `ChatModelFactory` 仍能按 `endpoint_url`、`api_key`、`model_name` 构造客户端。若 `endpoint_url` 已按新的模型配置规则保存为完整 `/chat/completions` URL，工厂会在传给 LangChain 前转换为其所需的 API root，避免要求数据库额外保存第二份地址。
+
 ### 1.4 非目标（当前实现）
 
 - 向量数据库 / Embedding 检索

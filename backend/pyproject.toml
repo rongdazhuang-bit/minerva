@@ -22,7 +22,6 @@ dependencies = [
   "email-validator>=2.2",
   "slowapi>=0.1.9",
   "orjson>=3.10",
-  "openai>=1.59",
   "boto3>=1.35",
   "celery",
   "redis",
@@ -43,6 +42,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "httpx>=0.28",
+  "pytest>=8",
   "ruff>=0.8",
 ]
 

@@ -31,7 +31,9 @@ class ChatCallParams(BaseModel):
     omitted by legacy callers.
     """
 
-    base_url: str = Field(description="OpenAI-compatible root, e.g. https://host/v1 for LiteLLM.")
+    base_url: str = Field(
+        description="Full OpenAI-compatible chat completions URL configured for the model."
+    )
     api_key: str
     model: str
     messages: list[dict[str, Any]] = Field(

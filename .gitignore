@@ -34,5 +34,4 @@ __pycache__/
 /backend/.venv/
 /backend/alembic/
 /backend/.env.local
-/backend/tests
 /backend/data/
