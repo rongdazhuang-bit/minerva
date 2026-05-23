@@ -14,6 +14,36 @@ from app.core.logging_context import get_logging_context
 # Standard LogRecord attributes that should not be duplicated as extra fields.
 _RESERVED_RECORD_KEYS = frozenset(logging.makeLogRecord({}).__dict__.keys())
 _RESERVED_RECORD_KEYS = _RESERVED_RECORD_KEYS | {"message", "asctime"}
+# Formatter-owned payload fields that application extras must not overwrite.
+_BASE_PAYLOAD_KEYS = frozenset(
+    {
+        "timestamp",
+        "level",
+        "logger",
+        "message",
+        "process_id",
+        "thread_name",
+        "module",
+        "line",
+        "exception",
+    }
+)
+# Logging context field names that must keep their contextvars values.
+_CONTEXT_PAYLOAD_KEYS = frozenset({"request_id", "task_id", "process_type"})
+# All names reserved from direct extra field emission.
+_EXTRA_RESERVED_KEYS = _RESERVED_RECORD_KEYS | _BASE_PAYLOAD_KEYS | _CONTEXT_PAYLOAD_KEYS
+
+
+def _to_json_safe(value: Any) -> Any:
+    """Return a recursively JSON-serializable representation of a value."""
+
+    if value is None or isinstance(value, str | int | float | bool):
+        return value
+    if isinstance(value, dict):
+        return {str(key): _to_json_safe(item) for key, item in value.items()}
+    if isinstance(value, list | tuple | set):
+        return [_to_json_safe(item) for item in value]
+    return str(value)
 
 
 class JsonLogFormatter(logging.Formatter):
@@ -34,19 +64,25 @@ class JsonLogFormatter(logging.Formatter):
         }
         payload.update(get_logging_context())
         payload.update(self._extra_fields(record))
-        if record.exc_info:
+        exc_info = record.exc_info
+        if (
+            isinstance(exc_info, tuple)
+            and len(exc_info) >= 3
+            and exc_info[0] is not None
+            and exc_info[1] is not None
+        ):
             payload["exception"] = {
-                "type": record.exc_info[0].__name__,
-                "message": str(record.exc_info[1]),
-                "traceback": "".join(traceback.format_exception(*record.exc_info)),
+                "type": getattr(exc_info[0], "__name__", str(exc_info[0])),
+                "message": str(exc_info[1]),
+                "traceback": "".join(traceback.format_exception(*exc_info[:3])),
             }
-        return json.dumps(payload, ensure_ascii=False, default=str)
+        return json.dumps(_to_json_safe(payload), ensure_ascii=False)
 
     def _extra_fields(self, record: logging.LogRecord) -> dict[str, Any]:
         """Return application-provided extra fields without stdlib internals."""
 
         return {
-            key: value
+            key: _to_json_safe(value)
             for key, value in record.__dict__.items()
-            if key not in _RESERVED_RECORD_KEYS and not key.startswith("_")
+            if key not in _EXTRA_RESERVED_KEYS and not key.startswith("_")
         }
