@@ -200,7 +200,7 @@ backend/app/translate/    # extract → layout_snapshot；assemble → writers
 
 | 格式 | LDM 来源 | 备注 |
 |------|----------|------|
-| docx / xlsx | 原生抽取 + style_hint | 无页图 |
+| doc/docx / xls/xlsx | Word / Excel 原生抽取 + style_hint；`.doc` 走 legacy 转 DOCX 后处理，`.xls` 走 legacy cell 策略 | 无页图 |
 | pdf 文字层 | PyMuPDF blocks | 可选页图 |
 | pdf 扫描 | `ocr_file` layout-pages | `ocr_bridge` 不再仅用 markdown 空行切块 |
 | txt / md / csv | 结构块 | md  fenced code 仍单段 |

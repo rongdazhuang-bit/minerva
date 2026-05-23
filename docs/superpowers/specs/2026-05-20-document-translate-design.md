@@ -61,7 +61,7 @@ backend/app/translate/
   task/
     run_job.py             # Celery shared_task
   infrastructure/
-    repository.py          # ORM 访问、keyset 分页
+    repository.py          # ORM 访问、offset 分页与筛选计数
 ```
 
 在 `app/core/api/router.py` 注册 `translate` 路由。
@@ -125,7 +125,7 @@ minerva-ui/src/api/translate.ts
 | `create_at` | timestamptz | |
 | `update_at` | timestamptz | |
 
-**索引**：`(workspace_id, update_at DESC, id DESC)` — 侧栏 keyset 分页（对齐 `agent_session`）。
+**索引**：`(workspace_id, update_at DESC, id DESC)` — 支持列表按工作区与更新时间排序筛选；列表响应使用 offset 分页并返回 `{ items, total }`。
 
 ### 3.2 `doc_translate_segment`
 
@@ -225,12 +225,12 @@ class DocTranslateFormatStrategy(ABC):
 |------|------|------|-----|
 | `txt` | 连续空行分段 | 按段还原，段间双换行 | — |
 | `md` | 同 txt，保留 fenced code 块为单段（不拆行内） | 同序写回 | — |
-| `csv` | 默认 **一行一段**（整行序列化，含分隔符） | 按行写回 | — |
+| `csv` | 非表头字段级抽取，`anchor_json` 含行列位置 | 按字段位置写回，保留行列结构 | — |
 | `docx` | 段落 + 表格单元格为段，`anchor_json` 含 paragraph/table 索引 | python-docx 保留 run 样式 | — |
 | `doc` | 经 LibreOffice 转为 DOCX 后复用 Word 策略 | 写回 DOCX 中间结果后按 legacy Word 流程输出 | — |
 | `pdf` | 有文字层：按块/行聚合；无文字层：`needs_ocr=True` | PyMuPDF 按 anchor 替换或叠加（尽力版式） | 扫描件自动 OCR |
-| `xls` | legacy xls 策略按工作簿/单元格抽取 | 按单元格锚点写回 | — |
-| `xlsx` | 每 sheet 按行合并非空单元格为一段，`anchor_json` 含 sheet/row | openpyxl 写回单元格 | — |
+| `xls` | legacy xls cell 策略按工作簿/单元格抽取 | 按单元格锚点写回，保留行列结构 | — |
+| `xlsx` | 非表头单元格级抽取，`anchor_json` 含 sheet/row/col | 按 sheet/row/col 写回单元格 | — |
 
 ### 5.3 段落过长
 
@@ -331,7 +331,7 @@ class DocTranslateFormatStrategy(ABC):
 |------|------|
 | 策略单测 | txt/md/csv roundtrip；docx/xlsx 小样；pdf 文本层小样 |
 | OCR 桥接 | mock `ocr_file` 状态流转 |
-| API | 创建 job、列表游标、segments、删除清理 |
+| API | 创建 job、列表 offset 分页 / 筛选 / total、segments、删除清理 |
 | Worker | mock LLM，端到端 job → SUCCESS |
 | 前端 | 列表/轮询/对照列布局快照（可选） |
 
