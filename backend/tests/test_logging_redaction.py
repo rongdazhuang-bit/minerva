@@ -43,3 +43,12 @@ def test_redact_for_log_handles_binary_values() -> None:
     result = redact_for_log({"file": b"abc"}, max_chars=100)
 
     assert result == {"file": {"binary": True, "length": 3}}
+
+
+def test_redact_for_log_preserves_tuple_shape() -> None:
+    """Tuples are recursively redacted without changing container type."""
+
+    result = redact_for_log(({"password": "pw"}, {"name": "safe"}), max_chars=100)
+
+    assert result == ({"password": "[REDACTED]"}, {"name": "safe"})
+    assert isinstance(result, tuple)

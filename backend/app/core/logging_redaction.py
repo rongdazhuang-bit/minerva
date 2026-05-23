@@ -55,7 +55,7 @@ def redact_for_log(value: Any, *, max_chars: int) -> Any:
     if isinstance(value, list):
         return [redact_for_log(item, max_chars=max_chars) for item in value]
     if isinstance(value, tuple):
-        return [redact_for_log(item, max_chars=max_chars) for item in value]
+        return tuple(redact_for_log(item, max_chars=max_chars) for item in value)
     if isinstance(value, bytes):
         return {"binary": True, "length": len(value)}
     if isinstance(value, str):
