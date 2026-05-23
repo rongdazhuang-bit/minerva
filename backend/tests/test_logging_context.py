@@ -1,11 +1,26 @@
 """Tests for request/task logging context helpers."""
 
+from collections.abc import Iterator
+
+import pytest
+
 from app.core.logging_context import (
     clear_logging_context,
     get_logging_context,
     set_logging_context,
     use_logging_context,
 )
+
+
+@pytest.fixture(autouse=True)
+def isolate_logging_context() -> Iterator[None]:
+    """Clear logging context before and after each test."""
+
+    clear_logging_context()
+    try:
+        yield
+    finally:
+        clear_logging_context()
 
 
 def test_set_and_clear_logging_context() -> None:
