@@ -245,7 +245,7 @@ class DocTranslateFormatStrategy(ABC):
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | `POST` | `/jobs` | `multipart/form-data`：`file`, `source_lang`, `target_lang`, `model_id`；校验后缀/大小；S3 上传；插入 job `PENDING`；`enqueue` Celery |
-| `GET` | `/jobs` | 侧栏列表：`limit`（默认 20）、`cursor`（keyset） |
+| `GET` | `/jobs` | 列表：`page` / `page_size` offset 分页 + 文件名 / 状态 / 创建时间筛选 |
 | `GET` | `/jobs/{job_id}` | 详情 + 状态 + 进度 |
 | `GET` | `/jobs/{job_id}/segments` | 对照列表，按 `seq` 排序；单次最多 **5000** 段 |
 | `GET` | `/jobs/{job_id}/download` | 译文下载（`SUCCESS` 且 `result_object_key` 存在） |

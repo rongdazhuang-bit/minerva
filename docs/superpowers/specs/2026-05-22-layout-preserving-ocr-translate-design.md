@@ -294,7 +294,7 @@ backend/app/translate/    # extract → layout_snapshot；assemble → writers
 |----|------|
 | 架构 | 方案 1：统一 Layout Block 中间层 |
 | 排版 | 结构 + 视觉同时实现 |
-| 格式 | 全格式（docx/xlsx/pdf/txt/md/csv + 扫描 OCR） |
+| 格式 | 全格式（doc/docx/xls/xlsx/pdf/txt/md/csv + 扫描 OCR；`.doc` / `.xls` 走 legacy 转换或策略支持） |
 | 交付 | A 下载 + B 预览 + C 分组对照 |
 | 溢出 | 正文/脚注 shrink；标题/表格 expand |
 | 公式 | 不机器翻译；保留 LaTeX/Markdown 原样 |
