@@ -314,7 +314,7 @@ backend/app/translate/    # extract → layout_snapshot；assemble → writers
 
 ---
 
-## 11. 实现对照（以代码为准，2026-05-22）
+## 11. 实现对照（以代码为准，2026-05-23）
 
 | 条目 | 代码位置 | 备注 |
 |------|----------|------|
