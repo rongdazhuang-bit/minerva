@@ -51,6 +51,8 @@ class DocxWriter:
                         cell = row_cells[c_idx]
                         if cell.paragraphs:
                             _replace_paragraph_text(cell.paragraphs[0], text)
+                            for paragraph in cell.paragraphs[1:]:
+                                _replace_paragraph_text(paragraph, "")
                         else:
                             cell.text = text
         doc.save(context.out_path)
