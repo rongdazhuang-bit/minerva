@@ -84,11 +84,15 @@ def _import_models() -> None:
 
 
 async def create_missing_tables() -> None:
+    """Create missing ORM tables when enabled by settings."""
+
     if not settings.auto_create_tables:
+        logger.info("database bootstrap skipped", extra={"event": "db.bootstrap.skipped"})
         return
     _import_models()
     from app.core.infrastructure.db.session import engine
 
+    logger.info("database bootstrap started", extra={"event": "db.bootstrap.started"})
     try:
         async with engine.begin() as conn:
             await conn.run_sync(
@@ -97,11 +101,13 @@ async def create_missing_tables() -> None:
             )
     except Exception as e:
         if not (_dev_like_env() and _is_db_unavailable(e)):
+            logger.exception("database bootstrap failed", extra={"event": "db.bootstrap.failed"})
             raise
         logger.warning(
             "无法连接 PostgreSQL，开发环境已跳过启动建表（AUTO_CREATE_TABLES 仍为真）。"
             "请启动数据库后重启，或先设置 AUTO_CREATE_TABLES=false；业务接口仍需要可用的数据库。",
+            extra={"event": "db.bootstrap.skipped_unavailable"},
         )
         logger.debug("跳过建表原因", exc_info=e)
         return
-    logger.info("数据库表已按模型检查/补建（仅缺表时创建，见 AUTO_CREATE_TABLES）")
+    logger.info("database bootstrap finished", extra={"event": "db.bootstrap.finished"})

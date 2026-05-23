@@ -92,6 +92,14 @@ class AgentGraphRunService:
 
         async def run_graph() -> None:
             try:
+                log.info(
+                    "agent run started",
+                    extra={
+                        "event": "agent.run.started",
+                        "run_id": str(run_id),
+                        "session_id": str(session_id),
+                    },
+                )
                 sess = await agent_repo.get_agent_session(
                     session, workspace_id=workspace_id, session_id=session_id
                 )
@@ -289,6 +297,15 @@ class AgentGraphRunService:
                         payload={"status": "success"},
                     )
                 )
+                log.info(
+                    "agent run finished",
+                    extra={
+                        "event": "agent.run.finished",
+                        "run_id": str(run_id),
+                        "session_id": str(session_id),
+                        "status": "success",
+                    },
+                )
                 if final_answer:
                     schedule_persist_turn_memory_background(
                         workspace_id=workspace_id,
@@ -301,7 +318,17 @@ class AgentGraphRunService:
                         max_tokens=max_tokens,
                     )
             except AppError as e:
-                log.warning("agent v2 AppError run_id=%s code=%s", run_id, e.code)
+                log.warning(
+                    "agent v2 AppError run_id=%s code=%s",
+                    run_id,
+                    e.code,
+                    extra={
+                        "event": "agent.run.failed",
+                        "run_id": str(run_id),
+                        "session_id": str(session_id),
+                        "code": e.code,
+                    },
+                )
                 await agent_repo.finalize_agent_run(
                     session,
                     run_id=run_id,
@@ -327,7 +354,15 @@ class AgentGraphRunService:
                     )
                 )
             except Exception as e:
-                log.exception("agent v2 run failed run_id=%s", run_id)
+                log.exception(
+                    "agent v2 run failed run_id=%s",
+                    run_id,
+                    extra={
+                        "event": "agent.run.failed",
+                        "run_id": str(run_id),
+                        "session_id": str(session_id),
+                    },
+                )
                 await agent_repo.finalize_agent_run(
                     session,
                     run_id=run_id,

@@ -89,9 +89,14 @@ async def get_langgraph_checkpointer() -> BaseCheckpointSaver | None:
             min_size,
             max_size,
             timeout,
+            extra={"event": "agent.checkpointer.init"},
         )
     except Exception as e:
-        log.warning("LangGraph checkpoint disabled: %s", e)
+        log.warning(
+            "LangGraph checkpoint disabled: %s",
+            e,
+            extra={"event": "agent.checkpointer.failed"},
+        )
         _checkpointer = None
         if _pool is not None:
             try:
@@ -120,7 +125,12 @@ async def close_langgraph_checkpointer() -> None:
         return
     try:
         await _pool.close()
+        log.info("langgraph checkpointer closed", extra={"event": "agent.checkpointer.closed"})
     except Exception as e:
-        log.warning("LangGraph checkpoint pool close failed: %s", e)
+        log.warning(
+            "LangGraph checkpoint pool close failed: %s",
+            e,
+            extra={"event": "agent.checkpointer.failed"},
+        )
     finally:
         _pool = None

@@ -172,5 +172,9 @@ async def run_file_ocr_scan_tick(session: AsyncSession) -> dict[str, Any]:
             summary["skipped"] += 1
         else:
             summary["failed"] += 1
-    _LOGGER.info("file_ocr scan tick finished %s", summary)
+    _LOGGER.info(
+        "file_ocr scan tick finished %s",
+        summary,
+        extra={"event": "ocr.scan.initialized", "file_count": summary["claimed"]},
+    )
     return summary

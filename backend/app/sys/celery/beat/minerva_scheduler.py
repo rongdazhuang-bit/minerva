@@ -73,6 +73,7 @@ class MinervaBeatScheduler(Scheduler):
             _LOGGER.info(
                 "minerva beat: loaded %s enabled celery job(s) from Postgres",
                 len(rows),
+                extra={"event": "celery.beat.reconcile", "job_count": len(rows)},
             )
         else:
             _LOGGER.warning(
@@ -92,7 +93,10 @@ class MinervaBeatScheduler(Scheduler):
 
         if self._hot_reload_event.is_set():
             self._hot_reload_event.clear()
-            _LOGGER.info("minerva beat: reloading schedules after Redis notify")
+            _LOGGER.info(
+                "minerva beat: reloading schedules after Redis notify",
+                extra={"event": "celery.beat.reload"},
+            )
             self.sync()
             self.old_schedulers = None
             self._heap = None

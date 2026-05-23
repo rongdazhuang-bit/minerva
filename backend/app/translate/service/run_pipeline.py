@@ -73,6 +73,10 @@ async def run_job_once(session: AsyncSession, job_id: uuid.UUID) -> dict[str, An
         return {"ok": False, "reason": "job_not_found"}
 
     workspace_id = job.workspace_id
+    log.info(
+        "translate pipeline started",
+        extra={"event": "translate.pipeline.started", "task_id": str(job_id)},
+    )
     try:
         with tempfile.TemporaryDirectory(prefix="doc_translate_") as tmp:
             tmp_dir = Path(tmp)
@@ -272,10 +276,18 @@ async def run_job_once(session: AsyncSession, job_id: uuid.UUID) -> dict[str, An
                 segment_done=total,
             )
             await session.commit()
+            log.info(
+                "translate pipeline finished",
+                extra={"event": "translate.pipeline.finished", "task_id": str(job_id)},
+            )
             return {"ok": True, "job_id": str(job_id)}
 
     except Exception as exc:
-        log.exception("doc_translate job failed job_id=%s", job_id)
+        log.exception(
+            "doc_translate job failed job_id=%s",
+            job_id,
+            extra={"event": "translate.pipeline.failed", "task_id": str(job_id)},
+        )
         await session.rollback()
         code = exc.code if isinstance(exc, AppError) else "translate.pipeline_failed"
         msg = _pipeline_error_message(exc)
