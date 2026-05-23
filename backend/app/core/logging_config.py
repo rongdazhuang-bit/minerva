@@ -133,4 +133,6 @@ def configure_logging(
     for logger_name in ("uvicorn", "uvicorn.error", "celery"):
         logging.getLogger(logger_name).setLevel(level)
     logging.getLogger("uvicorn.access").propagate = True
+    # Uvicorn --reload uses watchfiles; its INFO chatter is not useful in app logs.
+    logging.getLogger("watchfiles").setLevel(logging.WARNING)
     set_logging_context(process_type=process_type)
