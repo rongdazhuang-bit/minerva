@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from typing import Any
 
-# Field names whose values must never be emitted to logs.
-SENSITIVE_FIELD_NAMES = frozenset(
+# Field name parts whose values must never be emitted to logs.
+SENSITIVE_FIELD_PARTS = frozenset(
     {
         "password",
         "token",
-        "access_token",
-        "refresh_token",
         "authorization",
-        "api_key",
+        "key",
         "secret",
         "jwt",
         "captcha",
@@ -24,21 +23,34 @@ SENSITIVE_FIELD_NAMES = frozenset(
 )
 
 
+def _key_parts(key: object) -> list[str]:
+    """Split a mapping key into normalized name parts for sensitivity checks."""
+
+    key_text = str(key).strip()
+    camel_split_text = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", key_text)
+    return [
+        part.lower()
+        for part in re.split(r"[^A-Za-z0-9]+", camel_split_text)
+        if part
+    ]
+
+
 def _is_sensitive_key(key: object) -> bool:
     """Return whether a mapping key should have its value masked."""
 
-    return str(key).strip().lower() in SENSITIVE_FIELD_NAMES
+    return any(part in SENSITIVE_FIELD_PARTS for part in _key_parts(key))
 
 
 def _truncate_text(value: str, max_chars: int) -> str | dict[str, Any]:
     """Return text unchanged or a structured truncation summary."""
 
-    if len(value) <= max_chars:
+    safe_max_chars = max(max_chars, 0)
+    if len(value) <= safe_max_chars:
         return value
     return {
         "truncated": True,
         "original_length": len(value),
-        "value": value[:max_chars],
+        "value": value[:safe_max_chars],
     }
 
 
