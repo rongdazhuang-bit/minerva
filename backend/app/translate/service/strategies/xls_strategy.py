@@ -11,11 +11,10 @@ import xlwt
 
 from app.translate.domain.dto import SegmentDraft, SegmentRecord
 from app.translate.service.strategies.base import DocTranslateFormatStrategy
-from app.translate.service.strategies.xlsx_strategy import csv_split_tab
 
 
 class XlsTranslateStrategy(DocTranslateFormatStrategy):
-    """Translate ``.xls`` with one segment per non-empty sheet row."""
+    """Translate ``.xls`` with one segment per non-empty sheet cell."""
 
     extensions: ClassVar[frozenset[str]] = frozenset({"xls"})
 
@@ -27,6 +26,7 @@ class XlsTranslateStrategy(DocTranslateFormatStrategy):
         ocr_pages: list[tuple[int, str]] | None = None,
         layout_document=None,
     ) -> list[SegmentDraft]:
+        """Extract one draft per non-empty cell using legacy XLS coordinates."""
         book = xlrd.open_workbook(str(local_path))
         drafts: list[SegmentDraft] = []
         seq = 0
@@ -34,23 +34,26 @@ class XlsTranslateStrategy(DocTranslateFormatStrategy):
             sheet = book.sheet_by_index(sheet_idx)
             sheet_name = sheet.name
             for row_idx in range(sheet.nrows):
-                cells = [str(sheet.cell_value(row_idx, col_idx)) for col_idx in range(sheet.ncols)]
-                if not any(c.strip() for c in cells):
-                    continue
-                text = "\t".join(cells)
-                drafts.append(
-                    SegmentDraft(
-                        seq=seq,
-                        source_text=text,
-                        anchor_json={
-                            "sheet": sheet_name,
-                            "sheet_index": sheet_idx,
-                            "row": row_idx,
-                            "cells": cells,
-                        },
+                for col_idx in range(sheet.ncols):
+                    value = str(sheet.cell_value(row_idx, col_idx))
+                    if not value.strip():
+                        continue
+                    drafts.append(
+                        SegmentDraft(
+                            seq=seq,
+                            source_text=value,
+                            anchor_json={
+                                "sheet": sheet_name,
+                                "sheet_name": sheet_name,
+                                "sheet_index": sheet_idx,
+                                "page_index": sheet_idx,
+                                "row": row_idx,
+                                "col": col_idx,
+                                "label": "table_cell",
+                            },
+                        )
                     )
-                )
-                seq += 1
+                    seq += 1
         return drafts
 
     def assemble(
@@ -59,22 +62,31 @@ class XlsTranslateStrategy(DocTranslateFormatStrategy):
         source_path: Path,
         out_path: Path,
     ) -> None:
+        """Write translated XLS cells back while preserving untouched cells."""
         rb = xlrd.open_workbook(str(source_path))
-        overrides: dict[tuple[int, int], list[str]] = {}
+        overrides: dict[tuple[int, int, int], str] = {}
         for seg in segments:
             anchor = seg.anchor_json or {}
-            key = (int(anchor.get("sheet_index", 0)), int(anchor.get("row", 0)))
-            overrides[key] = csv_split_tab(seg.translated_text)
+            key = (
+                int(anchor.get("sheet_index", 0)),
+                int(anchor.get("row", 0)),
+                int(anchor.get("col", 0)),
+            )
+            overrides[key] = (
+                seg.source_text
+                if anchor.get("skip_translate")
+                else seg.translated_text or seg.source_text
+            )
 
         wb = xlwt.Workbook()
         for sheet_idx in range(rb.nsheets):
             rs = rb.sheet_by_index(sheet_idx)
             ws = wb.add_sheet(rs.name)
             for row_idx in range(rs.nrows):
-                row_override = overrides.get((sheet_idx, row_idx))
                 for col_idx in range(rs.ncols):
-                    if row_override is not None and col_idx < len(row_override):
-                        ws.write(row_idx, col_idx, row_override[col_idx])
-                    else:
-                        ws.write(row_idx, col_idx, rs.cell_value(row_idx, col_idx))
+                    value = overrides.get(
+                        (sheet_idx, row_idx, col_idx),
+                        rs.cell_value(row_idx, col_idx),
+                    )
+                    ws.write(row_idx, col_idx, value)
         wb.save(str(out_path))

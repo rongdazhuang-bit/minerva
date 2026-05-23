@@ -240,17 +240,6 @@ export function TranslatePage() {
     },
   })
 
-  const segmentsQuery = useQuery({
-    queryKey: ['translate-segments', workspaceId, detailJobId, 'none'],
-    queryFn: () => listTranslateJobSegments(workspaceId!, detailJobId!, 'none'),
-    enabled: Boolean(workspaceId && detailJobId),
-    refetchInterval: () => {
-      const st = jobQuery.data?.status
-      if (!st || TERMINAL.has(st)) return false
-      return 3000
-    },
-  })
-
   const segmentsPageGroupsQuery = useQuery({
     queryKey: ['translate-segments', workspaceId, detailJobId, 'page'],
     queryFn: () => listTranslateJobSegments(workspaceId!, detailJobId!, 'page'),
@@ -638,7 +627,10 @@ export function TranslatePage() {
   )
 
   const job = jobQuery.data
-  const segments = segmentsQuery.data?.segments ?? []
+  const segments = useMemo(
+    () => segmentsPageGroupsQuery.data?.groups?.flatMap((g) => g.segments) ?? [],
+    [segmentsPageGroupsQuery.data?.groups],
+  )
   const showPagesSkeleton = shouldShowTranslateDetailPagesSkeleton(
     job,
     layoutPagesQuery,
@@ -646,7 +638,7 @@ export function TranslatePage() {
   )
   const showSegmentsSkeleton = shouldShowTranslateDetailSegmentsSkeleton(
     job,
-    segmentsQuery,
+    segmentsPageGroupsQuery,
     segments.length,
   )
 
@@ -857,9 +849,7 @@ export function TranslatePage() {
                 <Alert
                   type="warning"
                   showIcon
-                  message={t('translate.detailTab.layoutUnavailable', {
-                    defaultValue: '版面数据不可用，请查看段落对照。',
-                  })}
+                  message={t('translate.detailTab.layoutUnavailable')}
                 />
               ) : layoutPagesQuery.data?.pages?.length ? (
                 <TranslatePageLayoutCompare
@@ -867,7 +857,7 @@ export function TranslatePage() {
                   groups={segmentsPageGroupsQuery.data?.groups ?? []}
                 />
               ) : (
-                <Empty description={t('translate.detailTab.noPages', { defaultValue: '暂无页面数据' })} />
+                <Empty description={t('translate.detailTab.noPages')} />
               ),
             },
             {

@@ -2,7 +2,7 @@
 
 **日期**：2026-05-20  
 **状态**：已实现（2026-05-20；UI 重构 2026-05-21 见 `docs/superpowers/specs/2026-05-21-document-translate-ui-refresh-design.md`）  
-**范围**：工作区「文档翻译 → 翻译」：支持 Word / PDF / TXT / MD / CSV / XLSX；上传区选择源/目标语言与 `model_type=translate` 模型；后台 `backend/app/translate/`；前端 `minerva-ui/src/features/translate/`；**表格列表 + 顶部筛选**；**上传 Modal**；**全屏详情 Modal** 内左右段落对照 + 译文下载；扫描 PDF 自动走现有 `file_ocr` 后再段落翻译；按文件后缀策略模式独立实现；单条 Celery 流水线；首期进度 HTTP 轮询。
+**范围**：工作区「文档翻译 → 翻译」：支持 Word（DOC / DOCX）/ PDF / TXT / MD / CSV / Excel（XLS / XLSX）；上传区选择源/目标语言与 `model_type=translate` 模型；后台 `backend/app/translate/`；前端 `minerva-ui/src/features/translate/`；**表格列表 + 顶部筛选**；**上传 Modal**；**全屏详情 Modal** 内左右段落对照 + 译文下载；扫描 PDF 自动走现有 `file_ocr` 后再段落翻译；按文件后缀策略模式独立实现；单条 Celery 流水线；首期进度 HTTP 轮询。
 
 ---
 
@@ -20,9 +20,9 @@
 
 ### 1.2 成功标准
 
-- 用户上传六种后缀文件之一，选择语言与 translate 模型后，任务进入异步处理；侧栏可见历史，选中后对照区随轮询刷新段落与进度。
+- 用户上传当前支持后缀（`doc`, `docx`, `pdf`, `txt`, `md`, `csv`, `xls`, `xlsx`）之一，选择语言与 translate 模型后，任务进入异步处理；侧栏可见历史，选中后对照区随轮询刷新段落与进度。
 - 任务 `SUCCESS` 后可下载译文；对照区展示全部段落的原文与译文（上限见 §6）。
-- Word / PDF 下载文件在肉眼可接受范围内保持版式；TXT / MD / CSV / XLSX 保持原有结构（换行、表格行列）。
+- Word（DOC / DOCX）/ PDF 下载文件在肉眼可接受范围内保持版式；TXT / MD / CSV / Excel（XLS / XLSX）保持原有结构（换行、表格行列）。
 - 扫描 PDF 在配置可用 OCR 工具时自动 OCR，无需用户跳转 OCR 模块手动建任务。
 - 数据库表 **无外键、无 ON DELETE 级联**；删除任务在业务层清理子表与 S3 对象。
 
@@ -52,7 +52,7 @@ backend/app/translate/
     strategies/
       base.py              # DocTranslateFormatStrategy 抽象
       registry.py          # 按后缀解析策略
-      txt.py, md.py, csv.py, xlsx.py, docx.py, pdf.py
+      txt.py, md.py, csv.py, xls_strategy.py, xlsx.py, word_strategy.py, docx.py, pdf.py
     job_service.py         # 创建/列表/详情/删除/下载
     segment_service.py     # 段落查询
     translate_llm.py       # 单段调用 app/llm（加载 sys_models）
@@ -61,7 +61,7 @@ backend/app/translate/
   task/
     run_job.py             # Celery shared_task
   infrastructure/
-    repository.py          # ORM 访问、keyset 分页
+    repository.py          # ORM 访问、offset 分页与筛选计数
 ```
 
 在 `app/core/api/router.py` 注册 `translate` 路由。
@@ -86,6 +86,8 @@ minerva-ui/src/api/translate.ts
 | 格式 | 建议库 |
 |------|--------|
 | docx | `python-docx` |
+| doc | LibreOffice 转 DOCX 后复用 Word 策略 |
+| xls | legacy xls 策略依赖当前运行环境支持 |
 | xlsx | `openpyxl` |
 | pdf（文本层） | `pymupdf` 或 `pdfplumber` |
 | pdf（写回） | PyMuPDF 文本替换 / 增量层（尽力保留版式） |
@@ -123,7 +125,7 @@ minerva-ui/src/api/translate.ts
 | `create_at` | timestamptz | |
 | `update_at` | timestamptz | |
 
-**索引**：`(workspace_id, update_at DESC, id DESC)` — 侧栏 keyset 分页（对齐 `agent_session`）。
+**索引**：`(workspace_id, update_at DESC, id DESC)` — 支持列表按工作区与更新时间排序筛选；列表响应使用 offset 分页并返回 `{ items, total }`。
 
 ### 3.2 `doc_translate_segment`
 
@@ -223,10 +225,12 @@ class DocTranslateFormatStrategy(ABC):
 |------|------|------|-----|
 | `txt` | 连续空行分段 | 按段还原，段间双换行 | — |
 | `md` | 同 txt，保留 fenced code 块为单段（不拆行内） | 同序写回 | — |
-| `csv` | 默认 **一行一段**（整行序列化，含分隔符） | 按行写回 | — |
-| `xlsx` | 每 sheet 按行合并非空单元格为一段，`anchor_json` 含 sheet/row | openpyxl 写回单元格 | — |
+| `csv` | 非表头字段级抽取，`anchor_json` 含行列位置 | 按字段位置写回，保留行列结构 | — |
 | `docx` | 段落 + 表格单元格为段，`anchor_json` 含 paragraph/table 索引 | python-docx 保留 run 样式 | — |
+| `doc` | 经 LibreOffice 转为 DOCX 后复用 Word 策略 | 写回 DOCX 中间结果后按 legacy Word 流程输出 | — |
 | `pdf` | 有文字层：按块/行聚合；无文字层：`needs_ocr=True` | PyMuPDF 按 anchor 替换或叠加（尽力版式） | 扫描件自动 OCR |
+| `xls` | legacy xls cell 策略按工作簿/单元格抽取 | 按单元格锚点写回，保留行列结构 | — |
+| `xlsx` | 非表头单元格级抽取，`anchor_json` 含 sheet/row/col | 按 sheet/row/col 写回单元格 | — |
 
 ### 5.3 段落过长
 
@@ -241,7 +245,7 @@ class DocTranslateFormatStrategy(ABC):
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | `POST` | `/jobs` | `multipart/form-data`：`file`, `source_lang`, `target_lang`, `model_id`；校验后缀/大小；S3 上传；插入 job `PENDING`；`enqueue` Celery |
-| `GET` | `/jobs` | 侧栏列表：`limit`（默认 20）、`cursor`（keyset） |
+| `GET` | `/jobs` | 列表：`page` / `page_size` offset 分页 + 文件名 / 状态 / 创建时间筛选 |
 | `GET` | `/jobs/{job_id}` | 详情 + 状态 + 进度 |
 | `GET` | `/jobs/{job_id}/segments` | 对照列表，按 `seq` 排序；单次最多 **5000** 段 |
 | `GET` | `/jobs/{job_id}/download` | 译文下载（`SUCCESS` 且 `result_object_key` 存在） |
@@ -249,7 +253,7 @@ class DocTranslateFormatStrategy(ABC):
 
 ### 6.1 校验
 
-- 后缀白名单：`docx`, `pdf`, `txt`, `md`, `csv`, `xlsx`。
+- 后缀白名单：`doc`, `docx`, `pdf`, `txt`, `md`, `csv`, `xls`, `xlsx`。
 - 单文件大小上限：**20MB**（常量，可配置）。
 - `model_id`：存在、属当前 `workspace_id`、`model_type` 为 translate 字典项、enabled、endpoint + api_key 有效。
 
@@ -327,7 +331,7 @@ class DocTranslateFormatStrategy(ABC):
 |------|------|
 | 策略单测 | txt/md/csv roundtrip；docx/xlsx 小样；pdf 文本层小样 |
 | OCR 桥接 | mock `ocr_file` 状态流转 |
-| API | 创建 job、列表游标、segments、删除清理 |
+| API | 创建 job、列表 offset 分页 / 筛选 / total、segments、删除清理 |
 | Worker | mock LLM，端到端 job → SUCCESS |
 | 前端 | 列表/轮询/对照列布局快照（可选） |
 
@@ -355,7 +359,7 @@ class DocTranslateFormatStrategy(ABC):
 | PDF 扫描件 | 自动 OCR 后翻译，版式尽力保留 |
 | 交付 | 左右段落对照 + 下载 |
 | 进度 | 首期 HTTP 轮询（约 3s） |
-| 范围 | 六种格式一期全部交付 |
+| 范围 | `doc`, `docx`, `pdf`, `txt`, `md`, `csv`, `xls`, `xlsx` 当前实现支持 |
 | 数据库 | 无外键、无级联删除 |
 
 ---
@@ -365,3 +369,13 @@ class DocTranslateFormatStrategy(ABC):
 - SSE 任务进度。
 - 失败段单独重试 / `PARTIAL_SUCCESS`。
 - 多文件打包翻译、术语表、翻译记忆库。
+
+---
+
+## 实现对照（以代码为准，2026-05-23）
+
+| 条目 | 当前代码位置 | 备注 |
+|------|--------------|------|
+| 结构化写回 | `backend/app/layout/writers/` | CSV / XLS / XLSX / DOC / DOCX / PDF 已收敛到 writer 层或 legacy 转换策略 |
+| Markdown skip | `backend/app/translate/service/strategies/md_strategy.py` | fenced code 使用 `skip_translate=true` |
+| doc/xls 支持 | `backend/app/translate/service/strategies/word_strategy.py`, `backend/app/translate/service/strategies/xls_strategy.py` | 作为当前实现支持范围记录 |

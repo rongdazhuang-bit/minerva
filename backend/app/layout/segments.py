@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, Literal
 
 from app.layout.models import LayoutBlock, LayoutDocument, LayoutPage
@@ -9,6 +10,35 @@ from app.translate.domain.dto import SegmentDraft
 from app.translate.service.text_segmentation import split_plain_text_into_segments
 
 _DEFAULT_MAX_CHARS = 6000
+_BLOCK_KEY_PAGE_RE = re.compile(r"^p(\d+)\.")
+
+
+def _page_index_from_anchor(anchor: dict[str, Any]) -> int:
+    """Resolve layout page index from current and legacy segment anchors."""
+
+    if "page_index" in anchor:
+        return int(anchor["page_index"])
+    if "page" in anchor:
+        return int(anchor["page"])
+    if "sheet_index" in anchor:
+        return int(anchor["sheet_index"])
+    block_key = anchor.get("block_key")
+    if block_key:
+        match = _BLOCK_KEY_PAGE_RE.match(str(block_key))
+        if match is not None:
+            return int(match.group(1))
+    return 0
+
+
+def _block_key_from_anchor(anchor: dict[str, Any], *, page_index: int, seq: int) -> str:
+    """Resolve layout block key from current and legacy segment anchors."""
+
+    block_key = anchor.get("block_key")
+    if block_key:
+        return str(block_key)
+    if "block" in anchor:
+        return f"p{page_index}.b{anchor['block']}"
+    return f"p{page_index}.seg{seq}"
 
 
 def _anchor_for_block(block: LayoutBlock, *, sub_index: int = 0) -> dict[str, Any]:
@@ -76,15 +106,16 @@ def segment_drafts_to_layout_document(
     by_page: dict[int, list[LayoutBlock]] = {}
     for d in drafts:
         anchor = d.anchor_json or {}
-        page_index = int(anchor.get("page_index", 0))
+        page_index = _page_index_from_anchor(anchor)
         block = LayoutBlock(
-            block_key=str(anchor.get("block_key", f"p{page_index}.seg{d.seq}")),
+            block_key=_block_key_from_anchor(anchor, page_index=page_index, seq=d.seq),
             parent_key=anchor.get("parent_key"),
             label=str(anchor.get("label", "text")),
             reading_order=d.seq,
             source_text=d.source_text,
             bbox=anchor.get("bbox"),
             page_index=page_index,
+            sheet_name=anchor.get("sheet_name"),
             table_grid=anchor.get("table_grid"),
             overflow_policy=anchor.get("overflow_policy", "shrink"),
             skip_translate=bool(anchor.get("skip_translate", False)),

@@ -200,7 +200,7 @@ backend/app/translate/    # extract → layout_snapshot；assemble → writers
 
 | 格式 | LDM 来源 | 备注 |
 |------|----------|------|
-| docx / xlsx | 原生抽取 + style_hint | 无页图 |
+| doc/docx / xls/xlsx | Word / Excel 原生抽取 + style_hint；`.doc` 走 legacy 转 DOCX 后处理，`.xls` 走 legacy cell 策略 | 无页图 |
 | pdf 文字层 | PyMuPDF blocks | 可选页图 |
 | pdf 扫描 | `ocr_file` layout-pages | `ocr_bridge` 不再仅用 markdown 空行切块 |
 | txt / md / csv | 结构块 | md  fenced code 仍单段 |
@@ -294,7 +294,7 @@ backend/app/translate/    # extract → layout_snapshot；assemble → writers
 |----|------|
 | 架构 | 方案 1：统一 Layout Block 中间层 |
 | 排版 | 结构 + 视觉同时实现 |
-| 格式 | 全格式（docx/xlsx/pdf/txt/md/csv + 扫描 OCR） |
+| 格式 | 全格式（doc/docx/xls/xlsx/pdf/txt/md/csv + 扫描 OCR；`.doc` / `.xls` 走 legacy 转换或策略支持） |
 | 交付 | A 下载 + B 预览 + C 分组对照 |
 | 溢出 | 正文/脚注 shrink；标题/表格 expand |
 | 公式 | 不机器翻译；保留 LaTeX/Markdown 原样 |
@@ -314,10 +314,11 @@ backend/app/translate/    # extract → layout_snapshot；assemble → writers
 
 ---
 
-## 11. 实现对照（以代码为准，2026-05-22）
+## 11. 实现对照（以代码为准，2026-05-23）
 
 | 条目 | 代码位置 | 备注 |
 |------|----------|------|
 | OCR 完成后翻译抽取 | `backend/app/translate/service/ocr_bridge.py` | 轮询前 `session.rollback()` 避免陈旧 ORM 状态；SUCCESS 后优先 LDM，无块则回退 `load_ocr_markdown_pages_for_translate` |
 | 流水线传参 | `backend/app/translate/service/run_pipeline.py` | `extract` 使用 `ocr_file_id` / `ocr_pages`，不再依赖未刷新的 `job.ocr_file_id` |
 | Markdown 回退加载 | `backend/app/layout/load_ocr.py` | `load_ocr_markdown_pages_for_translate`；空 `layout_blocks_json` 视为无 LDM |
+| LayoutWriter 写回 | `backend/app/layout/writers/` | PDF 使用 bbox + overflow；结构化格式按字段/单元格锚点写回 |
