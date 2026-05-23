@@ -8,6 +8,8 @@ from typing import ClassVar
 
 from docx import Document
 
+from app.layout.writers.base import WriteContext
+from app.layout.writers.docx_writer import DocxWriter
 from app.translate.domain.dto import SegmentDraft, SegmentRecord
 from app.translate.service.strategies.base import DocTranslateFormatStrategy
 
@@ -25,6 +27,8 @@ class DocxTranslateStrategy(DocTranslateFormatStrategy):
         ocr_pages: list[tuple[int, str]] | None = None,
         layout_document=None,
     ) -> list[SegmentDraft]:
+        """Extract non-empty DOCX paragraphs and table cells for translation."""
+
         doc = Document(local_path)
         drafts: list[SegmentDraft] = []
         seq = 0
@@ -78,20 +82,8 @@ class DocxTranslateStrategy(DocTranslateFormatStrategy):
         source_path: Path,
         out_path: Path,
     ) -> None:
-        doc = Document(source_path)
-        for seg in segments:
-            anchor = seg.anchor_json or {}
-            kind = anchor.get("kind")
-            if kind == "paragraph":
-                idx = int(anchor.get("index", 0))
-                if idx < len(doc.paragraphs):
-                    doc.paragraphs[idx].text = seg.translated_text
-            elif kind == "table_cell":
-                t_idx = int(anchor.get("table", 0))
-                r_idx = int(anchor.get("row", 0))
-                c_idx = int(anchor.get("col", 0))
-                if t_idx < len(doc.tables):
-                    table = doc.tables[t_idx]
-                    if r_idx < len(table.rows) and c_idx < len(table.rows[r_idx].cells):
-                        table.rows[r_idx].cells[c_idx].text = seg.translated_text
-        doc.save(out_path)
+        """Assemble translated DOCX content while preserving editable structure."""
+
+        DocxWriter().write(
+            WriteContext(source_path=source_path, out_path=out_path, segments=segments)
+        )
