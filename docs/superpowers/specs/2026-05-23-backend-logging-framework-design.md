@@ -1,7 +1,7 @@
 # 后端日志框架设计
 
 **日期**：2026-05-23  
-**状态**：设计已确认，待实现  
+**状态**：已实现（2026-05-23）  
 **范围**：为后端运行进程设计统一日志框架，覆盖 FastAPI API、Celery Worker、Celery Beat。日志以 JSON 行格式同时输出到 stdout 与本地滚动文件，按标准级别划分，文件按天滚动并保留 7 天。API 请求与响应报文需要进入日志，但必须经过统一脱敏与大小截断。整体设计保留现有 `logging.getLogger(__name__)` 使用方式，并为关键业务边界补充结构化日志，方便排查问题。
 
 ---
@@ -436,3 +436,20 @@ TimedRotatingFileHandler(
 - 未捕获异常写入结构化错误日志，客户端不暴露栈。
 - 关键长流程和外部依赖具备可排查的开始、完成、失败日志。
 - 新增测试覆盖 Formatter、脱敏、中间件、滚动配置和 Celery request_id 贯穿。
+
+---
+
+## 16. 实现对照（以代码为准，2026-05-23）
+
+| Spec 条目 | 当前代码位置 | 备注 |
+| --- | --- | --- |
+| JSON 日志 formatter | `backend/app/core/logging_json.py` | 每行一条 JSON，合并 context 与 `extra`，并保护基础字段不被覆盖。 |
+| 脱敏与截断 | `backend/app/core/logging_redaction.py` | 敏感字段递归脱敏，长文本截断，tuple 形态保留。 |
+| 日志 context | `backend/app/core/logging_context.py` | `request_id` / `task_id` / `process_type` 的 contextvars 管理。 |
+| 日志初始化与滚动文件 | `backend/app/core/logging_config.py` | stdout + `TimedRotatingFileHandler`，按进程文件。 |
+| 日志 Settings 与 env | `backend/app/config.py`、`backend/.env.example`、`backend/.env.dev` | 7 项日志配置已同步。 |
+| API 请求/响应报文日志 | `backend/app/core/logging_middleware.py` | 记录 request/response 摘要，返回 `X-Request-ID`；GET/流式请求不阻塞 ASGI。 |
+| FastAPI 接入 | `backend/app/main.py`、`backend/app/errors.py` | 初始化日志、中间件、异常日志与 500 兜底。 |
+| Celery request_id 贯穿 | `backend/app/celery_app.py` | 入队 headers 注入，任务 prerun/postrun 恢复/清理 context。 |
+| 关键边界日志 | DB bootstrap、LangGraph checkpoint、Agent run、OCR scan、Translate pipeline、Beat scheduler | 记录开始、结束、失败摘要。 |
+| 测试 | `backend/tests/test_logging_*.py`、`backend/tests/test_api_logging_integration.py`、`backend/tests/test_celery_request_logging_context.py` | 45 项 pytest 通过。 |
