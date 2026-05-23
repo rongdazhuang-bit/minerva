@@ -837,6 +837,7 @@ export function TranslatePage() {
           <Alert type="error" showIcon message={job.error_message} style={{ marginBottom: 16 }} />
         ) : null}
         <Tabs
+          className="translate-page__detail-tabs"
           activeKey={detailTab}
           onChange={(k) => setDetailTab(k as 'pages' | 'segments')}
           items={[

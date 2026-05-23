@@ -141,6 +141,7 @@ Detail Modal (fullscreen) — 工具栏 + 双列对照（body 内滚动）
 
 - `open={detailJobId != null}`；标题区：文件名、`Tag` 状态、非终态 `Progress`、`segment_done/total`、`SUCCESS` 时下载按钮。
 - Body：`translate-page__compare-grid` 双列；`overflow: auto` + `minerva-scrollbar-styled`。
+- 详情内容滚动时仅固定 `页面对照` / `段落对照` Tab 标题栏；失败提示、对照内容与下载区域维持原滚动层级。
 - 查询：`getTranslateJob` + `listTranslateJobSegments`；非终态 `refetchInterval: 3000`（与现逻辑相同）。
 - `FAILED`：`Alert` 展示 `error_message`。
 - Footer：`null` 或仅「关闭」；关闭后 `detailJobId = null`，表格不强制高亮行。

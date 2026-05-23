@@ -100,6 +100,13 @@
   overscroll-behavior: contain;
 }
 
+.translate-page__detail-tabs > .ant-tabs-nav {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--minerva-surface, #1b2838);
+}
+
 .translate-page__detail-title {
   display: flex;
   flex-wrap: wrap;
