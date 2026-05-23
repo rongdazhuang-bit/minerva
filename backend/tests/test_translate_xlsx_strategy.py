@@ -51,3 +51,27 @@ def test_xlsx_translates_cells_without_row_tab_join(tmp_path: Path) -> None:
     assert ws_out["A2"].value == "译:apple"
     assert ws_out["B2"].value == "译:red fruit"
     out.close()
+
+
+def test_xlsx_extracts_sparse_rows_without_empty_cell_coordinates(tmp_path: Path) -> None:
+    """Extract populated sparse-row cells without reading EmptyCell coordinates."""
+    source = tmp_path / "source.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Sheet1"
+    ws["A1"] = "name"
+    ws["B1"] = "desc"
+    ws["B2"] = "red fruit"
+    wb.save(source)
+
+    strategy = XlsxTranslateStrategy()
+    drafts = strategy.extract(source)
+
+    assert any(
+        d.anchor_json == {"sheet": "Sheet1", "row": 2, "col": 2, "label": "table_cell"}
+        for d in drafts
+    )
+    assert not any(
+        d.anchor_json == {"sheet": "Sheet1", "row": 2, "col": 1, "label": "table_cell"}
+        for d in drafts
+    )

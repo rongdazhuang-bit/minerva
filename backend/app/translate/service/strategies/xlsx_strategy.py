@@ -34,10 +34,10 @@ class XlsxTranslateStrategy(DocTranslateFormatStrategy):
         try:
             for sheet_name in wb.sheetnames:
                 ws = wb[sheet_name]
-                for row in ws.iter_rows():
-                    for cell in row:
-                        if int(cell.row) == 1:
-                            continue
+                for row_idx, row in enumerate(ws.iter_rows(), start=1):
+                    if row_idx == 1:
+                        continue
+                    for col_idx, cell in enumerate(row, start=1):
                         value = "" if cell.value is None else str(cell.value)
                         if not value.strip():
                             continue
@@ -47,8 +47,8 @@ class XlsxTranslateStrategy(DocTranslateFormatStrategy):
                                 source_text=value,
                                 anchor_json={
                                     "sheet": sheet_name,
-                                    "row": int(cell.row),
-                                    "col": int(cell.column),
+                                    "row": row_idx,
+                                    "col": col_idx,
                                     "label": "table_cell",
                                 },
                             )
