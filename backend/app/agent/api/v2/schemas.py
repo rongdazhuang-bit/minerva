@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -25,6 +26,10 @@ class AgentSessionOut(BaseModel):
     status: str
     created_at: datetime
     updated_at: datetime | None = None
+    usage: dict[str, Any] | None = Field(
+        default=None,
+        description="累计 token 用量(JSON，同 usage_json)",
+    )
 
 
 class AgentSessionListItemOut(BaseModel):
@@ -35,6 +40,7 @@ class AgentSessionListItemOut(BaseModel):
     preview: str | None
     created_at: datetime
     updated_at: datetime | None
+    usage: dict[str, Any] | None = None
 
 
 class AgentSessionListOut(BaseModel):
@@ -53,6 +59,7 @@ class AgentMessageOut(BaseModel):
     content: str | None
     seq: int
     created_at: datetime
+    meta_json: dict[str, Any] | None = None
 
 
 class AgentSessionDetailOut(BaseModel):

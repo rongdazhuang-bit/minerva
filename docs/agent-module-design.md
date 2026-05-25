@@ -259,12 +259,12 @@ START → memory.retrieve → planner → executor ⇄ executor
 
 | 表 | 说明 |
 |----|------|
-| `agent_session` | 工作区会话；`summary_text` 滚动摘要 |
-| `agent_message` | 有序消息（`seq` 唯一）；role/content/tool 相关 JSON |
-| `agent_run` | 单次 Run；`request_meta_json` 存 model_id、preferred_skills 等 |
+| `agent_session` | 工作区会话；`summary_text` 滚动摘要；`usage_json` 为跨 Run token 累计（含 `by_phase`） |
+| `agent_message` | 有序消息（`seq` 唯一）；role/content/tool 相关 JSON；助手 `meta_json.usage` 存该轮 Run 用量 |
+| `agent_run` | 单次 Run；`request_meta_json` 存 model_id、preferred_skills 等；`usage_json` 为分层 token 累计（含 `by_phase` / `by_step`） |
 | `agent_plan` | Run 的计划快照 `steps_json` |
 | `agent_long_term_memory` | 长期记忆 fact/summary；可按 key upsert |
-| `agent_run_node` | 细粒度节点树（planner、subagent、memory.persist 等） |
+| `agent_run_node` | 细粒度节点树；`usage_json` 存节点级 token（含 `llm.round` 明细） |
 
 删除会话时依赖 FK `ON DELETE CASCADE` 级联清理关联数据。
 
@@ -343,8 +343,11 @@ START → memory.retrieve → planner → executor ⇄ executor
 | `plan.step_updated` | step_id、status、skill_id |
 | `subagent.started` / `subagent.finished` | skill_id、step_id |
 | `llm.delta` | channel: assistant \| reasoning、text、step_id、skill_id |
+| `llm.usage` | usage（本次调用 OpenAI 格式）、total_usage（Run 累计 flat）、step_id、skill_id、phase、node_id |
 | `tool.started` / `tool.finished` | name、arguments_preview / result_preview |
 | `memory.retrieved` | hit_count、sources |
+
+`run.finished.payload.usage` 与 `agent_run.usage_json` 一致，为完整分层 JSON；助手消息 `meta_json.usage` 供前端刷新后展示 token。
 
 实现见 `domain/sse_v2.py`、`infrastructure/event_mapper.py`。
 

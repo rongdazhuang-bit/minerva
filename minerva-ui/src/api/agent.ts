@@ -17,6 +17,7 @@ export type AgentSessionOut = {
   status: string
   created_at: string
   updated_at?: string | null
+  usage?: Record<string, unknown> | null
 }
 
 export type AgentSessionListItem = {
@@ -25,6 +26,7 @@ export type AgentSessionListItem = {
   preview: string | null
   created_at: string
   updated_at: string | null
+  usage?: Record<string, unknown> | null
 }
 
 export type AgentMessageOut = {
@@ -33,6 +35,7 @@ export type AgentMessageOut = {
   content: string | null
   seq: number
   created_at: string
+  meta_json?: Record<string, unknown> | null
 }
 
 export type AgentSessionDetailOut = {

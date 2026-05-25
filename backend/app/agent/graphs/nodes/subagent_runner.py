@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import uuid
+
 from langgraph.graph.state import CompiledStateGraph
 
 from app.agent.domain.plan import PlanStep
@@ -28,6 +30,7 @@ async def run_subagent_with_stream(
     *,
     step: PlanStep,
     recursion_limit: int,
+    parent_node_id: uuid.UUID,
 ) -> str:
     """Run one sub-agent with ``astream_events`` and forward tool/LLM deltas to SSE."""
 
@@ -36,6 +39,15 @@ async def run_subagent_with_stream(
     inputs = {"messages": messages_with_user_input(history, step.goal)}
     output = ""
     async for event in subagent.astream_events(inputs, config=config_sub, version="v2"):
+        if event.get("event") == "on_chat_model_end":
+            data = event.get("data") or {}
+            await deps.record_llm_call_to_db(
+                data.get("output"),
+                parent_node_id=parent_node_id,
+                phase="subagent",
+                step_id=step.id,
+                skill_id=step.skill_id,
+            )
         if deps.emit_sse:
             line = map_langchain_stream_event(
                 event,
@@ -53,5 +65,17 @@ async def run_subagent_with_stream(
                 output = extract_last_ai_text(out["messages"])
     if not output:
         result = await subagent.ainvoke(inputs, config=config_sub)
-        output = extract_last_ai_text(result.get("messages", []))
+        messages = result.get("messages", [])
+        for msg in reversed(messages):
+            role = getattr(msg, "type", None) or getattr(msg, "role", None)
+            if role in ("ai", "assistant"):
+                await deps.record_llm_call_to_db(
+                    msg,
+                    parent_node_id=parent_node_id,
+                    phase="subagent",
+                    step_id=step.id,
+                    skill_id=step.skill_id,
+                )
+                break
+        output = extract_last_ai_text(messages)
     return output

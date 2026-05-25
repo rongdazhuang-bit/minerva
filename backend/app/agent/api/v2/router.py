@@ -121,6 +121,7 @@ async def list_agent_sessions(
                 preview=(preview[:120] if preview else None),
                 created_at=row.created_at,
                 updated_at=row.updated_at,
+                usage=row.usage_json if isinstance(row.usage_json, dict) else None,
             )
             for row, preview in rows
         ],
@@ -153,6 +154,7 @@ async def get_agent_session_detail(
             status=row.status,
             created_at=row.created_at,
             updated_at=row.updated_at,
+            usage=row.usage_json if isinstance(row.usage_json, dict) else None,
         ),
         messages=[
             AgentMessageOut(
@@ -161,6 +163,7 @@ async def get_agent_session_detail(
                 content=m.content,
                 seq=m.seq,
                 created_at=m.created_at,
+                meta_json=m.meta_json if isinstance(m.meta_json, dict) else None,
             )
             for m in msg_rows
         ],

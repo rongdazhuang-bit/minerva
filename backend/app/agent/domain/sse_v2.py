@@ -24,6 +24,7 @@ class AgentSseEventType(str, Enum):
     subagent_started = "subagent.started"
     subagent_finished = "subagent.finished"
     llm_delta = "llm.delta"
+    llm_usage = "llm.usage"
     tool_started = "tool.started"
     tool_finished = "tool.finished"
     memory_retrieved = "memory.retrieved"

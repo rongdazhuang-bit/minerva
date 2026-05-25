@@ -37,6 +37,7 @@ class AgentSession(Base):
     agent_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, server_default=sa.text("'active'"))
     meta_json: Mapped[dict[str, Any] | list[Any] | None] = mapped_column(JSONB, nullable=True)
+    usage_json: Mapped[dict[str, Any] | list[Any] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), nullable=False
     )
@@ -201,3 +202,4 @@ class AgentRunNode(Base):
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     meta_json: Mapped[dict[str, Any] | list[Any] | None] = mapped_column(JSONB, nullable=True)
+    usage_json: Mapped[dict[str, Any] | list[Any] | None] = mapped_column(JSONB, nullable=True)

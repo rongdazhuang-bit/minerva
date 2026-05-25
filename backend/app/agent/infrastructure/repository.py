@@ -17,6 +17,7 @@ from app.agent.domain.db.models import (
     AgentRunNode,
     AgentSession,
 )
+from app.agent.infrastructure.openai_usage import merge_usage_document
 
 RECENT_AGENT_SESSIONS_DEFAULT_LIMIT: int = 20
 
@@ -373,6 +374,7 @@ async def insert_run_node(
     inputs_json: dict[str, Any] | list[Any] | None = None,
     outputs_json: dict[str, Any] | list[Any] | None = None,
     meta_json: dict[str, Any] | list[Any] | None = None,
+    usage_json: dict[str, Any] | list[Any] | None = None,
 ) -> AgentRunNode:
     """插入一条运行节点记录。"""
 
@@ -387,10 +389,82 @@ async def insert_run_node(
         inputs_json=inputs_json,
         outputs_json=outputs_json,
         meta_json=meta_json,
+        usage_json=usage_json,
     )
     session.add(row)
     await session.flush()
     return row
+
+
+async def update_run_node_usage(
+    session: AsyncSession,
+    *,
+    node_id: uuid.UUID,
+    usage_json: dict[str, Any] | list[Any],
+) -> None:
+    """Set ``usage_json`` on one ``agent_run_node`` row (rollup of child totals)."""
+
+    row = await session.get(AgentRunNode, node_id)
+    if row is None:
+        return
+    row.usage_json = usage_json
+    await session.flush()
+
+
+async def merge_run_usage_json(
+    session: AsyncSession,
+    *,
+    run_id: uuid.UUID,
+    delta: dict[str, Any],
+) -> None:
+    """Merge ``delta`` into ``agent_run.usage_json`` using layered merge rules."""
+
+    row = await session.get(AgentRun, run_id)
+    if row is None:
+        return
+    base = row.usage_json if isinstance(row.usage_json, dict) else {}
+    row.usage_json = merge_usage_document(base, delta)
+    await session.flush()
+
+
+async def merge_session_usage_json(
+    session: AsyncSession,
+    *,
+    session_id: uuid.UUID,
+    delta: dict[str, Any],
+) -> None:
+    """Merge run-level usage into ``agent_session.usage_json`` (drops ``by_step``)."""
+
+    row = await session.get(AgentSession, session_id)
+    if row is None:
+        return
+    base = row.usage_json if isinstance(row.usage_json, dict) else {}
+    clean_delta = {k: v for k, v in delta.items() if k != "by_step"}
+    row.usage_json = merge_usage_document(base, clean_delta)
+    await session.flush()
+
+
+async def patch_assistant_message_usage_by_run(
+    session: AsyncSession,
+    *,
+    run_id: uuid.UUID,
+    usage_json: dict[str, Any],
+) -> None:
+    """Attach ``usage_json`` under ``meta_json.usage`` on the latest assistant row for ``run_id``."""
+
+    stmt = (
+        select(AgentMessage)
+        .where(AgentMessage.run_id == run_id, AgentMessage.role == "assistant")
+        .order_by(AgentMessage.seq.desc())
+        .limit(1)
+    )
+    row = (await session.execute(stmt)).scalar_one_or_none()
+    if row is None:
+        return
+    meta = dict(row.meta_json) if isinstance(row.meta_json, dict) else {}
+    meta["usage"] = usage_json
+    row.meta_json = meta
+    await session.flush()
 
 
 async def finalize_agent_run(

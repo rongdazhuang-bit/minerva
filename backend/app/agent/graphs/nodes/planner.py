@@ -57,9 +57,34 @@ async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:
             content=f"{mem_block}\n\n【本轮用户请求】：{request_text}" if mem_block else f"【本轮用户请求】：{request_text}"
         ),
     ]
-    structured = deps.model.with_structured_output(Plan)
+
+    from app.agent.domain.db.models import AgentRunNode
+    from app.agent.infrastructure import repository as agent_repo
+
+    plan_node_id = uuid.uuid4()
+    await agent_repo.insert_run_node(
+        deps.db,
+        node_id=plan_node_id,
+        run_id=deps.run_id,
+        parent_node_id=None,
+        sequence_idx=1,
+        node_type="plan.created",
+        node_name="planner",
+        status="running",
+    )
+
+    structured = deps.model.with_structured_output(Plan, include_raw=True)
+    raw_msg = None
     try:
-        plan = await structured.ainvoke(planner_messages)
+        result = await structured.ainvoke(planner_messages)
+        if isinstance(result, dict):
+            parsed = result.get("parsed")
+            raw_msg = result.get("raw")
+            plan = parsed if isinstance(parsed, Plan) else None
+        else:
+            plan = result if isinstance(result, Plan) else None
+        if plan is None:
+            raise ValueError("planner structured output missing Plan")
     except Exception:
         fallback = plan_fallback_skill_id(request_text)
         plan = Plan(steps=[PlanStep(id="s1", skill_id=fallback, goal=request_text)])
@@ -96,18 +121,24 @@ async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:
             )
         )
 
-    from app.agent.infrastructure import repository as agent_repo
+    if raw_msg is not None:
+        await deps.record_llm_call_to_db(
+            raw_msg,
+            parent_node_id=plan_node_id,
+            phase="planner",
+        )
 
-    await agent_repo.insert_run_node(
-        deps.db,
-        node_id=uuid.uuid4(),
-        run_id=deps.run_id,
-        parent_node_id=None,
-        sequence_idx=1,
-        node_type="plan.created",
-        node_name="planner",
-        status="success",
-        outputs_json={"step_count": len(plan.steps)},
-    )
+    phase_slice = (deps.usage_tracker.document.get("by_phase") or {}).get("planner") or {}
+    if phase_slice:
+        await deps.usage_tracker.rollup_children(
+            deps.db,
+            node_id=plan_node_id,
+            child_usage=phase_slice,
+        )
+
+    plan_node = await deps.db.get(AgentRunNode, plan_node_id)
+    if plan_node is not None:
+        plan_node.status = "success"
+        plan_node.outputs_json = {"step_count": len(plan.steps)}
 
     return {"plan": plan, "plan_id": plan_id, "current_step_index": 0}

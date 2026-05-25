@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Callable, Awaitable
+from typing import Any, Awaitable, Callable
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage
@@ -12,6 +12,15 @@ from langgraph.graph.state import CompiledStateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.infrastructure.memory_store import AgentMemoryStore
+from app.agent.infrastructure.openai_usage import (
+    OpenAIUsage,
+    extract_usage_document,
+    extract_usage_from_langchain_output,
+    merge_openai_usage,
+    normalize_openai_usage,
+    usage_document_flat,
+)
+from app.agent.infrastructure.usage_tracker import RunUsageTracker
 
 
 SseEmitFn = Callable[[bytes], Awaitable[None]]
@@ -33,3 +42,109 @@ class GraphDeps:
     max_tokens: int | None = None
     conversation_messages: list[BaseMessage] | None = None
     subagent_cache: dict[tuple[str, str], CompiledStateGraph] = field(default_factory=dict)
+    accumulated_usage: OpenAIUsage = field(default_factory=dict)
+    usage_tracker: RunUsageTracker = field(default_factory=RunUsageTracker)
+    _llm_round_seq: dict[uuid.UUID, int] = field(default_factory=dict)
+
+    def next_llm_round_seq(self, parent_node_id: uuid.UUID) -> int:
+        """Return the next ``sequence_idx`` for ``llm.round`` rows under one parent node."""
+
+        n = self._llm_round_seq.get(parent_node_id, 0)
+        self._llm_round_seq[parent_node_id] = n + 1
+        return n
+
+    async def emit_llm_usage(
+        self,
+        raw_usage: Any,
+        *,
+        step_id: str | None = None,
+        skill_id: str | None = None,
+        phase: str | None = None,
+        node_id: str | None = None,
+    ) -> None:
+        """Normalize, accumulate via ``usage_tracker``, and emit one ``llm.usage`` SSE event."""
+
+        if node_id is None:
+            if phase is None:
+                usage = normalize_openai_usage(raw_usage)
+                if not usage:
+                    usage = extract_usage_from_langchain_output(raw_usage)
+                if not usage:
+                    return
+                self.usage_tracker.flat_total = merge_openai_usage(
+                    self.usage_tracker.flat_total, usage
+                )
+            else:
+                usage_doc = self.usage_tracker.record_call(
+                    raw_usage,
+                    phase=phase,
+                    step_id=step_id,
+                    skill_id=skill_id,
+                )
+                if not usage_doc:
+                    return
+                usage = usage_document_flat(usage_doc)
+        else:
+            usage_doc = extract_usage_document(raw_usage)
+            if not usage_doc:
+                return
+            usage = usage_document_flat(usage_doc)
+
+        self.accumulated_usage = self.usage_tracker.flat_total
+        if not self.emit_sse:
+            return
+
+        from app.agent.domain.sse_v2 import AgentSseEventType, build_sse_event
+
+        payload: dict[str, Any] = {
+            "usage": usage,
+            "total_usage": dict(self.accumulated_usage),
+        }
+        if step_id is not None:
+            payload["step_id"] = step_id
+        if skill_id is not None:
+            payload["skill_id"] = skill_id
+        if phase is not None:
+            payload["phase"] = phase
+        if node_id is not None:
+            payload["node_id"] = node_id
+
+        await self.emit_sse(
+            build_sse_event(
+                event_type=AgentSseEventType.llm_usage,
+                run_id=self.run_id,
+                session_id=self.session_id,
+                payload=payload,
+            )
+        )
+
+    async def record_llm_call_to_db(
+        self,
+        raw_usage: Any,
+        *,
+        parent_node_id: uuid.UUID,
+        phase: str,
+        step_id: str | None = None,
+        skill_id: str | None = None,
+    ) -> uuid.UUID | None:
+        """Persist one ``llm.round`` row and emit matching ``llm.usage`` SSE."""
+
+        seq = self.next_llm_round_seq(parent_node_id)
+        node_id = await self.usage_tracker.record_llm_call(
+            self.db,
+            run_id=self.run_id,
+            parent_node_id=parent_node_id,
+            sequence_idx=seq,
+            raw_usage=raw_usage,
+            phase=phase,
+            step_id=step_id,
+            skill_id=skill_id,
+        )
+        await self.emit_llm_usage(
+            raw_usage,
+            step_id=step_id,
+            skill_id=skill_id,
+            phase=phase,
+            node_id=str(node_id) if node_id else None,
+        )
+        return node_id

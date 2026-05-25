@@ -76,6 +76,7 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
             subagent,
             step=step,
             recursion_limit=settings.agent_subagent_recursion_limit,
+            parent_node_id=node_id,
         )
         step.status = "success" if output else "failed"
     except Exception as e:
@@ -90,6 +91,15 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
     }
     results = list(state.get("subagent_results") or [])
     results.append(step_result)
+
+    step_slice = (deps.usage_tracker.document.get("by_step") or {}).get(step.id) or {}
+    step_usage = dict(step_slice) if step_slice else {}
+    if step_usage:
+        await deps.usage_tracker.rollup_children(
+            deps.db,
+            node_id=node_id,
+            child_usage=step_usage,
+        )
 
     await agent_repo.insert_run_node(
         deps.db,
@@ -113,6 +123,7 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
                     "skill_id": step.skill_id,
                     "step_id": step.id,
                     "status": step.status,
+                    "step_usage": step_usage or None,
                 },
             )
         )

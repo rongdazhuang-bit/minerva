@@ -9,7 +9,13 @@ import uuid
 from langchain_core.language_models.chat_models import BaseChatModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agent.domain.db.models import AgentRun
 from app.agent.infrastructure import repository as agent_repo
+from app.agent.infrastructure.openai_usage import (
+    build_phase_delta,
+    extract_usage_document,
+    usage_document_for_node,
+)
 from app.agent.service.memory_extract_llm import invoke_memory_extract
 from app.agent.infrastructure.chat_model_factory import ChatModelFactory
 from app.agent.infrastructure.memory_store import AgentMemoryStore
@@ -49,11 +55,47 @@ async def persist_turn_memory(
             status="running",
         )
 
-        extract = await invoke_memory_extract(
+        extract, raw_llm = await invoke_memory_extract(
             model,
             user_message=user_text,
             final_answer=final,
         )
+        usage_doc = extract_usage_document(raw_llm)
+        if usage_doc:
+            await agent_repo.insert_run_node(
+                session,
+                node_id=uuid.uuid4(),
+                run_id=run_id,
+                parent_node_id=node_id,
+                sequence_idx=0,
+                node_type="llm.round",
+                node_name="memory.persist",
+                status="success",
+                usage_json=usage_document_for_node(usage_doc),
+                meta_json={"phase": "memory.persist"},
+            )
+            delta = build_phase_delta("memory.persist", usage_doc)
+            await agent_repo.merge_run_usage_json(session, run_id=run_id, delta=delta)
+            run_row = await session.get(AgentRun, run_id)
+            if run_row is not None and isinstance(run_row.usage_json, dict):
+                await agent_repo.merge_session_usage_json(
+                    session,
+                    session_id=session_id,
+                    delta=run_row.usage_json,
+                )
+                await agent_repo.patch_assistant_message_usage_by_run(
+                    session,
+                    run_id=run_id,
+                    usage_json=run_row.usage_json,
+                )
+            phase_slice = (delta.get("by_phase") or {}).get("memory.persist") or usage_document_for_node(
+                usage_doc
+            )
+            await agent_repo.update_run_node_usage(
+                session,
+                node_id=node_id,
+                usage_json=phase_slice,
+            )
         summary = (extract.summary or final)[:2000]
         await memory_store.insert_summary(
             session,

@@ -6,6 +6,7 @@ import asyncio
 import logging
 import uuid
 from collections.abc import AsyncIterator
+from typing import Any
 
 from psycopg_pool import PoolTimeout
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +32,57 @@ from app.config import settings
 from app.exceptions import AppError
 
 log = logging.getLogger(__name__)
+
+
+async def _finalize_run_usage(
+    session: AsyncSession,
+    *,
+    deps: GraphDeps,
+    session_id: uuid.UUID,
+    run_id: uuid.UUID,
+    status: str,
+    error_code: str | None = None,
+    error_message: str | None = None,
+) -> dict[str, Any]:
+    """Write layered ``usage_json`` on the run and merge session totals."""
+
+    usage_snapshot = deps.usage_tracker.build_run_snapshot()
+    await agent_repo.finalize_agent_run(
+        session,
+        run_id=run_id,
+        status=status,
+        error_code=error_code,
+        error_message=error_message,
+        usage_json=usage_snapshot or None,
+    )
+    session_delta = deps.usage_tracker.build_session_delta()
+    if session_delta:
+        await agent_repo.merge_session_usage_json(
+            session,
+            session_id=session_id,
+            delta=session_delta,
+        )
+    return usage_snapshot
+
+
+async def _finalize_early_failed_run(
+    session: AsyncSession,
+    *,
+    run_id: uuid.UUID,
+    error_code: str,
+    error_message: str,
+) -> None:
+    """Mark a run failed when setup aborts after ``create_agent_run``."""
+
+    await agent_repo.finalize_agent_run(
+        session,
+        run_id=run_id,
+        status="failed",
+        error_code=error_code,
+        error_message=error_message,
+        usage_json=None,
+    )
+    await session.commit()
 
 
 class AgentGraphRunService:
@@ -91,6 +143,7 @@ class AgentGraphRunService:
             await queue.put(line)
 
         async def run_graph() -> None:
+            deps: GraphDeps | None = None
             try:
                 log.info(
                     "agent run started",
@@ -179,6 +232,12 @@ class AgentGraphRunService:
                                     },
                                 )
                             )
+                            await _finalize_early_failed_run(
+                                session,
+                                run_id=run_id,
+                                error_code="agent.message_not_found",
+                                error_message="要重新生成的消息不存在。",
+                            )
                             return
                         if target.role != "assistant":
                             await emit(
@@ -191,6 +250,12 @@ class AgentGraphRunService:
                                         "message": "只能对助手回复重新生成。",
                                     },
                                 )
+                            )
+                            await _finalize_early_failed_run(
+                                session,
+                                run_id=run_id,
+                                error_code="agent.regenerate_not_assistant",
+                                error_message="只能对助手回复重新生成。",
                             )
                             return
                         truncate_from = target.seq
@@ -209,6 +274,12 @@ class AgentGraphRunService:
                                         "message": "会话中尚无助手回复可重新生成。",
                                     },
                                 )
+                            )
+                            await _finalize_early_failed_run(
+                                session,
+                                run_id=run_id,
+                                error_code="agent.regenerate_no_assistant",
+                                error_message="会话中尚无助手回复可重新生成。",
                             )
                             return
                         truncate_from = last_asst.seq
@@ -276,6 +347,7 @@ class AgentGraphRunService:
                 )
 
                 final_answer = (final_state.get("final_answer") or "").strip()
+                usage_snapshot = deps.usage_tracker.build_run_snapshot()
                 if final_answer:
                     await agent_repo.append_agent_message(
                         session,
@@ -283,18 +355,26 @@ class AgentGraphRunService:
                         role="assistant",
                         content=final_answer,
                         run_id=run_id,
+                        meta_json={"usage": usage_snapshot} if usage_snapshot else None,
                     )
 
-                await agent_repo.finalize_agent_run(
-                    session, run_id=run_id, status="success", usage_json=None
+                usage_snapshot = await _finalize_run_usage(
+                    session,
+                    deps=deps,
+                    session_id=session_id,
+                    run_id=run_id,
+                    status="success",
                 )
                 await session.commit()
+                finished_payload: dict[str, Any] = {"status": "success"}
+                if usage_snapshot:
+                    finished_payload["usage"] = usage_snapshot
                 await emit(
                     build_sse_event(
                         event_type=AgentSseEventType.run_finished,
                         run_id=run_id,
                         session_id=session_id,
-                        payload={"status": "success"},
+                        payload=finished_payload,
                     )
                 )
                 log.info(
@@ -335,8 +415,22 @@ class AgentGraphRunService:
                     status="failed",
                     error_code=e.code,
                     error_message=str(e.message),
+                    usage_json=(deps.usage_tracker.build_run_snapshot() if deps else None),
                 )
+                if deps is not None:
+                    session_delta = deps.usage_tracker.build_session_delta()
+                    if session_delta:
+                        await agent_repo.merge_session_usage_json(
+                            session,
+                            session_id=session_id,
+                            delta=session_delta,
+                        )
                 await session.commit()
+                failed_payload: dict[str, Any] = {"status": "failed"}
+                if deps is not None:
+                    snap = deps.usage_tracker.build_run_snapshot()
+                    if snap:
+                        failed_payload["usage"] = snap
                 await emit(
                     build_sse_event(
                         event_type=AgentSseEventType.run_error,
@@ -350,7 +444,7 @@ class AgentGraphRunService:
                         event_type=AgentSseEventType.run_finished,
                         run_id=run_id,
                         session_id=session_id,
-                        payload={"status": "failed"},
+                        payload=failed_payload,
                     )
                 )
             except Exception as e:
@@ -369,8 +463,22 @@ class AgentGraphRunService:
                     status="failed",
                     error_code="agent.internal_error",
                     error_message=str(e),
+                    usage_json=(deps.usage_tracker.build_run_snapshot() if deps else None),
                 )
+                if deps is not None:
+                    session_delta = deps.usage_tracker.build_session_delta()
+                    if session_delta:
+                        await agent_repo.merge_session_usage_json(
+                            session,
+                            session_id=session_id,
+                            delta=session_delta,
+                        )
                 await session.commit()
+                failed_payload: dict[str, Any] = {"status": "failed"}
+                if deps is not None:
+                    snap = deps.usage_tracker.build_run_snapshot()
+                    if snap:
+                        failed_payload["usage"] = snap
                 await emit(
                     build_sse_event(
                         event_type=AgentSseEventType.run_error,
@@ -384,7 +492,7 @@ class AgentGraphRunService:
                         event_type=AgentSseEventType.run_finished,
                         run_id=run_id,
                         session_id=session_id,
-                        payload={"status": "failed"},
+                        payload=failed_payload,
                     )
                 )
             finally:

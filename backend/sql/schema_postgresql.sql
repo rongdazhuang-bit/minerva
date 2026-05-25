@@ -455,6 +455,7 @@ CREATE TABLE IF NOT EXISTS public.agent_session (
   agent_key varchar(64) NULL,
   status varchar(16) NOT NULL DEFAULT 'active',
   meta_json jsonb NULL,
+  usage_json jsonb NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NULL,
   summary_text text NULL,
@@ -471,6 +472,7 @@ COMMENT ON COLUMN public.agent_session.title IS '展示标题';
 COMMENT ON COLUMN public.agent_session.agent_key IS '智能体配置/技能组合键';
 COMMENT ON COLUMN public.agent_session.status IS '会话状态，如 active / archived';
 COMMENT ON COLUMN public.agent_session.meta_json IS '扩展元数据(JSONB)';
+COMMENT ON COLUMN public.agent_session.usage_json IS '会话累计 token 用量(JSONB，含 by_phase)';
 COMMENT ON COLUMN public.agent_session.created_at IS '创建时间';
 COMMENT ON COLUMN public.agent_session.updated_at IS '更新时间';
 
@@ -586,6 +588,7 @@ CREATE TABLE IF NOT EXISTS public.agent_run_node (
   started_at timestamptz NULL,
   finished_at timestamptz NULL,
   meta_json jsonb NULL,
+  usage_json jsonb NULL,
   PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS ix_agent_run_node_run_id ON public.agent_run_node (run_id);
@@ -606,6 +609,7 @@ COMMENT ON COLUMN public.agent_run_node.error_message IS '错误说明';
 COMMENT ON COLUMN public.agent_run_node.started_at IS '开始时间';
 COMMENT ON COLUMN public.agent_run_node.finished_at IS '结束时间';
 COMMENT ON COLUMN public.agent_run_node.meta_json IS '扩展(JSONB)';
+COMMENT ON COLUMN public.agent_run_node.usage_json IS '该节点 LLM token 用量(JSONB，OpenAI 兼容 + 按需 details)';
 
 -- ---------------------------------------------------------------------------
 -- LangGraph checkpoint（AsyncPostgresSaver；列定义对齐 langgraph-checkpoint-postgres 3.x）

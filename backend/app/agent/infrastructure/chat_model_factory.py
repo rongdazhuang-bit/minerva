@@ -50,6 +50,7 @@ class ChatModelFactory:
             "api_key": api_key,
             "root_async_client": root_async_client,
             "async_client": root_async_client.chat.completions,
+            "stream_usage": True,
         }
         if temperature is not None:
             kwargs["temperature"] = temperature

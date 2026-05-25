@@ -18,6 +18,65 @@ export type AgentStreamV2ParseResult =
   | { kind: 'done' }
   | { kind: 'error'; code: string; message: string }
 
+/** OpenAI chat completion ``usage`` object (subset used by Minerva). */
+export type OpenAIUsage = {
+  prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
+}
+
+/** Parse unknown payload fields into OpenAI-shaped usage, or null when invalid. */
+export function parseOpenAIUsage(raw: unknown): OpenAIUsage | null {
+  if (!raw || typeof raw !== 'object') return null
+  const o = raw as Record<string, unknown>
+  const prompt = coerceTokenCount(o.prompt_tokens ?? o.input_tokens)
+  const completion = coerceTokenCount(o.completion_tokens ?? o.output_tokens)
+  const total = coerceTokenCount(o.total_tokens)
+  if (prompt == null && completion == null && total == null) return null
+  const usage: Partial<OpenAIUsage> = {}
+  if (prompt != null) usage.prompt_tokens = prompt
+  if (completion != null) usage.completion_tokens = completion
+  if (total != null) {
+    usage.total_tokens = total
+  } else if (prompt != null && completion != null) {
+    usage.total_tokens = prompt + completion
+  }
+  if (
+    usage.prompt_tokens == null ||
+    usage.completion_tokens == null ||
+    usage.total_tokens == null
+  ) {
+    return null
+  }
+  return usage as OpenAIUsage
+}
+
+/** Extract total token count from a usage object when only partial keys exist. */
+export function extractTotalTokens(raw: unknown): number | null {
+  if (!raw || typeof raw !== 'object') return null
+  const o = raw as Record<string, unknown>
+  const total = coerceTokenCount(o.total_tokens)
+  if (total != null) return total
+  const prompt = coerceTokenCount(o.prompt_tokens ?? o.input_tokens)
+  const completion = coerceTokenCount(o.completion_tokens ?? o.output_tokens)
+  if (prompt != null && completion != null) return prompt + completion
+  return prompt ?? completion
+}
+
+/** Serialize usage as compact OpenAI JSON (stable key order). */
+export function formatOpenAIUsageJson(usage: OpenAIUsage): string {
+  return JSON.stringify({
+    prompt_tokens: usage.prompt_tokens,
+    completion_tokens: usage.completion_tokens,
+    total_tokens: usage.total_tokens,
+  })
+}
+
+function coerceTokenCount(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return null
+  return Math.trunc(value)
+}
+
 /** Type guard for v2 SSE JSON payloads. */
 export function isAgentSseEventV2(value: unknown): value is AgentSseEventV2 {
   if (!value || typeof value !== 'object') return false
@@ -73,12 +132,21 @@ export function formatAgentV2TraceLine(event: AgentSseEventV2): string {
       return `[memory] hits=${String(p.hit_count ?? 0)}`
     case 'run.started':
       return '[run] started'
-    case 'run.finished':
+    case 'run.finished': {
+      const usage = parseOpenAIUsage(p.usage)
+      if (usage) {
+        return `[run] finished ${String(p.status ?? '')} ${formatOpenAIUsageJson(usage)}`
+      }
       return `[run] finished ${String(p.status ?? '')}`
+    }
     case 'run.error':
       return `[run.error] ${String(p.code ?? '')}: ${String(p.message ?? '')}`
     case 'llm.delta':
       return ''
+    case 'llm.usage': {
+      const usage = parseOpenAIUsage(p.usage)
+      return usage ? `[usage] ${formatOpenAIUsageJson(usage)}` : '[usage]'
+    }
     default:
       return `[${event.type}]`
   }

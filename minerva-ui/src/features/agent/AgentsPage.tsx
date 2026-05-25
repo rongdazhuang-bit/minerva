@@ -36,7 +36,7 @@ import {
   type AgentSessionListItem,
   type AgentStreamEvent,
 } from '@/api/agent'
-import { formatAgentV2TraceLine } from '@/api/agent-stream-v2'
+import { extractTotalTokens, formatAgentV2TraceLine } from '@/api/agent-stream-v2'
 import {
   agentMessagesToChat,
   formatSessionListDate,
@@ -513,6 +513,16 @@ export function AgentsPage() {
         )
       }
 
+      const setAsstTotalTokens = (total: number) => {
+        setMessages((prev) =>
+          prev.map((row) =>
+            row.id === asstId && row.role === 'assistant'
+              ? { ...row, totalTokens: total }
+              : row,
+          ),
+        )
+      }
+
       let sid = sessionId
       try {
         const modelRow = usableModels.find((m) => m.id === mid)
@@ -587,6 +597,16 @@ export function AgentsPage() {
               }
               return
             }
+            if (ev.type === 'llm.usage' || ev.type === 'run.finished') {
+              const raw =
+                ev.type === 'llm.usage'
+                  ? (ev.payload.total_usage ?? ev.payload.usage)
+                  : ev.payload.usage
+              const total = extractTotalTokens(raw)
+              if (total != null) {
+                setAsstTotalTokens(total)
+              }
+            }
           },
           ac.signal,
         )
@@ -607,10 +627,19 @@ export function AgentsPage() {
         setStreaming(false)
         abortRef.current = null
         if (sid && workspaceId) {
-          try {
+          const syncSessionFromServer = async () => {
             const detail = await getAgentSessionDetail(workspaceId, sid)
             const serverChat = agentMessagesToChat(detail.messages)
             setMessages((prev) => mergeAgentChatWithLocal(serverChat, prev))
+          }
+          try {
+            await syncSessionFromServer()
+            // memory.persist 在后台异步 patch usage，延迟再拉一次以展示完整 token。
+            window.setTimeout(() => {
+              void syncSessionFromServer().catch(() => {
+                /* 二次同步失败不阻断 UI */
+              })
+            }, 2500)
           } catch {
             /* 同步失败不阻断 UI */
           }
@@ -679,39 +708,14 @@ export function AgentsPage() {
 
   const lastMessageId = useMemo(() => messages[messages.length - 1]?.id, [messages])
 
-  const assistantReasoningBelowRobot = useCallback(
-    (m: AgentChatMsg) => {
-      if (m.role !== 'assistant') return null
-      const text = (m.reasoning ?? '').trim()
-      if (!text) return null
-      return (
-        <Collapse
-          className="agents-page__trace"
-          size="small"
-          ghost
-          bordered={false}
-          expandIconPlacement="start"
-          style={{ marginTop: 6, marginBottom: 4 }}
-          items={[
-            {
-              key: 'reasoning',
-              label: <span style={{ fontSize: 12 }}>{t('agents.modelReasoning')}</span>,
-              children: <div className="agents-page__process">{text}</div>,
-            },
-          ]}
-          defaultActiveKey={[]}
-        />
-      )
-    },
-    [t],
-  )
-
   const assistantTraceBelowRobot = useCallback(
     (m: AgentChatMsg) => {
       if (m.role !== 'assistant') return null
       const logs = m.processLog ?? []
+      const reasoningText = (m.reasoning ?? '').trim()
       const isLatestAssistantCard = m.id === lastMessageId
-      const showTrace = (streaming && isLatestAssistantCard) || logs.length > 0
+      const showTrace =
+        (streaming && isLatestAssistantCard) || logs.length > 0 || reasoningText.length > 0
       if (!showTrace) return null
       return (
         <Collapse
@@ -727,13 +731,26 @@ export function AgentsPage() {
               label: <span style={{ fontSize: 12 }}>{t('agents.assistantTrace')}</span>,
               children: (
                 <div className="agents-page__process">
-                  {logs.length === 0 ? (
-                    <Text type="secondary">{t('agents.processEmpty')}</Text>
-                  ) : (
-                    logs.map((line, i) => (
-                      <div key={`${m.id}-${i}-${line.slice(0, 48)}`}>{line}</div>
-                    ))
-                  )}
+                  {reasoningText ? (
+                    <div className="agents-page__process-reasoning">{reasoningText}</div>
+                  ) : null}
+                  {logs.length === 0 && !reasoningText ? (
+                    <span
+                      className="agents-page__process-wait"
+                      role="status"
+                      aria-label={t('agents.processLoading')}
+                    >
+                      <span className="agents-page__process-wait-dot" aria-hidden="true" />
+                      <span className="agents-page__process-wait-dot" aria-hidden="true" />
+                      <span className="agents-page__process-wait-dot" aria-hidden="true" />
+                    </span>
+                  ) : logs.length > 0 ? (
+                    <div className="agents-page__process-log">
+                      {logs.map((line, i) => (
+                        <div key={`${m.id}-${i}-${line.slice(0, 48)}`}>{line}</div>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               ),
             },
@@ -788,6 +805,7 @@ export function AgentsPage() {
               {sessionList.map((s: AgentSessionListItem) => {
                 const active = sessionId === s.id
                 const loading = sessionLoadingId === s.id
+                const sessionTokens = extractTotalTokens(s.usage)
                 return (
                   <div
                     key={s.id}
@@ -806,12 +824,19 @@ export function AgentsPage() {
                       <span className="agents-page__session-item-title">
                         {sessionListLabel(s, t('agents.defaultSessionTitle'))}
                       </span>
-                      <span className="agents-page__session-item-time">
-                        {loading ? (
-                          <Spin size="small" />
-                        ) : (
-                          formatSessionTime(s.updated_at ?? s.created_at)
-                        )}
+                      <span className="agents-page__session-item-meta">
+                        <span className="agents-page__session-item-time">
+                          {loading ? (
+                            <Spin size="small" />
+                          ) : (
+                            formatSessionTime(s.updated_at ?? s.created_at)
+                          )}
+                        </span>
+                        {sessionTokens != null ? (
+                          <span className="agents-page__session-item-tokens">
+                            {t('agents.tokenUsage', { count: sessionTokens })}
+                          </span>
+                        ) : null}
                       </span>
                     </button>
                     <Dropdown menu={buildSessionRowMenu(s.id)} trigger={['click']}>
@@ -924,7 +949,6 @@ export function AgentsPage() {
                       />
                     )}
                   </div>
-                  {assistantReasoningBelowRobot(m)}
                   {assistantTraceBelowRobot(m)}
                   <Flex align="flex-start" gap={8}>
                     {streaming &&
@@ -979,6 +1003,21 @@ export function AgentsPage() {
                         title={t('agents.copyMessage')}
                         onClick={() => void copyMessageBody(m.content)}
                       />
+                      {m.role === 'assistant' &&
+                      m.totalTokens != null &&
+                      !(
+                        streaming &&
+                        m.id === lastMessageId &&
+                        messages[messages.length - 1]?.role === 'assistant'
+                      ) ? (
+                        <Text
+                          type="secondary"
+                          className="agents-page__msg-token-usage"
+                          aria-label={t('agents.tokenUsage', { count: m.totalTokens })}
+                        >
+                          {t('agents.tokenUsage', { count: m.totalTokens })}
+                        </Text>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>

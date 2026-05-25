@@ -24,12 +24,16 @@ export function buildDisplayUserMessage(body: string, skillId: string | null): s
   return inner ? `/${skillId} ${inner}` : `/${skillId}`
 }
 
+import { extractTotalTokens } from '@/api/agent-stream-v2'
+
 export type AgentChatMsg = {
   id: string
   role: 'user' | 'assistant'
   content: string
   reasoning?: string
   processLog?: string[]
+  /** Total LLM tokens consumed for this assistant turn (from SSE run usage). */
+  totalTokens?: number
 }
 
 /** 将服务端消息与本地 UI 状态（推理、轨迹）按 id 或顺序合并。 */
@@ -41,24 +45,38 @@ export function mergeAgentChatWithLocal(
     const byId = local.find((m) => m.id === sm.id)
     const byIndex = local[index]
     const src = byId ?? (byIndex?.role === sm.role ? byIndex : undefined)
+    const serverTok = sm.totalTokens
+    const localTok = src?.totalTokens
+    const totalTokens =
+      serverTok != null && localTok != null
+        ? Math.max(serverTok, localTok)
+        : (serverTok ?? localTok)
     return {
       ...sm,
       reasoning: src?.reasoning,
       processLog: src?.processLog,
+      totalTokens,
     }
   })
 }
 
 /** Map API messages to chat bubbles (skip ``tool`` rows). */
 export function agentMessagesToChat(
-  rows: { id: string; role: string; content: string | null }[],
+  rows: {
+    id: string
+    role: string
+    content: string | null
+    meta_json?: unknown
+  }[],
 ): AgentChatMsg[] {
   const out: AgentChatMsg[] = []
   for (const m of rows) {
     if (m.role !== 'user' && m.role !== 'assistant') continue
     const text = (m.content ?? '').trim()
     if (m.role === 'assistant' && !text) continue
-    out.push({ id: m.id, role: m.role, content: m.content ?? '' })
+    const usage = (m.meta_json as { usage?: unknown } | null | undefined)?.usage
+    const totalTokens = extractTotalTokens(usage) ?? undefined
+    out.push({ id: m.id, role: m.role, content: m.content ?? '', totalTokens })
   }
   return out
 }

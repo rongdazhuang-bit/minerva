@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
@@ -79,15 +80,22 @@ async def invoke_memory_extract(
     *,
     user_message: str,
     final_answer: str,
-) -> MemoryExtract:
-    """Return ``MemoryExtract``; never raises on upstream format quirks."""
+) -> tuple[MemoryExtract, Any | None]:
+    """Return ``(MemoryExtract, raw_llm_output)`` for usage tracking; never raises on format quirks."""
 
     messages = _extract_messages(user_message, final_answer)
 
     for method in ("json_schema", "function_calling"):
         try:
-            runner = model.with_structured_output(MemoryExtract, method=method)
-            return await runner.ainvoke(messages)
+            runner = model.with_structured_output(MemoryExtract, method=method, include_raw=True)
+            result = await runner.ainvoke(messages)
+            if isinstance(result, dict):
+                parsed = result.get("parsed")
+                raw = result.get("raw")
+                if isinstance(parsed, MemoryExtract):
+                    return parsed, raw
+            if isinstance(result, MemoryExtract):
+                return result, result
         except Exception as exc:
             log.debug(
                 "memory.extract structured method=%s failed: %s",
@@ -101,8 +109,8 @@ async def invoke_memory_extract(
         if isinstance(content, str):
             parsed = parse_memory_extract_text(content)
             if parsed is not None:
-                return parsed
+                return parsed, resp
     except Exception as exc:
         log.debug("memory.extract plain invoke failed: %s", exc)
 
-    return fallback_memory_extract(user_message, final_answer)
+    return fallback_memory_extract(user_message, final_answer), None
