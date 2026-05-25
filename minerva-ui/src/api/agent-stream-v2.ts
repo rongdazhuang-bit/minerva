@@ -63,6 +63,44 @@ export function extractTotalTokens(raw: unknown): number | null {
   return prompt ?? completion
 }
 
+/**
+ * Compact token count for UI: ``k`` (千), ``w`` (万), ``kw`` (千万).
+ * Values below 1000 show the raw integer.
+ */
+export function formatTokenCount(count: number): string {
+  const n = Math.trunc(count)
+  if (!Number.isFinite(n) || n <= 0) return '0'
+  if (n < 1_000) return String(n)
+
+  const scaled = (value: number, suffix: string): string => {
+    let text: string
+    if (value >= 100) {
+      text = String(Math.round(value))
+    } else {
+      const rounded = Math.round(value * 10) / 10
+      text = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1).replace(/\.0$/, '')
+    }
+    return `${text}${suffix}`
+  }
+
+  if (n >= 10_000_000) return scaled(n / 10_000_000, 'kw')
+  if (n >= 10_000) return scaled(n / 10_000, 'w')
+  return scaled(n / 1_000, 'k')
+}
+
+/** Full token count with locale thousand separators (for trace / detail logs). */
+export function formatTokenNumber(count: number, locale?: string): string {
+  const n = Math.trunc(count)
+  if (!Number.isFinite(n)) return '0'
+  return new Intl.NumberFormat(locale).format(n)
+}
+
+/** Format usage for process-log display (original keys, grouped numbers). */
+export function formatOpenAIUsageForTrace(usage: OpenAIUsage, locale?: string): string {
+  const fmt = (value: number) => formatTokenNumber(value, locale)
+  return `{prompt_tokens: ${fmt(usage.prompt_tokens)}, completion_tokens: ${fmt(usage.completion_tokens)}, total_tokens: ${fmt(usage.total_tokens)}}`
+}
+
 /** Serialize usage as compact OpenAI JSON (stable key order). */
 export function formatOpenAIUsageJson(usage: OpenAIUsage): string {
   return JSON.stringify({
@@ -111,7 +149,7 @@ export function parseAgentV2SseLine(raw: string): AgentStreamV2ParseResult | nul
 }
 
 /** Format one v2 event as a single process-log line for the UI. */
-export function formatAgentV2TraceLine(event: AgentSseEventV2): string {
+export function formatAgentV2TraceLine(event: AgentSseEventV2, locale?: string): string {
   const p = event.payload
   switch (event.type) {
     case 'plan.created': {
@@ -135,7 +173,7 @@ export function formatAgentV2TraceLine(event: AgentSseEventV2): string {
     case 'run.finished': {
       const usage = parseOpenAIUsage(p.usage)
       if (usage) {
-        return `[run] finished ${String(p.status ?? '')} ${formatOpenAIUsageJson(usage)}`
+        return `[run] finished ${String(p.status ?? '')} ${formatOpenAIUsageForTrace(usage, locale)}`
       }
       return `[run] finished ${String(p.status ?? '')}`
     }
@@ -145,7 +183,7 @@ export function formatAgentV2TraceLine(event: AgentSseEventV2): string {
       return ''
     case 'llm.usage': {
       const usage = parseOpenAIUsage(p.usage)
-      return usage ? `[usage] ${formatOpenAIUsageJson(usage)}` : '[usage]'
+      return usage ? `[usage] ${formatOpenAIUsageForTrace(usage, locale)}` : '[usage]'
     }
     default:
       return `[${event.type}]`

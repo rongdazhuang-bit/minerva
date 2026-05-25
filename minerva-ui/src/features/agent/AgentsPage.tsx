@@ -36,7 +36,7 @@ import {
   type AgentSessionListItem,
   type AgentStreamEvent,
 } from '@/api/agent'
-import { extractTotalTokens, formatAgentV2TraceLine } from '@/api/agent-stream-v2'
+import { extractTotalTokens, formatAgentV2TraceLine, formatTokenCount, formatTokenNumber } from '@/api/agent-stream-v2'
 import {
   agentMessagesToChat,
   formatSessionListDate,
@@ -575,7 +575,7 @@ export function AgentsPage() {
               return
             }
             const ev = evt.event
-            const traceLine = formatAgentV2TraceLine(ev)
+            const traceLine = formatAgentV2TraceLine(ev, i18n.language)
             if (traceLine) pushAsstLog(traceLine)
             if (ev.type === 'llm.delta') {
               const channel = String(ev.payload.channel ?? 'assistant')
@@ -647,7 +647,7 @@ export function AgentsPage() {
         void queryClient.invalidateQueries({ queryKey: ['agent-sessions', workspaceId] })
       }
     },
-    [workspaceId, sessionId, prefs.selectedModelId, usableModels, queryClient, t],
+    [workspaceId, sessionId, prefs.selectedModelId, usableModels, queryClient, t, i18n.language],
   )
 
   const onSend = useCallback(async () => {
@@ -834,7 +834,9 @@ export function AgentsPage() {
                         </span>
                         {sessionTokens != null ? (
                           <span className="agents-page__session-item-tokens">
-                            {t('agents.tokenUsage', { count: sessionTokens })}
+                            {t('agents.tokenUsage', {
+                              label: formatTokenCount(sessionTokens),
+                            })}
                           </span>
                         ) : null}
                       </span>
@@ -1013,9 +1015,13 @@ export function AgentsPage() {
                         <Text
                           type="secondary"
                           className="agents-page__msg-token-usage"
-                          aria-label={t('agents.tokenUsage', { count: m.totalTokens })}
+                          aria-label={t('agents.tokenUsage', {
+                            label: formatTokenNumber(m.totalTokens, i18n.language),
+                          })}
                         >
-                          {t('agents.tokenUsage', { count: m.totalTokens })}
+                          {t('agents.tokenUsage', {
+                            label: formatTokenNumber(m.totalTokens, i18n.language),
+                          })}
                         </Text>
                       ) : null}
                     </div>
