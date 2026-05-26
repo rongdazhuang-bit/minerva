@@ -12,6 +12,7 @@ from langgraph.graph.state import CompiledStateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.infrastructure.memory_store import AgentMemoryStore
+from app.agent.infrastructure.reasoning_collector import ReasoningCollector
 from app.agent.infrastructure.openai_usage import (
     OpenAIUsage,
     extract_usage_document,
@@ -37,6 +38,8 @@ class GraphDeps:
     run_id: uuid.UUID
     user_id: uuid.UUID
     memory_store: AgentMemoryStore
+    # 单次 run 内缓冲思考流、发 SSE 并生成落库用的 reasoning 元数据；未开启 thinking 时为 None。
+    reasoning_collector: ReasoningCollector | None = None
     emit_sse: SseEmitFn | None = None
     temperature: float | None = None
     max_tokens: int | None = None

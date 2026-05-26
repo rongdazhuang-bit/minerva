@@ -73,8 +73,12 @@ class ChatModelFactory:
         model_id: uuid.UUID,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        thinking: ThinkingConfig | None = None,
     ) -> BaseChatModel:
-        """Load ``SysModel`` from DB and return a chat model."""
+        """Load ``SysModel`` from DB and return a chat model.
+
+        ``thinking`` 若非 ``None``，将合并进上游 ``ChatOpenAI`` 的 ``model_kwargs.extra_body``。
+        """
 
         row = await model_repo.get_for_workspace(
             session, workspace_id=workspace_id, model_id=model_id
@@ -86,4 +90,5 @@ class ChatModelFactory:
             workspace_id=workspace_id,
             temperature=temperature,
             max_tokens=max_tokens,
+            thinking=thinking,
         )

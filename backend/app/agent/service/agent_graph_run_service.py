@@ -22,6 +22,8 @@ from app.agent.graphs.state import AgentGraphState
 from app.agent.infrastructure import repository as agent_repo
 from app.agent.infrastructure.chat_history import agent_rows_to_langchain
 from app.agent.infrastructure.chat_model_factory import ChatModelFactory
+from app.agent.infrastructure.reasoning_collector import ReasoningCollector
+from app.agent.infrastructure.thinking_config import resolve_agent_thinking_config
 from app.agent.infrastructure.langgraph_checkpointer import (
     get_langgraph_checkpointer,
     reset_langgraph_checkpointer,
@@ -30,6 +32,7 @@ from app.agent.infrastructure.memory_store import AgentMemoryStore
 from app.agent.service.memory_persist_service import schedule_persist_turn_memory_background
 from app.config import settings
 from app.exceptions import AppError
+from app.sys.model_provider.infrastructure import repository as model_repo
 
 log = logging.getLogger(__name__)
 
@@ -134,8 +137,13 @@ class AgentGraphRunService:
         preferred_skills: list[str] | None = None,
         regenerate_from_message_id: uuid.UUID | None = None,
         regenerate_last_assistant: bool = False,
+        enable_thinking: bool | None = None,
     ) -> AsyncIterator[bytes]:
-        """Execute one agent run; yield SSE v2 lines as the graph produces them."""
+        """Execute one agent run; yield SSE v2 lines as the graph produces them.
+
+        ``enable_thinking`` 为 ``None`` 时按 workspace 模型的 ``model_config`` 与全局
+        ``agent_enable_thinking`` 决定是否向上游请求思考扩展参数。
+        """
 
         queue: asyncio.Queue[bytes | None] = asyncio.Queue()
 
@@ -170,12 +178,21 @@ class AgentGraphRunService:
                     )
                     return
 
+                sys_row = await model_repo.get_for_workspace(
+                    session, workspace_id=workspace_id, model_id=model_id
+                )
+                thinking = resolve_agent_thinking_config(
+                    run_flag=enable_thinking,
+                    model_config_raw=sys_row.model_config if sys_row else None,
+                    settings=settings,
+                )
                 model_row = await ChatModelFactory.get(
                     session,
                     workspace_id=workspace_id,
                     model_id=model_id,
                     temperature=temperature,
                     max_tokens=max_tokens,
+                    thinking=thinking,
                 )
 
                 await emit(
@@ -187,11 +204,13 @@ class AgentGraphRunService:
                     )
                 )
 
-                from app.sys.model_provider.infrastructure import repository as model_repo
-
-                sys_row = await model_repo.get_for_workspace(
-                    session, workspace_id=workspace_id, model_id=model_id
+                reasoning_collector = ReasoningCollector(
+                    run_id=run_id,
+                    session_id=session_id,
+                    emit_sse=emit,
+                    thinking_enabled=thinking.enabled,
                 )
+
                 model_name = sys_row.model_name if sys_row else "unknown"
 
                 await agent_repo.create_agent_run(
@@ -207,6 +226,7 @@ class AgentGraphRunService:
                         "preferred_skills": preferred_skills or [],
                         "temperature": temperature,
                         "max_tokens": max_tokens,
+                        "enable_thinking": enable_thinking,
                     },
                 )
 
@@ -313,6 +333,7 @@ class AgentGraphRunService:
                     run_id=run_id,
                     user_id=user_id,
                     memory_store=self._memory,
+                    reasoning_collector=reasoning_collector,
                     emit_sse=emit,
                     temperature=temperature,
                     max_tokens=max_tokens,
@@ -349,13 +370,24 @@ class AgentGraphRunService:
                 final_answer = (final_state.get("final_answer") or "").strip()
                 usage_snapshot = deps.usage_tracker.build_run_snapshot()
                 if final_answer:
+                    meta_payload: dict[str, Any] = {}
+                    if usage_snapshot:
+                        meta_payload["usage"] = usage_snapshot
+                    if deps.reasoning_collector:
+                        await deps.reasoning_collector.mark_all_done()
+                        reasoning_meta = deps.reasoning_collector.build_message_reasoning()
+                        if reasoning_meta is not None:
+                            meta_payload["reasoning"] = reasoning_meta
+                        reasoning_text = deps.reasoning_collector.build_message_reasoning_text()
+                        if reasoning_text is not None:
+                            meta_payload["reasoning_text"] = reasoning_text
                     await agent_repo.append_agent_message(
                         session,
                         session_id=session_id,
                         role="assistant",
                         content=final_answer,
                         run_id=run_id,
-                        meta_json={"usage": usage_snapshot} if usage_snapshot else None,
+                        meta_json=meta_payload if meta_payload else None,
                     )
 
                 usage_snapshot = await _finalize_run_usage(

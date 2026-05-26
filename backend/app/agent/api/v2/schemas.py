@@ -114,3 +114,7 @@ class AgentRunCreateV2(BaseModel):
         default=False,
         description="重新生成：截断最后一条助手消息及其后的记录（无需 message id）。",
     )
+    enable_thinking: bool | None = Field(
+        default=None,
+        description="是否开启思考模式；null 表示按 model_config / 全局默认。",
+    )
