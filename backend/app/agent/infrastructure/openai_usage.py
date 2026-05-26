@@ -229,6 +229,17 @@ def usage_document_flat(usage_doc: UsageDocument) -> OpenAIUsage:
     return {key: int(usage_doc[key]) for key in _STANDARD_KEYS if key in usage_doc}
 
 
+def reasoning_tokens_from_usage_document(usage_doc: UsageDocument | None) -> int:
+    """Return merged ``details.reasoning_tokens`` from a layered usage document."""
+
+    if not usage_doc:
+        return 0
+    details = usage_doc.get("details")
+    if not isinstance(details, dict):
+        return 0
+    value = details.get("reasoning_tokens")
+    n = _coerce_non_negative_int(value)
+    return int(n) if n is not None else 0
 
 
 

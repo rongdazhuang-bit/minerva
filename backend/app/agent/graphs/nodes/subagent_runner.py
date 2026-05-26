@@ -86,7 +86,7 @@ async def run_subagent_with_stream(
                 phase="subagent",
                 step_id=step.id,
                 skill_id=step.skill_id,
-                emit_reasoning=not collector_active,
+                emit_reasoning=False,
             )
             if line:
                 await deps.emit_sse(line)

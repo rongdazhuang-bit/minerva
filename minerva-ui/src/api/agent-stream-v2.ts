@@ -63,6 +63,20 @@ export function extractTotalTokens(raw: unknown): number | null {
   return prompt ?? completion
 }
 
+/** Extract ``details.reasoning_tokens`` (or top-level) from a usage payload. */
+export function extractReasoningTokens(raw: unknown): number | null {
+  if (!raw || typeof raw !== 'object') return null
+  const o = raw as Record<string, unknown>
+  const direct = coerceTokenCount(o.reasoning_tokens)
+  if (direct != null && direct > 0) return direct
+  const details = o.details
+  if (details && typeof details === 'object') {
+    const nested = coerceTokenCount((details as Record<string, unknown>).reasoning_tokens)
+    if (nested != null && nested > 0) return nested
+  }
+  return null
+}
+
 /**
  * Compact token count for UI: ``k`` (千), ``w`` (万), ``kw`` (千万).
  * Values below 1000 show the raw integer.

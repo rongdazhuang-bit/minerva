@@ -16,7 +16,7 @@ def map_langchain_stream_event(
     phase: str | None = None,
     step_id: str | None = None,
     skill_id: str | None = None,
-    emit_reasoning: bool = True,
+    emit_reasoning: bool = False,
 ) -> bytes | None:
     """Convert one ``astream_events`` v2 dict to an SSE line, or None if skipped."""
 

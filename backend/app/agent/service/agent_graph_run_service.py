@@ -375,7 +375,9 @@ class AgentGraphRunService:
                     if usage_snapshot:
                         meta_payload["usage"] = usage_snapshot
                     if deps.reasoning_collector:
-                        await deps.reasoning_collector.mark_all_done()
+                        await deps.reasoning_collector.mark_all_done(
+                            fallback_usage=usage_snapshot,
+                        )
                         reasoning_meta = deps.reasoning_collector.build_message_reasoning()
                         if reasoning_meta is not None:
                             meta_payload["reasoning"] = reasoning_meta

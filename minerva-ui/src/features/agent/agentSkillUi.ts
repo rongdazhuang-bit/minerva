@@ -24,7 +24,7 @@ export function buildDisplayUserMessage(body: string, skillId: string | null): s
   return inner ? `/${skillId} ${inner}` : `/${skillId}`
 }
 
-import { extractTotalTokens } from '@/api/agent-stream-v2'
+import { extractReasoningTokens, extractTotalTokens } from '@/api/agent-stream-v2'
 
 export type AgentReasoningSegment = {
   phase: string
@@ -119,10 +119,16 @@ export function hasVisibleReasoning(m: AgentChatMsg): boolean {
 /** Final reasoning token count from ``llm.reasoning.done`` / ``meta_json.reasoning.reasoning_tokens``. */
 export function resolveReasoningTokenCount(m: AgentChatMsg): number {
   const direct = m.reasoningTokens
-  if (typeof direct === 'number' && Number.isFinite(direct) && direct >= 0) {
+  if (typeof direct === 'number' && Number.isFinite(direct) && direct > 0) {
     return Math.trunc(direct)
   }
   return 0
+}
+
+function resolveReasoningTokensFromUsageMeta(metaJson: unknown): number | undefined {
+  const usage = (metaJson as { usage?: unknown } | null | undefined)?.usage
+  const fromUsage = extractReasoningTokens(usage)
+  return fromUsage != null && fromUsage > 0 ? fromUsage : undefined
 }
 
 /** 将服务端消息与本地 UI 状态（推理、轨迹）按 id 或顺序合并。 */
@@ -145,9 +151,11 @@ export function mergeAgentChatWithLocal(
         ? sm.reasoningSegments
         : src?.reasoningSegments
     const reasoningTokens =
-      typeof sm.reasoningTokens === 'number'
+      typeof sm.reasoningTokens === 'number' && sm.reasoningTokens > 0
         ? sm.reasoningTokens
-        : src?.reasoningTokens
+        : typeof src?.reasoningTokens === 'number' && src.reasoningTokens > 0
+          ? src.reasoningTokens
+          : sm.reasoningTokens ?? src?.reasoningTokens
     return {
       ...sm,
       reasoning: sm.reasoning ?? src?.reasoning,
@@ -193,6 +201,15 @@ export function agentMessagesToChat(
     )?.reasoning
     const reasoning = m.reasoning ?? metaReasoning ?? undefined
     const segments = reasoning?.segments ?? []
+    const usageReasoning = resolveReasoningTokensFromUsageMeta(m.meta_json)
+    const reasoningTokensFromMeta =
+      typeof reasoning?.reasoning_tokens === 'number'
+        ? Math.trunc(reasoning.reasoning_tokens)
+        : undefined
+    const reasoningTokens =
+      reasoningTokensFromMeta != null && reasoningTokensFromMeta > 0
+        ? reasoningTokensFromMeta
+        : usageReasoning
     out.push({
       id: m.id,
       role: m.role,
@@ -200,10 +217,7 @@ export function agentMessagesToChat(
       totalTokens,
       reasoning: (m.reasoning_text ?? '').trim() || undefined,
       reasoningSegments: segments.length > 0 ? segments : undefined,
-      reasoningTokens:
-        typeof reasoning?.reasoning_tokens === 'number'
-          ? Math.trunc(reasoning.reasoning_tokens)
-          : undefined,
+      reasoningTokens,
     })
   }
   return out

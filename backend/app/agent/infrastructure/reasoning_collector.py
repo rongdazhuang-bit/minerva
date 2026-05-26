@@ -47,17 +47,13 @@ def extract_reasoning_from_langchain_chunk(chunk: Any) -> str:
 def reasoning_tokens_from_raw(raw: Any) -> int:
     """Extract ``details.reasoning_tokens`` from a LangChain message or usage blob."""
 
-    from app.agent.infrastructure.openai_usage import extract_usage_document, usage_document_flat
+    from app.agent.infrastructure.openai_usage import (
+        extract_usage_document,
+        reasoning_tokens_from_usage_document,
+    )
 
     doc = extract_usage_document(raw)
-    if not doc:
-        return 0
-    flat = usage_document_flat(doc)
-    details = flat.get("details") or {}
-    value = details.get("reasoning_tokens")
-    if isinstance(value, (int, float)) and value >= 0:
-        return int(value)
-    return 0
+    return reasoning_tokens_from_usage_document(doc)
 
 
 def _segment_key(
@@ -109,6 +105,7 @@ class ReasoningCollector:
         self._buffers: dict[tuple[str, str | None, str | None], list[str]] = {}
         self._order: list[tuple[str, str | None, str | None]] = []
         self._reasoning_tokens: dict[tuple[str, str | None, str | None], int] = {}
+        self._total_reasoning_tokens: int | None = None
 
     async def append_delta(
         self,
@@ -173,12 +170,33 @@ class ReasoningCollector:
         )
         await self._emit_sse(envelope)
 
-    async def mark_all_done(self) -> None:
-        """Emit ``llm.reasoning.done`` with the sum of per-segment ``reasoning_tokens``."""
+    def _resolve_total_reasoning_tokens(self, fallback_usage: Any | None = None) -> int:
+        """Sum per-segment counts, or fall back to run usage ``details.reasoning_tokens``."""
+
+        total = sum(self._reasoning_tokens.values())
+        if total > 0:
+            return int(total)
+        if fallback_usage is not None:
+            from app.agent.infrastructure.openai_usage import (
+                extract_usage_document,
+                reasoning_tokens_from_usage_document,
+            )
+
+            doc = (
+                fallback_usage
+                if isinstance(fallback_usage, dict) and "details" in fallback_usage
+                else extract_usage_document(fallback_usage)
+            )
+            return reasoning_tokens_from_usage_document(doc)
+        return 0
+
+    async def mark_all_done(self, *, fallback_usage: Any | None = None) -> None:
+        """Emit ``llm.reasoning.done`` with the final ``reasoning_tokens`` total."""
 
         if not self.thinking_enabled:
             return
-        total_tokens = sum(self._reasoning_tokens.values())
+        total_tokens = self._resolve_total_reasoning_tokens(fallback_usage)
+        self._total_reasoning_tokens = total_tokens
         envelope = build_sse_event(
             event_type=AgentSseEventType.llm_reasoning_done,
             run_id=self.run_id,
@@ -194,13 +212,16 @@ class ReasoningCollector:
             return None
 
         segments: list[ReasoningSegmentDict] = []
-        tokens_sum = 0
+        tokens_sum = (
+            self._total_reasoning_tokens
+            if self._total_reasoning_tokens is not None
+            else sum(self._reasoning_tokens.values())
+        )
 
         for key in self._order:
             phase, sid, skid = key
             text = "".join(self._buffers.get(key, []))
             rt = int(self._reasoning_tokens.get(key, 0))
-            tokens_sum += rt
             if not text and rt == 0:
                 continue
             segments.append(
@@ -215,7 +236,7 @@ class ReasoningCollector:
 
         if not segments:
             return None
-        return {"segments": segments, "reasoning_tokens": tokens_sum}
+        return {"segments": segments, "reasoning_tokens": int(tokens_sum)}
 
     def build_message_reasoning_text(self) -> str | None:
         """Merge segment bodies with Planner / Subagent banners for plain-text DB storage."""

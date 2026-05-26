@@ -36,7 +36,7 @@ import {
   type AgentSessionListItem,
   type AgentStreamEvent,
 } from '@/api/agent'
-import { extractTotalTokens, formatAgentV2TraceLine, formatTokenCount, formatTokenNumber } from '@/api/agent-stream-v2'
+import { extractTotalTokens, formatAgentV2TraceLine, formatTokenCount, formatTokenNumber, extractReasoningTokens } from '@/api/agent-stream-v2'
 import {
   agentMessagesToChat,
   appendReasoningDelta,
@@ -631,7 +631,7 @@ export function AgentsPage() {
             }
             if (ev.type === 'llm.reasoning.done') {
               const tokens = Number(ev.payload.reasoning_tokens ?? 0)
-              if (Number.isFinite(tokens)) {
+              if (Number.isFinite(tokens) && tokens > 0) {
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === asstId
@@ -689,6 +689,14 @@ export function AgentsPage() {
               const total = extractTotalTokens(raw)
               if (total != null) {
                 setAsstTotalTokens(total)
+              }
+              const reasoningTotal = extractReasoningTokens(raw)
+              if (reasoningTotal != null) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === asstId ? { ...m, reasoningTokens: reasoningTotal } : m,
+                  ),
+                )
               }
             }
           },

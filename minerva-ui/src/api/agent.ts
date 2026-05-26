@@ -215,6 +215,7 @@ export async function streamAgentRun(
         preferred_skills: body.preferred_skills ?? [],
         regenerate_from_message_id: body.regenerate_from_message_id ?? null,
         regenerate_last_assistant: body.regenerate_last_assistant ?? false,
+        enable_thinking: body.enable_thinking ?? null,
       }),
       signal,
     },

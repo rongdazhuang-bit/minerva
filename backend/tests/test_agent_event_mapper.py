@@ -20,6 +20,7 @@ def test_map_reasoning_delta_includes_phase() -> None:
         phase="subagent",
         step_id="s1",
         skill_id="file",
+        emit_reasoning=True,
     )
     assert line is not None
     assert b'"channel":"reasoning"' in line
