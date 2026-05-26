@@ -400,7 +400,7 @@ html.minerva-tone-sunshine .agents-page__composer-input::-webkit-scrollbar-thumb
   scrollbar-color: rgb(148 163 184 / 0.5) transparent;
 }
 
-/* 模型思考：保留在运行过程容器内，中度烟灰正文色 */
+/* 思考过程正文：独立于运行过程折叠区 */
 .agents-page__process-reasoning {
   font-family: inherit;
   font-size: 12px;
@@ -408,15 +408,25 @@ html.minerva-tone-sunshine .agents-page__composer-input::-webkit-scrollbar-thumb
   color: var(--agents-process-reasoning-ink, #94a3b8);
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.agents-page__reasoning-segment {
   margin-bottom: 8px;
   padding-bottom: 8px;
   border-bottom: 1px solid rgb(148 163 184 / 0.18);
 }
 
-.agents-page__process-reasoning:last-child {
+.agents-page__reasoning-segment:last-child {
   margin-bottom: 0;
   padding-bottom: 0;
   border-bottom: none;
+}
+
+.agents-page__reasoning-segment-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--agents-process-reasoning-ink, #94a3b8);
+  margin-bottom: 4px;
 }
 
 html.minerva-tone-sunshine .agents-page__process-reasoning {

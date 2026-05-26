@@ -36,6 +36,17 @@ export type AgentMessageOut = {
   seq: number
   created_at: string
   meta_json?: Record<string, unknown> | null
+  reasoning_text?: string | null
+  reasoning?: {
+    segments: Array<{
+      phase: string
+      step_id: string | null
+      skill_id: string | null
+      text: string
+      reasoning_tokens: number
+    }>
+    reasoning_tokens: number
+  } | null
 }
 
 export type AgentSessionDetailOut = {
@@ -71,6 +82,8 @@ export type AgentRunCreateBodyV2 = {
   regenerate_from_message_id?: string | null
   /** 截断最后一条助手消息并重新 run（无 message id 时使用）。 */
   regenerate_last_assistant?: boolean
+  /** 是否开启思考模式；显式 false 覆盖 model_config / 全局默认。 */
+  enable_thinking?: boolean | null
 }
 
 export type AgentStreamEvent = AgentStreamV2ParseResult

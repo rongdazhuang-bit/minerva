@@ -51,6 +51,23 @@ class AgentSessionListOut(BaseModel):
     next_cursor: str | None = None
 
 
+class AgentMessageReasoningSegmentOut(BaseModel):
+    """One visible reasoning phase within an assistant message."""
+
+    phase: str
+    step_id: str | None = None
+    skill_id: str | None = None
+    text: str
+    reasoning_tokens: int = Field(ge=0)
+
+
+class AgentMessageReasoningOut(BaseModel):
+    """Structured reasoning payload stored on assistant ``meta_json.reasoning``."""
+
+    segments: list[AgentMessageReasoningSegmentOut]
+    reasoning_tokens: int = Field(ge=0)
+
+
 class AgentMessageOut(BaseModel):
     """One persisted chat message for session restore."""
 
@@ -60,6 +77,8 @@ class AgentMessageOut(BaseModel):
     seq: int
     created_at: datetime
     meta_json: dict[str, Any] | None = None
+    reasoning_text: str | None = None
+    reasoning: AgentMessageReasoningOut | None = None
 
 
 class AgentSessionDetailOut(BaseModel):

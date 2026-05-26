@@ -44,6 +44,8 @@
   "agents.modelMissingSecret": "This model is missing endpoint URL or API key. Please edit it in settings.",
   "agents.assistantTrace": "Run trace",
   "agents.modelReasoning": "Model reasoning",
+  "agents.thinkingMode": "Thinking mode",
+  "agents.reasoningTrace": "Reasoning · {{count}} tokens",
   "agents.processLoading": "Loading run trace",
   "agents.roleUser": "Me",
   "agents.roleAssistant": "Assistant",

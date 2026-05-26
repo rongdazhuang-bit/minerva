@@ -13,6 +13,7 @@ from app.agent.api.v2.schemas import (
     AgentSkillItemOut,
     AgentSkillListOut,
     AgentMessageOut,
+    AgentMessageReasoningOut,
     AgentRunCreateV2,
     AgentSessionCreateIn,
     AgentSessionDetailOut,
@@ -158,6 +159,31 @@ async def get_agent_session_detail(
     if row is None:
         raise AppError("agent.session_not_found", "会话不存在或不属于当前工作区。")
     msg_rows = await agent_repo.list_agent_messages_ordered(db, session_id=session_id)
+    message_outs: list[AgentMessageOut] = []
+    for m in msg_rows:
+        reasoning_raw = (
+            m.meta_json.get("reasoning")
+            if isinstance(m.meta_json, dict)
+            else None
+        )
+        reasoning: AgentMessageReasoningOut | None = None
+        if isinstance(reasoning_raw, dict):
+            try:
+                reasoning = AgentMessageReasoningOut.model_validate(reasoning_raw)
+            except Exception:
+                reasoning = None
+        message_outs.append(
+            AgentMessageOut(
+                id=m.id,
+                role=m.role,
+                content=m.content,
+                seq=m.seq,
+                created_at=m.created_at,
+                meta_json=m.meta_json if isinstance(m.meta_json, dict) else None,
+                reasoning_text=m.reasoning_text,
+                reasoning=reasoning,
+            )
+        )
     return AgentSessionDetailOut(
         session=AgentSessionOut(
             id=row.id,
@@ -169,17 +195,7 @@ async def get_agent_session_detail(
             updated_at=row.updated_at,
             usage=row.usage_json if isinstance(row.usage_json, dict) else None,
         ),
-        messages=[
-            AgentMessageOut(
-                id=m.id,
-                role=m.role,
-                content=m.content,
-                seq=m.seq,
-                created_at=m.created_at,
-                meta_json=m.meta_json if isinstance(m.meta_json, dict) else None,
-            )
-            for m in msg_rows
-        ],
+        messages=message_outs,
     )
 
 

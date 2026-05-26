@@ -44,6 +44,8 @@
   "agents.modelMissingSecret": "该模型缺少接入地址或 API Key，请在系统设置中编辑该模型。",
   "agents.assistantTrace": "运行过程",
   "agents.modelReasoning": "模型思考",
+  "agents.thinkingMode": "思考模式",
+  "agents.reasoningTrace": "思考过程 · {{count}} tokens",
   "agents.processLoading": "加载运行记录",
   "agents.roleUser": "我",
   "agents.roleAssistant": "助手",

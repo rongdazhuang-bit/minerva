@@ -26,14 +26,94 @@ export function buildDisplayUserMessage(body: string, skillId: string | null): s
 
 import { extractTotalTokens } from '@/api/agent-stream-v2'
 
+export type AgentReasoningSegment = {
+  phase: string
+  step_id: string | null
+  skill_id: string | null
+  text: string
+  reasoning_tokens: number
+}
+
 export type AgentChatMsg = {
   id: string
   role: 'user' | 'assistant'
   content: string
+  /** Merged plain reasoning text (legacy / fallback). */
   reasoning?: string
+  reasoningSegments?: AgentReasoningSegment[]
+  reasoningTokens?: number
   processLog?: string[]
   /** Total LLM tokens consumed for this assistant turn (from SSE run usage). */
   totalTokens?: number
+}
+
+export function reasoningSegmentKey(
+  phase: string,
+  stepId: string | null | undefined,
+  skillId: string | null | undefined,
+): string {
+  return `${phase}:${stepId ?? ''}:${skillId ?? ''}`
+}
+
+/** Human-readable segment title aligned with backend merged banners. */
+export function formatReasoningSegmentLabel(segment: AgentReasoningSegment): string {
+  if (segment.phase === 'planner') return '[Planner]'
+  if (segment.phase === 'synthesizer') return '[Synthesizer]'
+  if (segment.phase === 'subagent') {
+    const sk = segment.skill_id ?? '-'
+    const sid = segment.step_id ?? '-'
+    return `[${sk} · ${sid}]`
+  }
+  return `[${segment.phase}]`
+}
+
+export function appendReasoningDelta(
+  segments: AgentReasoningSegment[],
+  phase: string,
+  text: string,
+  stepId: string | null | undefined,
+  skillId: string | null | undefined,
+): AgentReasoningSegment[] {
+  const key = reasoningSegmentKey(phase, stepId, skillId)
+  const idx = segments.findIndex(
+    (s) => reasoningSegmentKey(s.phase, s.step_id, s.skill_id) === key,
+  )
+  if (idx < 0) {
+    return [
+      ...segments,
+      {
+        phase,
+        step_id: stepId ?? null,
+        skill_id: skillId ?? null,
+        text,
+        reasoning_tokens: 0,
+      },
+    ]
+  }
+  const next = [...segments]
+  next[idx] = { ...next[idx], text: next[idx].text + text }
+  return next
+}
+
+export function updateReasoningSegmentTokens(
+  segments: AgentReasoningSegment[],
+  phase: string,
+  tokens: number,
+  stepId: string | null | undefined,
+  skillId: string | null | undefined,
+): AgentReasoningSegment[] {
+  const key = reasoningSegmentKey(phase, stepId, skillId)
+  return segments.map((s) =>
+    reasoningSegmentKey(s.phase, s.step_id, s.skill_id) === key
+      ? { ...s, reasoning_tokens: tokens }
+      : s,
+  )
+}
+
+export function hasVisibleReasoning(m: AgentChatMsg): boolean {
+  const segs = m.reasoningSegments ?? []
+  if (segs.some((s) => (s.text ?? '').trim().length > 0)) return true
+  return Boolean((m.reasoning ?? '').trim())
 }
 
 /** 将服务端消息与本地 UI 状态（推理、轨迹）按 id 或顺序合并。 */
@@ -51,9 +131,16 @@ export function mergeAgentChatWithLocal(
       serverTok != null && localTok != null
         ? Math.max(serverTok, localTok)
         : (serverTok ?? localTok)
+    const reasoningSegments =
+      sm.reasoningSegments && sm.reasoningSegments.length > 0
+        ? sm.reasoningSegments
+        : src?.reasoningSegments
+    const reasoningTokens = sm.reasoningTokens ?? src?.reasoningTokens
     return {
       ...sm,
-      reasoning: src?.reasoning,
+      reasoning: sm.reasoning ?? src?.reasoning,
+      reasoningSegments,
+      reasoningTokens,
       processLog: src?.processLog,
       totalTokens,
     }
@@ -67,6 +154,11 @@ export function agentMessagesToChat(
     role: string
     content: string | null
     meta_json?: unknown
+    reasoning_text?: string | null
+    reasoning?: {
+      segments?: AgentReasoningSegment[]
+      reasoning_tokens?: number
+    } | null
   }[],
 ): AgentChatMsg[] {
   const out: AgentChatMsg[] = []
@@ -76,7 +168,17 @@ export function agentMessagesToChat(
     if (m.role === 'assistant' && !text) continue
     const usage = (m.meta_json as { usage?: unknown } | null | undefined)?.usage
     const totalTokens = extractTotalTokens(usage) ?? undefined
-    out.push({ id: m.id, role: m.role, content: m.content ?? '', totalTokens })
+    const reasoning = m.reasoning ?? undefined
+    const segments = reasoning?.segments ?? []
+    out.push({
+      id: m.id,
+      role: m.role,
+      content: m.content ?? '',
+      totalTokens,
+      reasoning: (m.reasoning_text ?? '').trim() || undefined,
+      reasoningSegments: segments.length > 0 ? segments : undefined,
+      reasoningTokens: reasoning?.reasoning_tokens,
+    })
   }
   return out
 }

@@ -18,6 +18,7 @@ import {
   Popconfirm,
   Select,
   Spin,
+  Switch,
   Typography,
   type InputRef,
   type MenuProps,
@@ -39,11 +40,15 @@ import {
 import { extractTotalTokens, formatAgentV2TraceLine, formatTokenCount, formatTokenNumber } from '@/api/agent-stream-v2'
 import {
   agentMessagesToChat,
+  appendReasoningDelta,
+  formatReasoningSegmentLabel,
   formatSessionListDate,
+  hasVisibleReasoning,
   isAgentMessageUuid,
   mergeAgentChatWithLocal,
   sessionListLabel,
   titleFromFirstQuestion,
+  updateReasoningSegmentTokens,
   type AgentChatMsg,
 } from '@/features/agent/agentSkillUi'
 import { ApiError } from '@/api/client'
@@ -92,8 +97,12 @@ export function AgentsPage() {
   const [messages, setMessages] = useState<AgentChatMsg[]>([])
   const [draft, setDraft] = useState('')
   const [streaming, setStreaming] = useState(false)
-  /** 当前轮助手气泡内「运行/思考」折叠：有正文输出后自动收起 */
+  /** 当前轮助手气泡内「运行过程」折叠 */
   const [traceOpenKeys, setTraceOpenKeys] = useState<string[]>([])
+  /** 当前轮助手气泡内「思考过程」折叠 */
+  const [reasoningOpenKeys, setReasoningOpenKeys] = useState<string[]>([])
+  /** 是否向服务端请求思考模式（默认关闭）。 */
+  const [thinkingEnabled, setThinkingEnabled] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const listEndRef = useRef<HTMLDivElement | null>(null)
   /** Main session message list scroll container. */
@@ -480,7 +489,12 @@ export function AgentsPage() {
       }
 
       const asstId = `a-${Date.now()}`
-      const asstMsg: AgentChatMsg = { id: asstId, role: 'assistant', content: '', reasoning: '' }
+      const asstMsg: AgentChatMsg = {
+        id: asstId,
+        role: 'assistant',
+        content: '',
+        reasoningSegments: [],
+      }
       const regenId = options?.regenerateFromAssistantId
 
       let truncateOk = false
@@ -511,6 +525,7 @@ export function AgentsPage() {
       userScrolledUpRef.current = false
       setStreaming(true)
       setTraceOpenKeys(['trace'])
+      setReasoningOpenKeys(['reasoning'])
 
       const ac = new AbortController()
       abortRef.current = ac
@@ -578,6 +593,7 @@ export function AgentsPage() {
             preferred_skills: [],
             regenerate_from_message_id: regenerateFromMessageId,
             regenerate_last_assistant: regenerateLastAssistant,
+            enable_thinking: thinkingEnabled,
           },
           (evt: AgentStreamEvent) => {
             if (evt.kind === 'done') return
@@ -589,15 +605,66 @@ export function AgentsPage() {
             const ev = evt.event
             const traceLine = formatAgentV2TraceLine(ev, i18n.language)
             if (traceLine) pushAsstLog(traceLine)
+            if (ev.type === 'llm.reasoning.segment_done') {
+              const phase = String(ev.payload.phase ?? '')
+              const stepId =
+                ev.payload.step_id != null ? String(ev.payload.step_id) : null
+              const skillId =
+                ev.payload.skill_id != null ? String(ev.payload.skill_id) : null
+              const tokens = Number(ev.payload.reasoning_tokens ?? 0)
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === asstId
+                    ? {
+                        ...m,
+                        reasoningSegments: updateReasoningSegmentTokens(
+                          m.reasoningSegments ?? [],
+                          phase,
+                          Number.isFinite(tokens) ? tokens : 0,
+                          stepId,
+                          skillId,
+                        ),
+                      }
+                    : m,
+                ),
+              )
+              return
+            }
+            if (ev.type === 'llm.reasoning.done') {
+              const tokens = Number(ev.payload.reasoning_tokens ?? 0)
+              if (Number.isFinite(tokens) && tokens > 0) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === asstId ? { ...m, reasoningTokens: tokens } : m,
+                  ),
+                )
+              }
+              setReasoningOpenKeys([])
+              return
+            }
             if (ev.type === 'llm.delta') {
               const channel = String(ev.payload.channel ?? 'assistant')
               const text = String(ev.payload.text ?? '')
               if (!text) return
               if (channel === 'reasoning') {
+                const phase = String(ev.payload.phase ?? 'subagent')
+                const stepId =
+                  ev.payload.step_id != null ? String(ev.payload.step_id) : null
+                const skillId =
+                  ev.payload.skill_id != null ? String(ev.payload.skill_id) : null
+                setReasoningOpenKeys(['reasoning'])
                 setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === asstId ? { ...m, reasoning: (m.reasoning ?? '') + text } : m,
-                  ),
+                  prev.map((m) => {
+                    if (m.id !== asstId) return m
+                    const segments = appendReasoningDelta(
+                      m.reasoningSegments ?? [],
+                      phase,
+                      text,
+                      stepId,
+                      skillId,
+                    )
+                    return { ...m, reasoningSegments: segments }
+                  }),
                 )
               } else {
                 setTraceOpenKeys([])
@@ -639,8 +706,9 @@ export function AgentsPage() {
         setStreaming(false)
         abortRef.current = null
         if (sid && workspaceId) {
+          const syncSid = sid
           const syncSessionFromServer = async () => {
-            const detail = await getAgentSessionDetail(workspaceId, sid)
+            const detail = await getAgentSessionDetail(workspaceId, syncSid)
             const serverChat = agentMessagesToChat(detail.messages)
             setMessages((prev) => mergeAgentChatWithLocal(serverChat, prev))
           }
@@ -659,7 +727,7 @@ export function AgentsPage() {
         void queryClient.invalidateQueries({ queryKey: ['agent-sessions', workspaceId] })
       }
     },
-    [workspaceId, sessionId, prefs.selectedModelId, usableModels, queryClient, t, i18n.language],
+    [workspaceId, sessionId, prefs.selectedModelId, usableModels, queryClient, t, i18n.language, thinkingEnabled],
   )
 
   const onSend = useCallback(async () => {
@@ -720,14 +788,12 @@ export function AgentsPage() {
 
   const lastMessageId = useMemo(() => messages[messages.length - 1]?.id, [messages])
 
-  const assistantTraceBelowRobot = useCallback(
+  const assistantProcessTrace = useCallback(
     (m: AgentChatMsg) => {
       if (m.role !== 'assistant') return null
       const logs = m.processLog ?? []
-      const reasoningText = (m.reasoning ?? '').trim()
       const isLatestAssistantCard = m.id === lastMessageId
-      const showTrace =
-        (streaming && isLatestAssistantCard) || logs.length > 0 || reasoningText.length > 0
+      const showTrace = (streaming && isLatestAssistantCard) || logs.length > 0
       if (!showTrace) return null
       return (
         <Collapse
@@ -743,10 +809,7 @@ export function AgentsPage() {
               label: <span style={{ fontSize: 12 }}>{t('agents.assistantTrace')}</span>,
               children: (
                 <div className="agents-page__process">
-                  {reasoningText ? (
-                    <div className="agents-page__process-reasoning">{reasoningText}</div>
-                  ) : null}
-                  {logs.length === 0 && !reasoningText ? (
+                  {logs.length === 0 ? (
                     <span
                       className="agents-page__process-wait"
                       role="status"
@@ -756,13 +819,13 @@ export function AgentsPage() {
                       <span className="agents-page__process-wait-dot" aria-hidden="true" />
                       <span className="agents-page__process-wait-dot" aria-hidden="true" />
                     </span>
-                  ) : logs.length > 0 ? (
+                  ) : (
                     <div className="agents-page__process-log">
                       {logs.map((line, i) => (
                         <div key={`${m.id}-${i}-${line.slice(0, 48)}`}>{line}</div>
                       ))}
                     </div>
-                  ) : null}
+                  )}
                 </div>
               ),
             },
@@ -778,6 +841,69 @@ export function AgentsPage() {
       )
     },
     [lastMessageId, streaming, traceOpenKeys, t],
+  )
+
+  const assistantReasoningTrace = useCallback(
+    (m: AgentChatMsg) => {
+      if (m.role !== 'assistant') return null
+      if (!hasVisibleReasoning(m)) return null
+      const isLatestAssistantCard = m.id === lastMessageId
+      const segments = m.reasoningSegments ?? []
+      const tokenLabel = formatTokenNumber(
+        m.reasoningTokens ??
+          segments.reduce((sum, s) => sum + (s.reasoning_tokens ?? 0), 0),
+        i18n.language,
+      )
+      return (
+        <Collapse
+          className="agents-page__trace agents-page__reasoning-trace"
+          size="small"
+          ghost
+          bordered={false}
+          expandIconPlacement="start"
+          style={{ marginTop: 4, marginBottom: 4 }}
+          items={[
+            {
+              key: 'reasoning',
+              label: (
+                <span style={{ fontSize: 12 }}>
+                  {t('agents.reasoningTrace', { count: tokenLabel })}
+                </span>
+              ),
+              children: (
+                <div className="agents-page__process">
+                  {segments.length > 0 ? (
+                    segments.map((seg) => (
+                      <div
+                        key={`${m.id}-${seg.phase}-${seg.step_id ?? ''}-${seg.skill_id ?? ''}`}
+                        className="agents-page__reasoning-segment"
+                      >
+                        <div className="agents-page__reasoning-segment-label">
+                          {formatReasoningSegmentLabel(seg)}
+                        </div>
+                        {(seg.text ?? '').trim() ? (
+                          <div className="agents-page__process-reasoning">{seg.text}</div>
+                        ) : null}
+                      </div>
+                    ))
+                  ) : (m.reasoning ?? '').trim() ? (
+                    <div className="agents-page__process-reasoning">{m.reasoning}</div>
+                  ) : null}
+                </div>
+              ),
+            },
+          ]}
+          {...(isLatestAssistantCard
+            ? {
+                activeKey: reasoningOpenKeys,
+                onChange: (k: string | string[]) =>
+                  setReasoningOpenKeys(Array.isArray(k) ? k : k ? [k] : []),
+              }
+            : { defaultActiveKey: [] as string[] })}
+        />
+      )
+    },
+    [lastMessageId, reasoningOpenKeys, i18n.language, t],
   )
 
   const sessionDetailLoading = sessionLoadingId !== null
@@ -964,12 +1090,13 @@ export function AgentsPage() {
                       />
                     )}
                   </div>
-                  {assistantTraceBelowRobot(m)}
+                  {assistantProcessTrace(m)}
+                  {assistantReasoningTrace(m)}
                   <Flex align="flex-start" gap={8}>
                     {streaming &&
                     m.role === 'assistant' &&
                     !m.content &&
-                    !(m.reasoning ?? '').trim() ? (
+                    !hasVisibleReasoning(m) ? (
                       <Spin size="small" style={{ marginTop: 4 }} />
                     ) : null}
                     {m.role === 'assistant' ? (
@@ -1084,6 +1211,17 @@ export function AgentsPage() {
                   loading={modelsQuery.isFetching}
                   options={selectOptions}
                 />
+                <Flex align="center" gap={6} style={{ flexShrink: 0 }}>
+                  <Switch
+                    size="small"
+                    checked={thinkingEnabled}
+                    onChange={setThinkingEnabled}
+                    disabled={streaming || usableModels.length === 0}
+                  />
+                  <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                    {t('agents.thinkingMode')}
+                  </Text>
+                </Flex>
                 <Button
                   type="primary"
                   shape="circle"
