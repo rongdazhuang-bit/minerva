@@ -3,6 +3,11 @@
 .minerva-overview {
   width: 100%;
   padding-top: 4px;
+  --minerva-overview-bar-cursor: color-mix(in srgb, var(--minerva-link, #38bdf8) 14%, transparent);
+}
+
+html.minerva-tone-sunshine .minerva-overview {
+  --minerva-overview-bar-cursor: color-mix(in srgb, var(--minerva-link, #2563eb) 10%, transparent);
 }
 
 .minerva-overview__row-scroll {
@@ -136,8 +141,31 @@ html.minerva-tone-sunshine .minerva-overview__app-desc {
   opacity: 1;
 }
 
-.minerva-overview__chart-card {
+.minerva-overview__charts {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
   margin-top: 16px;
+  width: 100%;
+}
+
+.minerva-overview__chart-slot {
+  grid-column: span 2;
+  min-width: 0;
+}
+
+@media (max-width: 1100px) {
+  .minerva-overview__charts {
+    grid-template-columns: 1fr;
+  }
+
+  .minerva-overview__chart-slot {
+    grid-column: span 1;
+  }
+}
+
+.minerva-overview__chart-card {
+  height: 100%;
   background: var(--minerva-surface, #1a2836) !important;
   border: 1px solid var(--minerva-border, #2a3f58) !important;
   border-radius: 12px;
@@ -151,13 +179,36 @@ html.minerva-tone-sunshine .minerva-overview__app-desc {
 
 .minerva-overview__chart-wrap {
   width: 100%;
-  min-width: 240px;
-  min-height: 280px;
+  min-width: 0;
+  min-height: 240px;
 }
 
 .minerva-overview__chart-measure {
   width: 100%;
-  min-height: 280px;
+  min-height: 240px;
+}
+
+/* Recharts 柱状图 hover 高亮：覆盖默认浅灰/白色 cursor 矩形 */
+.minerva-overview__chart-wrap .recharts-tooltip-cursor {
+  fill: var(--minerva-overview-bar-cursor, rgba(56, 189, 248, 0.12)) !important;
+}
+
+.minerva-overview__bar-tooltip {
+  padding: 6px 10px;
+  border: 1px solid var(--minerva-border, #2a3f58);
+  border-radius: 8px;
+  background: var(--minerva-surface, #1a2836);
+  color: var(--minerva-ink, #e8f0f8);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 22%);
+}
+
+html.minerva-tone-sunshine .minerva-overview__bar-tooltip {
+  background: var(--minerva-surface, #fff);
+  color: var(--minerva-ink, #0f172a);
+  box-shadow: 0 4px 12px rgb(15 23 42 / 10%);
 }
 
 html.minerva-tone-sunshine .minerva-overview__chart-card {
