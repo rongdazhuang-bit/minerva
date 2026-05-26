@@ -517,6 +517,7 @@ CREATE TABLE IF NOT EXISTS public.agent_message (
   seq int NOT NULL,
   role varchar(16) NOT NULL,
   content text NULL,
+  reasoning_text text NULL,
   tool_calls_json jsonb NULL,
   tool_call_id varchar(64) NULL,
   tool_name varchar(128) NULL,
@@ -536,6 +537,7 @@ COMMENT ON COLUMN public.agent_message.session_id IS '所属会话';
 COMMENT ON COLUMN public.agent_message.seq IS '会话内顺序号';
 COMMENT ON COLUMN public.agent_message.role IS 'system / user / assistant / tool';
 COMMENT ON COLUMN public.agent_message.content IS '文本内容';
+COMMENT ON COLUMN public.agent_message.reasoning_text IS '助手消息对应的思考合并纯文本';
 COMMENT ON COLUMN public.agent_message.tool_calls_json IS 'assistant 的 tool_calls(JSONB)';
 COMMENT ON COLUMN public.agent_message.tool_call_id IS 'tool 消息关联的调用 id';
 COMMENT ON COLUMN public.agent_message.tool_name IS '工具名冗余';
@@ -585,6 +587,7 @@ CREATE TABLE IF NOT EXISTS public.agent_run_node (
   outputs_json jsonb NULL,
   error_code varchar(64) NULL,
   error_message text NULL,
+  reasoning_text text NULL,
   started_at timestamptz NULL,
   finished_at timestamptz NULL,
   meta_json jsonb NULL,
@@ -606,6 +609,7 @@ COMMENT ON COLUMN public.agent_run_node.inputs_json IS '输入快照(JSONB)';
 COMMENT ON COLUMN public.agent_run_node.outputs_json IS '输出快照(JSONB)';
 COMMENT ON COLUMN public.agent_run_node.error_code IS '错误码';
 COMMENT ON COLUMN public.agent_run_node.error_message IS '错误说明';
+COMMENT ON COLUMN public.agent_run_node.reasoning_text IS '该 llm.round 节点 LLM 调用的思考全文';
 COMMENT ON COLUMN public.agent_run_node.started_at IS '开始时间';
 COMMENT ON COLUMN public.agent_run_node.finished_at IS '结束时间';
 COMMENT ON COLUMN public.agent_run_node.meta_json IS '扩展(JSONB)';
