@@ -371,6 +371,7 @@ class AgentGraphRunService:
                 usage_snapshot = deps.usage_tracker.build_run_snapshot()
                 if final_answer:
                     meta_payload: dict[str, Any] = {}
+                    reasoning_text: str | None = None
                     if usage_snapshot:
                         meta_payload["usage"] = usage_snapshot
                     if deps.reasoning_collector:
@@ -379,8 +380,6 @@ class AgentGraphRunService:
                         if reasoning_meta is not None:
                             meta_payload["reasoning"] = reasoning_meta
                         reasoning_text = deps.reasoning_collector.build_message_reasoning_text()
-                        if reasoning_text is not None:
-                            meta_payload["reasoning_text"] = reasoning_text
                     await agent_repo.append_agent_message(
                         session,
                         session_id=session_id,
@@ -388,6 +387,7 @@ class AgentGraphRunService:
                         content=final_answer,
                         run_id=run_id,
                         meta_json=meta_payload if meta_payload else None,
+                        reasoning_text=reasoning_text,
                     )
 
                 usage_snapshot = await _finalize_run_usage(

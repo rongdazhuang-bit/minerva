@@ -43,7 +43,7 @@
 | 项 | 决策 |
 |----|------|
 | 思考开关优先级 | **前端 Run 参数 > `sys_models.model_config` > `AGENT_ENABLE_THINKING`** |
-| 前端 Switch 默认 | **关闭**（不传 `enable_thinking` 时向下解析） |
+| 前端 Switch 默认 | **关闭**；请求始终传 `enable_thinking: true/false`（关时覆盖 model_config） |
 | 展示粒度 | **单折叠区 + 内部分段**（Planner / Subagent / Synthesizer） |
 | 持久化 | **双写**：`agent_run_node.reasoning_text`（每 LLM 调用）+ `agent_message`（助手消息级） |
 | Memory | **不带思考**，与现网一致 |
@@ -259,22 +259,23 @@ await agent_repo.append_agent_message(
 
 ### 6.1 布局（助手气泡内，自上而下）
 
-1. 最终答复 `content`
-2. **运行过程** Collapse — 现有 `processLog` / 编排轨迹（**移除** reasoning 混排）
-3. **思考过程** Collapse — 位于运行过程**下方**
+1. **运行过程** Collapse — 现有 `processLog` / 编排轨迹（**移除** reasoning 混排）
+2. **思考过程** Collapse — 位于运行过程**下方**
    - 标题：`思考过程 · {reasoning_tokens} tokens`（i18n）
    - 内容：按 `segments` 分段；段标题 `[Planner]`、`[{skill_id} · {step_id}]`、`[Synthesizer]`
    - 流式：按 `phase` / `step_id` 追加到对应 segment
    - **自动折叠**：收到 `llm.reasoning.done` 后收起；流式期间默认展开
    - 历史消息：默认折叠，可手动展开
    - 无思考内容时：**隐藏**整个思考 Collapse
+3. 最终答复 `content`
+
+> **实现说明（2026-05-26）**：轨迹折叠区在正文上方，便于流式时先看编排与思考、后看最终答复。
 
 ### 6.2 Run 请求
 
 - 模型选择旁增加「思考模式」Switch
-- 默认 **关闭** → 请求体不传 `enable_thinking`（`null`），走 model_config / 全局默认
+- 默认 **关闭** → 请求体传 `enable_thinking: false`（覆盖 `model_config` 与全局默认）
 - 用户打开 → `enable_thinking: true`
-- 用户显式关闭 → `enable_thinking: false`（覆盖 model_config 与全局）
 
 ### 6.3 会话恢复
 
