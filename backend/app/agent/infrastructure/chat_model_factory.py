@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agent.infrastructure.direct_endpoint_openai_client import (
     build_direct_endpoint_async_openai,
 )
+from app.agent.infrastructure.thinking_config import ThinkingConfig
 from app.exceptions import AppError
 from app.llm.strategies.openai_compatible import normalize_openai_base_url
 from app.sys.model_provider.domain.db.models import SysModel
@@ -27,6 +28,7 @@ class ChatModelFactory:
         workspace_id: uuid.UUID,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        thinking: ThinkingConfig | None = None,
     ) -> BaseChatModel:
         """Validate workspace ownership and enabled flag, then construct the client."""
 
@@ -59,6 +61,8 @@ class ChatModelFactory:
             effective_max = row.max_tokens_to_sample
         if effective_max is not None:
             kwargs["max_tokens"] = effective_max
+        if thinking and thinking.enabled and thinking.extra_body:
+            kwargs["model_kwargs"] = {"extra_body": dict(thinking.extra_body)}
         return ChatOpenAI(**kwargs)
 
     @staticmethod

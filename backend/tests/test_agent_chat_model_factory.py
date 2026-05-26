@@ -9,6 +9,7 @@ import pytest
 from openai import AsyncOpenAI
 
 from app.agent.infrastructure.chat_model_factory import ChatModelFactory
+from app.agent.infrastructure.thinking_config import ThinkingConfig
 from app.exceptions import AppError
 
 
@@ -108,6 +109,32 @@ def test_agent_chat_model_factory_preserves_direct_endpoint_client() -> None:
 
     assert str(model.root_async_client.base_url).rstrip("/") == "https://example.com"
     assert model.async_client is model.root_async_client.chat.completions
+
+
+def test_chat_model_factory_injects_extra_body_when_thinking_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When thinking is enabled with non-empty extra_body, ChatOpenAI gets model_kwargs."""
+
+    captured: dict = {}
+
+    class FakeChatOpenAI:
+        """Capture constructor kwargs without contacting an upstream model."""
+
+        def __init__(self, **kwargs) -> None:
+            """Store constructor keyword arguments for assertions."""
+
+            captured.update(kwargs)
+
+    monkeypatch.setattr("app.agent.infrastructure.chat_model_factory.ChatOpenAI", FakeChatOpenAI)
+
+    row, workspace_id = _model_row()
+    extra = {"enable_thinking": True, "thinking_budget": 1024}
+    thinking = ThinkingConfig(enabled=True, extra_body=extra)
+    ChatModelFactory.from_sys_model_row(row, workspace_id=workspace_id, thinking=thinking)
+
+    assert captured["model_kwargs"] == {"extra_body": dict(extra)}
+    assert captured["model_kwargs"]["extra_body"] is not thinking.extra_body
 
 
 def test_agent_chat_model_factory_rejects_missing_api_key() -> None:
