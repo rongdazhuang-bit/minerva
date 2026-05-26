@@ -323,6 +323,11 @@ class Settings(BaseSettings):
             "agent_chat_history_message_limit",
         ),
     )
+    agent_enable_thinking: bool = Field(
+        default=False,
+        description="Agent 默认是否向上游请求思考模式（Run 与 model_config 可覆盖）。",
+        validation_alias=AliasChoices("AGENT_ENABLE_THINKING", "agent_enable_thinking"),
+    )
     agent_langgraph_checkpoint_enabled: bool = Field(
         default=True,
         description="为 True 时尝试启用 LangGraph PostgresSaver checkpoint。",
