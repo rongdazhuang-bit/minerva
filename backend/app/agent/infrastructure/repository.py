@@ -250,13 +250,14 @@ async def append_agent_message(
     session_id: uuid.UUID,
     role: str,
     content: str | None = None,
+    reasoning_text: str | None = None,
     tool_calls_json: dict[str, Any] | list[Any] | None = None,
     tool_call_id: str | None = None,
     tool_name: str | None = None,
     meta_json: dict[str, Any] | list[Any] | None = None,
     run_id: uuid.UUID | None = None,
 ) -> AgentMessage:
-    """追加一条消息（自动分配 ``seq``）。"""
+    """追加一条消息（自动分配 ``seq``）；可选持久化 ``reasoning_text``。"""
 
     seq = await allocate_next_message_seq(session, session_id=session_id)
     row = AgentMessage(
@@ -264,6 +265,7 @@ async def append_agent_message(
         seq=seq,
         role=role,
         content=content,
+        reasoning_text=reasoning_text,
         tool_calls_json=tool_calls_json,
         tool_call_id=tool_call_id,
         tool_name=tool_name,
@@ -375,8 +377,9 @@ async def insert_run_node(
     outputs_json: dict[str, Any] | list[Any] | None = None,
     meta_json: dict[str, Any] | list[Any] | None = None,
     usage_json: dict[str, Any] | list[Any] | None = None,
+    reasoning_text: str | None = None,
 ) -> AgentRunNode:
-    """插入一条运行节点记录。"""
+    """插入一条运行节点记录；可选持久化 ``reasoning_text``。"""
 
     row = AgentRunNode(
         id=node_id,
@@ -390,6 +393,7 @@ async def insert_run_node(
         outputs_json=outputs_json,
         meta_json=meta_json,
         usage_json=usage_json,
+        reasoning_text=reasoning_text,
     )
     session.add(row)
     await session.flush()
@@ -408,6 +412,21 @@ async def update_run_node_usage(
     if row is None:
         return
     row.usage_json = usage_json
+    await session.flush()
+
+
+async def update_run_node_reasoning_text(
+    session: AsyncSession,
+    *,
+    node_id: uuid.UUID,
+    reasoning_text: str | None,
+) -> None:
+    """Update ``reasoning_text`` on one ``agent_run_node`` row; no-op if the row is missing."""
+
+    row = await session.get(AgentRunNode, node_id)
+    if row is None:
+        return
+    row.reasoning_text = reasoning_text
     await session.flush()
 
 
