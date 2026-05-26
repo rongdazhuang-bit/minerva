@@ -35,6 +35,28 @@ def extract_reasoning_from_langchain_message(msg: Any) -> str:
     return str(raw)
 
 
+def extract_reasoning_from_langchain_chunk(chunk: Any) -> str:
+    """Return reasoning text from one streaming ``AIMessageChunk``."""
+
+    return extract_reasoning_from_langchain_message(chunk)
+
+
+def reasoning_tokens_from_raw(raw: Any) -> int:
+    """Extract ``details.reasoning_tokens`` from a LangChain message or usage blob."""
+
+    from app.agent.infrastructure.openai_usage import extract_usage_document, usage_document_flat
+
+    doc = extract_usage_document(raw)
+    if not doc:
+        return 0
+    flat = usage_document_flat(doc)
+    details = flat.get("details") or {}
+    value = details.get("reasoning_tokens")
+    if isinstance(value, (int, float)) and value >= 0:
+        return int(value)
+    return 0
+
+
 def _segment_key(
     phase: str,
     step_id: str | None,

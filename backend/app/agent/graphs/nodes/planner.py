@@ -16,6 +16,11 @@ from app.agent.infrastructure.skill_loader import (
     build_planner_skill_index,
     build_planner_system_intro,
 )
+from app.agent.infrastructure import repository as agent_repo
+from app.agent.infrastructure.reasoning_collector import (
+    extract_reasoning_from_langchain_message,
+    reasoning_tokens_from_raw,
+)
 from app.config import settings
 
 
@@ -59,7 +64,6 @@ async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:
     ]
 
     from app.agent.domain.db.models import AgentRunNode
-    from app.agent.infrastructure import repository as agent_repo
 
     plan_node_id = uuid.uuid4()
     await agent_repo.insert_run_node(
@@ -122,11 +126,26 @@ async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:
         )
 
     if raw_msg is not None:
-        await deps.record_llm_call_to_db(
+        reasoning_text = ""
+        if deps.reasoning_collector is not None:
+            reasoning_text = extract_reasoning_from_langchain_message(raw_msg)
+            if reasoning_text:
+                await deps.reasoning_collector.append_delta("planner", reasoning_text)
+            await deps.reasoning_collector.finalize_segment(
+                "planner",
+                reasoning_tokens=reasoning_tokens_from_raw(raw_msg),
+            )
+        llm_node_id = await deps.record_llm_call_to_db(
             raw_msg,
             parent_node_id=plan_node_id,
             phase="planner",
         )
+        if llm_node_id is not None and reasoning_text:
+            await agent_repo.update_run_node_reasoning_text(
+                deps.db,
+                node_id=llm_node_id,
+                reasoning_text=reasoning_text,
+            )
 
     phase_slice = (deps.usage_tracker.document.get("by_phase") or {}).get("planner") or {}
     if phase_slice:

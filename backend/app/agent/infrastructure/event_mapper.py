@@ -13,8 +13,10 @@ def map_langchain_stream_event(
     *,
     run_id: uuid.UUID,
     session_id: uuid.UUID,
+    phase: str | None = None,
     step_id: str | None = None,
     skill_id: str | None = None,
+    emit_reasoning: bool = True,
 ) -> bytes | None:
     """Convert one ``astream_events`` v2 dict to an SSE line, or None if skipped."""
 
@@ -28,16 +30,21 @@ def map_langchain_stream_event(
         reasoning = getattr(chunk, "additional_kwargs", {}) or {}
         reasoning_text = reasoning.get("reasoning_content") or reasoning.get("reasoning")
         if reasoning_text:
+            if not emit_reasoning:
+                return None
+            payload: dict[str, Any] = {
+                "channel": "reasoning",
+                "text": str(reasoning_text),
+                "step_id": step_id,
+                "skill_id": skill_id,
+            }
+            if phase is not None:
+                payload["phase"] = phase
             return build_sse_event(
                 event_type=AgentSseEventType.llm_delta,
                 run_id=run_id,
                 session_id=session_id,
-                payload={
-                    "channel": "reasoning",
-                    "text": str(reasoning_text),
-                    "step_id": step_id,
-                    "skill_id": skill_id,
-                },
+                payload=payload,
             )
         if content:
             return build_sse_event(
