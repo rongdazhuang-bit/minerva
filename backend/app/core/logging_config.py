@@ -6,11 +6,12 @@ import atexit
 import logging
 import queue
 import sys
-from logging.handlers import QueueHandler, QueueListener, TimedRotatingFileHandler
+from logging.handlers import QueueHandler, QueueListener
 from pathlib import Path
 
 from app.config import settings
 from app.core.logging_context import set_logging_context
+from app.core.logging_handlers import WindowsSafeTimedRotatingFileHandler
 from app.core.logging_json import JsonLogFormatter
 
 _VALID_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
@@ -126,7 +127,7 @@ def configure_logging(
     if enable_file:
         path = resolve_log_file_path(process_type, log_dir)
         path.parent.mkdir(parents=True, exist_ok=True)
-        file_handler = TimedRotatingFileHandler(
+        file_handler = WindowsSafeTimedRotatingFileHandler(
             filename=path,
             when="midnight",
             backupCount=retention_days or settings.log_retention_days,

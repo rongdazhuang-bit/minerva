@@ -78,10 +78,11 @@ async def persist_turn_memory(
             await agent_repo.merge_run_usage_json(session, run_id=run_id, delta=delta)
             run_row = await session.get(AgentRun, run_id)
             if run_row is not None and isinstance(run_row.usage_json, dict):
+                # Session 已在 Run finalize 时 merge 过主图用量；此处仅追加 memory.persist 增量。
                 await agent_repo.merge_session_usage_json(
                     session,
                     session_id=session_id,
-                    delta=run_row.usage_json,
+                    delta=delta,
                 )
                 await agent_repo.patch_assistant_message_usage_by_run(
                     session,

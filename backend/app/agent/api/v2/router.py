@@ -9,6 +9,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.api.v2.schemas import (
+    AgentOverviewUsageDailyStatsOut,
     AgentSkillItemOut,
     AgentSkillListOut,
     AgentMessageOut,
@@ -30,6 +31,7 @@ from app.agent.service.agent_graph_run_service import (
     AgentGraphRunService,
     get_agent_graph_run_service,
 )
+from app.agent.service.overview_usage_daily_stats import compute_overview_usage_daily_stats
 from app.core.api.deps import get_current_user, require_workspace_member
 from app.core.domain.identity.models import User
 from app.dependencies import get_db
@@ -50,6 +52,17 @@ async def list_agent_skills(
             for s in list_indexed_skills()
         ]
     )
+
+
+@router.get("/overview-usage-daily-stats", response_model=AgentOverviewUsageDailyStatsOut)
+async def get_agent_overview_usage_daily_stats(
+    workspace_id: uuid.UUID,
+    _workspace: uuid.UUID = Depends(require_workspace_member),
+    db: AsyncSession = Depends(get_db),
+) -> AgentOverviewUsageDailyStatsOut:
+    """Return last 7 local days of agent token usage grouped by token type."""
+
+    return await compute_overview_usage_daily_stats(db, workspace_id)
 
 
 @router.post("/sessions", response_model=AgentSessionOut)

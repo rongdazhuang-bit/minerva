@@ -155,7 +155,7 @@ export function AgentsPage() {
 
   /**
    * 将问答区 Markdown 上的纵向滚轮转给主消息滚动容器。
-   * 须用非 passive 原生监听才能 ``preventDefault``（React ``onWheel`` 在多数环境下为 passive）。
+   * 「运行过程」等内层纵向滚动区在可滚动时保留原生滚轮；须用非 passive 原生监听才能 ``preventDefault``。
    */
   const forwardMessageWheelToChat = useCallback((e: WheelEvent) => {
     const chat = chatScrollRef.current
@@ -176,6 +176,18 @@ export function AgentsPage() {
         horizontalPane.scrollLeft + horizontalPane.clientWidth >= horizontalPane.scrollWidth - 1
       if (canScrollX && ((e.deltaX < 0 && !atLeft) || (e.deltaX > 0 && !atRight))) {
         return
+      }
+    }
+    const processPane = target.closest('.agents-page__process')
+    if (processPane instanceof HTMLElement) {
+      const canScrollY = processPane.scrollHeight > processPane.clientHeight + 1
+      if (canScrollY) {
+        const atTop = processPane.scrollTop <= 0
+        const atBottom =
+          processPane.scrollTop + processPane.clientHeight >= processPane.scrollHeight - 1
+        if ((e.deltaY < 0 && !atTop) || (e.deltaY > 0 && !atBottom)) {
+          return
+        }
       }
     }
     const maxScroll = chat.scrollHeight - chat.clientHeight
@@ -833,10 +845,11 @@ export function AgentsPage() {
                           )}
                         </span>
                         {sessionTokens != null ? (
-                          <span className="agents-page__session-item-tokens">
-                            {t('agents.tokenUsage', {
-                              label: formatTokenCount(sessionTokens),
-                            })}
+                          <span
+                            className="agents-page__session-item-tokens"
+                            title={formatTokenNumber(sessionTokens, i18n.language)}
+                          >
+                            {formatTokenCount(sessionTokens)}
                           </span>
                         ) : null}
                       </span>
@@ -1015,8 +1028,8 @@ export function AgentsPage() {
                         <Text
                           type="secondary"
                           className="agents-page__msg-token-usage"
-                          aria-label={t('agents.tokenUsage', {
-                            label: formatTokenNumber(m.totalTokens, i18n.language),
+                          aria-label={t('agents.tokenUsageAria', {
+                            count: formatTokenNumber(m.totalTokens, i18n.language),
                           })}
                         >
                           {t('agents.tokenUsage', {

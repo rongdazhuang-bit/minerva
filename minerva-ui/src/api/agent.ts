@@ -48,6 +48,19 @@ export type AgentSkillListItem = {
   description: string
 }
 
+/** One calendar day in agent overview token usage chart (7 rows). */
+export type AgentOverviewUsageDailyStatItem = {
+  date: string
+  prompt_tokens: number
+  completion_tokens: number
+  cached_tokens: number
+  reasoning_tokens: number
+}
+
+export type AgentOverviewUsageDailyStats = {
+  items: AgentOverviewUsageDailyStatItem[]
+}
+
 export type AgentRunCreateBodyV2 = {
   user_message: string
   model_id: string
@@ -133,6 +146,16 @@ export async function listAgentSkills(
   const text = await res.text()
   if (!res.ok) await parseJsonError(text, res)
   return JSON.parse(text) as { skills: AgentSkillListItem[] }
+}
+
+/** GET 近 7 日智能体 token 用量（按 token 类型分 series）。 */
+export async function getAgentOverviewUsageDailyStats(
+  workspaceId: string,
+): Promise<AgentOverviewUsageDailyStats> {
+  const res = await authFetch(`${v2Base(workspaceId)}/overview-usage-daily-stats`)
+  const text = await res.text()
+  if (!res.ok) await parseJsonError(text, res)
+  return JSON.parse(text) as AgentOverviewUsageDailyStats
 }
 
 /** POST 创建会话。 */

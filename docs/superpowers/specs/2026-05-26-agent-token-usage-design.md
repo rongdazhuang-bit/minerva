@@ -190,7 +190,7 @@ flowchart TB
 2. 主图执行：每次 LLM → SSE + `llm.round` + 内存累计
 3. 节点边界：rollup 父节点 `usage_json`
 4. Run 成功/失败 finalize：写入 `agent_run.usage_json`；成功时 merge 到 `agent_session.usage_json`
-5. 后台 memory.persist 完成：再次 merge Run（`by_phase.memory.persist`）与 Session
+5. 后台 memory.persist 完成：将 **`memory.persist` 增量** merge 到 `agent_session.usage_json`（Run finalize 已写入主图用量，不可再次 merge 整份 Run 快照）；并 patch 助手消息 `meta_json.usage` 为完整 Run 快照
 
 ### 4.5 重新生成
 
@@ -229,7 +229,7 @@ Pydantic：`AgentSessionOut.usage`、`AgentSessionListItemOut.usage`（`dict | N
 | 项 | 说明 |
 |----|------|
 | 进程日志 | 已有 `formatAgentV2TraceLine` 对 `llm.usage` / `run.finished` 的格式化 |
-| 会话 UI | 侧栏或会话头展示 Session `usage.total_tokens`；Run 结束展示 `by_phase` 折叠明细 |
+| 会话 UI | 侧栏展示 Session 累计 `usage.total_tokens`（文案「累计」）；助手消息展示本轮 Run 用量（文案「本轮」）；Run 结束展示 `by_phase` 折叠明细 |
 | 类型 | 复用 `agent-stream-v2.ts` 中 `OpenAIUsage` / `parseOpenAIUsage`；扩展解析 `by_phase` |
 
 前端可作为独立 implementation task，不阻塞后端落库。
@@ -266,9 +266,10 @@ Pydantic：`AgentSessionOut.usage`、`AgentSessionListItemOut.usage`（`dict | N
 | Planner usage | `graphs/nodes/planner.py` | 已实现 |
 | Subagent llm.round | `graphs/nodes/subagent_runner.py` + `executor.py` | 已实现 |
 | Synthesizer usage | `graphs/nodes/synthesizer.py` | 已实现 |
-| memory.persist patch | `service/memory_persist_service.py` | 已实现 |
+| memory.persist patch | `service/memory_persist_service.py` | 已实现（Session 仅 merge `memory.persist` delta，2026-05-26 修复重复累计） |
 | Run finalize | `service/agent_graph_run_service.py` | 已实现 |
 | Session merge | `infrastructure/repository.py` | 已实现 |
+| memory.persist 单测 | `tests/test_agent_memory_persist_usage.py` | 已实现（Session 不 double merge） |
 | DB 迁移 | `sql/patches/2026-05-26-agent-usage-json.sql` | 已实现 |
 | API schemas | `api/v2/schemas.py`, `router.py` | 已实现 |
 | 前端展示 | `minerva-ui` AgentsPage + `agentSkillUi.ts` | 已实现（SSE + meta 恢复） |

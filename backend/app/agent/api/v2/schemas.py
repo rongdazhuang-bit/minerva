@@ -82,6 +82,22 @@ class AgentSkillListOut(BaseModel):
     skills: list[AgentSkillItemOut]
 
 
+class AgentOverviewUsageDailyStatItemOut(BaseModel):
+    """One calendar day bucket for the workspace agent token usage chart."""
+
+    date: str = Field(min_length=10, max_length=10)
+    prompt_tokens: int = Field(ge=0)
+    completion_tokens: int = Field(ge=0)
+    cached_tokens: int = Field(ge=0)
+    reasoning_tokens: int = Field(ge=0)
+
+
+class AgentOverviewUsageDailyStatsOut(BaseModel):
+    """Fixed window of daily agent token usage (see service ``DAY_COUNT``)."""
+
+    items: list[AgentOverviewUsageDailyStatItemOut] = Field(min_length=7, max_length=7)
+
+
 class AgentRunCreateV2(BaseModel):
     """发起一次 v2 run（服务端托管模型连接）。"""
 

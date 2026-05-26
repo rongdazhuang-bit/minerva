@@ -1,105 +1,170 @@
+/* 概览 — 顶部单行快捷应用入口 */
+
 .minerva-overview {
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
+  padding-top: 4px;
 }
 
-.minerva-overview__hero {
-  margin-bottom: 24px;
+.minerva-overview__row-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
 }
 
-.minerva-overview__title {
-  font-family: 'Fraunces', Georgia, serif;
-  margin-top: 0;
-  margin-bottom: 8px;
-  color: var(--minerva-ink, #e8f0f8);
+.minerva-overview__row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
 }
 
-.minerva-overview__subtitle {
-  color: var(--minerva-ink, #e8f0f8);
-  opacity: 0.88;
-  margin-bottom: 4px;
-}
-
-.minerva-overview__meta {
-  font-size: 12px;
-  opacity: 0.7;
-}
-
-.minerva-overview__stats {
-  margin-bottom: 8px;
-}
-
-.minerva-overview__card {
-  background: var(--minerva-surface, #1a2836) !important;
-  border: 1px solid var(--minerva-border, #2a3f58) !important;
+.minerva-overview__app-card {
+  flex: 1 1 0;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 10px;
+  margin: 0;
+  text-align: center;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  background: var(--minerva-surface, #1a2836);
+  border: 1px solid var(--minerva-border, #2a3f58);
+  border-radius: 12px;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
-  border-radius: 10px;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
 }
 
-html.minerva-tone-sunshine .minerva-overview__card {
-  background: var(--minerva-surface, #fff) !important;
+.minerva-overview__app-card:hover {
+  border-color: color-mix(in srgb, var(--minerva-link, #38bdf8) 62%, var(--minerva-border, #2a3f58));
+  background: color-mix(in srgb, var(--minerva-link, #38bdf8) 7%, var(--minerva-surface, #1a2836));
+}
+
+.minerva-overview__app-card:focus-visible {
+  outline: 2px solid var(--minerva-link, #38bdf8);
+  outline-offset: 2px;
+}
+
+.minerva-overview__app-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  font-size: 20px;
+  color: #fff;
+}
+
+.minerva-overview__app-icon--agents {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+}
+
+.minerva-overview__app-icon--translate {
+  background: linear-gradient(135deg, #14b8a6 0%, #22c55e 100%);
+}
+
+.minerva-overview__app-icon--knowledge-base {
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+}
+
+.minerva-overview__app-icon--smart-review {
+  background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+}
+
+.minerva-overview__app-icon--rules {
+  background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+}
+
+.minerva-overview__app-icon--file-ocr {
+  background: linear-gradient(135deg, #f97316 0%, #ef4444 100%);
+}
+
+.minerva-overview__app-body {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.minerva-overview__app-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--minerva-ink, #e8f0f8);
+}
+
+.minerva-overview__app-desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--minerva-ink, #e8f0f8);
+  opacity: 0.65;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+html.minerva-tone-sunshine .minerva-overview__app-card {
+  background: var(--minerva-surface, #fff);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
-.minerva-overview__icon {
-  margin-inline-end: 6px;
-  color: var(--minerva-link, #38bdf8);
-  opacity: 0.9;
+html.minerva-tone-sunshine .minerva-overview__app-card:hover {
+  border-color: color-mix(in srgb, var(--minerva-link, #2563eb) 55%, #94a3b8);
+  background: color-mix(in srgb, var(--minerva-link, #2563eb) 5%, var(--minerva-surface, #fff));
 }
 
-.minerva-overview__activity .ant-card-head-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--minerva-ink, #e8f0f8);
-}
-
-.minerva-overview__activity-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.minerva-overview__list-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 12px;
-  color: var(--minerva-ink, #e8f0f8);
-}
-
-html.minerva-tone-sunshine .minerva-overview__list-item,
-html.minerva-tone-sunshine .minerva-overview__activity .ant-card-head-title,
-html.minerva-tone-sunshine .minerva-overview__title,
-html.minerva-tone-sunshine .minerva-overview__subtitle {
+html.minerva-tone-sunshine .minerva-overview__app-name {
   color: var(--minerva-ink, #0f172a);
 }
 
-html.minerva-tone-sunshine .minerva-overview__card .ant-statistic-title {
+html.minerva-tone-sunshine .minerva-overview__app-desc {
   color: #64748b;
+  opacity: 1;
 }
 
-html.minerva-tone-sunshine .minerva-overview__icon {
-  color: var(--minerva-link, #2563eb);
+.minerva-overview__chart-card {
+  margin-top: 16px;
+  background: var(--minerva-surface, #1a2836) !important;
+  border: 1px solid var(--minerva-border, #2a3f58) !important;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 18%);
 }
 
-.minerva-overview__card .ant-statistic-content-value {
-  font-variant-numeric: tabular-nums;
-}
-
-.minerva-overview__card .ant-statistic-title {
+.minerva-overview__chart-card .ant-card-head-title {
   color: var(--minerva-ink, #e8f0f8);
-  opacity: 0.75;
-  font-size: 13px;
+  font-weight: 600;
 }
 
-html.minerva-tone-sunshine .minerva-overview__card .ant-statistic-content-value,
-html.minerva-tone-sunshine .minerva-overview__card .ant-statistic-title {
-  color: inherit;
+.minerva-overview__chart-wrap {
+  width: 100%;
+  min-width: 240px;
+  min-height: 280px;
 }
 
-html.minerva-tone-sunshine .minerva-overview__card .ant-statistic-content-value {
-  color: #0f172a;
+.minerva-overview__chart-measure {
+  width: 100%;
+  min-height: 280px;
+}
+
+html.minerva-tone-sunshine .minerva-overview__chart-card {
+  background: var(--minerva-surface, #fff) !important;
+  box-shadow: 0 4px 14px rgb(15 23 42 / 7%);
+}
+
+html.minerva-tone-sunshine .minerva-overview__chart-card .ant-card-head-title {
+  color: var(--minerva-ink, #0f172a);
 }

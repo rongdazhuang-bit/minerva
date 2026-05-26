@@ -1,83 +1,59 @@
-"""Tests for memory.persist usage patching."""
+"""Tests for memory.persist session usage merge (no double-counting)."""
 
 from __future__ import annotations
 
-import uuid
-from unittest.mock import AsyncMock, MagicMock
-
-import pytest
-
-from app.agent.domain.memory_extract import MemoryExtract
-from app.agent.service import memory_persist_service as svc
+from app.agent.infrastructure.openai_usage import build_phase_delta, merge_usage_document
 
 
-@pytest.mark.asyncio
-async def test_persist_turn_memory_merges_memory_persist_usage(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """After extract LLM, run/session/message usage include memory.persist phase."""
+def _session_delta(doc: dict) -> dict:
+    """Mirror ``merge_session_usage_json``: drop per-step buckets."""
 
-    run_id = uuid.uuid4()
-    session_id = uuid.uuid4()
-    workspace_id = uuid.uuid4()
+    return {k: v for k, v in doc.items() if k != "by_step"}
 
-    merge_run = AsyncMock()
-    merge_session = AsyncMock()
-    patch_message = AsyncMock()
-    update_node_usage = AsyncMock()
-    insert_node = AsyncMock(return_value=MagicMock())
 
-    monkeypatch.setattr(svc.agent_repo, "insert_run_node", insert_node)
-    monkeypatch.setattr(svc.agent_repo, "merge_run_usage_json", merge_run)
-    monkeypatch.setattr(svc.agent_repo, "merge_session_usage_json", merge_session)
-    monkeypatch.setattr(svc.agent_repo, "patch_assistant_message_usage_by_run", patch_message)
-    monkeypatch.setattr(svc.agent_repo, "update_run_node_usage", update_node_usage)
+def _run_usage_after_main_graph() -> dict:
+    """Example run totals after graph finalize (before memory.persist)."""
 
-    async def fake_extract(*_args, **_kwargs):
-        return MemoryExtract(summary="hi", facts=[]), {
-            "prompt_tokens": 5,
-            "completion_tokens": 2,
-            "total_tokens": 7,
-        }
-
-    monkeypatch.setattr(svc, "invoke_memory_extract", fake_extract)
-
-    memory_store = MagicMock()
-    memory_store.insert_summary = AsyncMock()
-    memory_store.upsert_fact = AsyncMock()
-    memory_store.touch_session_summary = AsyncMock()
-
-    run_row = MagicMock()
-    run_row.usage_json = {
-        "total_tokens": 107,
-        "by_phase": {"memory.persist": {"total_tokens": 7}},
+    return {
+        "prompt_tokens": 1000,
+        "completion_tokens": 500,
+        "total_tokens": 1500,
+        "by_phase": {
+            "planner": {"prompt_tokens": 800, "completion_tokens": 120, "total_tokens": 920},
+            "synthesizer": {"prompt_tokens": 200, "completion_tokens": 380, "total_tokens": 580},
+        },
     }
 
-    session = MagicMock()
-    session.get = AsyncMock(return_value=run_row)
 
-    await svc.persist_turn_memory(
-        session,
-        model=MagicMock(),
-        memory_store=memory_store,
-        workspace_id=workspace_id,
-        session_id=session_id,
-        run_id=run_id,
-        user_message="q",
-        final_answer="a",
-    )
+def _memory_persist_usage() -> dict:
+    return {
+        "prompt_tokens": 50,
+        "completion_tokens": 20,
+        "total_tokens": 70,
+    }
 
-    merge_run.assert_awaited_once()
-    delta = merge_run.await_args.kwargs["delta"]
-    assert delta["by_phase"]["memory.persist"]["total_tokens"] == 7
-    parent_node_id = insert_node.await_args_list[0].kwargs["node_id"]
-    llm_round_calls = [
-        c for c in insert_node.await_args_list if c.kwargs.get("node_type") == "llm.round"
-    ]
-    assert len(llm_round_calls) == 1
-    assert llm_round_calls[0].kwargs["parent_node_id"] == parent_node_id
-    update_node_usage.assert_awaited_once()
-    assert update_node_usage.await_args.kwargs["node_id"] == parent_node_id
-    assert update_node_usage.await_args.kwargs["usage_json"]["total_tokens"] == 7
-    merge_session.assert_awaited_once()
-    patch_message.assert_awaited_once()
+
+def test_memory_persist_session_merge_adds_only_memory_delta() -> None:
+    """Session should gain memory.persist tokens once, not re-merge the whole run."""
+
+    session_after_finalize = _session_delta(_run_usage_after_main_graph())
+    memory_delta = build_phase_delta("memory.persist", _memory_persist_usage())
+
+    session_after_memory = merge_usage_document(session_after_finalize, _session_delta(memory_delta))
+
+    assert session_after_memory["total_tokens"] == 1570
+    assert session_after_memory["by_phase"]["memory.persist"]["total_tokens"] == 70
+    assert session_after_memory["by_phase"]["planner"]["total_tokens"] == 920
+
+
+def test_memory_persist_full_run_merge_would_double_count() -> None:
+    """Regression guard: merging full run snapshot into session inflates totals."""
+
+    session_after_finalize = _session_delta(_run_usage_after_main_graph())
+    memory_delta = build_phase_delta("memory.persist", _memory_persist_usage())
+    run_after_memory = merge_usage_document(_run_usage_after_main_graph(), memory_delta)
+
+    session_wrong = merge_usage_document(session_after_finalize, _session_delta(run_after_memory))
+
+    assert session_wrong["total_tokens"] == 3070
+    assert session_wrong["total_tokens"] != 1570

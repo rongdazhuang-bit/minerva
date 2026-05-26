@@ -388,6 +388,7 @@ html.minerva-tone-sunshine .agents-page__composer-input::-webkit-scrollbar-thumb
 .agents-page__process {
   max-height: 160px;
   overflow: auto;
+  overscroll-behavior: contain;
   font-family: ui-monospace, monospace;
   font-size: 11px;
   line-height: 1.45;
