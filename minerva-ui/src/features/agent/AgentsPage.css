@@ -385,6 +385,48 @@ html.minerva-tone-sunshine .agents-page__composer-input::-webkit-scrollbar-thumb
   flex-wrap: wrap;
 }
 
+.agents-page__thinking-mode-toggle {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: 1px solid rgb(148 163 184 / 0.35);
+  border-radius: var(--ant-border-radius, 6px);
+  background: transparent;
+  color: var(--minerva-ink-muted, #94a3b8);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.agents-page__thinking-mode-toggle:hover:not(:disabled) {
+  border-color: rgb(148 163 184 / 0.55);
+  color: var(--minerva-ink, #cbd5e1);
+}
+
+.agents-page__thinking-mode-toggle--active {
+  border-color: rgb(56 189 248 / 0.65);
+  background: rgb(56 189 248 / 0.14);
+  color: rgb(125 211 252);
+  box-shadow: 0 0 0 1px rgb(56 189 248 / 0.2);
+}
+
+.agents-page__thinking-mode-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+html.minerva-tone-sunshine .agents-page__thinking-mode-toggle--active {
+  border-color: rgb(14 165 233 / 0.55);
+  background: rgb(14 165 233 / 0.12);
+  color: rgb(2 132 199);
+  box-shadow: 0 0 0 1px rgb(14 165 233 / 0.18);
+}
+
 .agents-page__process {
   max-height: 160px;
   overflow: auto;

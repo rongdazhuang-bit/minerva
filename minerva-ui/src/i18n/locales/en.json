@@ -46,6 +46,7 @@
   "agents.modelReasoning": "Model reasoning",
   "agents.thinkingMode": "Thinking mode",
   "agents.reasoningTrace": "Reasoning · {{count}} tokens",
+  "agents.reasoningTracePlain": "Reasoning",
   "agents.processLoading": "Loading run trace",
   "agents.roleUser": "Me",
   "agents.roleAssistant": "Assistant",

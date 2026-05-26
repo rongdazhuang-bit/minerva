@@ -18,7 +18,6 @@ import {
   Popconfirm,
   Select,
   Spin,
-  Switch,
   Typography,
   type InputRef,
   type MenuProps,
@@ -44,6 +43,7 @@ import {
   formatReasoningSegmentLabel,
   formatSessionListDate,
   hasVisibleReasoning,
+  resolveReasoningTokenCount,
   isAgentMessageUuid,
   mergeAgentChatWithLocal,
   sessionListLabel,
@@ -525,7 +525,6 @@ export function AgentsPage() {
       userScrolledUpRef.current = false
       setStreaming(true)
       setTraceOpenKeys(['trace'])
-      setReasoningOpenKeys(['reasoning'])
 
       const ac = new AbortController()
       abortRef.current = ac
@@ -632,10 +631,12 @@ export function AgentsPage() {
             }
             if (ev.type === 'llm.reasoning.done') {
               const tokens = Number(ev.payload.reasoning_tokens ?? 0)
-              if (Number.isFinite(tokens) && tokens > 0) {
+              if (Number.isFinite(tokens)) {
                 setMessages((prev) =>
                   prev.map((m) =>
-                    m.id === asstId ? { ...m, reasoningTokens: tokens } : m,
+                    m.id === asstId
+                      ? { ...m, reasoningTokens: Math.trunc(tokens) }
+                      : m,
                   ),
                 )
               }
@@ -668,6 +669,7 @@ export function AgentsPage() {
                 )
               } else {
                 setTraceOpenKeys([])
+                setReasoningOpenKeys([])
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === asstId ? { ...m, content: m.content + text } : m,
@@ -677,6 +679,9 @@ export function AgentsPage() {
               return
             }
             if (ev.type === 'llm.usage' || ev.type === 'run.finished') {
+              if (ev.type === 'run.finished') {
+                setReasoningOpenKeys([])
+              }
               const raw =
                 ev.type === 'llm.usage'
                   ? (ev.payload.total_usage ?? ev.payload.usage)
@@ -704,6 +709,7 @@ export function AgentsPage() {
         }
       } finally {
         setStreaming(false)
+        setReasoningOpenKeys([])
         abortRef.current = null
         if (sid && workspaceId) {
           const syncSid = sid
@@ -849,11 +855,13 @@ export function AgentsPage() {
       if (!hasVisibleReasoning(m)) return null
       const isLatestAssistantCard = m.id === lastMessageId
       const segments = m.reasoningSegments ?? []
-      const tokenLabel = formatTokenNumber(
-        m.reasoningTokens ??
-          segments.reduce((sum, s) => sum + (s.reasoning_tokens ?? 0), 0),
-        i18n.language,
-      )
+      const reasoningTokenCount = resolveReasoningTokenCount(m)
+      const label =
+        reasoningTokenCount > 0
+          ? t('agents.reasoningTrace', {
+              count: formatTokenNumber(reasoningTokenCount, i18n.language),
+            })
+          : t('agents.reasoningTracePlain')
       return (
         <Collapse
           className="agents-page__trace agents-page__reasoning-trace"
@@ -866,9 +874,7 @@ export function AgentsPage() {
             {
               key: 'reasoning',
               label: (
-                <span style={{ fontSize: 12 }}>
-                  {t('agents.reasoningTrace', { count: tokenLabel })}
-                </span>
+                <span style={{ fontSize: 12 }}>{label}</span>
               ),
               children: (
                 <div className="agents-page__process">
@@ -1211,17 +1217,19 @@ export function AgentsPage() {
                   loading={modelsQuery.isFetching}
                   options={selectOptions}
                 />
-                <Flex align="center" gap={6} style={{ flexShrink: 0 }}>
-                  <Switch
-                    size="small"
-                    checked={thinkingEnabled}
-                    onChange={setThinkingEnabled}
-                    disabled={streaming || usableModels.length === 0}
-                  />
-                  <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-                    {t('agents.thinkingMode')}
-                  </Text>
-                </Flex>
+                <button
+                  type="button"
+                  className={
+                    thinkingEnabled
+                      ? 'agents-page__thinking-mode-toggle agents-page__thinking-mode-toggle--active'
+                      : 'agents-page__thinking-mode-toggle'
+                  }
+                  aria-pressed={thinkingEnabled}
+                  disabled={streaming || usableModels.length === 0}
+                  onClick={() => setThinkingEnabled((on) => !on)}
+                >
+                  {t('agents.thinkingMode')}
+                </button>
                 <Button
                   type="primary"
                   shape="circle"

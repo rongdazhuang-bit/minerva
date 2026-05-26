@@ -42,7 +42,7 @@ def test_agent_chat_model_factory_constructs_chat_openai(monkeypatch: pytest.Mon
 
             captured.update(kwargs)
 
-    monkeypatch.setattr("app.agent.infrastructure.chat_model_factory.ChatOpenAI", FakeChatOpenAI)
+    monkeypatch.setattr("app.agent.infrastructure.chat_model_factory.AgentChatOpenAI", FakeChatOpenAI)
 
     row, workspace_id = _model_row()
     model = ChatModelFactory.from_sys_model_row(row, workspace_id=workspace_id)
@@ -92,7 +92,7 @@ def test_agent_chat_model_factory_accepts_root_endpoint(monkeypatch: pytest.Monk
 
             captured.update(kwargs)
 
-    monkeypatch.setattr("app.agent.infrastructure.chat_model_factory.ChatOpenAI", FakeChatOpenAI)
+    monkeypatch.setattr("app.agent.infrastructure.chat_model_factory.AgentChatOpenAI", FakeChatOpenAI)
 
     row, workspace_id = _model_row(endpoint_url="https://example.com/v1/")
     ChatModelFactory.from_sys_model_row(row, workspace_id=workspace_id)
@@ -114,7 +114,7 @@ def test_agent_chat_model_factory_preserves_direct_endpoint_client() -> None:
 def test_chat_model_factory_injects_extra_body_when_thinking_enabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """When thinking is enabled with non-empty extra_body, ChatOpenAI gets model_kwargs."""
+    """When thinking is enabled with non-empty extra_body, AgentChatOpenAI gets extra_body."""
 
     captured: dict = {}
 
@@ -126,15 +126,15 @@ def test_chat_model_factory_injects_extra_body_when_thinking_enabled(
 
             captured.update(kwargs)
 
-    monkeypatch.setattr("app.agent.infrastructure.chat_model_factory.ChatOpenAI", FakeChatOpenAI)
+    monkeypatch.setattr("app.agent.infrastructure.chat_model_factory.AgentChatOpenAI", FakeChatOpenAI)
 
     row, workspace_id = _model_row()
     extra = {"enable_thinking": True, "thinking_budget": 1024}
     thinking = ThinkingConfig(enabled=True, extra_body=extra)
     ChatModelFactory.from_sys_model_row(row, workspace_id=workspace_id, thinking=thinking)
 
-    assert captured["model_kwargs"] == {"extra_body": dict(extra)}
-    assert captured["model_kwargs"]["extra_body"] is not thinking.extra_body
+    assert captured["extra_body"] == extra
+    assert captured["extra_body"] is not thinking.extra_body
 
 
 def test_agent_chat_model_factory_rejects_missing_api_key() -> None:

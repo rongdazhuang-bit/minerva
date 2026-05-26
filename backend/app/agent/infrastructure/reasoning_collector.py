@@ -8,6 +8,7 @@ from typing import Any, Callable, TypedDict
 from uuid import UUID
 
 from app.agent.domain.sse_v2 import AgentSseEventType, build_sse_event
+from app.agent.infrastructure.agent_chat_openai import extract_reasoning_from_provider_payload
 
 # Visible planner / executor phases that surface in UI and persisted message metadata.
 _VISIBLE_PHASES: frozenset[str] = frozenset({"planner", "subagent", "synthesizer"})
@@ -24,15 +25,17 @@ class ReasoningSegmentDict(TypedDict, total=False):
 
 
 def extract_reasoning_from_langchain_message(msg: Any) -> str:
-    """Return reasoning text embedded in LangChain message ``additional_kwargs``."""
+    """Return reasoning text from LangChain ``additional_kwargs`` or structured content blocks."""
 
     kwargs = getattr(msg, "additional_kwargs", None)
-    if not isinstance(kwargs, dict):
-        return ""
-    raw = kwargs.get("reasoning_content") or kwargs.get("reasoning")
-    if raw is None:
-        return ""
-    return str(raw)
+    if isinstance(kwargs, dict):
+        raw = kwargs.get("reasoning_content") or kwargs.get("reasoning")
+        if raw is not None:
+            return str(raw)
+    content = getattr(msg, "content", None)
+    if isinstance(content, list):
+        return extract_reasoning_from_provider_payload({"content": content})
+    return ""
 
 
 def extract_reasoning_from_langchain_chunk(chunk: Any) -> str:

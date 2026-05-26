@@ -46,6 +46,7 @@
   "agents.modelReasoning": "模型思考",
   "agents.thinkingMode": "思考模式",
   "agents.reasoningTrace": "思考过程 · {{count}} tokens",
+  "agents.reasoningTracePlain": "思考过程",
   "agents.processLoading": "加载运行记录",
   "agents.roleUser": "我",
   "agents.roleAssistant": "助手",

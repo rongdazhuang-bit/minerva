@@ -116,6 +116,15 @@ export function hasVisibleReasoning(m: AgentChatMsg): boolean {
   return Boolean((m.reasoning ?? '').trim())
 }
 
+/** Final reasoning token count from ``llm.reasoning.done`` / ``meta_json.reasoning.reasoning_tokens``. */
+export function resolveReasoningTokenCount(m: AgentChatMsg): number {
+  const direct = m.reasoningTokens
+  if (typeof direct === 'number' && Number.isFinite(direct) && direct >= 0) {
+    return Math.trunc(direct)
+  }
+  return 0
+}
+
 /** 将服务端消息与本地 UI 状态（推理、轨迹）按 id 或顺序合并。 */
 export function mergeAgentChatWithLocal(
   server: AgentChatMsg[],
@@ -135,7 +144,10 @@ export function mergeAgentChatWithLocal(
       sm.reasoningSegments && sm.reasoningSegments.length > 0
         ? sm.reasoningSegments
         : src?.reasoningSegments
-    const reasoningTokens = sm.reasoningTokens ?? src?.reasoningTokens
+    const reasoningTokens =
+      typeof sm.reasoningTokens === 'number'
+        ? sm.reasoningTokens
+        : src?.reasoningTokens
     return {
       ...sm,
       reasoning: sm.reasoning ?? src?.reasoning,
@@ -168,7 +180,18 @@ export function agentMessagesToChat(
     if (m.role === 'assistant' && !text) continue
     const usage = (m.meta_json as { usage?: unknown } | null | undefined)?.usage
     const totalTokens = extractTotalTokens(usage) ?? undefined
-    const reasoning = m.reasoning ?? undefined
+    const metaReasoning = (
+      m.meta_json as
+        | {
+            reasoning?: {
+              segments?: AgentReasoningSegment[]
+              reasoning_tokens?: number
+            }
+          }
+        | null
+        | undefined
+    )?.reasoning
+    const reasoning = m.reasoning ?? metaReasoning ?? undefined
     const segments = reasoning?.segments ?? []
     out.push({
       id: m.id,
@@ -177,7 +200,10 @@ export function agentMessagesToChat(
       totalTokens,
       reasoning: (m.reasoning_text ?? '').trim() || undefined,
       reasoningSegments: segments.length > 0 ? segments : undefined,
-      reasoningTokens: reasoning?.reasoning_tokens,
+      reasoningTokens:
+        typeof reasoning?.reasoning_tokens === 'number'
+          ? Math.trunc(reasoning.reasoning_tokens)
+          : undefined,
     })
   }
   return out

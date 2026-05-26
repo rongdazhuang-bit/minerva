@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_openai import ChatOpenAI
+from app.agent.infrastructure.agent_chat_openai import AgentChatOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.infrastructure.direct_endpoint_openai_client import (
@@ -62,8 +62,8 @@ class ChatModelFactory:
         if effective_max is not None:
             kwargs["max_tokens"] = effective_max
         if thinking and thinking.enabled and thinking.extra_body:
-            kwargs["model_kwargs"] = {"extra_body": dict(thinking.extra_body)}
-        return ChatOpenAI(**kwargs)
+            kwargs["extra_body"] = dict(thinking.extra_body)
+        return AgentChatOpenAI(**kwargs)
 
     @staticmethod
     async def get(
@@ -77,7 +77,7 @@ class ChatModelFactory:
     ) -> BaseChatModel:
         """Load ``SysModel`` from DB and return a chat model.
 
-        ``thinking`` 若非 ``None``，将合并进上游 ``ChatOpenAI`` 的 ``model_kwargs.extra_body``。
+        ``thinking`` 若非 ``None``，将合并进上游 ``AgentChatOpenAI`` 的 ``extra_body``。
         """
 
         row = await model_repo.get_for_workspace(
