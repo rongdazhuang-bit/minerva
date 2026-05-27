@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db
 from app.core.domain.identity.models import (
     Tenant,
+    TenantMembership,
     User,
     Workspace,
     WorkspaceMembership,
@@ -100,11 +101,19 @@ async def _issue_tokens(
     wrole = r.scalar_one_or_none()
     if wrole is None:
         raise AppError("auth.no_workspace_membership", "No workspace membership for user", 401)
+    tr = await session.execute(
+        select(TenantMembership.role).where(
+            TenantMembership.user_id == user_id,
+            TenantMembership.tenant_id == tenant_id,
+        )
+    )
+    trole = tr.scalar_one_or_none()
     access = create_access_token(
         user_id=user_id,
         tenant_id=tenant_id,
         workspace_id=workspace_id,
         workspace_role=wrole.value,
+        tenant_role=trole.value if trole is not None else None,
     )
     refresh = create_refresh_token(user_id=user_id, jti=jti)
     return (

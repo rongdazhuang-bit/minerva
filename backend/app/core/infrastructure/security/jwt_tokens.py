@@ -19,6 +19,7 @@ def create_access_token(
     tenant_id: uuid.UUID,
     workspace_id: uuid.UUID,
     workspace_role: str | None = None,
+    tenant_role: str | None = None,
 ) -> str:
     """Mint a short-lived access JWT including tenant/workspace context."""
 
@@ -34,6 +35,8 @@ def create_access_token(
     }
     if workspace_role:
         payload["wrole"] = workspace_role
+    if tenant_role:
+        payload["trole"] = tenant_role
     return jwt.encode(payload, settings.jwt_secret, algorithm=_ALGO)
 
 

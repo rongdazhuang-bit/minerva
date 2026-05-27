@@ -154,3 +154,17 @@ async def revoke_refresh_token_row(session: AsyncSession, jti: uuid.UUID) -> Non
     if row is not None and row.revoked_at is None:
         row.revoked_at = datetime.now(UTC)
         await session.commit()
+
+
+async def find_tenant_role_for_user(
+    session: AsyncSession, *, user_id: uuid.UUID, tenant_id: uuid.UUID
+) -> MembershipRole | None:
+    """Return the user's tenant role, or None if not a member."""
+
+    r = await session.execute(
+        select(TenantMembership.role).where(
+            TenantMembership.user_id == user_id,
+            TenantMembership.tenant_id == tenant_id,
+        )
+    )
+    return r.scalar_one_or_none()
