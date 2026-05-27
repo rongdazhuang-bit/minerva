@@ -38,7 +38,7 @@ Agent v2 不调用 `app.llm.ChatService` 或 `get_strategy()`，也不依赖 `pr
 ### 1.4 非目标（当前实现）
 
 - 向量数据库 / Embedding 检索
-- 用户上传自定义 Skill 包（仅内置 `skills/` 目录）
+- 技能包在线管理见 [2026-05-27-agent-skills-management-design.md](superpowers/specs/2026-05-27-agent-skills-management-design.md)（租户 owner/admin，全局 `skills/` 目录）
 - 旧版 SSE（OpenAI chunk + minerva v1）兼容
 
 ---
