@@ -1,0 +1,13 @@
+/** Full-height host for Monaco; pixel height is set via ResizeObserver in SkillFileEditor. */
+.skill-file-editor {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-height: 320px;
+  overflow: hidden;
+}
+
+.skill-file-editor .monaco-editor,
+.skill-file-editor .monaco-editor .overflow-guard {
+  border-radius: 0;
+}

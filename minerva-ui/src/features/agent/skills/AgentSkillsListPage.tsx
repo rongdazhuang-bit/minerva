@@ -7,7 +7,7 @@ import {
   LinkOutlined,
   UploadOutlined,
 } from '@ant-design/icons'
-import { Alert, Button, Card, Popconfirm, Space, Table, Typography, Upload } from 'antd'
+import { Alert, Button, Card, Popconfirm, Space, Table, Tooltip, Typography, Upload } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { UploadProps } from 'antd/es/upload/interface'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -109,6 +109,16 @@ export function AgentSkillsListPage() {
     },
   }
 
+  const openSkill = useCallback(
+    (skillId: string) => {
+      navigate(`/app/agents/skills/${encodeURIComponent(skillId)}`)
+    },
+    [navigate],
+  )
+
+  const enterLabel = t('agents.skills.enter', { defaultValue: '进入' })
+  const deleteLabel = t('agents.skills.deleteSkill', { defaultValue: '删除' })
+
   const columns: ColumnsType<SkillRegistryItem> = [
     {
       title: t('agents.skills.colId', { defaultValue: '技能 ID' }),
@@ -132,28 +142,38 @@ export function AgentSkillsListPage() {
     {
       title: t('agents.skills.colActions', { defaultValue: '操作' }),
       key: 'actions',
-      width: 160,
+      width: 88,
+      align: 'center',
       render: (_, row) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<FolderOpenOutlined />}
-            onClick={() => navigate(`/app/agents/skills/${encodeURIComponent(row.id)}`)}
-          >
-            {t('agents.skills.enter', { defaultValue: '进入' })}
-          </Button>
+        <Space size={2} onClick={(e) => e.stopPropagation()}>
+          <Tooltip title={enterLabel}>
+            <Button
+              type="text"
+              size="small"
+              icon={<FolderOpenOutlined />}
+              aria-label={enterLabel}
+              onClick={() => openSkill(row.id)}
+            />
+          </Tooltip>
           {canManageTenantSkills ? (
-            <Popconfirm
-              title={t('agents.skills.deleteSkillConfirm', {
-                defaultValue: '确定删除该技能包？此操作不可恢复。',
-              })}
-              onConfirm={() => void handleDelete(row.id)}
-            >
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-                {t('agents.skills.deleteSkill', { defaultValue: '删除' })}
-              </Button>
-            </Popconfirm>
+            <Tooltip title={deleteLabel}>
+              <span>
+                <Popconfirm
+                  title={t('agents.skills.deleteSkillConfirm', {
+                    defaultValue: '确定删除该技能包？此操作不可恢复。',
+                  })}
+                  onConfirm={() => void handleDelete(row.id)}
+                >
+                  <Button
+                    type="text"
+                    size="small"
+                    danger
+                    icon={<DeleteOutlined />}
+                    aria-label={deleteLabel}
+                  />
+                </Popconfirm>
+              </span>
+            </Tooltip>
           ) : null}
         </Space>
       ),
@@ -198,6 +218,10 @@ export function AgentSkillsListPage() {
             loading={loading}
             columns={columns}
             dataSource={pagedSkills}
+            onRow={(record) => ({
+              onClick: () => openSkill(record.id),
+              style: { cursor: 'pointer' },
+            })}
             pagination={{
               current: page,
               pageSize: DEFAULT_PAGE_SIZE,

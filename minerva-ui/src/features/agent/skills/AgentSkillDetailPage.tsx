@@ -211,6 +211,7 @@ export function AgentSkillDetailPage() {
             value={content}
             onChange={setContent}
             readOnly={!canManageTenantSkills}
+            layoutKey={mdTab}
           />
         </div>
       )
