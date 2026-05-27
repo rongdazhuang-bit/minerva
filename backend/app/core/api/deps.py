@@ -10,8 +10,12 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
-from app.core.domain.identity.models import MembershipRole, User
-from app.core.domain.identity.services import find_workspace_for_user, find_workspace_role_for_user
+from app.core.domain.identity.models import MembershipRole, User, Workspace
+from app.core.domain.identity.services import (
+    find_tenant_role_for_user,
+    find_workspace_for_user,
+    find_workspace_role_for_user,
+)
 from app.exceptions import AppError
 from app.core.infrastructure.security.jwt_tokens import decode_token
 
@@ -65,4 +69,28 @@ async def require_workspace_owner_or_admin(
         raise AppError("auth.forbidden", "Not a member of this workspace", 403)
     if role not in (MembershipRole.owner, MembershipRole.admin):
         raise AppError("auth.forbidden", "Only workspace owner/admin can manage model providers", 403)
+    return workspace_id
+
+
+async def require_tenant_owner_or_admin(
+    workspace_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> uuid.UUID:
+    """Ensure user is tenant owner or admin for the workspace's tenant."""
+
+    if not await find_workspace_for_user(
+        session, user_id=user.id, workspace_id=workspace_id
+    ):
+        raise AppError("auth.forbidden", "Not a member of this workspace", 403)
+    ws = await session.get(Workspace, workspace_id)
+    if ws is None:
+        raise AppError("auth.forbidden", "Workspace not found", 403)
+    role = await find_tenant_role_for_user(
+        session, user_id=user.id, tenant_id=ws.tenant_id
+    )
+    if role is None:
+        raise AppError("auth.forbidden", "Not a member of this tenant", 403)
+    if role not in (MembershipRole.owner, MembershipRole.admin):
+        raise AppError("skills.forbidden", "Only tenant owner/admin can manage skills", 403)
     return workspace_id
