@@ -1,0 +1,57 @@
+/** Agent skills list and INDEX registry layout (full-height card + editor). */
+.minerva-agent-skills-page {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.minerva-agent-skills-page__card {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--minerva-surface, #1a2836) !important;
+  border: 1px solid var(--minerva-border, #2a3f58) !important;
+  border-radius: 12px;
+  box-shadow: 0 6px 16px rgb(0 0 0 / 14%);
+}
+
+html.minerva-tone-sunshine .minerva-agent-skills-page__card {
+  background: var(--minerva-surface, #fff) !important;
+  box-shadow: 0 6px 16px rgb(15 23 42 / 8%);
+}
+
+.minerva-agent-skills-page__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.minerva-agent-skills-page__table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.minerva-agent-skills-page__registry {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.minerva-agent-skills-page__editor {
+  flex: 1 1 auto;
+  min-height: 320px;
+  border: 1px solid var(--minerva-border, #2a3f58);
+  border-radius: 8px;
+  overflow: hidden;
+}
