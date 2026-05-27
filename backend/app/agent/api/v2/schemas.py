@@ -137,3 +137,50 @@ class AgentRunCreateV2(BaseModel):
         default=None,
         description="是否开启思考模式；null 表示按 model_config / 全局默认。",
     )
+
+
+class SkillRegistryItemOut(BaseModel):
+    """One skill package row in the global skills registry."""
+
+    id: str
+    description: str
+    file_count: int
+
+
+class SkillRegistryOut(BaseModel):
+    """Indexed skills with on-disk file counts for the management UI."""
+
+    skills: list[SkillRegistryItemOut]
+
+
+class SkillFileTreeNodeOut(BaseModel):
+    """One node in a skill directory file tree."""
+
+    name: str
+    path: str
+    is_dir: bool
+    size: int | None = None
+    children: list["SkillFileTreeNodeOut"] = Field(default_factory=list)
+
+
+class SkillFileContentOut(BaseModel):
+    """UTF-8 text payload for one skill file."""
+
+    path: str
+    content: str
+
+
+class SkillFileWriteIn(BaseModel):
+    """Request body for saving an editable skill text file."""
+
+    content: str
+
+
+class SkillWriteResultOut(BaseModel):
+    """Result of a write that may have refreshed skill_loader caches."""
+
+    path: str
+    cache_reloaded: bool = True
+
+
+SkillFileTreeNodeOut.model_rebuild()

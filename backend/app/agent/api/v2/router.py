@@ -28,6 +28,7 @@ from app.agent.infrastructure.repository import (
 )
 from app.agent.infrastructure import repository as agent_repo
 from app.agent.infrastructure.skill_loader import list_indexed_skills
+from app.agent.api.v2.skills_mgmt_router import router as skills_mgmt_router
 from app.agent.service.agent_graph_run_service import (
     AgentGraphRunService,
     get_agent_graph_run_service,
@@ -39,6 +40,9 @@ from app.dependencies import get_db
 from app.exceptions import AppError
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/agent/v2", tags=["agent-v2"])
+
+router.include_router(skills_mgmt_router)
+
 
 @router.get("/skills", response_model=AgentSkillListOut)
 async def list_agent_skills(
