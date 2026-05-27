@@ -19,7 +19,7 @@ import {
   subscribeTokensUpdated,
 } from '@/api/tokenSession'
 
-type JwtPayload = { wid?: string; wrole?: string }
+type JwtPayload = { wid?: string; wrole?: string; trole?: string }
 
 function readWidFromToken(access: string | null): string | null {
   if (!access) return null
@@ -44,13 +44,30 @@ function readWorkspaceRoleFromToken(access: string | null): string | null {
   }
 }
 
+function readTenantRoleFromToken(access: string | null): string | null {
+  if (!access) return null
+  try {
+    const p = jwtDecode(access) as JwtPayload
+    const r = p.trole
+    if (r == null) return null
+    const s = String(r).trim()
+    return s === '' ? null : s
+  } catch {
+    return null
+  }
+}
+
 type AuthValue = {
   accessToken: string | null
   refreshToken: string | null
   workspaceId: string | null
   workspaceRole: string | null
+  /** Tenant role from JWT ``trole`` claim (null when absent or legacy token). */
+  tenantRole: string | null
   /** true when the current access token includes owner/admin for the active workspace. */
   isWorkspaceManager: boolean
+  /** true when ``trole`` is owner or admin (skills-mgmt and other tenant-wide admin UI). */
+  canManageTenantSkills: boolean
   isAuthenticated: boolean
   setTokens: (a: string, r: string) => void
   clear: () => void
@@ -101,10 +118,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => readWorkspaceRoleFromToken(accessToken),
     [accessToken],
   )
+  const tenantRole = useMemo(
+    () => readTenantRoleFromToken(accessToken),
+    [accessToken],
+  )
   const isWorkspaceManager = useMemo(() => {
     const r = workspaceRole?.toLowerCase()
     return r === 'owner' || r === 'admin'
   }, [workspaceRole])
+  const canManageTenantSkills = useMemo(() => {
+    const r = tenantRole?.toLowerCase()
+    return r === 'owner' || r === 'admin'
+  }, [tenantRole])
 
   const setTokens = useCallback((a: string, r: string) => {
     setStoredTokens(a, r)
@@ -126,7 +151,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshToken,
       workspaceId,
       workspaceRole,
+      tenantRole,
       isWorkspaceManager,
+      canManageTenantSkills,
       isAuthenticated: Boolean(accessToken),
       setTokens,
       clear,
@@ -136,7 +163,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshToken,
       workspaceId,
       workspaceRole,
+      tenantRole,
       isWorkspaceManager,
+      canManageTenantSkills,
       setTokens,
       clear,
     ],
