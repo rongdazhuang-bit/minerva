@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import logging
 import re
+import sys
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -95,6 +96,19 @@ def list_indexed_skills() -> tuple[IndexedSkill, ...]:
     """Cached skill registry from INDEX.md (order = planner routing priority)."""
 
     return tuple(parse_index_skill_entries())
+
+
+def invalidate_skill_cache(skill_id: str | None = None) -> bool:
+    """Clear cached skill index and optionally evict imported tools module."""
+
+    list_indexed_skills.cache_clear()
+    if not skill_id:
+        return True
+    sid = _normalize_skill_id(skill_id)
+    mod_name = f"app.agent.skills.{sid}.tools"
+    sys.modules.pop(mod_name, None)
+    importlib.invalidate_caches()
+    return True
 
 
 def list_indexed_skill_ids() -> list[str]:
