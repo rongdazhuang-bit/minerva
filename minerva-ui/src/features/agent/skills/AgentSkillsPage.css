@@ -55,3 +55,84 @@ html.minerva-tone-sunshine .minerva-agent-skills-page__card {
   border-radius: 8px;
   overflow: hidden;
 }
+
+.minerva-agent-skills-page__detail {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  gap: 16px;
+  overflow: hidden;
+}
+
+.minerva-agent-skills-page__tree {
+  flex: 0 0 280px;
+  min-width: 200px;
+  max-width: 360px;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--minerva-border, #2a3f58);
+  border-radius: 8px;
+}
+
+.minerva-agent-skills-page__tree-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.minerva-agent-skills-page__tree-inner {
+  background: transparent;
+}
+
+.minerva-agent-skills-page__main {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
+.minerva-agent-skills-page__main-spin {
+  flex: 1 1 auto;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-agent-skills-page__main-spin .ant-spin-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-agent-skills-page__md-tabs {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-agent-skills-page__md-tabs .ant-tabs-content,
+.minerva-agent-skills-page__md-tabs .ant-tabs-tabpane {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-agent-skills-page__preview {
+  flex: 1 1 auto;
+  min-height: 320px;
+  padding: 16px;
+  overflow: auto;
+  border: 1px solid var(--minerva-border, #2a3f58);
+  border-radius: 8px;
+}
+
+.minerva-agent-skills-page__binary-panel {
+  padding: 16px;
+  max-width: 560px;
+}
