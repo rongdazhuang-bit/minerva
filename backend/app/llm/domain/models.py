@@ -2,18 +2,9 @@
 
 from __future__ import annotations
 
-from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field
-
-
-class ProviderKind(str, Enum):
-    """Upstream vendor discriminator stored on HTTP requests."""
-
-    openai = "openai"
-    volcengine = "volcengine"
-    aliyun = "aliyun"
 
 
 class ChatMessage(BaseModel):
@@ -23,24 +14,69 @@ class ChatMessage(BaseModel):
     content: str
 
 
-class ChatCallParams(BaseModel):
-    """Normalized call parameters passed to a completion strategy.
+class TextChatCallParams(BaseModel):
+    """OpenAI Chat Completions call parameters (text and translate models)."""
 
-    ``messages`` follows the OpenAI Chat Completions shape (e.g. ``role`` + ``content``,
-    or ``tool_calls`` / ``tool`` roles). ``tools`` and ``tool_choice`` are optional and
-    omitted by legacy callers.
-    """
-
-    base_url: str = Field(
-        description="Full OpenAI-compatible chat completions URL configured for the model."
-    )
-    api_key: str
-    model: str
-    messages: list[dict[str, Any]] = Field(
-        default_factory=list,
-        description="OpenAI-style chat messages (plain or tool-calling shapes).",
-    )
+    messages: list[dict[str, Any]] = Field(default_factory=list)
     temperature: float | None = None
     max_tokens: int | None = None
+    top_p: float | None = None
+    n: int | None = None
+    stop: list[str] | str | None = None
+    presence_penalty: float | None = None
+    frequency_penalty: float | None = None
+    stream: bool = False
     tools: list[dict[str, Any]] | None = None
     tool_choice: str | dict[str, Any] | None = None
+
+
+class TextChatResult(BaseModel):
+    """Parsed OpenAI Chat Completions response."""
+
+    id: str | None = None
+    model: str | None = None
+    usage: dict[str, Any] | None = None
+    choices: list[dict[str, Any]] = Field(default_factory=list)
+    raw: dict[str, Any] = Field(default_factory=dict)
+
+    def assistant_text(self) -> str:
+        """Extract assistant text from the first choice, if present."""
+
+        if not self.choices:
+            return ""
+        message = self.choices[0].get("message") or {}
+        content = message.get("content")
+        return (content or "").strip() if isinstance(content, str) else ""
+
+
+class EmbeddingCallParams(BaseModel):
+    """OpenAI Embeddings API call parameters."""
+
+    input: str | list[str]
+    dimensions: int | None = None
+    encoding_format: str = "float"
+
+
+class EmbeddingResult(BaseModel):
+    """Parsed OpenAI Embeddings response."""
+
+    data: list[dict[str, Any]] = Field(default_factory=list)
+    model: str | None = None
+    usage: dict[str, Any] | None = None
+    raw: dict[str, Any] = Field(default_factory=dict)
+
+
+class RerankCallParams(BaseModel):
+    """OpenAI-compatible rerank call parameters."""
+
+    query: str
+    documents: list[str] = Field(min_length=1)
+    top_n: int | None = Field(default=None, ge=1)
+
+
+class RerankResult(BaseModel):
+    """Parsed OpenAI-compatible rerank response."""
+
+    id: str | None = None
+    results: list[dict[str, Any]] = Field(default_factory=list)
+    raw: dict[str, Any] = Field(default_factory=dict)
