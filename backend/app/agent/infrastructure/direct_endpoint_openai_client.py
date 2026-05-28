@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 from openai import AsyncOpenAI
 
-from app.llm.strategies.openai_compatible import normalize_openai_base_url
+from app.llm.strategies.http_common import normalize_openai_base_url
 
 _CHAT_COMPLETIONS_PATH = "/chat/completions"
 

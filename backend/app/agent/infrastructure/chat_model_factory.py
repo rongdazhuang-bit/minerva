@@ -13,7 +13,7 @@ from app.agent.infrastructure.direct_endpoint_openai_client import (
 )
 from app.agent.infrastructure.thinking_config import ThinkingConfig
 from app.exceptions import AppError
-from app.llm.strategies.openai_compatible import normalize_openai_base_url
+from app.llm.strategies.http_common import normalize_openai_base_url
 from app.sys.model_provider.domain.db.models import SysModel
 from app.sys.model_provider.infrastructure import repository as model_repo
 

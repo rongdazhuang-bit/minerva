@@ -9,7 +9,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.llm.domain.models import ChatMessage
-from app.llm.service.chat_service import chat_service
+from app.llm.service.llm_service import llm_service
 from app.exceptions import AppError
 from app.rule.domain.db.models import RuleBase
 from app.rule.domain.scope_triple import (
@@ -18,7 +18,6 @@ from app.rule.domain.scope_triple import (
 )
 from app.rule.infrastructure import repository as repo
 from app.rule.infrastructure import rule_config_prompt_repository as rcp_repo
-from app.sys.model_provider.domain.db.models import SysModel
 from app.sys.model_provider.service import model_provider_service as model_svc
 
 
@@ -158,44 +157,6 @@ async def delete_rule_base(
     await session.commit()
 
 
-def _normalize_auth_tag(raw: str) -> str:
-    s = raw.strip().upper()
-    aliases = {"NONE": "NONE", "API_KEY": "API_KEY", "BASIC": "BASIC"}
-    return aliases.get(s, s)
-
-
-def _api_key_for_model(model: SysModel) -> str:
-    tag = _normalize_auth_tag(model.auth_type or "")
-    if tag == "API_KEY":
-        key = (model.api_key or "").strip()
-        if not key:
-            raise AppError(
-                "model_provider.api_key_required",
-                "请先为所选模型配置 API Key",
-                422,
-            )
-        return key
-    if tag == "NONE":
-        return "-"
-    raise AppError(
-        "rule_base.polish.auth_not_supported",
-        "当前润色仅支持 API_KEY 或无鉴权（NONE）的模型接入",
-        422,
-    )
-
-
-def _openai_completion_text(payload: dict[str, Any]) -> str:
-    choices = payload.get("choices") or []
-    if not choices:
-        raise AppError("ai.polish.empty_choices", "模型未返回内容", 502)
-    msg = choices[0].get("message") or {}
-    content = msg.get("content")
-    if isinstance(content, str):
-        return content.strip()
-    if content is None:
-        raise AppError("ai.polish.empty_content", "模型返回内容为空", 502)
-    raise AppError("ai.polish.unexpected_content", "模型响应格式异常", 502)
-
 
 async def polish_review_rules(
     session: AsyncSession,
@@ -230,14 +191,6 @@ async def polish_review_rules(
             "所选模型已禁用，无法在润色流程中使用",
             422,
         )
-    endpoint = (model_row.endpoint_url or "").strip()
-    if not endpoint:
-        raise AppError(
-            "model_provider.endpoint_required",
-            "请先为所选模型配置连接地址（endpoint）",
-            422,
-        )
-    api_key = _api_key_for_model(model_row)
 
     system_parts: list[str] = []
     if (cfg.sys_prompt or "").strip():
@@ -255,14 +208,20 @@ async def polish_review_rules(
     mt = model_row.max_tokens_to_sample
     max_tokens = int(mt) if mt is not None else None
 
-    payload = await chat_service.complete(
-        base_url=endpoint.rstrip("/"),
-        api_key=api_key,
-        model=model_row.model_name.strip(),
+    result = await llm_service.complete_chat(
+        session,
+        workspace_id=workspace_id,
+        model_id=cfg.model_id,
         system_prompt=system_prompt or None,
         user_prompt=None,
         messages=msgs,
         temperature=None,
         max_tokens=max_tokens,
+        allowed_types=frozenset({"text"}),
     )
-    return _openai_completion_text(payload)
+    text = result.assistant_text()
+    if not result.choices:
+        raise AppError("ai.polish.empty_choices", "模型未返回内容", 502)
+    if not text:
+        raise AppError("ai.polish.empty_content", "模型返回内容为空", 502)
+    return text

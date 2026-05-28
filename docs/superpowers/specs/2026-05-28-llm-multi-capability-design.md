@@ -1,7 +1,7 @@
 # LLM 多能力入参/出参统一与 model_id 中心化设计
 
 **日期**：2026-05-28  
-**状态**：待实现  
+**状态**：已实现（2026-05-28）  
 **范围**：扩展 `backend/app/llm`，以「模型类型」策略封装文本（Chat Completions）、Embedding、Rerank 三类能力的入参/出参实体；翻译（translate）与文本共用 Chat 策略；对外 HTTP 按能力分路由；调用方统一传 `model_id`，服务端从 `sys_models` 解析凭证与 `endpoint_url`（完整 URL，不做路径拼接）；彻底移除 `base_url`/`api_key`/`model` 显式传参。
 
 ---

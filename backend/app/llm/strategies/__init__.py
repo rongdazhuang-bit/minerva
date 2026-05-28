@@ -1,34 +1,36 @@
-"""Register the unified OpenAI-compatible chat completion strategy."""
+"""LLM strategy registry."""
 
-from app.llm.domain.models import ProviderKind
-from app.llm.strategies.base import ChatCompletionStrategy
-from app.llm.strategies.openai_compatible import OpenAICompatibleStrategy
-from app.exceptions import AppError
+from app.llm.strategies.embedding import EmbeddingStrategy
+from app.llm.strategies.rerank import RerankStrategy
+from app.llm.strategies.text_chat import TextChatStrategy
+
+_TEXT_CHAT_STRATEGY = TextChatStrategy()
+_EMBEDDING_STRATEGY = EmbeddingStrategy()
+_RERANK_STRATEGY = RerankStrategy()
 
 __all__ = [
-    "ChatCompletionStrategy",
-    "OpenAICompatibleStrategy",
-    "get_strategy",
+    "EmbeddingStrategy",
+    "RerankStrategy",
+    "TextChatStrategy",
+    "get_embedding_strategy",
+    "get_rerank_strategy",
+    "get_text_chat_strategy",
 ]
 
-_OPENAI_COMPATIBLE_STRATEGY = OpenAICompatibleStrategy()
-_COMPATIBLE_PROVIDER_KINDS = frozenset(
-    {
-        ProviderKind.openai.value,
-        ProviderKind.volcengine.value,
-        ProviderKind.aliyun.value,
-    }
-)
+
+def get_text_chat_strategy() -> TextChatStrategy:
+    """Return singleton text chat strategy."""
+
+    return _TEXT_CHAT_STRATEGY
 
 
-def get_strategy(provider_kind: ProviderKind | str = ProviderKind.openai) -> ChatCompletionStrategy:
-    """Return the unified strategy for supported legacy provider values."""
+def get_embedding_strategy() -> EmbeddingStrategy:
+    """Return singleton embedding strategy."""
 
-    key = provider_kind.value if isinstance(provider_kind, ProviderKind) else provider_kind
-    if key not in _COMPATIBLE_PROVIDER_KINDS:
-        raise AppError(
-            "ai.provider.unknown",
-            f"Unknown provider_kind: {provider_kind!s}.",
-            400,
-        )
-    return _OPENAI_COMPATIBLE_STRATEGY
+    return _EMBEDDING_STRATEGY
+
+
+def get_rerank_strategy() -> RerankStrategy:
+    """Return singleton rerank strategy."""
+
+    return _RERANK_STRATEGY
