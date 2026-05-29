@@ -1,32 +1,64 @@
 /**
- * Serializes MinerU API options for persistence in `ocr_config`（键名与 MinerU 接口一致：snake_case）。
+ * Serializes MinerU self-hosted API options for persistence in `ocr_config` (snake_case keys).
  */
 
-/** 数据字典 OCR 类型项编码（TOOL_OCR）— MinerU。 */
+/** Dictionary item code for MinerU (TOOL_OCR). */
 export const MINERU_OCR_TYPE_CODE = 'MINERU'
 
-/** MinerU 支持的模型版本选项。 */
-export const MINERU_MODEL_VERSION_OPTIONS = ['pipeline', 'vlm', 'MinerU-HTML'] as const
+/** Default server-side output directory passed to MinerU ``/file_parse``. */
+export const MINERU_DEFAULT_OUTPUT_DIR = './output'
 
-/** 额外导出格式（markdown、json 为默认，仅需配置 docx / html / latex）。 */
-export const MINERU_EXTRA_FORMAT_OPTIONS = ['docx', 'html', 'latex'] as const
+/** MinerU parsing backend options (mineru-api). */
+export const MINERU_BACKEND_OPTIONS = [
+  'pipeline',
+  'hybrid-auto-engine',
+  'hybrid-http-client',
+  'vlm-auto-engine',
+  'vlm-http-client',
+] as const
 
-const SNAKE_BOOL_KEYS = ['is_ocr', 'enable_formula', 'enable_table', 'no_cache'] as const
+/** MinerU parse method options. */
+export const MINERU_PARSE_METHOD_OPTIONS = ['auto', 'txt', 'ocr'] as const
 
-/** 从表单 camelCase 读写的键与落库 snake_case 的对应。 */
+/** Common OCR language hints for MinerU pipeline/hybrid backends. */
+export const MINERU_LANG_OPTIONS = [
+  'ch',
+  'ch_server',
+  'ch_lite',
+  'en',
+  'korean',
+  'japan',
+  'chinese_cht',
+] as const
+
+const BOOL_STORAGE_KEYS = [
+  'formula_enable',
+  'table_enable',
+  'return_md',
+  'return_middle_json',
+  'return_model_output',
+  'return_content_list',
+  'return_images',
+  'response_format_zip',
+] as const
+
+/** Maps form camelCase keys to persisted snake_case keys. */
 const FORM_TO_STORAGE: Record<string, string> = {
-  isOcr: 'is_ocr',
-  enableFormula: 'enable_formula',
-  enableTable: 'enable_table',
-  language: 'language',
-  dataId: 'data_id',
-  callback: 'callback',
-  seed: 'seed',
-  extraFormats: 'extra_formats',
-  pageRanges: 'page_ranges',
-  modelVersion: 'model_version',
-  noCache: 'no_cache',
-  cacheTolerance: 'cache_tolerance',
+  outputDir: 'output_dir',
+  langList: 'lang_list',
+  backend: 'backend',
+  parseMethod: 'parse_method',
+  formulaEnable: 'formula_enable',
+  tableEnable: 'table_enable',
+  serverUrl: 'server_url',
+  returnMd: 'return_md',
+  returnMiddleJson: 'return_middle_json',
+  returnModelOutput: 'return_model_output',
+  returnContentList: 'return_content_list',
+  returnImages: 'return_images',
+  responseFormatZip: 'response_format_zip',
+  startPageId: 'start_page_id',
+  endPageId: 'end_page_id',
 }
 
 const STORAGE_TO_FORM: Record<string, string> = Object.fromEntries(
@@ -34,24 +66,40 @@ const STORAGE_TO_FORM: Record<string, string> = Object.fromEntries(
 )
 
 /**
- * MinerU 表单项默认值（未填则提交时不写入对应键，交由服务端默认值）。
+ * Default MinerU form slice aligned with backend ``FileParseFormOptions`` defaults.
  */
 export function defaultMineruFormValues(): Record<string, unknown> {
-  return {}
+  return {
+    outputDir: MINERU_DEFAULT_OUTPUT_DIR,
+    langList: ['ch'],
+    backend: 'hybrid-auto-engine',
+    parseMethod: 'auto',
+    formulaEnable: true,
+    tableEnable: true,
+    serverUrl: '',
+    returnMd: true,
+    returnMiddleJson: true,
+    returnModelOutput: false,
+    returnContentList: false,
+    returnImages: true,
+    responseFormatZip: true,
+    startPageId: 0,
+    endPageId: undefined,
+  }
 }
 
 function asBool(v: unknown): boolean | undefined {
   return v === true || v === false ? v : undefined
 }
 
-function asPositiveInt(v: unknown): number | undefined {
+function asNonNegativeInt(v: unknown): number | undefined {
   if (typeof v !== 'number' || Number.isNaN(v) || !Number.isFinite(v)) return undefined
   const n = Math.floor(v)
   return n >= 0 ? n : undefined
 }
 
 /**
- * 将已保存的 `ocr_config`（snake_case）映射为表单 `mineru` 片段（camelCase）。
+ * Maps stored `ocr_config` (snake_case) into form values under the `mineru` prefix.
  */
 export function ocrConfigToMineruFormValues(
   raw: Record<string, unknown> | null | undefined,
@@ -61,116 +109,114 @@ export function ocrConfigToMineruFormValues(
     return out
   }
 
-  for (const snake of SNAKE_BOOL_KEYS) {
-    const b = asBool(raw[snake])
-    if (b !== undefined) {
-      const fk = STORAGE_TO_FORM[snake]
-      if (fk) out[fk] = b
+  const outputDir = raw.output_dir
+  if (typeof outputDir === 'string' && outputDir.trim()) {
+    out.outputDir = outputDir.trim()
+  }
+
+  const langs = raw.lang_list
+  if (Array.isArray(langs)) {
+    const list = langs.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+    if (list.length > 0) {
+      out.langList = list
     }
   }
 
-  if (typeof raw.language === 'string' && raw.language.trim()) {
-    out.language = raw.language.trim()
-  }
   for (const [sk, fk] of [
-    ['data_id', 'dataId'],
-    ['callback', 'callback'],
-    ['seed', 'seed'],
-    ['page_ranges', 'pageRanges'],
-    ['model_version', 'modelVersion'],
+    ['backend', 'backend'],
+    ['parse_method', 'parseMethod'],
+    ['server_url', 'serverUrl'],
   ] as const) {
     const v = raw[sk]
-    if (typeof v === 'string' && v.trim()) {
+    if (typeof v === 'string') {
       out[fk] = v.trim()
     }
   }
 
-  const xf = raw.extra_formats
-  if (Array.isArray(xf)) {
-    const list = xf.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
-    if (list.length > 0) {
-      out.extraFormats = list
+  for (const sk of BOOL_STORAGE_KEYS) {
+    const b = asBool(raw[sk])
+    if (b !== undefined) {
+      const fk = STORAGE_TO_FORM[sk]
+      if (fk) out[fk] = b
     }
   }
 
-  const ct = asPositiveInt(raw.cache_tolerance)
-  if (ct !== undefined) {
-    out.cacheTolerance = ct
+  const start = asNonNegativeInt(raw.start_page_id)
+  if (start !== undefined) {
+    out.startPageId = start
+  }
+
+  const endRaw = raw.end_page_id
+  if (endRaw === null) {
+    out.endPageId = undefined
+  } else {
+    const end = asNonNegativeInt(endRaw)
+    if (end !== undefined) {
+      out.endPageId = end
+    }
   }
 
   return out
 }
 
 /**
- * 从 `mineru` 表单构建 `ocr_config`；无有效字段时返回 `null`。
+ * Builds `ocr_config` from `mineru` form values; always includes defaults for core fields.
  */
 export function mineruFormValuesToOcrConfig(
   mineru: Record<string, unknown> | undefined,
 ): Record<string, unknown> | null {
   if (!mineru || typeof mineru !== 'object') return null
 
+  const merged = { ...defaultMineruFormValues(), ...mineru }
   const out: Record<string, unknown> = {}
 
-  const isOcr = asBool(mineru.isOcr)
-  if (isOcr !== undefined) out.is_ocr = isOcr
+  const outputDir = merged.outputDir
+  out.output_dir =
+    typeof outputDir === 'string' && outputDir.trim()
+      ? outputDir.trim()
+      : MINERU_DEFAULT_OUTPUT_DIR
 
-  const ef = asBool(mineru.enableFormula)
-  if (ef !== undefined) out.enable_formula = ef
-
-  const et = asBool(mineru.enableTable)
-  if (et !== undefined) out.enable_table = et
-
-  const lang = mineru.language
-  if (typeof lang === 'string' && lang.trim()) {
-    out.language = lang.trim()
-  }
-
-  const dataId = mineru.dataId
-  if (typeof dataId === 'string' && dataId.trim()) {
-    out.data_id = dataId.trim().slice(0, 128)
-  }
-
-  const callback = mineru.callback
-  if (typeof callback === 'string' && callback.trim()) {
-    out.callback = callback.trim()
-  }
-
-  const seed = mineru.seed
-  if (typeof seed === 'string' && seed.trim()) {
-    out.seed = seed.trim().slice(0, 64)
-  }
-
-  const xf = mineru.extraFormats
-  if (Array.isArray(xf) && xf.length > 0) {
-    const allowed = new Set<string>(MINERU_EXTRA_FORMAT_OPTIONS)
-    const list = xf
-      .filter((x): x is string => typeof x === 'string' && allowed.has(x))
+  const langs = merged.langList
+  if (Array.isArray(langs) && langs.length > 0) {
+    const list = langs
+      .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
       .filter((x, i, a) => a.indexOf(x) === i)
-    if (list.length > 0) {
-      out.extra_formats = list
+    out.lang_list = list.length > 0 ? list : ['ch']
+  } else {
+    out.lang_list = ['ch']
+  }
+
+  const backend = merged.backend
+  out.backend =
+    typeof backend === 'string' && backend.trim()
+      ? backend.trim()
+      : 'hybrid-auto-engine'
+
+  const parseMethod = merged.parseMethod
+  out.parse_method =
+    typeof parseMethod === 'string' && parseMethod.trim() ? parseMethod.trim() : 'auto'
+
+  const serverUrl = merged.serverUrl
+  if (typeof serverUrl === 'string' && serverUrl.trim()) {
+    out.server_url = serverUrl.trim()
+  } else {
+    out.server_url = null
+  }
+
+  for (const sk of BOOL_STORAGE_KEYS) {
+    const fk = STORAGE_TO_FORM[sk]
+    if (!fk) continue
+    const b = asBool(merged[fk])
+    if (b !== undefined) {
+      out[sk] = b
     }
   }
 
-  const pageRanges = mineru.pageRanges
-  if (typeof pageRanges === 'string' && pageRanges.trim()) {
-    out.page_ranges = pageRanges.trim()
-  }
+  const start = asNonNegativeInt(merged.startPageId)
+  out.start_page_id = start !== undefined ? start : 0
 
-  const mv = mineru.modelVersion
-  if (typeof mv === 'string' && mv.trim()) {
-    const t = mv.trim()
-    if ((MINERU_MODEL_VERSION_OPTIONS as readonly string[]).includes(t)) {
-      out.model_version = t
-    }
-  }
+  const end = asNonNegativeInt(merged.endPageId)
+  out.end_page_id = end !== undefined ? end : null
 
-  const nc = asBool(mineru.noCache)
-  if (nc !== undefined) out.no_cache = nc
-
-  const ct = asPositiveInt(mineru.cacheTolerance)
-  if (ct !== undefined) {
-    out.cache_tolerance = ct
-  }
-
-  return Object.keys(out).length > 0 ? out : null
+  return out
 }

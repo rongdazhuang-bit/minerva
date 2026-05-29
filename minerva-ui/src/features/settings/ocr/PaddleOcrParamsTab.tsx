@@ -4,9 +4,10 @@ import { Fragment } from 'react'
 import type { ReactNode } from 'react'
 
 import {
-  MINERU_EXTRA_FORMAT_OPTIONS,
-  MINERU_MODEL_VERSION_OPTIONS,
+  MINERU_BACKEND_OPTIONS,
+  MINERU_LANG_OPTIONS,
   MINERU_OCR_TYPE_CODE,
+  MINERU_PARSE_METHOD_OPTIONS,
 } from './mineruParams'
 import { PADDLE_OCR_TYPE_CODE } from './paddleOcrParams'
 
@@ -254,123 +255,172 @@ type MineruFieldsProps = {
 }
 
 /**
- * MinerU 接口扩展参数表单（布局与 Paddle 一致：`Row`/`Col`、`triBoolSelect`、`allowClear`）。
+ * MinerU self-hosted API parameter form (layout aligned with Paddle).
  */
 export function MineruOcrParamsFields({ t }: MineruFieldsProps) {
   return (
     <Row gutter={[16, 0]}>
       <Col xs={24} sm={12}>
-        <Form.Item name={['mineru', 'isOcr']} label={t('settings.ocrMineru.isOcr')} tooltip={t('settings.ocrMineru.isOcrHint')}>
-          {triBoolSelect(t)}
+        <Form.Item
+          name={['mineru', 'outputDir']}
+          label={t('settings.ocrMineru.outputDir')}
+          tooltip={t('settings.ocrMineru.outputDirHint')}
+        >
+          <Input allowClear maxLength={512} placeholder="./output" />
         </Form.Item>
       </Col>
       <Col xs={24} sm={12}>
         <Form.Item
-          name={['mineru', 'enableFormula']}
-          label={t('settings.ocrMineru.enableFormula')}
-          tooltip={t('settings.ocrMineru.enableFormulaHint')}
+          name={['mineru', 'langList']}
+          label={t('settings.ocrMineru.langList')}
+          tooltip={t('settings.ocrMineru.langListHint')}
+        >
+          <Select
+            allowClear
+            mode="multiple"
+            optionFilterProp="label"
+            options={MINERU_LANG_OPTIONS.map((v) => ({ value: v, label: v }))}
+          />
+        </Form.Item>
+      </Col>
+      <Col xs={24} sm={12}>
+        <Form.Item
+          name={['mineru', 'backend']}
+          label={t('settings.ocrMineru.backend')}
+          tooltip={t('settings.ocrMineru.backendHint')}
+        >
+          <Select
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            options={MINERU_BACKEND_OPTIONS.map((v) => ({ value: v, label: v }))}
+          />
+        </Form.Item>
+      </Col>
+      <Col xs={24} sm={12}>
+        <Form.Item
+          name={['mineru', 'parseMethod']}
+          label={t('settings.ocrMineru.parseMethod')}
+          tooltip={t('settings.ocrMineru.parseMethodHint')}
+        >
+          <Select
+            allowClear
+            optionFilterProp="label"
+            options={MINERU_PARSE_METHOD_OPTIONS.map((v) => ({ value: v, label: v }))}
+          />
+        </Form.Item>
+      </Col>
+      <Col xs={24} sm={12}>
+        <Form.Item
+          name={['mineru', 'formulaEnable']}
+          label={t('settings.ocrMineru.formulaEnable')}
+          tooltip={t('settings.ocrMineru.formulaEnableHint')}
         >
           {triBoolSelect(t)}
         </Form.Item>
       </Col>
       <Col xs={24} sm={12}>
         <Form.Item
-          name={['mineru', 'enableTable']}
-          label={t('settings.ocrMineru.enableTable')}
-          tooltip={t('settings.ocrMineru.enableTableHint')}
+          name={['mineru', 'tableEnable']}
+          label={t('settings.ocrMineru.tableEnable')}
+          tooltip={t('settings.ocrMineru.tableEnableHint')}
         >
           {triBoolSelect(t)}
         </Form.Item>
       </Col>
       <Col xs={24} sm={12}>
-        <Form.Item name={['mineru', 'language']} label={t('settings.ocrMineru.language')} tooltip={t('settings.ocrMineru.languageHint')}>
-          <Input allowClear maxLength={32} placeholder="ch" />
-        </Form.Item>
-      </Col>
-      <Col xs={24} sm={12}>
         <Form.Item
-          name={['mineru', 'dataId']}
-          label={t('settings.ocrMineru.dataId')}
-          tooltip={t('settings.ocrMineru.dataIdHint')}
-          rules={[
-            {
-              pattern: /^[A-Za-z0-9._-]*$/,
-              message: t('settings.ocrMineru.dataIdPattern'),
-            },
-          ]}
-        >
-          <Input allowClear maxLength={128} />
-        </Form.Item>
-      </Col>
-      <Col xs={24} sm={12}>
-        <Form.Item name={['mineru', 'callback']} label={t('settings.ocrMineru.callback')} tooltip={t('settings.ocrMineru.callbackHint')}>
-          <Input allowClear maxLength={2048} />
-        </Form.Item>
-      </Col>
-      <Col xs={24} sm={12}>
-        <Form.Item
-          name={['mineru', 'seed']}
-          label={t('settings.ocrMineru.seed')}
-          tooltip={t('settings.ocrMineru.seedHint')}
-          dependencies={[['mineru', 'callback']]}
+          name={['mineru', 'serverUrl']}
+          label={t('settings.ocrMineru.serverUrl')}
+          tooltip={t('settings.ocrMineru.serverUrlHint')}
+          dependencies={[['mineru', 'backend']]}
           rules={[
             ({ getFieldValue }) => ({
               validator(_, value) {
-                const cb = getFieldValue(['mineru', 'callback']) as string | undefined
-                if (cb != null && String(cb).trim().length > 0) {
+                const backend = getFieldValue(['mineru', 'backend']) as string | undefined
+                if (backend != null && String(backend).includes('http-client')) {
                   if (value == null || String(value).trim().length === 0) {
-                    return Promise.reject(new Error(t('settings.ocrMineru.seedRequired')))
+                    return Promise.reject(new Error(t('settings.ocrMineru.serverUrlRequired')))
                   }
                 }
                 return Promise.resolve()
               },
             }),
-            {
-              pattern: /^[A-Za-z0-9_]*$/,
-              message: t('settings.ocrMineru.seedPattern'),
-            },
           ]}
         >
-          <Input allowClear maxLength={64} />
-        </Form.Item>
-      </Col>
-      <Col xs={24} sm={12}>
-        <Form.Item name={['mineru', 'extraFormats']} label={t('settings.ocrMineru.extraFormats')} tooltip={t('settings.ocrMineru.extraFormatsHint')}>
-          <Select
-            allowClear
-            mode="multiple"
-            optionFilterProp="label"
-            options={MINERU_EXTRA_FORMAT_OPTIONS.map((v) => ({ value: v, label: v }))}
-          />
+          <Input allowClear maxLength={2048} placeholder="http://127.0.0.1:30000" />
         </Form.Item>
       </Col>
       <Col xs={24} sm={12}>
         <Form.Item
-          name={['mineru', 'pageRanges']}
-          label={t('settings.ocrMineru.pageRanges')}
-          tooltip={t('settings.ocrMineru.pageRangesHint')}
+          name={['mineru', 'returnMd']}
+          label={t('settings.ocrMineru.returnMd')}
+          tooltip={t('settings.ocrMineru.returnMdHint')}
         >
-          <Input allowClear maxLength={512} placeholder="1-200" />
-        </Form.Item>
-      </Col>
-      <Col xs={24} sm={12}>
-        <Form.Item name={['mineru', 'modelVersion']} label={t('settings.ocrMineru.modelVersion')} tooltip={t('settings.ocrMineru.modelVersionHint')}>
-          <Select
-            allowClear
-            optionFilterProp="label"
-            showSearch
-            options={MINERU_MODEL_VERSION_OPTIONS.map((v) => ({ value: v, label: v }))}
-          />
-        </Form.Item>
-      </Col>
-      <Col xs={24} sm={12}>
-        <Form.Item name={['mineru', 'noCache']} label={t('settings.ocrMineru.noCache')} tooltip={t('settings.ocrMineru.noCacheHint')}>
           {triBoolSelect(t)}
         </Form.Item>
       </Col>
       <Col xs={24} sm={12}>
-        <Form.Item name={['mineru', 'cacheTolerance']} label={t('settings.ocrMineru.cacheTolerance')} tooltip={t('settings.ocrMineru.cacheToleranceHint')}>
-          <InputNumber style={{ width: '100%' }} min={0} precision={0} placeholder="900" />
+        <Form.Item
+          name={['mineru', 'returnMiddleJson']}
+          label={t('settings.ocrMineru.returnMiddleJson')}
+          tooltip={t('settings.ocrMineru.returnMiddleJsonHint')}
+        >
+          {triBoolSelect(t)}
+        </Form.Item>
+      </Col>
+      <Col xs={24} sm={12}>
+        <Form.Item
+          name={['mineru', 'returnModelOutput']}
+          label={t('settings.ocrMineru.returnModelOutput')}
+          tooltip={t('settings.ocrMineru.returnModelOutputHint')}
+        >
+          {triBoolSelect(t)}
+        </Form.Item>
+      </Col>
+      <Col xs={24} sm={12}>
+        <Form.Item
+          name={['mineru', 'returnContentList']}
+          label={t('settings.ocrMineru.returnContentList')}
+          tooltip={t('settings.ocrMineru.returnContentListHint')}
+        >
+          {triBoolSelect(t)}
+        </Form.Item>
+      </Col>
+      <Col xs={24} sm={12}>
+        <Form.Item
+          name={['mineru', 'returnImages']}
+          label={t('settings.ocrMineru.returnImages')}
+          tooltip={t('settings.ocrMineru.returnImagesHint')}
+        >
+          {triBoolSelect(t)}
+        </Form.Item>
+      </Col>
+      <Col xs={24} sm={12}>
+        <Form.Item
+          name={['mineru', 'responseFormatZip']}
+          label={t('settings.ocrMineru.responseFormatZip')}
+          tooltip={t('settings.ocrMineru.responseFormatZipHint')}
+        >
+          {triBoolSelect(t)}
+        </Form.Item>
+      </Col>
+      <Col xs={24} sm={12}>
+        <Form.Item
+          name={['mineru', 'startPageId']}
+          label={t('settings.ocrMineru.startPageId')}
+          tooltip={t('settings.ocrMineru.startPageIdHint')}
+        >
+          <InputNumber style={{ width: '100%' }} min={0} precision={0} />
+        </Form.Item>
+      </Col>
+      <Col xs={24} sm={12}>
+        <Form.Item
+          name={['mineru', 'endPageId']}
+          label={t('settings.ocrMineru.endPageId')}
+          tooltip={t('settings.ocrMineru.endPageIdHint')}
+        >
+          <InputNumber style={{ width: '100%' }} min={0} precision={0} />
         </Form.Item>
       </Col>
     </Row>
@@ -465,23 +515,29 @@ export function MineruOcrParamsReadonly({
   values: Record<string, unknown>
   t: TFunction
 }) {
+  const boolFields = [
+    ['formulaEnable', 'settings.ocrMineru.formulaEnable'],
+    ['tableEnable', 'settings.ocrMineru.tableEnable'],
+    ['returnMd', 'settings.ocrMineru.returnMd'],
+    ['returnMiddleJson', 'settings.ocrMineru.returnMiddleJson'],
+    ['returnModelOutput', 'settings.ocrMineru.returnModelOutput'],
+    ['returnContentList', 'settings.ocrMineru.returnContentList'],
+    ['returnImages', 'settings.ocrMineru.returnImages'],
+    ['responseFormatZip', 'settings.ocrMineru.responseFormatZip'],
+  ] as const
   const items: ReadonlyParamItem[] = [
-    { key: 'isOcr', label: t('settings.ocrMineru.isOcr'), value: values.isOcr },
-    { key: 'enableFormula', label: t('settings.ocrMineru.enableFormula'), value: values.enableFormula },
-    { key: 'enableTable', label: t('settings.ocrMineru.enableTable'), value: values.enableTable },
-    { key: 'language', label: t('settings.ocrMineru.language'), value: values.language },
-    { key: 'dataId', label: t('settings.ocrMineru.dataId'), value: values.dataId },
-    { key: 'callback', label: t('settings.ocrMineru.callback'), value: values.callback },
-    { key: 'seed', label: t('settings.ocrMineru.seed'), value: values.seed },
-    { key: 'extraFormats', label: t('settings.ocrMineru.extraFormats'), value: values.extraFormats },
-    { key: 'pageRanges', label: t('settings.ocrMineru.pageRanges'), value: values.pageRanges },
-    { key: 'modelVersion', label: t('settings.ocrMineru.modelVersion'), value: values.modelVersion },
-    { key: 'noCache', label: t('settings.ocrMineru.noCache'), value: values.noCache },
+    { key: 'outputDir', label: t('settings.ocrMineru.outputDir'), value: values.outputDir },
+    { key: 'langList', label: t('settings.ocrMineru.langList'), value: values.langList },
+    { key: 'backend', label: t('settings.ocrMineru.backend'), value: values.backend },
+    { key: 'parseMethod', label: t('settings.ocrMineru.parseMethod'), value: values.parseMethod },
+    ...boolFields.map(([key, labelKey]) => ({ key, label: t(labelKey), value: values[key] })),
+    { key: 'serverUrl', label: t('settings.ocrMineru.serverUrl'), value: values.serverUrl },
     {
-      key: 'cacheTolerance',
-      label: t('settings.ocrMineru.cacheTolerance'),
-      value: values.cacheTolerance,
+      key: 'startPageId',
+      label: t('settings.ocrMineru.startPageId'),
+      value: values.startPageId,
     },
+    { key: 'endPageId', label: t('settings.ocrMineru.endPageId'), value: values.endPageId },
   ]
   return <OcrParamsReadonlyDescriptions items={items} t={t} />
 }

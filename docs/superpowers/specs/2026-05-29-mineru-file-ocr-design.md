@@ -1,7 +1,7 @@
 # MinerU 文件 OCR（配置 + 同步 `/file_parse`）设计说明
 
 **日期**：2026-05-29  
-**状态**：待实现  
+**状态**：已实现（2026-05-29 按代码回填）  
 **依据**：[MinerU Quick Usage — FastAPI](https://opendatalab.github.io/MinerU/usage/quick_usage/)（`POST /file_parse`、`POST /tasks`）；仓库内 Paddle 参考：`backend/app/file_ocr/service/strategies/paddle.py`、`backend/app/ocr/paddleocr/`、`minerva-ui/src/features/settings/ocr/paddleOcrParams.ts`。
 
 ---
@@ -233,18 +233,19 @@ backend/app/file_ocr/service/
 
 ---
 
-## 11. 实现对照（待回填）
+## 11. 实现对照（以代码为准，2026-05-29）
 
-| spec 条目 | 计划代码位置 | 备注 |
-|-----------|--------------|------|
-| MinerU HTTP 客户端 | `backend/app/ocr/mineru/` | 新建 |
-| form 合并 | `backend/app/file_ocr/service/mineru_ocr_request.py` | 新建 |
-| 响应解析 | `backend/app/file_ocr/service/mineru_result_parse.py` | 新建 |
-| 写策略 | `backend/app/file_ocr/service/strategies/mineru.py` | 替换占位 |
-| 扫描白名单 | `backend/app/file_ocr/constants.py` | 加 MINERU |
-| 设置页参数 | `mineruParams.ts`、`PaddleOcrParamsTab.tsx`、i18n | 替换 |
-| 异步 `/tasks` | `strategies/mineru.py` 分支 | 仅占位 |
-| LDM layout | — | 非本期 |
+| spec 条目 | 代码位置 | 备注 |
+|-----------|----------|------|
+| MinerU HTTP 客户端 | `backend/app/ocr/mineru/` | `client.py`、`errors.py`、`schemas.py` |
+| form 合并 | `backend/app/file_ocr/service/mineru_ocr_request.py` | `build_file_parse_form_for_tool`、`resolve_mineru_url_mode` |
+| 响应解析 | `backend/app/file_ocr/service/mineru_result_parse.py` | ZIP/JSON → `MineruPageResult` |
+| 写策略 | `backend/app/file_ocr/service/strategies/mineru.py` | 同步 `/file_parse` 全流程 |
+| 扫描白名单 | `backend/app/file_ocr/constants.py` | `MINERU` 已加入 |
+| 设置页参数 | `mineruParams.ts`、`PaddleOcrParamsTab.tsx`、i18n | 16 项参数 |
+| 单测 | `backend/tests/test_mineru_*.py` | request/parse/client/strategy |
+| 异步 `/tasks` | `strategies/mineru.py` | 占位 `NotImplementedError` |
+| LDM layout | — | 非本期，`layout_blocks_json` 恒为 null |
 
 ---
 
