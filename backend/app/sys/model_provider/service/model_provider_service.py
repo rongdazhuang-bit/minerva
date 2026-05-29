@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.exceptions import AppError
 from app.rule.domain.db.models import RuleConfigPrompt
 from app.sys.dict.service import dictionary_service as dict_service
+from app.sys.model_provider.domain.constants import MODEL_TAG_DICT_CODE
 from app.sys.model_provider.domain.db.models import SysModel
 from app.sys.model_provider.infrastructure import repository as repo
 
@@ -68,7 +69,7 @@ def _assert_auth_fields(
 async def _load_dict_code_set(
     session: AsyncSession, *, workspace_id: uuid.UUID, dict_code: str
 ) -> set[str]:
-    """字典项 code（key）集合，用于 provider_name、model_type 等按编码落库的字段。"""
+    """字典项 code（key）集合，用于 provider_name、tags 等按编码落库的字段。"""
     items = await dict_service.list_items_by_dict_code(
         session, workspace_id=workspace_id, dict_code=dict_code
     )
@@ -81,12 +82,44 @@ async def _load_dict_code_set(
     return {i.code.strip() for i in items if (i.code or "").strip()}
 
 
+async def normalize_tags(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    tags: list[str] | None,
+) -> list[str]:
+    """Strip, dedupe, sort, and validate tags against the MODEL_TAG dictionary."""
+
+    if not tags:
+        raise AppError("model_provider.tags_required", "tags is required", 422)
+    cleaned: list[str] = []
+    seen: set[str] = set()
+    for raw in tags:
+        code = str(raw).strip()
+        if not code or code in seen:
+            continue
+        seen.add(code)
+        cleaned.append(code)
+    if not cleaned:
+        raise AppError("model_provider.tags_required", "tags is required", 422)
+    allowed = await _load_dict_code_set(
+        session, workspace_id=workspace_id, dict_code=MODEL_TAG_DICT_CODE
+    )
+    invalid = [c for c in cleaned if c not in allowed]
+    if invalid:
+        raise AppError(
+            "model_provider.tag_invalid",
+            f"Invalid tag codes: {', '.join(invalid)}",
+            422,
+        )
+    return sorted(cleaned)
+
+
 async def _validate_model_fields(
     session: AsyncSession,
     *,
     workspace_id: uuid.UUID,
     provider_name: str,
-    model_type: str,
     auth_type: str,
     api_key: str | None,
     auth_name: str | None,
@@ -98,12 +131,6 @@ async def _validate_model_fields(
     )
     if provider_name.strip() not in allowed_providers:
         raise AppError("model_provider.provider_name_invalid", "Invalid provider_name", 422)
-
-    allowed_types = await _load_dict_code_set(
-        session, workspace_id=workspace_id, dict_code="MODEL_TYPE"
-    )
-    if model_type.strip() not in allowed_types:
-        raise AppError("model_provider.model_type_invalid", "Invalid model_type", 422)
 
     _assert_auth_fields(
         auth_type=auth_type,
@@ -141,19 +168,20 @@ async def create_model(
         session,
         workspace_id=workspace_id,
         provider_name=str(data["provider_name"]),
-        model_type=str(data["model_type"]),
         auth_type=str(data["auth_type"]),
         api_key=data.get("api_key"),
         auth_name=data.get("auth_name"),
         auth_passwd=data.get("auth_passwd"),
         strict_auth=True,
     )
+    data["tags"] = await normalize_tags(
+        session, workspace_id=workspace_id, tags=data.get("tags")
+    )
     now = _utc_now()
     row = SysModel(
         workspace_id=workspace_id,
         provider_name=str(data["provider_name"]).strip(),
         model_name=str(data["model_name"]).strip(),
-        model_type=str(data["model_type"]).strip(),
         enabled=bool(data["enabled"]),
         load_balancing_enabled=bool(data["load_balancing_enabled"]),
         auth_type=_normalize_model_auth_type(str(data["auth_type"])),
@@ -164,6 +192,7 @@ async def create_model(
         context_size=data.get("context_size"),
         max_tokens_to_sample=data.get("max_tokens_to_sample"),
         model_config=data.get("model_config"),
+        tags=data["tags"],
         create_at=now,
         update_at=now,
     )
@@ -181,6 +210,10 @@ async def update_model(
     patch: dict[str, Any],
 ) -> SysModel:
     row = await get_model(session, workspace_id=workspace_id, model_id=model_id)
+    if "tags" in patch:
+        patch["tags"] = await normalize_tags(
+            session, workspace_id=workspace_id, tags=patch.get("tags")
+        )
     for key, value in patch.items():
         if key == "auth_type" and isinstance(value, str):
             setattr(row, key, _normalize_model_auth_type(value))
@@ -190,7 +223,6 @@ async def update_model(
         session,
         workspace_id=workspace_id,
         provider_name=row.provider_name,
-        model_type=row.model_type,
         auth_type=row.auth_type,
         api_key=row.api_key,
         auth_name=row.auth_name,

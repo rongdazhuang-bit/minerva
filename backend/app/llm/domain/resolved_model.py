@@ -6,9 +6,9 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-CHAT_MODEL_TYPES = frozenset({"text", "translate"})
-EMBEDDING_MODEL_TYPES = frozenset({"embedding"})
-RERANK_MODEL_TYPES = frozenset({"rerank"})
+CHAT_MODEL_TAGS = frozenset({"TEXT", "TRANSLATE"})
+EMBEDDING_MODEL_TAGS = frozenset({"EMBEDDINGS"})
+RERANK_MODEL_TAGS = frozenset({"RERANKING"})
 
 
 class ResolvedModel(BaseModel):
@@ -16,6 +16,5 @@ class ResolvedModel(BaseModel):
 
     model_id: UUID
     model_name: str = Field(description="Upstream model field sent to the provider.")
-    model_type: str
     endpoint_url: str = Field(description="Full provider URL; used as POST target.")
     api_key: str

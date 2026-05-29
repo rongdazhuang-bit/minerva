@@ -1,7 +1,7 @@
 # 移除 model_type，全链路改用 tags 设计
 
 **日期**：2026-05-29  
-**状态**：已定稿（brainstorming）  
+**状态**：已实现（2026-05-29）  
 **范围**：模型供应商 UI/API 删除 `model_type`；删除 `sys_models.model_type` 列；所有选模/校验从 `model_type` 相等改为 `tags` 包含（必要时排除）；`app/agent` 与 `app/llm` 各自实现 tag 校验，互不耦合。
 
 **关联文档**：

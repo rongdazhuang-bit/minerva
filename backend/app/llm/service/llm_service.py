@@ -23,9 +23,9 @@ from app.llm.domain.models import (
     TextChatResult,
 )
 from app.llm.domain.resolved_model import (
-    CHAT_MODEL_TYPES,
-    EMBEDDING_MODEL_TYPES,
-    RERANK_MODEL_TYPES,
+    CHAT_MODEL_TAGS,
+    EMBEDDING_MODEL_TAGS,
+    RERANK_MODEL_TAGS,
 )
 from app.llm.service.model_resolver import resolve_model
 from app.llm.strategies import (
@@ -109,7 +109,8 @@ class LlmService:
         frequency_penalty: float | None = None,
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | dict[str, Any] | None = None,
-        allowed_types: frozenset[str] = CHAT_MODEL_TYPES,
+        allowed_tags: frozenset[str] = CHAT_MODEL_TAGS,
+        excluded_tags: frozenset[str] | None = None,
     ) -> TextChatResult:
         """Non-streaming chat completion for text or translate models."""
 
@@ -117,7 +118,8 @@ class LlmService:
             session,
             workspace_id=workspace_id,
             model_id=model_id,
-            allowed_types=allowed_types,
+            allowed_tags=allowed_tags,
+            excluded_tags=excluded_tags,
         )
         params = TextChatCallParams(
             messages=build_openai_messages(
@@ -161,7 +163,8 @@ class LlmService:
         frequency_penalty: float | None = None,
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | dict[str, Any] | None = None,
-        allowed_types: frozenset[str] = CHAT_MODEL_TYPES,
+        allowed_tags: frozenset[str] = CHAT_MODEL_TAGS,
+        excluded_tags: frozenset[str] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """Yield upstream chat chunks (no retry)."""
 
@@ -169,7 +172,8 @@ class LlmService:
             session,
             workspace_id=workspace_id,
             model_id=model_id,
-            allowed_types=allowed_types,
+            allowed_tags=allowed_tags,
+            excluded_tags=excluded_tags,
         )
         params = TextChatCallParams(
             messages=build_openai_messages(
@@ -210,7 +214,8 @@ class LlmService:
         frequency_penalty: float | None = None,
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | dict[str, Any] | None = None,
-        allowed_types: frozenset[str] = CHAT_MODEL_TYPES,
+        allowed_tags: frozenset[str] = CHAT_MODEL_TAGS,
+        excluded_tags: frozenset[str] | None = None,
     ) -> AsyncIterator[bytes]:
         """Emit SSE-formatted data lines ending with ``[DONE]``."""
 
@@ -230,7 +235,8 @@ class LlmService:
             frequency_penalty=frequency_penalty,
             tools=tools,
             tool_choice=tool_choice,
-            allowed_types=allowed_types,
+            allowed_tags=allowed_tags,
+            excluded_tags=excluded_tags,
         ):
             payload = orjson.dumps(chunk)
             yield b"data: " + payload + b"\n\n"
@@ -250,7 +256,7 @@ class LlmService:
             session,
             workspace_id=workspace_id,
             model_id=model_id,
-            allowed_types=EMBEDDING_MODEL_TYPES,
+            allowed_tags=EMBEDDING_MODEL_TAGS,
         )
         strategy = get_embedding_strategy()
 
@@ -273,7 +279,7 @@ class LlmService:
             session,
             workspace_id=workspace_id,
             model_id=model_id,
-            allowed_types=RERANK_MODEL_TYPES,
+            allowed_tags=RERANK_MODEL_TAGS,
         )
         strategy = get_rerank_strategy()
 

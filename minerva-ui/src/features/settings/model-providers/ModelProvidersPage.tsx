@@ -16,6 +16,7 @@ import {
   Spin,
   Switch,
   Table,
+  Tag,
   Typography,
   type DescriptionsProps,
 } from 'antd'
@@ -50,13 +51,13 @@ import './ModelProvidersPage.css'
 const { Paragraph, Text } = Typography
 
 const DICT_CODE_PROVIDER = 'MODEL_PROVIDER'
-const DICT_CODE_MODEL_TYPE = 'MODEL_TYPE'
 const DICT_CODE_AUTH = 'AUTH_TYPE'
+const DICT_CODE_MODEL_TAG = 'MODEL_TAG'
 
 type FormValues = {
   provider_name?: string
   model_name: string
-  model_type: string
+  tags?: string[]
   enabled: boolean
   load_balancing_enabled: boolean
   auth_type?: string
@@ -105,7 +106,7 @@ function detailToFormValues(detail: ModelProviderDetail, omitPassword: boolean):
   return {
     provider_name: detail.provider_name,
     model_name: detail.model_name,
-    model_type: detail.model_type,
+    tags: detail.tags ?? [],
     enabled: detail.enabled,
     load_balancing_enabled: detail.load_balancing_enabled,
     auth_type: authType,
@@ -139,8 +140,8 @@ export function ModelProvidersPage() {
   const [editingBase, setEditingBase] = useState<ModelProviderDetail | null>(null)
 
   const [providerItems, setProviderItems] = useState<SysDictItem[]>([])
-  const [typeItems, setTypeItems] = useState<SysDictItem[]>([])
   const [authItems, setAuthItems] = useState<SysDictItem[]>([])
+  const [tagItems, setTagItems] = useState<SysDictItem[]>([])
   const [dictLoading, setDictLoading] = useState(false)
 
   const [viewOpen, setViewOpen] = useState(false)
@@ -155,20 +156,20 @@ export function ModelProvidersPage() {
     try {
       const dicts = await listAllDicts(workspaceId)
       const p = dicts.find((d) => d.dict_code === DICT_CODE_PROVIDER)
-      const m = dicts.find((d) => d.dict_code === DICT_CODE_MODEL_TYPE)
       const a = dicts.find((d) => d.dict_code === DICT_CODE_AUTH)
-      const [pRows, mRows, aRows] = await Promise.all([
+      const tg = dicts.find((d) => d.dict_code === DICT_CODE_MODEL_TAG)
+      const [pRows, aRows, tgRows] = await Promise.all([
         p ? listDictItems(workspaceId, p.id) : Promise.resolve([] as SysDictItem[]),
-        m ? listDictItems(workspaceId, m.id) : Promise.resolve([] as SysDictItem[]),
         a ? listDictItems(workspaceId, a.id) : Promise.resolve([] as SysDictItem[]),
+        tg ? listDictItems(workspaceId, tg.id) : Promise.resolve([] as SysDictItem[]),
       ])
       setProviderItems(pRows)
-      setTypeItems(mRows)
       setAuthItems(aRows)
+      setTagItems(tgRows)
     } catch {
       setProviderItems([])
-      setTypeItems([])
       setAuthItems([])
+      setTagItems([])
     } finally {
       setDictLoading(false)
     }
@@ -295,43 +296,34 @@ export function ModelProvidersPage() {
     return baseProviderOptions
   }, [baseProviderOptions, open, watchedProviderName, resolveProviderLabel])
 
-  const modelTypeOptions = useMemo(() => {
-    const sorted = sortDictItems(typeItems)
+  const tagOptions = useMemo(() => {
+    const sorted = sortDictItems(tagItems)
     if (sorted.length === 0) {
       return []
     }
     return sorted.map((i) => ({ value: i.code, label: i.name }))
-  }, [typeItems])
+  }, [tagItems])
 
-  const modelTypeLabelByCode = useMemo(() => {
+  const tagLabelByCode = useMemo(() => {
     const m = new Map<string, string>()
-    for (const i of sortDictItems(typeItems)) {
+    for (const i of sortDictItems(tagItems)) {
       m.set(i.code, i.name)
     }
     return m
-  }, [typeItems])
+  }, [tagItems])
 
-  const resolveModelTypeLabel = useCallback(
-    (stored: string) => {
-      const exact = modelTypeLabelByCode.get(stored)
-      if (exact) return exact
-      const byName = typeItems.find((i) => i.name === stored)
-      return byName?.name ?? stored
-    },
-    [modelTypeLabelByCode, typeItems],
+  const resolveTagLabel = useCallback(
+    (code: string) => tagLabelByCode.get(code) ?? code,
+    [tagLabelByCode],
   )
 
-  /** 编辑/复制时：库内可能是历史 name，表单 Select 需用 code。 */
-  const resolveModelTypeForForm = useCallback(
-    (stored: string) => {
-      const s = stored.trim()
-      if (!s) return s
-      if (typeItems.some((i) => i.code === s)) return s
-      const byName = typeItems.find((i) => i.name === s)
-      return byName?.code ?? s
-    },
-    [typeItems],
-  )
+  const defaultTagsForCreate = useCallback((): string[] => {
+    if (tagOptions.some((o) => o.value === 'TEXT')) {
+      return ['TEXT']
+    }
+    const first = tagOptions[0]?.value
+    return first ? [first] : []
+  }, [tagOptions])
 
   const booleanOptions = useMemo(
     () => [
@@ -356,7 +348,7 @@ export function ModelProvidersPage() {
     return {
       provider_name: (values.provider_name ?? '').trim(),
       model_name: values.model_name.trim(),
-      model_type: (values.model_type ?? '').trim(),
+      tags: (values.tags ?? []).map((c) => c.trim()).filter(Boolean),
       enabled: Boolean(values.enabled),
       load_balancing_enabled: Boolean(values.load_balancing_enabled),
       auth_type: canonicalOcrAuthType(raw) || raw.trim(),
@@ -383,7 +375,7 @@ export function ModelProvidersPage() {
     form.setFieldsValue({
       provider_name: providerName != null ? resolveProviderForForm(providerName) : undefined,
       model_name: '',
-      model_type: modelTypeOptions[0]?.value,
+      tags: defaultTagsForCreate(),
       enabled: true,
       load_balancing_enabled: false,
       model_config: '',
@@ -400,7 +392,6 @@ export function ModelProvidersPage() {
       setEditingBase(detail)
       const fv = detailToFormValues(detail, true)
       fv.provider_name = resolveProviderForForm(fv.provider_name ?? '')
-      fv.model_type = resolveModelTypeForForm(fv.model_type)
       form.setFieldsValue(fv)
       setOpen(true)
     } catch {
@@ -421,7 +412,6 @@ export function ModelProvidersPage() {
       form.resetFields()
       const fv = detailToFormValues(detail, false)
       fv.provider_name = resolveProviderForForm(fv.provider_name ?? '')
-      fv.model_type = resolveModelTypeForForm(fv.model_type)
       form.setFieldsValue(fv)
       setOpen(true)
     } catch {
@@ -478,7 +468,6 @@ export function ModelProvidersPage() {
         const keys: (keyof ModelProviderCreateBody)[] = [
           'provider_name',
           'model_name',
-          'model_type',
           'enabled',
           'load_balancing_enabled',
           'auth_type',
@@ -504,6 +493,11 @@ export function ModelProvidersPage() {
         }
         if (!isSecretUnchanged(next.auth_passwd, editingBase.auth_passwd) && isOcrBasicAuth(merged.auth_type ?? '')) {
           patch.auth_passwd = next.auth_passwd
+        }
+        const prevTags = [...(editingBase.tags ?? [])].sort()
+        const nextTags = [...(next.tags ?? [])].sort()
+        if (JSON.stringify(prevTags) !== JSON.stringify(nextTags)) {
+          patch.tags = next.tags
         }
         await patchModelProvider(workspaceId, editingId, patch)
         void message.success(t('settings.modelProvidersUpdated'))
@@ -585,11 +579,21 @@ export function ModelProvidersPage() {
       ellipsis: true,
     },
     {
-      title: t('settings.modelProvidersColType'),
-      dataIndex: 'model_type',
-      key: 'model_type',
-      width: 140,
-      render: (v) => resolveModelTypeLabel(String(v)),
+      title: t('settings.modelProvidersColTags'),
+      dataIndex: 'tags',
+      key: 'tags',
+      width: 160,
+      render: (v: string[] | undefined) => {
+        const codes = Array.isArray(v) ? v : []
+        if (codes.length === 0) return '—'
+        return (
+          <Space size={[0, 4]} wrap>
+            {codes.map((code) => (
+              <Tag key={code}>{resolveTagLabel(code)}</Tag>
+            ))}
+          </Space>
+        )
+      },
     },
     {
       title: t('settings.modelProvidersColEndpoint'),
@@ -814,17 +818,17 @@ export function ModelProvidersPage() {
             <Input allowClear autoComplete="off" />
           </Form.Item>
           <Form.Item
-            name="model_type"
-            label={t('settings.modelProvidersFieldModelType')}
-            rules={[{ required: true, message: t('settings.modelProvidersFieldModelTypeRequired') }]}
+            name="tags"
+            label={t('settings.modelProvidersFieldTags')}
+            rules={[{ required: true, message: t('settings.modelProvidersFieldTagsRequired') }]}
           >
             <Select
+              mode="multiple"
               showSearch
-              allowClear
               optionFilterProp="label"
-              disabled={dictLoading && modelTypeOptions.length === 0}
-              options={modelTypeOptions}
-              placeholder={t('settings.modelProvidersFieldModelTypePh')}
+              disabled={dictLoading && tagOptions.length === 0}
+              options={tagOptions}
+              placeholder={t('settings.modelProvidersFieldTags')}
             />
           </Form.Item>
           <Form.Item name="enabled" label={t('settings.modelProvidersFieldEnabled')}>
@@ -922,8 +926,16 @@ export function ModelProvidersPage() {
                 {resolveProviderLabel(viewDetail.provider_name)}
               </Descriptions.Item>
               <Descriptions.Item label={t('settings.modelProvidersFieldModelName')}>{viewDetail.model_name}</Descriptions.Item>
-              <Descriptions.Item label={t('settings.modelProvidersFieldModelType')}>
-                {resolveModelTypeLabel(viewDetail.model_type)}
+              <Descriptions.Item label={t('settings.modelProvidersFieldTags')}>
+                {(viewDetail.tags ?? []).length === 0 ? (
+                  '—'
+                ) : (
+                  <Space size={[0, 4]} wrap>
+                    {viewDetail.tags.map((code) => (
+                      <Tag key={code}>{resolveTagLabel(code)}</Tag>
+                    ))}
+                  </Space>
+                )}
               </Descriptions.Item>
               <Descriptions.Item label={t('settings.modelProvidersFieldEnabled')}>
                 {viewDetail.enabled ? t('common.yes') : t('common.no')}

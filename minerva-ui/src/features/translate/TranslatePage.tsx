@@ -211,7 +211,7 @@ export function TranslatePage() {
     const rows = modelsQuery.data ?? []
     return rows.filter(
       (m: ModelProviderListItem) =>
-        m.model_type === 'translate' &&
+        (Array.isArray(m.tags) ? m.tags : []).includes('TRANSLATE') &&
         m.enabled &&
         Boolean(m.endpoint_url?.trim()) &&
         m.has_api_key,

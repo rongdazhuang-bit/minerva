@@ -290,7 +290,10 @@ export function AgentsPage() {
     const rows = modelsQuery.data ?? []
     return rows.filter(
       (m: ModelProviderListItem) =>
-        m.enabled && Boolean(m.endpoint_url?.trim()) && m.has_api_key,
+        (Array.isArray(m.tags) ? m.tags : []).includes('TEXT') &&
+        m.enabled &&
+        Boolean(m.endpoint_url?.trim()) &&
+        m.has_api_key,
     )
   }, [modelsQuery.data])
 

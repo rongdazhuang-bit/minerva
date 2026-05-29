@@ -13,7 +13,7 @@ from app.core.domain.identity.models import User
 from app.dependencies import get_db
 from app.llm.api.schemas import ChatCompletionRequest, EmbeddingRequest, RerankRequest
 from app.llm.domain.models import ChatMessage, EmbeddingCallParams, RerankCallParams
-from app.llm.domain.resolved_model import CHAT_MODEL_TYPES
+from app.llm.domain.resolved_model import CHAT_MODEL_TAGS
 from app.llm.service.llm_service import llm_service
 
 router = APIRouter(
@@ -55,7 +55,7 @@ async def create_chat_completion(
                 stop=body.stop,
                 presence_penalty=body.presence_penalty,
                 frequency_penalty=body.frequency_penalty,
-                allowed_types=CHAT_MODEL_TYPES,
+                allowed_tags=CHAT_MODEL_TAGS,
             ),
             media_type="text/event-stream",
         )
@@ -73,7 +73,7 @@ async def create_chat_completion(
         stop=body.stop,
         presence_penalty=body.presence_penalty,
         frequency_penalty=body.frequency_penalty,
-        allowed_types=CHAT_MODEL_TYPES,
+        allowed_tags=CHAT_MODEL_TAGS,
     )
     return result.model_dump()
 

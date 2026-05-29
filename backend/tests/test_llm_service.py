@@ -9,7 +9,7 @@ import uuid
 import pytest
 
 from app.llm.domain.models import ChatMessage, TextChatCallParams, TextChatResult
-from app.llm.domain.resolved_model import CHAT_MODEL_TYPES, ResolvedModel
+from app.llm.domain.resolved_model import CHAT_MODEL_TAGS, ResolvedModel
 from app.llm.service.llm_service import LlmService, build_openai_messages
 
 _LLM_SERVICE_MOD = importlib.import_module("app.llm.service.llm_service")
@@ -36,7 +36,6 @@ def test_complete_chat_resolves_and_delegates(monkeypatch: pytest.MonkeyPatch) -
     resolved = ResolvedModel(
         model_id=mid,
         model_name="m",
-        model_type="text",
         endpoint_url="https://example.com/v1/chat/completions",
         api_key="k",
     )
@@ -45,10 +44,11 @@ def test_complete_chat_resolves_and_delegates(monkeypatch: pytest.MonkeyPatch) -
         raw={},
     )
 
-    async def fake_resolve(session, *, workspace_id, model_id, allowed_types):  # noqa: ANN001
+    async def fake_resolve(session, *, workspace_id, model_id, allowed_tags, excluded_tags=None):  # noqa: ANN001
         assert workspace_id == ws
         assert model_id == mid
-        assert allowed_types == CHAT_MODEL_TYPES
+        assert allowed_tags == CHAT_MODEL_TAGS
+        assert excluded_tags is None
         return resolved
 
     class _FakeStrategy:

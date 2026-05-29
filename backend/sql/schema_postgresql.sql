@@ -158,7 +158,6 @@ CREATE TABLE public.sys_models (
 	workspace_id uuid NOT NULL,
 	provider_name varchar(128) NOT NULL,
 	model_name varchar(128) NOT NULL,
-	model_type varchar(64) NOT NULL,
 	enabled bool DEFAULT true NOT NULL,
 	load_balancing_enabled bool DEFAULT false NOT NULL,
 	auth_type varchar(64) NOT NULL,
@@ -169,6 +168,7 @@ CREATE TABLE public.sys_models (
 	context_size int2 NULL,
 	max_tokens_to_sample int2 NULL,
 	model_config text NULL,
+	tags jsonb DEFAULT '["TEXT"]'::jsonb NOT NULL,
 	create_at timestamptz NULL,
 	update_at timestamptz NULL,
 	CONSTRAINT sys_models_pk PRIMARY KEY (id)
@@ -180,7 +180,6 @@ COMMENT ON COLUMN public.sys_models.id IS 'id';
 COMMENT ON COLUMN public.sys_models.workspace_id IS '工作空间id';
 COMMENT ON COLUMN public.sys_models.provider_name IS '模型供应商id';
 COMMENT ON COLUMN public.sys_models.model_name IS '模型名称';
-COMMENT ON COLUMN public.sys_models.model_type IS '模型类型';
 COMMENT ON COLUMN public.sys_models.enabled IS '状态';
 COMMENT ON COLUMN public.sys_models.load_balancing_enabled IS '负载均衡';
 COMMENT ON COLUMN public.sys_models.auth_type IS '认证方式';
@@ -191,6 +190,7 @@ COMMENT ON COLUMN public.sys_models.auth_passwd IS '密码';
 COMMENT ON COLUMN public.sys_models.context_size IS '上下文窗口大小';
 COMMENT ON COLUMN public.sys_models.max_tokens_to_sample IS '最大 token 上限';
 COMMENT ON COLUMN public.sys_models.model_config IS '其它配置项';
+COMMENT ON COLUMN public.sys_models.tags IS '模型用途标签（MODEL_TAG 字典 code 数组）';
 COMMENT ON COLUMN public.sys_models.create_at IS '创建时间';
 COMMENT ON COLUMN public.sys_models.update_at IS '更新时间';
 

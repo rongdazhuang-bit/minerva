@@ -13,9 +13,9 @@ from app.llm.domain.models import (
     TextChatResult,
 )
 from app.llm.domain.resolved_model import (
-    CHAT_MODEL_TYPES,
-    EMBEDDING_MODEL_TYPES,
-    RERANK_MODEL_TYPES,
+    CHAT_MODEL_TAGS,
+    EMBEDDING_MODEL_TAGS,
+    RERANK_MODEL_TAGS,
     ResolvedModel,
 )
 
@@ -37,12 +37,12 @@ def test_text_chat_result_empty_choices() -> None:
     assert result.assistant_text() == ""
 
 
-def test_model_type_constants() -> None:
-    """Allowed model_type sets match spec."""
+def test_model_tag_constants() -> None:
+    """Allowed model tag sets match spec."""
 
-    assert CHAT_MODEL_TYPES == frozenset({"text", "translate"})
-    assert EMBEDDING_MODEL_TYPES == frozenset({"embedding"})
-    assert RERANK_MODEL_TYPES == frozenset({"rerank"})
+    assert CHAT_MODEL_TAGS == frozenset({"TEXT", "TRANSLATE"})
+    assert EMBEDDING_MODEL_TAGS == frozenset({"EMBEDDINGS"})
+    assert RERANK_MODEL_TAGS == frozenset({"RERANKING"})
 
 
 def test_resolved_model_fields() -> None:
@@ -52,7 +52,6 @@ def test_resolved_model_fields() -> None:
     row = ResolvedModel(
         model_id=mid,
         model_name="gpt-4o-mini",
-        model_type="text",
         endpoint_url="https://example.com/v1/chat/completions",
         api_key="secret",
     )

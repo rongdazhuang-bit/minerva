@@ -7,7 +7,7 @@ import uuid
 import pytest
 
 from app.exceptions import AppError
-from app.llm.domain.resolved_model import CHAT_MODEL_TYPES, ResolvedModel
+from app.llm.domain.resolved_model import CHAT_MODEL_TAGS, ResolvedModel
 from app.llm.service.model_resolver import resolve_model
 from app.sys.model_provider.domain.db.models import SysModel
 
@@ -50,7 +50,6 @@ def _row(**overrides) -> SysModel:  # noqa: ANN003
         workspace_id=ws,
         provider_name="openai",
         model_name="gpt-4o-mini",
-        model_type="text",
         enabled=True,
         load_balancing_enabled=False,
         auth_type="api_key",
@@ -61,6 +60,7 @@ def _row(**overrides) -> SysModel:  # noqa: ANN003
         context_size=None,
         max_tokens_to_sample=None,
         model_config=None,
+        tags=["TEXT"],
         create_at=None,
         update_at=None,
     )
@@ -70,7 +70,7 @@ def _row(**overrides) -> SysModel:  # noqa: ANN003
 
 @pytest.mark.asyncio
 async def test_resolve_model_success() -> None:
-    """Enabled model with matching type resolves to ResolvedModel."""
+    """Enabled model with matching tags resolves to ResolvedModel."""
 
     row = _row()
     session = _FakeSession(row)
@@ -78,7 +78,7 @@ async def test_resolve_model_success() -> None:
         session,
         workspace_id=row.workspace_id,
         model_id=row.id,
-        allowed_types=CHAT_MODEL_TYPES,
+        allowed_tags=CHAT_MODEL_TAGS,
     )
     assert isinstance(resolved, ResolvedModel)
     assert resolved.model_name == "gpt-4o-mini"
@@ -86,20 +86,37 @@ async def test_resolve_model_success() -> None:
 
 
 @pytest.mark.asyncio
-async def test_resolve_model_type_mismatch() -> None:
-    """Wrong model_type for endpoint raises ai.model_type_mismatch."""
+async def test_resolve_model_tag_mismatch() -> None:
+    """Wrong tags for endpoint raises ai.model_tag_mismatch."""
 
-    row = _row(model_type="embedding")
+    row = _row(tags=["EMBEDDINGS"])
     session = _FakeSession(row)
     with pytest.raises(AppError) as exc:
         await resolve_model(
             session,
             workspace_id=row.workspace_id,
             model_id=row.id,
-            allowed_types=CHAT_MODEL_TYPES,
+            allowed_tags=CHAT_MODEL_TAGS,
         )
-    assert exc.value.code == "ai.model_type_mismatch"
+    assert exc.value.code == "ai.model_tag_mismatch"
     assert exc.value.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_resolve_model_excluded_tag() -> None:
+    """Excluded tag intersection rejects otherwise allowed models."""
+
+    row = _row(tags=["TEXT", "TRANSLATE"])
+    session = _FakeSession(row)
+    with pytest.raises(AppError) as exc:
+        await resolve_model(
+            session,
+            workspace_id=row.workspace_id,
+            model_id=row.id,
+            allowed_tags=frozenset({"TEXT"}),
+            excluded_tags=frozenset({"TRANSLATE"}),
+        )
+    assert exc.value.code == "ai.model_tag_mismatch"
 
 
 @pytest.mark.asyncio
@@ -113,7 +130,7 @@ async def test_resolve_model_misconfigured() -> None:
             session,
             workspace_id=row.workspace_id,
             model_id=row.id,
-            allowed_types=CHAT_MODEL_TYPES,
+            allowed_tags=CHAT_MODEL_TAGS,
         )
     assert exc.value.code == "ai.model_misconfigured"
 
@@ -128,6 +145,6 @@ async def test_resolve_model_none_auth_uses_dash_key() -> None:
         session,
         workspace_id=row.workspace_id,
         model_id=row.id,
-        allowed_types=CHAT_MODEL_TYPES,
+        allowed_tags=CHAT_MODEL_TAGS,
     )
     assert resolved.api_key == "-"

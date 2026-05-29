@@ -1,0 +1,7 @@
+"""Model provider tag dictionary codes and well-known tag values."""
+
+MODEL_TAG_DICT_CODE = "MODEL_TAG"
+MODEL_TAG_TEXT = "TEXT"
+MODEL_TAG_TRANSLATE = "TRANSLATE"
+MODEL_TAG_EMBEDDINGS = "EMBEDDINGS"
+MODEL_TAG_RERANKING = "RERANKING"

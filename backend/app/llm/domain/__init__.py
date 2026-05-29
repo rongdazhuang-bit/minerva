@@ -10,16 +10,16 @@ from app.llm.domain.models import (
     TextChatResult,
 )
 from app.llm.domain.resolved_model import (
-    CHAT_MODEL_TYPES,
-    EMBEDDING_MODEL_TYPES,
-    RERANK_MODEL_TYPES,
+    CHAT_MODEL_TAGS,
+    EMBEDDING_MODEL_TAGS,
+    RERANK_MODEL_TAGS,
     ResolvedModel,
 )
 
 __all__ = [
-    "CHAT_MODEL_TYPES",
-    "EMBEDDING_MODEL_TYPES",
-    "RERANK_MODEL_TYPES",
+    "CHAT_MODEL_TAGS",
+    "EMBEDDING_MODEL_TAGS",
+    "RERANK_MODEL_TAGS",
     "ChatMessage",
     "EmbeddingCallParams",
     "EmbeddingResult",

@@ -41,7 +41,6 @@ def test_text_chat_complete_posts_to_configured_full_url(monkeypatch: pytest.Mon
     resolved = ResolvedModel(
         model_id=uuid4(),
         model_name="model-a",
-        model_type="text",
         endpoint_url="https://example.com/v1/chat/completions",
         api_key="key",
     )

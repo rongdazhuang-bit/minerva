@@ -18,19 +18,19 @@
 
 - `app.llm.domain`：`ChatMessage`、`TextChatCallParams`/`TextChatResult`、`EmbeddingCallParams`/`EmbeddingResult`、`RerankCallParams`/`RerankResult`、`ResolvedModel`。
 - `app.llm.strategies`：`TextChatStrategy`（text + translate）、`EmbeddingStrategy`、`RerankStrategy`；共用 `http_common.py`。
-- `app.llm.service.model_resolver`：`model_id` → `ResolvedModel`（校验 enabled、model_type、endpoint/api_key）。
+- `app.llm.service.model_resolver`：`model_id` → `ResolvedModel`（校验 enabled、tags、endpoint/api_key）。
 - `app.llm.service.llm_service`：`LlmService` 与单例 `llm_service`。
 - `app.llm.api.router`：HTTP 代理（需登录且为 workspace 成员）。
 
-## model_type 与端点
+## MODEL_TAG 与端点
 
-| `MODEL_TYPE` code | 策略 | HTTP 端点 |
-|-------------------|------|-----------|
-| `text`, `translate` | TextChat | `POST .../llm/chat/completions` |
-| `embedding` | Embedding | `POST .../llm/embeddings` |
-| `rerank` | Rerank | `POST .../llm/rerank` |
+| tag code | 策略 | HTTP 端点 |
+|----------|------|-----------|
+| `TEXT`, `TRANSLATE` | TextChat | `POST .../llm/chat/completions` |
+| `EMBEDDINGS` | Embedding | `POST .../llm/embeddings` |
+| `RERANKING` | Rerank | `POST .../llm/rerank` |
 
-不匹配 → `ai.model_type_mismatch`（422）。
+不匹配 → `ai.model_tag_mismatch`（422）。规则润色等场景可传 `excluded_tags`（例如排除 `TRANSLATE`）。
 
 ## 在代码中调用（推荐）
 
@@ -40,7 +40,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.llm import ChatMessage, EmbeddingCallParams, llm_service
 
-# Chat（text 或 translate，通过 allowed_types 约束）
+# Chat（TEXT 或 TRANSLATE，通过 allowed_tags 约束）
 result = await llm_service.complete_chat(
     session,
     workspace_id=workspace_id,
@@ -50,7 +50,7 @@ result = await llm_service.complete_chat(
     messages=[],
     temperature=0.2,
     max_tokens=256,
-    allowed_types=frozenset({"text"}),  # translate 模块传 {"translate"}
+    allowed_tags=frozenset({"TEXT"}),  # translate 模块传 frozenset({"TRANSLATE"})
 )
 text = result.assistant_text()
 
@@ -110,12 +110,12 @@ async for line in llm_service.stream_sse_lines(
 |------|------|
 | `ai.model_not_found` | 模型不存在或不属于 workspace |
 | `ai.model_disabled` | 模型未启用 |
-| `ai.model_type_mismatch` | model_type 与端点/allowed_types 不匹配 |
+| `ai.model_tag_mismatch` | tags 与端点/allowed_tags 不匹配 |
 | `ai.model_misconfigured` | 缺少 endpoint_url 或 api_key |
 
 ## Agent v2
 
-Agent v2 不调用 `app.llm.LlmService`，而是通过 `model_id` 读取 `sys_models` 并由 `ChatModelFactory` 构造 `langchain_openai.ChatOpenAI`。Agent 与 `app.llm` 一致：**直接使用** `sys_models.endpoint_url` 作为上游请求地址。
+Agent v2 不调用 `app.llm.LlmService`，而是通过 `model_id` 读取 `sys_models` 并由 `ChatModelFactory` 构造 `langchain_openai.ChatOpenAI`；Agent 独立校验 `tags` 含 `TEXT`。Agent 与 `app.llm` 一致：**直接使用** `sys_models.endpoint_url` 作为上游请求地址。
 
 ## 设计规格
 

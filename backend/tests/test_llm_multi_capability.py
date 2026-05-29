@@ -62,7 +62,6 @@ def test_blocking_strategies_post_json(
     resolved = ResolvedModel(
         model_id=uuid4(),
         model_name="model-x",
-        model_type="embedding" if assert_key == "data" else "rerank",
         endpoint_url=endpoint,
         api_key="key",
     )

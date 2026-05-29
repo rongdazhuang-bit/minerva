@@ -3,7 +3,7 @@ import { apiJson } from '@/api/client'
 export type ModelProviderGroupItem = {
   id: string
   model_name: string
-  model_type: string
+  tags: string[]
   enabled: boolean
   load_balancing_enabled: boolean
   auth_type: string
@@ -31,7 +31,7 @@ export type ModelProviderDetail = {
   workspace_id: string
   provider_name: string
   model_name: string
-  model_type: string
+  tags: string[]
   enabled: boolean
   load_balancing_enabled: boolean
   auth_type: string
@@ -49,7 +49,7 @@ export type ModelProviderDetail = {
 export type ModelProviderCreateBody = {
   provider_name: string
   model_name: string
-  model_type: string
+  tags: string[]
   enabled: boolean
   load_balancing_enabled: boolean
   auth_type: string

@@ -8,7 +8,7 @@ from typing import Optional
 
 import sqlalchemy as sa
 from sqlalchemy import Boolean, DateTime, SmallInteger, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.infrastructure.db.base import Base
@@ -29,7 +29,6 @@ class SysModel(Base):
     )
     provider_name: Mapped[str] = mapped_column(String(128), nullable=False)
     model_name: Mapped[str] = mapped_column(String(128), nullable=False)
-    model_type: Mapped[str] = mapped_column(String(64), nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=sa.true())
     load_balancing_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=sa.false()
@@ -42,5 +41,10 @@ class SysModel(Base):
     context_size: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     max_tokens_to_sample: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     model_config: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tags: Mapped[list[str]] = mapped_column(
+        JSONB,
+        nullable=False,
+        server_default=sa.text("'[\"TEXT\"]'::jsonb"),
+    )
     create_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     update_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

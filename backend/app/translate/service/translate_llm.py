@@ -11,22 +11,23 @@ from app.llm.domain.models import ChatMessage
 from app.llm.service.llm_service import llm_service
 from app.llm.service.model_resolver import resolve_model
 from app.sys.dict.service import dictionary_service as dict_service
+from app.sys.model_provider.domain.constants import MODEL_TAG_DICT_CODE, MODEL_TAG_TRANSLATE
 from app.sys.model_provider.infrastructure import repository as model_repo
 
-TRANSLATE_MODEL_TYPES = frozenset({"translate"})
+TRANSLATE_MODEL_TAGS = frozenset({MODEL_TAG_TRANSLATE})
 
 
 async def _assert_translate_dict(session: AsyncSession, *, workspace_id: uuid.UUID) -> None:
-    """Ensure workspace MODEL_TYPE dictionary includes translate."""
+    """Ensure workspace MODEL_TAG dictionary includes TRANSLATE."""
 
-    allowed_types = await dict_service.list_items_by_dict_code(
-        session, workspace_id=workspace_id, dict_code="MODEL_TYPE"
+    allowed = await dict_service.list_items_by_dict_code(
+        session, workspace_id=workspace_id, dict_code=MODEL_TAG_DICT_CODE
     )
-    codes = {i.code.strip() for i in allowed_types if (i.code or "").strip()}
-    if "translate" not in codes:
+    codes = {i.code.strip() for i in allowed if (i.code or "").strip()}
+    if MODEL_TAG_TRANSLATE not in codes:
         raise AppError(
-            "translate.model_type_dict_missing",
-            "字典 MODEL_TYPE 缺少 translate 项。",
+            "translate.model_tag_dict_missing",
+            "字典 MODEL_TAG 缺少 TRANSLATE 项。",
             422,
         )
 
@@ -37,14 +38,14 @@ async def _assert_translate_model(
     workspace_id: uuid.UUID,
     model_id: uuid.UUID,
 ) -> None:
-    """Ensure MODEL_TYPE dict and workspace model are valid for translate jobs."""
+    """Ensure MODEL_TAG dict and workspace model are valid for translate jobs."""
 
     await _assert_translate_dict(session, workspace_id=workspace_id)
     await resolve_model(
         session,
         workspace_id=workspace_id,
         model_id=model_id,
-        allowed_types=TRANSLATE_MODEL_TYPES,
+        allowed_tags=TRANSLATE_MODEL_TAGS,
     )
 
 
@@ -83,7 +84,7 @@ async def translate_segment(
         messages=[ChatMessage(role="user", content=source_text)],
         temperature=0.2,
         max_tokens=max_tokens,
-        allowed_types=TRANSLATE_MODEL_TYPES,
+        allowed_tags=TRANSLATE_MODEL_TAGS,
     )
     text = result.assistant_text()
     if not text:

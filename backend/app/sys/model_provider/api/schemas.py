@@ -13,7 +13,6 @@ class ModelProviderCreateIn(BaseModel):
 
     provider_name: str = Field(min_length=1, max_length=128)
     model_name: str = Field(min_length=1, max_length=128)
-    model_type: str = Field(min_length=1, max_length=64)
     enabled: bool = True
     load_balancing_enabled: bool = False
     auth_type: str = Field(min_length=1, max_length=64)
@@ -24,6 +23,7 @@ class ModelProviderCreateIn(BaseModel):
     context_size: int | None = Field(default=None, ge=1, le=32767)
     max_tokens_to_sample: int | None = Field(default=None, ge=1, le=32767)
     other_config: str | None = Field(default=None, alias="model_config")
+    tags: list[str] = Field(min_length=1)
 
 
 class ModelProviderPatchIn(BaseModel):
@@ -31,7 +31,6 @@ class ModelProviderPatchIn(BaseModel):
 
     provider_name: str | None = Field(default=None, min_length=1, max_length=128)
     model_name: str | None = Field(default=None, min_length=1, max_length=128)
-    model_type: str | None = Field(default=None, min_length=1, max_length=64)
     enabled: bool | None = None
     load_balancing_enabled: bool | None = None
     auth_type: str | None = Field(default=None, min_length=1, max_length=64)
@@ -42,6 +41,7 @@ class ModelProviderPatchIn(BaseModel):
     context_size: int | None = Field(default=None, ge=1, le=32767)
     max_tokens_to_sample: int | None = Field(default=None, ge=1, le=32767)
     other_config: str | None = Field(default=None, alias="model_config")
+    tags: list[str] | None = Field(default=None, min_length=1)
 
 
 class ModelProviderListItemOut(BaseModel):
@@ -51,7 +51,6 @@ class ModelProviderListItemOut(BaseModel):
     id: uuid.UUID
     provider_name: str
     model_name: str
-    model_type: str
     enabled: bool
     load_balancing_enabled: bool
     auth_type: str
@@ -65,6 +64,7 @@ class ModelProviderListItemOut(BaseModel):
         alias="model_config",
         serialization_alias="model_config",
     )
+    tags: list[str]
     create_at: datetime | None
     update_at: datetime | None
 
@@ -76,7 +76,6 @@ class ModelProviderDetailOut(BaseModel):
     workspace_id: uuid.UUID
     provider_name: str
     model_name: str
-    model_type: str
     enabled: bool
     load_balancing_enabled: bool
     auth_type: str
@@ -91,6 +90,7 @@ class ModelProviderDetailOut(BaseModel):
         alias="model_config",
         serialization_alias="model_config",
     )
+    tags: list[str]
     create_at: datetime | None
     update_at: datetime | None
 
@@ -100,7 +100,6 @@ class ModelProviderGroupItemOut(BaseModel):
 
     id: uuid.UUID
     model_name: str
-    model_type: str
     enabled: bool
     load_balancing_enabled: bool
     auth_type: str
@@ -114,6 +113,7 @@ class ModelProviderGroupItemOut(BaseModel):
         alias="model_config",
         serialization_alias="model_config",
     )
+    tags: list[str]
     create_at: datetime | None
     update_at: datetime | None
 

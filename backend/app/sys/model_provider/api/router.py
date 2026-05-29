@@ -34,7 +34,6 @@ def _to_list_item(row: SysModel) -> ModelProviderListItemOut:
         id=row.id,
         provider_name=row.provider_name,
         model_name=row.model_name,
-        model_type=row.model_type,
         enabled=row.enabled,
         load_balancing_enabled=row.load_balancing_enabled,
         auth_type=row.auth_type,
@@ -44,6 +43,7 @@ def _to_list_item(row: SysModel) -> ModelProviderListItemOut:
         context_size=row.context_size,
         max_tokens_to_sample=row.max_tokens_to_sample,
         other_config=row.model_config,
+        tags=list(row.tags or []),
         create_at=row.create_at,
         update_at=row.update_at,
     )
@@ -53,7 +53,6 @@ def _to_group_item(row: SysModel) -> ModelProviderGroupItemOut:
     return ModelProviderGroupItemOut(
         id=row.id,
         model_name=row.model_name,
-        model_type=row.model_type,
         enabled=row.enabled,
         load_balancing_enabled=row.load_balancing_enabled,
         auth_type=row.auth_type,
@@ -63,6 +62,7 @@ def _to_group_item(row: SysModel) -> ModelProviderGroupItemOut:
         context_size=row.context_size,
         max_tokens_to_sample=row.max_tokens_to_sample,
         other_config=row.model_config,
+        tags=list(row.tags or []),
         create_at=row.create_at,
         update_at=row.update_at,
     )
@@ -74,7 +74,6 @@ def _to_detail(row: SysModel) -> ModelProviderDetailOut:
         workspace_id=row.workspace_id,
         provider_name=row.provider_name,
         model_name=row.model_name,
-        model_type=row.model_type,
         enabled=row.enabled,
         load_balancing_enabled=row.load_balancing_enabled,
         auth_type=row.auth_type,
@@ -85,6 +84,7 @@ def _to_detail(row: SysModel) -> ModelProviderDetailOut:
         context_size=row.context_size,
         max_tokens_to_sample=row.max_tokens_to_sample,
         other_config=row.model_config,
+        tags=list(row.tags or []),
         create_at=row.create_at,
         update_at=row.update_at,
     )
@@ -94,7 +94,6 @@ def _to_create_dict(body: ModelProviderCreateIn) -> dict[str, Any]:
     return {
         "provider_name": body.provider_name.strip(),
         "model_name": body.model_name.strip(),
-        "model_type": body.model_type.strip(),
         "enabled": body.enabled,
         "load_balancing_enabled": body.load_balancing_enabled,
         "auth_type": body.auth_type.strip(),
@@ -105,6 +104,7 @@ def _to_create_dict(body: ModelProviderCreateIn) -> dict[str, Any]:
         "context_size": body.context_size,
         "max_tokens_to_sample": body.max_tokens_to_sample,
         "model_config": body.other_config,
+        "tags": body.tags,
     }
 
 
@@ -115,7 +115,7 @@ def _to_patch_dict(body: ModelProviderPatchIn) -> dict[str, Any]:
         if key == "other_config":
             patch["model_config"] = value
             continue
-        if key in ("provider_name", "model_name", "model_type", "auth_type") and isinstance(
+        if key in ("provider_name", "model_name", "auth_type") and isinstance(
             value, str
         ):
             patch[key] = value.strip()

@@ -217,7 +217,8 @@ async def polish_review_rules(
         messages=msgs,
         temperature=None,
         max_tokens=max_tokens,
-        allowed_types=frozenset({"text"}),
+        allowed_tags=frozenset({"TEXT"}),
+        excluded_tags=frozenset({"TRANSLATE"}),
     )
     text = result.assistant_text()
     if not result.choices:

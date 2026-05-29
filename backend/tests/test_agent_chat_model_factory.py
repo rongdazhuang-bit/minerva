@@ -24,6 +24,7 @@ def _model_row(**overrides):
         "api_key": "secret",
         "model_name": "gpt-compatible",
         "max_tokens_to_sample": 512,
+        "tags": ["TEXT"],
     }
     values.update(overrides)
     return SimpleNamespace(**values), workspace_id
@@ -135,6 +136,28 @@ def test_chat_model_factory_injects_extra_body_when_thinking_enabled(
 
     assert captured["extra_body"] == extra
     assert captured["extra_body"] is not thinking.extra_body
+
+
+def test_agent_chat_model_factory_rejects_missing_text_tag() -> None:
+    """Models without the TEXT tag cannot be used for agent graphs."""
+
+    row, workspace_id = _model_row(tags=["EMBEDDINGS"])
+
+    with pytest.raises(AppError) as exc:
+        ChatModelFactory.from_sys_model_row(row, workspace_id=workspace_id)
+
+    assert exc.value.code == "agent.model_tag_not_allowed"
+
+
+def test_agent_chat_model_factory_accepts_text_tag(monkeypatch: pytest.MonkeyPatch) -> None:
+    """TEXT among multiple tags satisfies agent model selection."""
+
+    monkeypatch.setattr(
+        "app.agent.infrastructure.chat_model_factory.AgentChatOpenAI",
+        lambda **kwargs: object(),
+    )
+    row, workspace_id = _model_row(tags=["TEXT", "EMBEDDINGS"])
+    ChatModelFactory.from_sys_model_row(row, workspace_id=workspace_id)
 
 
 def test_agent_chat_model_factory_rejects_missing_api_key() -> None:
