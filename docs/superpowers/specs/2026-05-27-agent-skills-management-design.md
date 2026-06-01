@@ -2,7 +2,7 @@
 
 **日期**：2026-05-27  
 **状态**：已批准，待实现  
-**范围**：租户 owner/admin 通过 minerva-ui「智能体 > 技能」管理服务端全局内置目录 `backend/app/agent/skills/`；含 zip 上传技能包、文件树浏览、`.md`/`.py`/`.json` 在线编辑、二进制文件上传/下载/删除；保存后立即刷新 `skill_loader` 缓存。
+**范围**：租户 owner/admin 通过 frontend「智能体 > 技能」管理服务端全局内置目录 `backend/app/agent/skills/`；含 zip 上传技能包、文件树浏览、`.md`/`.py`/`.json` 在线编辑、二进制文件上传/下载/删除；保存后立即刷新 `skill_loader` 缓存。
 
 **关系**：扩展 `docs/agent-module-design.md` §1.4 原「非目标：用户上传自定义 Skill 包」；与现有只读 `GET /agent/v2/skills` 及 `skill_loader.py` 协同。
 
@@ -183,7 +183,7 @@ def invalidate_skill_cache(skill_id: str | None = None) -> None:
 
 ### 4.5 API 客户端
 
-`minerva-ui/src/api/agentSkillsMgmt.ts`：
+`frontend/src/api/agentSkillsMgmt.ts`：
 
 - `listSkillRegistry` / `getSkillTree` / `readSkillFile` / `writeSkillFile`
 - `uploadSkillPackage` / `uploadSkillFile` / `downloadSkillFile`
@@ -197,7 +197,7 @@ def invalidate_skill_cache(skill_id: str | None = None) -> None:
 ### 4.7 文件结构
 
 ```
-minerva-ui/src/features/agent/skills/
+frontend/src/features/agent/skills/
 ├── AgentSkillsListPage.tsx
 ├── AgentSkillDetailPage.tsx
 ├── AgentSkillRegistryPage.tsx

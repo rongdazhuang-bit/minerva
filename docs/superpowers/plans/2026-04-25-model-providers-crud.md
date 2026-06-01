@@ -42,11 +42,11 @@
 
 ### Frontend
 
-- Create: `minerva-ui/src/api/modelProviders.ts`
-- Modify: `minerva-ui/src/features/settings/model-providers/ModelProvidersPage.tsx`
-- Modify: `minerva-ui/src/features/settings/model-providers/ModelProvidersPage.css`
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`
-- Modify: `minerva-ui/src/i18n/locales/en.json`
+- Create: `frontend/src/api/modelProviders.ts`
+- Modify: `frontend/src/features/settings/model-providers/ModelProvidersPage.tsx`
+- Modify: `frontend/src/features/settings/model-providers/ModelProvidersPage.css`
+- Modify: `frontend/src/i18n/locales/zh-CN.json`
+- Modify: `frontend/src/i18n/locales/en.json`
 
 ---
 
@@ -372,11 +372,11 @@ git commit -m "chore(db): align sys_models workspace constraints"
 ### Task 5: 前端 API 与分组页面 CRUD
 
 **Files:**
-- Create: `minerva-ui/src/api/modelProviders.ts`
-- Modify: `minerva-ui/src/features/settings/model-providers/ModelProvidersPage.tsx`
-- Modify: `minerva-ui/src/features/settings/model-providers/ModelProvidersPage.css`
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`
-- Modify: `minerva-ui/src/i18n/locales/en.json`
+- Create: `frontend/src/api/modelProviders.ts`
+- Modify: `frontend/src/features/settings/model-providers/ModelProvidersPage.tsx`
+- Modify: `frontend/src/features/settings/model-providers/ModelProvidersPage.css`
+- Modify: `frontend/src/i18n/locales/zh-CN.json`
+- Modify: `frontend/src/i18n/locales/en.json`
 
 - [ ] **Step 1: 先引入接口调用并触发失败构建**
 
@@ -385,13 +385,13 @@ git commit -m "chore(db): align sys_models workspace constraints"
 import { listModelProviderGroups } from '@/api/modelProviders'
 ```
 
-Run: `cd minerva-ui && npm run build`  
+Run: `cd frontend && npm run build`  
 Expected: FAIL，报错 `Cannot find module '@/api/modelProviders'`。
 
 - [ ] **Step 2: 实现前端 API 客户端**
 
 ```ts
-// minerva-ui/src/api/modelProviders.ts
+// frontend/src/api/modelProviders.ts
 export function listModelProviderGroups(workspaceId: string) {
   return apiJson<ModelProviderGroup[]>(`/workspaces/${workspaceId}/model-providers/grouped`)
 }
@@ -428,16 +428,16 @@ export function deleteModelProvider(workspaceId: string, modelId: string) { ... 
 
 - [ ] **Step 4: 构建与 lint 验证**
 
-Run: `cd minerva-ui && npm run lint`  
+Run: `cd frontend && npm run lint`  
 Expected: PASS。  
 
-Run: `cd minerva-ui && npm run build`  
+Run: `cd frontend && npm run build`  
 Expected: PASS。
 
 - [ ] **Step 5: 提交前端改动**
 
 ```bash
-git add minerva-ui/src/api/modelProviders.ts minerva-ui/src/features/settings/model-providers/ModelProvidersPage.tsx minerva-ui/src/features/settings/model-providers/ModelProvidersPage.css minerva-ui/src/i18n/locales/zh-CN.json minerva-ui/src/i18n/locales/en.json
+git add frontend/src/api/modelProviders.ts frontend/src/features/settings/model-providers/ModelProvidersPage.tsx frontend/src/features/settings/model-providers/ModelProvidersPage.css frontend/src/i18n/locales/zh-CN.json frontend/src/i18n/locales/en.json
 git commit -m "feat(ui): implement grouped model providers CRUD page"
 ```
 
@@ -461,7 +461,7 @@ Expected: PASS。
 
 - [ ] **Step 3: 跑前端全量检查**
 
-Run: `cd minerva-ui && npm run lint && npm run build`  
+Run: `cd frontend && npm run lint && npm run build`  
 Expected: PASS。
 
 - [ ] **Step 4: 人工验收路径检查**

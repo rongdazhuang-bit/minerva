@@ -42,11 +42,11 @@
 
 ### Frontend Modifies
 
-- `minerva-ui/src/features/translate/TranslatePage.tsx` — use page-grouped segments as primary detail data.
-- `minerva-ui/src/features/translate/TranslatePageLayoutCompare.tsx` — keep page compare usable with grouped data.
-- `minerva-ui/src/api/translate.ts` — preserve `ApiError` details for download failures if needed.
-- `minerva-ui/src/i18n/locales/zh-CN.json` — add fallback/error text.
-- `minerva-ui/src/i18n/locales/en.json` — add fallback/error text.
+- `frontend/src/features/translate/TranslatePage.tsx` — use page-grouped segments as primary detail data.
+- `frontend/src/features/translate/TranslatePageLayoutCompare.tsx` — keep page compare usable with grouped data.
+- `frontend/src/api/translate.ts` — preserve `ApiError` details for download failures if needed.
+- `frontend/src/i18n/locales/zh-CN.json` — add fallback/error text.
+- `frontend/src/i18n/locales/en.json` — add fallback/error text.
 
 ### Docs Modifies After Implementation
 
@@ -884,10 +884,10 @@ git commit -m "fix(translate): apply PDF overflow writeback"
 
 **Files:**
 - Modify: `backend/app/translate/service/layout_pages.py`
-- Modify: `minerva-ui/src/features/translate/TranslatePage.tsx`
-- Modify: `minerva-ui/src/features/translate/TranslatePageLayoutCompare.tsx`
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`
-- Modify: `minerva-ui/src/i18n/locales/en.json`
+- Modify: `frontend/src/features/translate/TranslatePage.tsx`
+- Modify: `frontend/src/features/translate/TranslatePageLayoutCompare.tsx`
+- Modify: `frontend/src/i18n/locales/zh-CN.json`
+- Modify: `frontend/src/i18n/locales/en.json`
 - Test: `backend/tests/test_translate_layout_pages_api.py`
 
 - [ ] **Step 1: Write backend fallback test**
@@ -927,7 +927,7 @@ Expected: pass if existing fallback is intact; if it fails, fix `_normalize_segm
 
 - [ ] **Step 3: Simplify frontend segment queries**
 
-In `minerva-ui/src/features/translate/TranslatePage.tsx`, keep the page-grouped query:
+In `frontend/src/features/translate/TranslatePage.tsx`, keep the page-grouped query:
 
 ```tsx
 const segmentsPageGroupsQuery = useQuery({
@@ -955,7 +955,7 @@ Remove the separate `group_by='none'` query unless a specific regression require
 
 - [ ] **Step 4: Add layout fallback text**
 
-Add Chinese i18n keys in `minerva-ui/src/i18n/locales/zh-CN.json`:
+Add Chinese i18n keys in `frontend/src/i18n/locales/zh-CN.json`:
 
 ```json
 "translate": {
@@ -966,7 +966,7 @@ Add Chinese i18n keys in `minerva-ui/src/i18n/locales/zh-CN.json`:
 }
 ```
 
-Add English i18n keys in `minerva-ui/src/i18n/locales/en.json`:
+Add English i18n keys in `frontend/src/i18n/locales/en.json`:
 
 ```json
 "translate": {
@@ -984,7 +984,7 @@ Merge into the existing `translate.detailTab` object rather than duplicating the
 Run:
 
 ```bash
-cd minerva-ui && npm run lint
+cd frontend && npm run lint
 ```
 
 Expected: pass.
@@ -992,7 +992,7 @@ Expected: pass.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add backend/app/translate/service/layout_pages.py backend/tests/test_translate_layout_pages_api.py minerva-ui/src/features/translate/TranslatePage.tsx minerva-ui/src/features/translate/TranslatePageLayoutCompare.tsx minerva-ui/src/i18n/locales/zh-CN.json minerva-ui/src/i18n/locales/en.json
+git add backend/app/translate/service/layout_pages.py backend/tests/test_translate_layout_pages_api.py frontend/src/features/translate/TranslatePage.tsx frontend/src/features/translate/TranslatePageLayoutCompare.tsx frontend/src/i18n/locales/zh-CN.json frontend/src/i18n/locales/en.json
 git commit -m "fix(translate): clarify layout preview fallback"
 ```
 
@@ -1039,7 +1039,7 @@ Expected: all pass.
 Run:
 
 ```bash
-cd minerva-ui && npm run lint && npm run build
+cd frontend && npm run lint && npm run build
 ```
 
 Expected: both pass.
@@ -1077,7 +1077,7 @@ Expected: only files touched by this plan are modified or added.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add backend/app docs/superpowers/specs minerva-ui/src
+git add backend/app docs/superpowers/specs frontend/src
 git commit -m "fix(translate): repair structured document writeback"
 ```
 

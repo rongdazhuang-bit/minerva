@@ -29,12 +29,12 @@
 | `backend/app/agent/api/v2/router.py` | `include_router(skills_mgmt_router)` |
 | `backend/tests/test_skill_files_service.py` | 服务层单测 |
 | `backend/tests/test_skills_mgmt_api.py` | API 权限与集成测 |
-| `minerva-ui/src/api/agentSkillsMgmt.ts` | 前端 API 客户端 |
-| `minerva-ui/src/app/AuthContext.tsx` | `tenantRole` / `canManageTenantSkills` |
-| `minerva-ui/src/features/agent/skills/*` | 列表/详情/registry 页与组件 |
-| `minerva-ui/src/app/router.tsx` | 静态 `registry` 路由 + 动态 `:skillId` |
-| `minerva-ui/src/i18n/locales/zh-CN.json` | 中文文案 |
-| `minerva-ui/src/i18n/locales/en.json` | 英文文案 |
+| `frontend/src/api/agentSkillsMgmt.ts` | 前端 API 客户端 |
+| `frontend/src/app/AuthContext.tsx` | `tenantRole` / `canManageTenantSkills` |
+| `frontend/src/features/agent/skills/*` | 列表/详情/registry 页与组件 |
+| `frontend/src/app/router.tsx` | 静态 `registry` 路由 + 动态 `:skillId` |
+| `frontend/src/i18n/locales/zh-CN.json` | 中文文案 |
+| `frontend/src/i18n/locales/en.json` | 英文文案 |
 | `docs/agent-module-design.md` | 移除「非目标：用户上传 Skill 包」 |
 
 ---
@@ -641,8 +641,8 @@ git commit -m "test(agent): add skills-mgmt API integration tests"
 ### Task 8: 前端 API 客户端 + AuthContext
 
 **Files:**
-- Create: `minerva-ui/src/api/agentSkillsMgmt.ts`
-- Modify: `minerva-ui/src/app/AuthContext.tsx`
+- Create: `frontend/src/api/agentSkillsMgmt.ts`
+- Modify: `frontend/src/app/AuthContext.tsx`
 
 - [ ] **Step 1: 创建 `agentSkillsMgmt.ts`**
 
@@ -686,7 +686,7 @@ canManageTenantSkills: boolean  // trole === 'owner' || trole === 'admin'
 - [ ] **Step 3: Commit**
 
 ```bash
-git add minerva-ui/src/api/agentSkillsMgmt.ts minerva-ui/src/app/AuthContext.tsx
+git add frontend/src/api/agentSkillsMgmt.ts frontend/src/app/AuthContext.tsx
 git commit -m "feat(ui): add agent skills-mgmt API client and tenant role auth"
 ```
 
@@ -695,12 +695,12 @@ git commit -m "feat(ui): add agent skills-mgmt API client and tenant role auth"
 ### Task 9: Monaco 编辑器组件
 
 **Files:**
-- Modify: `minerva-ui/package.json`
-- Create: `minerva-ui/src/features/agent/skills/components/SkillFileEditor.tsx`
+- Modify: `frontend/package.json`
+- Create: `frontend/src/features/agent/skills/components/SkillFileEditor.tsx`
 
 - [ ] **Step 1: 安装依赖**
 
-Run: `cd minerva-ui && npm install @monaco-editor/react`
+Run: `cd frontend && npm install @monaco-editor/react`
 
 - [ ] **Step 2: 实现 `SkillFileEditor`**
 
@@ -731,7 +731,7 @@ export function SkillFileEditor({ path, value, onChange, readOnly }: Props) {
 - [ ] **Step 3: Commit**
 
 ```bash
-git add minerva-ui/package.json minerva-ui/package-lock.json minerva-ui/src/features/agent/skills/components/SkillFileEditor.tsx
+git add frontend/package.json frontend/package-lock.json frontend/src/features/agent/skills/components/SkillFileEditor.tsx
 git commit -m "feat(ui): add Monaco-based SkillFileEditor component"
 ```
 
@@ -740,11 +740,11 @@ git commit -m "feat(ui): add Monaco-based SkillFileEditor component"
 ### Task 10: 技能列表页 + Registry 页
 
 **Files:**
-- Create: `minerva-ui/src/features/agent/skills/AgentSkillsListPage.tsx`
-- Create: `minerva-ui/src/features/agent/skills/AgentSkillRegistryPage.tsx`
-- Create: `minerva-ui/src/features/agent/skills/AgentSkillsPage.css`
-- Modify: `minerva-ui/src/features/agent/index.ts`
-- Delete or replace: `minerva-ui/src/features/agent/AgentSkillsPage.tsx`
+- Create: `frontend/src/features/agent/skills/AgentSkillsListPage.tsx`
+- Create: `frontend/src/features/agent/skills/AgentSkillRegistryPage.tsx`
+- Create: `frontend/src/features/agent/skills/AgentSkillsPage.css`
+- Modify: `frontend/src/features/agent/index.ts`
+- Delete or replace: `frontend/src/features/agent/AgentSkillsPage.tsx`
 
 - [ ] **Step 1: 实现 `AgentSkillsListPage`**
 
@@ -766,8 +766,8 @@ git commit -m "feat(ui): add Monaco-based SkillFileEditor component"
 - [ ] **Step 4: Commit**
 
 ```bash
-git add minerva-ui/src/features/agent/skills/ minerva-ui/src/features/agent/index.ts
-git rm minerva-ui/src/features/agent/AgentSkillsPage.tsx
+git add frontend/src/features/agent/skills/ frontend/src/features/agent/index.ts
+git rm frontend/src/features/agent/AgentSkillsPage.tsx
 git commit -m "feat(ui): add agent skills list and INDEX registry pages"
 ```
 
@@ -776,9 +776,9 @@ git commit -m "feat(ui): add agent skills list and INDEX registry pages"
 ### Task 11: 技能详情页（文件树 + 二进制面板）
 
 **Files:**
-- Create: `minerva-ui/src/features/agent/skills/AgentSkillDetailPage.tsx`
-- Create: `minerva-ui/src/features/agent/skills/components/SkillFileTree.tsx`
-- Create: `minerva-ui/src/features/agent/skills/components/SkillBinaryFilePanel.tsx`
+- Create: `frontend/src/features/agent/skills/AgentSkillDetailPage.tsx`
+- Create: `frontend/src/features/agent/skills/components/SkillFileTree.tsx`
+- Create: `frontend/src/features/agent/skills/components/SkillBinaryFilePanel.tsx`
 
 - [ ] **Step 1: `SkillFileTree`**
 
@@ -800,7 +800,7 @@ git commit -m "feat(ui): add agent skills list and INDEX registry pages"
 - [ ] **Step 4: Commit**
 
 ```bash
-git add minerva-ui/src/features/agent/skills/
+git add frontend/src/features/agent/skills/
 git commit -m "feat(ui): add agent skill detail page with file tree and editors"
 ```
 
@@ -809,9 +809,9 @@ git commit -m "feat(ui): add agent skill detail page with file tree and editors"
 ### Task 12: 路由、i18n、文档回填
 
 **Files:**
-- Modify: `minerva-ui/src/app/router.tsx`
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`
-- Modify: `minerva-ui/src/i18n/locales/en.json`
+- Modify: `frontend/src/app/router.tsx`
+- Modify: `frontend/src/i18n/locales/zh-CN.json`
+- Modify: `frontend/src/i18n/locales/en.json`
 - Modify: `docs/agent-module-design.md`
 
 - [ ] **Step 1: 更新 `router.tsx`**
@@ -857,7 +857,7 @@ import {
 
 - [ ] **Step 4: 构建验证**
 
-Run: `cd minerva-ui && npm run build`
+Run: `cd frontend && npm run build`
 
 Expected: 构建成功，无 TS 错误
 
@@ -868,7 +868,7 @@ Expected: 全部 PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add minerva-ui/src/app/router.tsx minerva-ui/src/i18n/locales/zh-CN.json minerva-ui/src/i18n/locales/en.json docs/agent-module-design.md
+git add frontend/src/app/router.tsx frontend/src/i18n/locales/zh-CN.json frontend/src/i18n/locales/en.json docs/agent-module-design.md
 git commit -m "feat(agent): wire skills-mgmt routes, i18n, and update agent module docs"
 ```
 

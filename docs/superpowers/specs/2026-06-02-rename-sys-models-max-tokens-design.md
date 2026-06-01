@@ -111,7 +111,7 @@ max_tokens: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
 
 ### 4.1 API 类型
 
-`minerva-ui/src/api/modelProviders.ts`：所有 `max_tokens_to_sample` → `max_tokens`。
+`frontend/src/api/modelProviders.ts`：所有 `max_tokens_to_sample` → `max_tokens`。
 
 ### 4.2 设置页
 

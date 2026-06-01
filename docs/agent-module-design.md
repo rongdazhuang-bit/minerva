@@ -105,7 +105,7 @@ backend/app/agent/
 
 ```mermaid
 flowchart TB
-    UI[minerva-ui AgentsPage] --> API[FastAPI agent/v2]
+    UI[frontend AgentsPage] --> API[FastAPI agent/v2]
     API --> SVC[AgentGraphRunService]
     SVC --> REPO[repository]
     SVC --> FACTORY[ChatModelFactory]
@@ -395,9 +395,9 @@ START → memory.retrieve → planner → executor ⇄ executor
 
 | 模块 | 路径 | 说明 |
 |------|------|------|
-| API 客户端 | `minerva-ui/src/api/agent.ts` | 会话 CRUD、`streamAgentRun` |
-| SSE 解析 | `minerva-ui/src/api/agent-stream-v2.ts` | 解析 v2 信封 |
-| 页面 | `minerva-ui/src/features/workspace/AgentsPage.tsx` | 侧栏会话、流式展示、技能偏好 |
+| API 客户端 | `frontend/src/api/agent.ts` | 会话 CRUD、`streamAgentRun` |
+| SSE 解析 | `frontend/src/api/agent-stream-v2.ts` | 解析 v2 信封 |
+| 页面 | `frontend/src/features/workspace/AgentsPage.tsx` | 侧栏会话、流式展示、技能偏好 |
 
 前端通过 `fetch` + ReadableStream 消费 SSE，根据 `type` 更新计划步骤、工具状态与 assistant 文本。
 

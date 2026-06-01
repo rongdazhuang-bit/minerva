@@ -27,8 +27,8 @@
 | `backend/app/agent/service/agent_run_service.py` | resolver + tools + 2-round loop |
 | `backend/app/agent/api/schemas.py` | `AgentSkillListOut` |
 | `backend/app/agent/api/router.py` | `GET .../agent/skills` |
-| `minerva-ui/src/api/agent.ts` | `listAgentSkills` |
-| `minerva-ui/src/features/workspace/AgentsPage.tsx` | `/` 菜单、发送拆分 |
+| `frontend/src/api/agent.ts` | `listAgentSkills` |
+| `frontend/src/features/workspace/AgentsPage.tsx` | `/` 菜单、发送拆分 |
 | `backend/tests/test_skill_*.py`, `test_agent_run_tools.py` | 单测 |
 
 **Note:** `skills/<id>/` 下无 `__init__.py`；`skill_tools` 须用 `importlib.util.spec_from_file_location` 加载 `tools.py`，勿假设 `app.agent.skills.<id>.tools` 包导入可用。
@@ -665,9 +665,9 @@ git commit -m "feat(agent): effective skill ids and two-round tool loop"
 ### Task 7: 前端 API + AgentsPage `/` 菜单
 
 **Files:**
-- Modify: `minerva-ui/src/api/agent.ts`
-- Modify: `minerva-ui/src/features/workspace/AgentsPage.tsx`
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`, `en.json`
+- Modify: `frontend/src/api/agent.ts`
+- Modify: `frontend/src/features/workspace/AgentsPage.tsx`
+- Modify: `frontend/src/i18n/locales/zh-CN.json`, `en.json`
 
 - [ ] **Step 1: `agent.ts`**
 
@@ -745,7 +745,7 @@ const skillsQuery = useQuery({
 - [ ] **Step 6: Commit**
 
 ```bash
-git add minerva-ui/src/api/agent.ts minerva-ui/src/features/workspace/AgentsPage.tsx minerva-ui/src/i18n
+git add frontend/src/api/agent.ts frontend/src/features/workspace/AgentsPage.tsx frontend/src/i18n
 git commit -m "feat(ui): dynamic agent skill picker and skill_ids on run"
 ```
 

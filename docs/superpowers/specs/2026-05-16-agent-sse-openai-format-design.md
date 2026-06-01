@@ -18,7 +18,7 @@
 | 历史 spec | 当前代码 |
 |-----------|----------|
 | `sse_minerva.py` | **已删除** |
-| `minerva-ui/src/api/openai-stream.ts` | **已删除** |
+| `frontend/src/api/openai-stream.ts` | **已删除** |
 | `tool.start` / `tool.result` / `node.updated` | `tool.started` / `tool.finished`；`graph.node` 枚举存在但未发射 |
 | OpenAI chunk 透传 | SSE v2 信封：`{ v: 2, type, run_id, session_id, ts, payload }`（`domain/sse_v2.py`） |
 | reasoning 透传 | `llm.delta` + `payload.channel: "reasoning"`（`event_mapper.py`） |

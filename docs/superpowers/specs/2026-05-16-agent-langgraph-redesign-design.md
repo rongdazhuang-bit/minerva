@@ -347,9 +347,9 @@ preview 字段经 `redact_json` 与 `agent_json_snapshot_max_bytes` 截断。
 
 ---
 
-## 10. 前端变更（`minerva-ui`）
+## 10. 前端变更（`frontend`）
 
-- API：`minerva-ui/src/api/agent.ts`（v2 全量）+ `agent-stream-v2.ts`
+- API：`frontend/src/api/agent.ts`（v2 全量）+ `agent-stream-v2.ts`
 - `AgentsPage`：reasoning 折叠、processLog 轨迹；**无**独立计划步骤面板
 - Run 请求当前 `preferred_skills: []` 硬编码；**无** `/` 技能前缀选择器（Planner 自动路由）
 - 模型选择仍来自 `listModelProviders`，run 只传 `model_id`

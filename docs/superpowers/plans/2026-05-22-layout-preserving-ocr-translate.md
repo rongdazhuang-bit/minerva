@@ -67,19 +67,19 @@
 
 | 路径 | 职责 |
 |------|------|
-| `minerva-ui/src/api/layoutPages.ts` | `getOcrLayoutPages`, `getTranslateLayoutPages` 类型 |
-| `minerva-ui/src/components/layout/LayoutPageViewer.tsx` | 底图 + bbox overlay + 双栏 Markdown |
-| `minerva-ui/src/components/layout/LayoutPageViewer.css` | 定位样式 |
+| `frontend/src/api/layoutPages.ts` | `getOcrLayoutPages`, `getTranslateLayoutPages` 类型 |
+| `frontend/src/components/layout/LayoutPageViewer.tsx` | 底图 + bbox overlay + 双栏 Markdown |
+| `frontend/src/components/layout/LayoutPageViewer.css` | 定位样式 |
 
 ### 前端（修改）
 
 | 路径 | 变更 |
 |------|------|
-| `minerva-ui/src/api/ocrTask.ts` | layout-pages 类型与请求 |
-| `minerva-ui/src/api/translate.ts` | layout-pages、`group_by` segments |
-| `minerva-ui/src/features/file-ocr/FileOcrTaskPage.tsx` | Drawer Tabs：版面 / Markdown |
-| `minerva-ui/src/features/translate/TranslatePage.tsx` | 详情 Tabs；`MinervaMarkdown` 对照 |
-| `minerva-ui/src/i18n/locales/zh-CN.json`, `en.json` | Tab 文案 |
+| `frontend/src/api/ocrTask.ts` | layout-pages 类型与请求 |
+| `frontend/src/api/translate.ts` | layout-pages、`group_by` segments |
+| `frontend/src/features/file-ocr/FileOcrTaskPage.tsx` | Drawer Tabs：版面 / Markdown |
+| `frontend/src/features/translate/TranslatePage.tsx` | 详情 Tabs；`MinervaMarkdown` 对照 |
+| `frontend/src/i18n/locales/zh-CN.json`, `en.json` | Tab 文案 |
 
 ---
 
@@ -551,10 +551,10 @@ class DocTranslateSegmentListOut(BaseModel):
 ## Task 11: 前端 API + LayoutPageViewer
 
 **Files:**
-- Create: `minerva-ui/src/api/layoutPages.ts`
-- Create: `minerva-ui/src/components/layout/LayoutPageViewer.tsx`
-- Create: `minerva-ui/src/components/layout/LayoutPageViewer.css`
-- Modify: `minerva-ui/src/api/ocrTask.ts`, `translate.ts`
+- Create: `frontend/src/api/layoutPages.ts`
+- Create: `frontend/src/components/layout/LayoutPageViewer.tsx`
+- Create: `frontend/src/components/layout/LayoutPageViewer.css`
+- Modify: `frontend/src/api/ocrTask.ts`, `translate.ts`
 
 - [ ] **Step 1: TypeScript 类型与请求函数**
 
@@ -588,8 +588,8 @@ export type LayoutPageOut = {
 ## Task 12: OCR 详情 Drawer Tabs
 
 **Files:**
-- Modify: `minerva-ui/src/features/file-ocr/FileOcrTaskPage.tsx`
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`, `en.json`
+- Modify: `frontend/src/features/file-ocr/FileOcrTaskPage.tsx`
+- Modify: `frontend/src/i18n/locales/zh-CN.json`, `en.json`
 
 - [ ] **Step 1: 状态**
 
@@ -615,9 +615,9 @@ export type LayoutPageOut = {
 ## Task 13: 翻译详情 — 页面对照 + Markdown 段落对照
 
 **Files:**
-- Modify: `minerva-ui/src/features/translate/TranslatePage.tsx`
-- Modify: `minerva-ui/src/features/translate/TranslatePage.css`
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`, `en.json`
+- Modify: `frontend/src/features/translate/TranslatePage.tsx`
+- Modify: `frontend/src/features/translate/TranslatePage.css`
+- Modify: `frontend/src/i18n/locales/zh-CN.json`, `en.json`
 
 - [ ] **Step 1: 详情 Modal Tabs**
 
@@ -656,7 +656,7 @@ cd backend && pytest tests/test_layout_*.py tests/test_ocr_layout_pages_api.py t
 - [ ] **Step 2: 前端 lint/build**
 
 ```bash
-cd minerva-ui && npm run lint && npm run build
+cd frontend && npm run lint && npm run build
 ```
 
 - [ ] **Step 3: 手工冒烟**

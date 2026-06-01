@@ -63,7 +63,7 @@
 
 - **位置**：现有四个 KPI `Statistic` 卡片**下方**新增 `Card`，内嵌折线图。
 - **数据**：`useQuery` 调用新接口；`enabled: Boolean(workspaceId)`；加载 Spin、错误 `Alert` 与概览现有模式一致。
-- **图表**：当前 `minerva-ui` 无通用图表依赖，实现阶段**新增**一种图表库（候选：**Recharts** 或 **ECharts**；以 bundle 体积与 Ant Design 6 兼容性在实现计划中敲定）。同一图内 **4 条 Line**，图例区分四条序列。
+- **图表**：当前 `frontend` 无通用图表依赖，实现阶段**新增**一种图表库（候选：**Recharts** 或 **ECharts**；以 bundle 体积与 Ant Design 6 兼容性在实现计划中敲定）。同一图内 **4 条 Line**，图例区分四条序列。
 - **国际化**：卡片标题、图例、空提示等使用 `zh-CN.json` / `en.json` 键值，禁止硬编码中文。
 
 ---

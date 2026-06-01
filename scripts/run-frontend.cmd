@@ -1,11 +1,11 @@
 @echo off
 setlocal EnableExtensions
 chcp 65001 >nul 2>&1
-REM Start Vite from minerva-ui. Optional: set MINERVA_FRONTEND_PORT=3000
+REM Start Vite from frontend. Optional: set MINERVA_FRONTEND_PORT=3000
 REM LAN: Vite binds 0.0.0.0, use Network URL from terminal on other devices.
 REM API proxy target: MINERVA_DEV_API_PROXY_TARGET (default http://127.0.0.1:8000)
 
-set "UI=%~dp0..\minerva-ui"
+set "UI=%~dp0..\frontend"
 
 cd /d "%UI%" || exit /b 1
 

@@ -138,21 +138,21 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ## 四、启动前端
 
-另开一个终端，在 **`minerva-ui` 目录** 下操作：
+另开一个终端，在 **`frontend` 目录** 下操作：
 
 1. 复制前端环境文件（若尚不存在）：
 
    **Windows (PowerShell)：**
 
    ```powershell
-   cd minerva-ui
+   cd frontend
    Copy-Item .env.example .env
    ```
 
    **Linux / macOS：**
 
    ```bash
-   cd minerva-ui
+   cd frontend
    cp .env.dev.example .env.dev
    ```
 
@@ -177,13 +177,13 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
    npm run build
    ```
 
-   输出在 `minerva-ui/dist/`，可交由任意静态资源服务器或反向代理到后端。
+   输出在 `frontend/dist/`，可交由任意静态资源服务器或反向代理到后端。
 
 ## 五、服务与地址一览
 
 | 服务 | 默认地址 | 说明 |
 |------|----------|------|
-| 前端 (Vite) | http://127.0.0.1:5173 | 见 `minerva-ui` 的 `npm run dev` 输出 |
+| 前端 (Vite) | http://127.0.0.1:5173 | 见 `frontend` 的 `npm run dev` 输出 |
 | 后端 API | http://127.0.0.1:8000 | FastAPI，Swagger 见 `/docs` |
 | PostgreSQL | 127.0.0.1:5432 | 用户/库/密码与 `docker-compose.yml` 一致时可用 `backend/.env.example` 默认连接串 |
 
@@ -194,5 +194,5 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ## 参与贡献
 
 1. Fork 本仓库并新建功能分支。  
-2. 提交前建议在后端目录执行 `ruff check .`，在 `minerva-ui` 执行 `npm run build` 作基本校验。  
+2. 提交前建议在后端目录执行 `ruff check .`，在 `frontend` 执行 `npm run build` 作基本校验。  
 3. 通过 Pull Request 合并。

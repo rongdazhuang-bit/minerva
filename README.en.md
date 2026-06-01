@@ -138,21 +138,21 @@ After successful startup, access API documentation: [http://127.0.0.1:8000/docs]
 
 ## 4. Start Frontend
 
-Open another terminal and operate in the **`minerva-ui` directory**:
+Open another terminal and operate in the **`frontend` directory**:
 
 1. Copy frontend environment file (if not exists):
 
    **Windows (PowerShell):**
 
    ```powershell
-   cd minerva-ui
+   cd frontend
    Copy-Item .env.example .env
    ```
 
    **Linux / macOS:**
 
    ```bash
-   cd minerva-ui
+   cd frontend
    cp .env.dev.example .env.dev
    ```
 
@@ -177,13 +177,13 @@ Open another terminal and operate in the **`minerva-ui` directory**:
    npm run build
    ```
 
-   Output is in `minerva-ui/dist/`, can be served by any static resource server or reverse proxy to backend.
+   Output is in `frontend/dist/`, can be served by any static resource server or reverse proxy to backend.
 
 ## 5. Services and Addresses Overview
 
 | Service | Default Address | Description |
 |---------|-----------------|-------------|
-| Frontend (Vite) | http://127.0.0.1:5173 | See `npm run dev` output in `minerva-ui` |
+| Frontend (Vite) | http://127.0.0.1:5173 | See `npm run dev` output in `frontend` |
 | Backend API | http://127.0.0.1:8000 | FastAPI, Swagger at `/docs` |
 | PostgreSQL | 127.0.0.1:5432 | User/database/password consistent with `docker-compose.yml`, can use default connection string from `backend/.env.example` |
 
@@ -194,5 +194,5 @@ Open another terminal and operate in the **`minerva-ui` directory**:
 ## Contributing
 
 1. Fork this repository and create a new feature branch.
-2. Before submitting, execute `ruff check .` in backend directory, and `npm run build` in `minerva-ui` for basic validation.
+2. Before submitting, execute `ruff check .` in backend directory, and `npm run build` in `frontend` for basic validation.
 3. Merge via Pull Request.

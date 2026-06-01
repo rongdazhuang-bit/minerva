@@ -6,7 +6,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-UI_DIR="${REPO_ROOT}/minerva-ui"
+UI_DIR="${REPO_ROOT}/frontend"
 PORT="${MINERVA_FRONTEND_PORT:-}"
 
 cd "${UI_DIR}"

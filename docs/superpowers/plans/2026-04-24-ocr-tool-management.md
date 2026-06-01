@@ -26,10 +26,10 @@
 | `backend/app/tool/ocr/api/router.py` | 创建 | 五个端点 |
 | `backend/app/api/router.py` | 修改 | `include_router` |
 | `backend/tests/test_ocr_tools_api.py` | 创建 | 集成测试 |
-| `minerva-ui/src/api/ocrTools.ts` | 创建 | 类型与 `apiJson` 封装 |
-| `minerva-ui/src/features/settings/OcrSettingsPage.tsx` | 修改 | 表格 + 表单 + 可选导入 |
-| `minerva-ui/src/i18n/locales/en.json` | 修改 | 文案 |
-| `minerva-ui/src/i18n/locales/zh-CN.json` | 修改 | 文案 |
+| `frontend/src/api/ocrTools.ts` | 创建 | 类型与 `apiJson` 封装 |
+| `frontend/src/features/settings/OcrSettingsPage.tsx` | 修改 | 表格 + 表单 + 可选导入 |
+| `frontend/src/i18n/locales/en.json` | 修改 | 文案 |
+| `frontend/src/i18n/locales/zh-CN.json` | 修改 | 文案 |
 
 ---
 
@@ -794,11 +794,11 @@ git commit -m "test(ocr): add OCR tools API integration tests"
 ### Task 8: 前端 API 客户端
 
 **Files:**
-- Create: `minerva-ui/src/api/ocrTools.ts`
+- Create: `frontend/src/api/ocrTools.ts`
 
 - [ ] **Step 1: 实现客户端**
 
-Create `minerva-ui/src/api/ocrTools.ts`（路径与字段与后端一致；`PATCH` 用 `JSON.stringify` 以支持 `null` 清空密钥）:
+Create `frontend/src/api/ocrTools.ts`（路径与字段与后端一致；`PATCH` 用 `JSON.stringify` 以支持 `null` 清空密钥）:
 
 ```typescript
 import { apiJson } from '@/api/client'
@@ -884,7 +884,7 @@ export function deleteOcrTool(workspaceId: string, toolId: string) {
 - [ ] **Step 2: Commit**
 
 ```bash
-git add minerva-ui/src/api/ocrTools.ts
+git add frontend/src/api/ocrTools.ts
 git commit -m "feat(ui): add OCR tools API client"
 ```
 
@@ -893,9 +893,9 @@ git commit -m "feat(ui): add OCR tools API client"
 ### Task 9: 管理页与 i18n
 
 **Files:**
-- Modify: `minerva-ui/src/features/settings/OcrSettingsPage.tsx`
-- Modify: `minerva-ui/src/i18n/locales/en.json`
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`
+- Modify: `frontend/src/features/settings/OcrSettingsPage.tsx`
+- Modify: `frontend/src/i18n/locales/en.json`
+- Modify: `frontend/src/i18n/locales/zh-CN.json`
 
 - [ ] **Step 1: 重写页面**
 
@@ -916,7 +916,7 @@ git commit -m "feat(ui): add OCR tools API client"
 Run:
 
 ```bash
-cd minerva-ui
+cd frontend
 npm run build
 ```
 
@@ -925,7 +925,7 @@ Expected: 成功。
 - [ ] **Step 4: Commit**
 
 ```bash
-git add minerva-ui/src/features/settings/OcrSettingsPage.tsx minerva-ui/src/features/settings/ocrSettingsStorage.ts minerva-ui/src/i18n/locales/en.json minerva-ui/src/i18n/locales/zh-CN.json
+git add frontend/src/features/settings/OcrSettingsPage.tsx frontend/src/features/settings/ocrSettingsStorage.ts frontend/src/i18n/locales/en.json frontend/src/i18n/locales/zh-CN.json
 git commit -m "feat(ui): OCR tools management page and i18n"
 ```
 

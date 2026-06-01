@@ -103,10 +103,10 @@ op.add_column(
 
 | 文件 | 变更 |
 |------|------|
-| `minerva-ui/src/api/modelProviders.ts` | `ModelProviderGroupItem`、`ModelProviderCreatePayload`、`ModelProviderPatchPayload` 移除字段 |
-| `minerva-ui/src/features/settings/model-providers/ModelProvidersPage.tsx` | 删除：表格列、`handleToggleLoadBalancing`、表单 `Form.Item`、详情 `Descriptions.Item`、form 默认值与 submit 映射 |
-| `minerva-ui/src/i18n/locales/zh-CN.json` | 删除 `settings.modelProvidersColLb`、`settings.modelProvidersFieldLb` |
-| `minerva-ui/src/i18n/locales/en.json` | 同上 |
+| `frontend/src/api/modelProviders.ts` | `ModelProviderGroupItem`、`ModelProviderCreatePayload`、`ModelProviderPatchPayload` 移除字段 |
+| `frontend/src/features/settings/model-providers/ModelProvidersPage.tsx` | 删除：表格列、`handleToggleLoadBalancing`、表单 `Form.Item`、详情 `Descriptions.Item`、form 默认值与 submit 映射 |
+| `frontend/src/i18n/locales/zh-CN.json` | 删除 `settings.modelProvidersColLb`、`settings.modelProvidersFieldLb` |
+| `frontend/src/i18n/locales/en.json` | 同上 |
 
 表格 `tableScrollX` 可酌情从 1400 减至约 1300（非必须）。
 
@@ -162,4 +162,4 @@ op.add_column(
 | Migration | `backend/alembic/versions/f6a7b8c9d0e1_drop_sys_models_load_balancing_enabled.py` |
 | SQL 补丁 | `backend/sql/patches/2026-06-01-drop-sys-models-load-balancing-enabled.sql` |
 | 后端 | `backend/app/sys/model_provider/` |
-| 前端 | `minerva-ui/src/features/settings/model-providers/ModelProvidersPage.tsx` |
+| 前端 | `frontend/src/features/settings/model-providers/ModelProvidersPage.tsx` |

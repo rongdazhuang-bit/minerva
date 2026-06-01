@@ -36,7 +36,7 @@
 
 | 项 | 代码 |
 |----|------|
-| 主动续期 | `minerva-ui/src/auth/tokenSession.ts`（`REFRESH_BUFFER_SEC = 120`） |
+| 主动续期 | `frontend/src/auth/tokenSession.ts`（`REFRESH_BUFFER_SEC = 120`） |
 | 401 单飞 | `refreshTokens()` + `apiJson` / `authFetch` 重试 |
 | Agent / OCR | `api/agent.ts`、`ocrTask` XHR 已接入 |
 | 多标签 | `AuthContext` + `storage` 事件 |

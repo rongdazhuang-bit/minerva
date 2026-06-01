@@ -8,7 +8,7 @@
 
 - 现有文档翻译：`docs/superpowers/specs/2026-05-20-document-translate-design.md`
 - Paddle layout-parsing / `prunedResult`：`backend/app/ocr/paddleocr/pruned_result.py`
-- 前端 Markdown 组件：`minerva-ui/src/components/markdown/MinervaMarkdown.tsx`（`preset="ocr"`）
+- 前端 Markdown 组件：`frontend/src/components/markdown/MinervaMarkdown.tsx`（`preset="ocr"`）
 
 ---
 
@@ -219,7 +219,7 @@ backend/app/translate/    # extract → layout_snapshot；assemble → writers
 
 ### 6.1 共享组件
 
-- **`MinervaMarkdown`**（`minerva-ui/src/components/markdown/MinervaMarkdown.tsx`）  
+- **`MinervaMarkdown`**（`frontend/src/components/markdown/MinervaMarkdown.tsx`）  
   - 对照区统一 `preset="ocr"`。  
   - `images` 来自页级 `images` map（与 OCR 详情一致）。  
   - 空内容用 `emptyFallback`。

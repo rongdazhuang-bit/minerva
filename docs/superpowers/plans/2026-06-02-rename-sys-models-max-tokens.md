@@ -35,9 +35,9 @@
 
 ### Modify — Frontend
 
-- `minerva-ui/src/api/modelProviders.ts`
-- `minerva-ui/src/features/settings/model-providers/ModelProvidersPage.tsx`
-- `minerva-ui/src/i18n/locales/en.json`
+- `frontend/src/api/modelProviders.ts`
+- `frontend/src/features/settings/model-providers/ModelProvidersPage.tsx`
+- `frontend/src/i18n/locales/en.json`
 
 ### Modify — Docs（全局 replace，见 Task 8）
 
@@ -257,8 +257,8 @@ git commit -m "test: rename max_tokens_to_sample fixtures to max_tokens"
 ### Task 6: 前端 modelProviders + 设置页
 
 **Files:**
-- Modify: `minerva-ui/src/api/modelProviders.ts`
-- Modify: `minerva-ui/src/features/settings/model-providers/ModelProvidersPage.tsx`
+- Modify: `frontend/src/api/modelProviders.ts`
+- Modify: `frontend/src/features/settings/model-providers/ModelProvidersPage.tsx`
 
 - [ ] **Step 1: modelProviders.ts**
 
@@ -277,7 +277,7 @@ git commit -m "test: rename max_tokens_to_sample fixtures to max_tokens"
 - [ ] **Step 3: Commit**
 
 ```bash
-git add minerva-ui/src/api/modelProviders.ts minerva-ui/src/features/settings/model-providers/ModelProvidersPage.tsx
+git add frontend/src/api/modelProviders.ts frontend/src/features/settings/model-providers/ModelProvidersPage.tsx
 git commit -m "refactor(ui): rename model provider max_tokens field"
 ```
 
@@ -286,7 +286,7 @@ git commit -m "refactor(ui): rename model provider max_tokens field"
 ### Task 7: i18n
 
 **Files:**
-- Modify: `minerva-ui/src/i18n/locales/en.json`
+- Modify: `frontend/src/i18n/locales/en.json`
 
 - [ ] **Step 1: 更新英文标签**
 
@@ -297,7 +297,7 @@ git commit -m "refactor(ui): rename model provider max_tokens field"
 - [ ] **Step 2: Commit**
 
 ```bash
-git add minerva-ui/src/i18n/locales/en.json
+git add frontend/src/i18n/locales/en.json
 git commit -m "docs(i18n): rename max tokens field label"
 ```
 
@@ -363,7 +363,7 @@ Expected: 全部 PASS。
 - [ ] **Step 3: 前端类型检查（若项目有脚本）**
 
 ```bash
-cd minerva-ui
+cd frontend
 npm run typecheck
 ```
 

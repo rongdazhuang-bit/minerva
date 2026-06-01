@@ -36,11 +36,11 @@
 
 ### Frontend
 
-- Modify: `minerva-ui/src/api/modelProviders.ts`
-- Modify: `minerva-ui/src/features/settings/model-providers/ModelProvidersPage.tsx`
-- Modify: `minerva-ui/src/features/agent/AgentsPage.tsx`
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`
-- Modify: `minerva-ui/src/i18n/locales/en.json`
+- Modify: `frontend/src/api/modelProviders.ts`
+- Modify: `frontend/src/features/settings/model-providers/ModelProvidersPage.tsx`
+- Modify: `frontend/src/features/agent/AgentsPage.tsx`
+- Modify: `frontend/src/i18n/locales/zh-CN.json`
+- Modify: `frontend/src/i18n/locales/en.json`
 
 ### Docs（实现完成后）
 
@@ -405,7 +405,7 @@ git commit -m "feat(agent): require CHAT tag on ChatModelFactory"
 ### Task 5: 前端 API 类型
 
 **Files:**
-- Modify: `minerva-ui/src/api/modelProviders.ts`
+- Modify: `frontend/src/api/modelProviders.ts`
 
 - [ ] **Step 1: 类型增加 `tags: string[]`**
 
@@ -414,7 +414,7 @@ git commit -m "feat(agent): require CHAT tag on ChatModelFactory"
 - [ ] **Step 2: Commit**
 
 ```bash
-git add minerva-ui/src/api/modelProviders.ts
+git add frontend/src/api/modelProviders.ts
 git commit -m "feat(ui): add tags to model provider API types"
 ```
 
@@ -423,9 +423,9 @@ git commit -m "feat(ui): add tags to model provider API types"
 ### Task 6: 模型供应商设置页 UI
 
 **Files:**
-- Modify: `minerva-ui/src/features/settings/model-providers/ModelProvidersPage.tsx`
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`
-- Modify: `minerva-ui/src/i18n/locales/en.json`
+- Modify: `frontend/src/features/settings/model-providers/ModelProvidersPage.tsx`
+- Modify: `frontend/src/i18n/locales/zh-CN.json`
+- Modify: `frontend/src/i18n/locales/en.json`
 
 - [ ] **Step 1: i18n**
 
@@ -493,9 +493,9 @@ Drawer 表单（`model_type` 附近）：
 - [ ] **Step 6: Commit**
 
 ```bash
-git add minerva-ui/src/features/settings/model-providers/ModelProvidersPage.tsx \
-  minerva-ui/src/i18n/locales/zh-CN.json \
-  minerva-ui/src/i18n/locales/en.json
+git add frontend/src/features/settings/model-providers/ModelProvidersPage.tsx \
+  frontend/src/i18n/locales/zh-CN.json \
+  frontend/src/i18n/locales/en.json
 git commit -m "feat(ui): model provider tags multi-select and table column"
 ```
 
@@ -504,7 +504,7 @@ git commit -m "feat(ui): model provider tags multi-select and table column"
 ### Task 7: Agent 对话页过滤
 
 **Files:**
-- Modify: `minerva-ui/src/features/agent/AgentsPage.tsx`
+- Modify: `frontend/src/features/agent/AgentsPage.tsx`
 
 - [ ] **Step 1: 更新 `usableModels`**
 
@@ -529,7 +529,7 @@ const usableModels = useMemo(() => {
 - [ ] **Step 3: Commit**
 
 ```bash
-git add minerva-ui/src/features/agent/AgentsPage.tsx
+git add frontend/src/features/agent/AgentsPage.tsx
 git commit -m "feat(agent): filter model picker to CHAT-tagged models"
 ```
 

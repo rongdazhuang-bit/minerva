@@ -16,12 +16,12 @@
 
 | 路径 | 职责 |
 |------|------|
-| `minerva-ui/src/i18n/locales/zh-CN.json` | 新增 `overview.apps.*`；删除旧 `overview.stat.*` / `home.*` 等 |
-| `minerva-ui/src/i18n/locales/en.json` | 同上（英文） |
-| `minerva-ui/src/features/workspace/OverviewPage.css` | 快捷入口网格、卡片、渐变图标、hover/focus、双主题 |
-| `minerva-ui/src/features/workspace/OverviewPage.tsx` | 配置驱动的 6 卡片网格与导航 |
+| `frontend/src/i18n/locales/zh-CN.json` | 新增 `overview.apps.*`；删除旧 `overview.stat.*` / `home.*` 等 |
+| `frontend/src/i18n/locales/en.json` | 同上（英文） |
+| `frontend/src/features/workspace/OverviewPage.css` | 快捷入口网格、卡片、渐变图标、hover/focus、双主题 |
+| `frontend/src/features/workspace/OverviewPage.tsx` | 配置驱动的 6 卡片网格与导航 |
 
-**不变:** `minerva-ui/src/app/router.tsx`（路由仍为 `overview` → `OverviewPage`）。
+**不变:** `frontend/src/app/router.tsx`（路由仍为 `overview` → `OverviewPage`）。
 
 ---
 
@@ -29,8 +29,8 @@
 
 **Files:**
 
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`
-- Modify: `minerva-ui/src/i18n/locales/en.json`
+- Modify: `frontend/src/i18n/locales/zh-CN.json`
+- Modify: `frontend/src/i18n/locales/en.json`
 
 - [ ] **Step 1: 在 zh-CN.json 替换 overview / home 区块**
 
@@ -81,7 +81,7 @@
 Run:
 
 ```bash
-cd minerva-ui && node -e "JSON.parse(require('fs').readFileSync('src/i18n/locales/zh-CN.json','utf8')); JSON.parse(require('fs').readFileSync('src/i18n/locales/en.json','utf8')); console.log('ok')"
+cd frontend && node -e "JSON.parse(require('fs').readFileSync('src/i18n/locales/zh-CN.json','utf8')); JSON.parse(require('fs').readFileSync('src/i18n/locales/en.json','utf8')); console.log('ok')"
 ```
 
 Expected: `ok`
@@ -89,7 +89,7 @@ Expected: `ok`
 - [ ] **Step 4: Commit**
 
 ```bash
-git add minerva-ui/src/i18n/locales/zh-CN.json minerva-ui/src/i18n/locales/en.json
+git add frontend/src/i18n/locales/zh-CN.json frontend/src/i18n/locales/en.json
 git commit -m "feat(ui): i18n keys for overview quick launch apps"
 ```
 
@@ -99,7 +99,7 @@ git commit -m "feat(ui): i18n keys for overview quick launch apps"
 
 **Files:**
 
-- Modify: `minerva-ui/src/features/workspace/OverviewPage.css`（整文件替换）
+- Modify: `frontend/src/features/workspace/OverviewPage.css`（整文件替换）
 
 - [ ] **Step 1: 写入完整 CSS**
 
@@ -236,7 +236,7 @@ html.minerva-tone-sunshine .minerva-overview__app-desc {
 - [ ] **Step 2: Commit**
 
 ```bash
-git add minerva-ui/src/features/workspace/OverviewPage.css
+git add frontend/src/features/workspace/OverviewPage.css
 git commit -m "feat(ui): overview quick launch card styles"
 ```
 
@@ -246,7 +246,7 @@ git commit -m "feat(ui): overview quick launch card styles"
 
 **Files:**
 
-- Modify: `minerva-ui/src/features/workspace/OverviewPage.tsx`（整文件替换）
+- Modify: `frontend/src/features/workspace/OverviewPage.tsx`（整文件替换）
 
 - [ ] **Step 1: 写入完整组件**
 
@@ -396,7 +396,7 @@ export function OverviewPage(): ReactNode {
 Run:
 
 ```bash
-cd minerva-ui && npm run build
+cd frontend && npm run build
 ```
 
 Expected: 命令成功退出（`tsc -b && vite build` 无 error）。
@@ -406,7 +406,7 @@ Expected: 命令成功退出（`tsc -b && vite build` 无 error）。
 Run:
 
 ```bash
-cd minerva-ui && npm run lint
+cd frontend && npm run lint
 ```
 
 Expected: 无 error（允许既有仓库 warn，但本文件不得新增 error）。
@@ -414,7 +414,7 @@ Expected: 无 error（允许既有仓库 warn，但本文件不得新增 error�
 - [ ] **Step 4: Commit**
 
 ```bash
-git add minerva-ui/src/features/workspace/OverviewPage.tsx
+git add frontend/src/features/workspace/OverviewPage.tsx
 git commit -m "feat(ui): replace overview page with quick launch app grid"
 ```
 
@@ -429,7 +429,7 @@ git commit -m "feat(ui): replace overview page with quick launch app grid"
 Run:
 
 ```bash
-cd minerva-ui && npm run dev
+cd frontend && npm run dev
 ```
 
 在浏览器打开应用并登录，确认默认进入 `/app/overview`。

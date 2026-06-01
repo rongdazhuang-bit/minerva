@@ -56,7 +56,7 @@
 
 | 模块 | 过滤条件 | 实现位置 |
 |------|----------|----------|
-| Agent 对话（前端下拉） | `tags` 含 `TEXT` | `minerva-ui/.../AgentsPage.tsx` |
+| Agent 对话（前端下拉） | `tags` 含 `TEXT` | `frontend/.../AgentsPage.tsx` |
 | Agent 后端跑图 | `tags` 含 `TEXT` | `app/agent/infrastructure/chat_model_factory.py` |
 | `app/llm` chat | `tags` 含 `TEXT` 或 `TRANSLATE` | `app/llm/service/model_resolver.py` |
 | 翻译 | `tags` 含 `TRANSLATE` | `translate_llm` → `llm_service` |
@@ -246,7 +246,7 @@ async def resolve_model(
 
 ### 8.4 API 类型
 
-`minerva-ui/src/api/modelProviders.ts`：各类型移除 `model_type`。
+`frontend/src/api/modelProviders.ts`：各类型移除 `model_type`。
 
 ---
 

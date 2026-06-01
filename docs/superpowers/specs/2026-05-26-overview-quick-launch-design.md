@@ -12,7 +12,7 @@
 - **窗口**：近 7 个本地日历日（与 OCR 概览相同 TZ 规则）
 - **Series**：`prompt_tokens`、`completion_tokens`、`details.cached_tokens`、`details.reasoning_tokens`
 - **聚合源**：工作区内 `agent_run.usage_json`，按 `coalesce(finished_at, started_at)` 分桶  
-**范围**：`minerva-ui` 概览页（`/app/overview`）主内容区 UI 改造
+**范围**：`frontend` 概览页（`/app/overview`）主内容区 UI 改造
 
 ---
 
@@ -162,10 +162,10 @@
 
 | 文件 | 操作 |
 |------|------|
-| `minerva-ui/src/features/workspace/OverviewPage.tsx` | 重写为快捷入口网格 |
-| `minerva-ui/src/features/workspace/OverviewPage.css` | 替换为新卡片样式 |
-| `minerva-ui/src/i18n/locales/zh-CN.json` | 新增 / 删除 i18n key |
-| `minerva-ui/src/i18n/locales/en.json` | 新增 / 删除 i18n key |
+| `frontend/src/features/workspace/OverviewPage.tsx` | 重写为快捷入口网格 |
+| `frontend/src/features/workspace/OverviewPage.css` | 替换为新卡片样式 |
+| `frontend/src/i18n/locales/zh-CN.json` | 新增 / 删除 i18n key |
+| `frontend/src/i18n/locales/en.json` | 新增 / 删除 i18n key |
 
 **不变**：路由（仍为 `/app/overview`）、`AppLayout` 侧栏、后端 API。
 

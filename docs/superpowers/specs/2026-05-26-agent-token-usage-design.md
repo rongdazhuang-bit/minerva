@@ -272,7 +272,7 @@ Pydantic：`AgentSessionOut.usage`、`AgentSessionListItemOut.usage`（`dict | N
 | memory.persist 单测 | `tests/test_agent_memory_persist_usage.py` | 已实现（Session 不 double merge） |
 | DB 迁移 | `sql/patches/2026-05-26-agent-usage-json.sql` | 已实现 |
 | API schemas | `api/v2/schemas.py`, `router.py` | 已实现 |
-| 前端展示 | `minerva-ui` AgentsPage + `agentSkillUi.ts` | 已实现（SSE + meta 恢复） |
+| 前端展示 | `frontend` AgentsPage + `agentSkillUi.ts` | 已实现（SSE + meta 恢复） |
 
 ---
 

@@ -219,7 +219,7 @@ GET /workspaces/{workspace_id}/agent/skills
 
 ### 6.1 API 客户端
 
-`minerva-ui/src/api/agent.ts`：
+`frontend/src/api/agent.ts`：
 
 - `AgentSkillListItem { id: string; description: string }`
 - `listAgentSkills(workspaceId): Promise<{ skills: AgentSkillListItem[] }>` — **唯一**获取可选 skill 的入口。

@@ -47,19 +47,19 @@
 
 ### 前端（新建）
 
-- `minerva-ui/src/api/translate.ts`
-- `minerva-ui/src/features/translate/TranslatePage.tsx`
-- `minerva-ui/src/features/translate/TranslatePage.css`
-- `minerva-ui/src/features/translate/translateJobUi.ts`
-- `minerva-ui/src/features/translate/index.ts`
+- `frontend/src/api/translate.ts`
+- `frontend/src/features/translate/TranslatePage.tsx`
+- `frontend/src/features/translate/TranslatePage.css`
+- `frontend/src/features/translate/translateJobUi.ts`
+- `frontend/src/features/translate/index.ts`
 
 ### 前端（修改 / 删除）
 
-- `minerva-ui/src/app/router.tsx` — `/app/translate`，移除 `doc-translate`
-- `minerva-ui/src/app/layout/AppLayout.tsx` — 菜单路径、`menuKeyForPath`、`contentScrollStyleForPath`
-- `minerva-ui/src/app/layout/AppBreadcrumb.tsx`
-- `minerva-ui/src/i18n/locales/zh-CN.json`, `en.json`
-- 删除 `minerva-ui/src/features/doc-translate/`（两处文件）
+- `frontend/src/app/router.tsx` — `/app/translate`，移除 `doc-translate`
+- `frontend/src/app/layout/AppLayout.tsx` — 菜单路径、`menuKeyForPath`、`contentScrollStyleForPath`
+- `frontend/src/app/layout/AppBreadcrumb.tsx`
+- `frontend/src/i18n/locales/zh-CN.json`, `en.json`
+- 删除 `frontend/src/features/doc-translate/`（两处文件）
 
 ---
 
@@ -442,11 +442,11 @@ cd backend && pytest tests/test_doc_translate_api.py -v
 ## Task 10: 前端 API 与路由迁移
 
 **Files:**
-- Create: `minerva-ui/src/api/translate.ts`
-- Modify: `minerva-ui/src/app/router.tsx`
-- Modify: `minerva-ui/src/app/layout/AppLayout.tsx`
-- Modify: `minerva-ui/src/app/layout/AppBreadcrumb.tsx`
-- Delete: `minerva-ui/src/features/doc-translate/`
+- Create: `frontend/src/api/translate.ts`
+- Modify: `frontend/src/app/router.tsx`
+- Modify: `frontend/src/app/layout/AppLayout.tsx`
+- Modify: `frontend/src/app/layout/AppBreadcrumb.tsx`
+- Delete: `frontend/src/features/doc-translate/`
 
 - [ ] **Step 1: `api/translate.ts`**
 
@@ -481,11 +481,11 @@ git commit -m "feat(ui): add translate API client and /app/translate route"
 ## Task 11: TranslatePage UI
 
 **Files:**
-- Create: `minerva-ui/src/features/translate/TranslatePage.tsx`
-- Create: `minerva-ui/src/features/translate/TranslatePage.css`
-- Create: `minerva-ui/src/features/translate/translateJobUi.ts`
-- Create: `minerva-ui/src/features/translate/index.ts`
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`, `en.json`
+- Create: `frontend/src/features/translate/TranslatePage.tsx`
+- Create: `frontend/src/features/translate/TranslatePage.css`
+- Create: `frontend/src/features/translate/translateJobUi.ts`
+- Create: `frontend/src/features/translate/index.ts`
+- Modify: `frontend/src/i18n/locales/zh-CN.json`, `en.json`
 
 - [ ] **Step 1: 布局骨架（复制 AgentsPage 结构）**
 

@@ -6,7 +6,7 @@
 
 **Architecture:** 混合式（spec 方案 3）：`RunUsageTracker` 挂在 `GraphDeps`，每次 LLM 调用写 `agent_run_node`（`llm.round`）并内存累计；节点边界 rollup 父节点；Run finalize 写分层 `usage_json` 并 merge Session；后台 `memory.persist` 二次 patch Run/Session/助手消息 meta。归一化与 merge 复用并扩展 `openai_usage.py`。
 
-**Tech Stack:** Python 3.13, FastAPI, SQLAlchemy 2 async, PostgreSQL JSONB, LangGraph/LangChain, pytest, React/minerva-ui, i18next
+**Tech Stack:** Python 3.13, FastAPI, SQLAlchemy 2 async, PostgreSQL JSONB, LangGraph/LangChain, pytest, React/frontend, i18next
 
 **Spec:** `docs/superpowers/specs/2026-05-26-agent-token-usage-design.md`
 
@@ -15,7 +15,7 @@
 **已有部分实现（勿重复造轮子）:**
 - `backend/app/agent/infrastructure/openai_usage.py` — `normalize_openai_usage` / `merge_openai_usage`
 - `backend/app/agent/graphs/deps.py` — `emit_llm_usage` + flat `accumulated_usage`
-- `minerva-ui` — SSE 采集 + 复制按钮旁 `{{count}} tokens`（`AgentsPage.tsx`、`agent-stream-v2.ts`）
+- `frontend` — SSE 采集 + 复制按钮旁 `{{count}} tokens`（`AgentsPage.tsx`、`agent-stream-v2.ts`）
 
 ---
 
@@ -42,9 +42,9 @@
 | `backend/tests/test_agent_usage_tracker.py` | **新建** tracker 单测 |
 | `backend/tests/test_agent_memory_persist_usage.py` | **新建** 后台 patch 单测 |
 | `backend/tests/test_agent_session_usage_api.py` | **新建** API 测试 |
-| `minerva-ui/src/api/agent.ts` | Session 类型 `usage` |
-| `minerva-ui/src/features/agent/agentSkillUi.ts` | 从 message meta 解析 `totalTokens` |
-| `minerva-ui/src/features/agent/AgentsPage.tsx` | 加载会话时恢复 token；侧栏 session 累计（可选） |
+| `frontend/src/api/agent.ts` | Session 类型 `usage` |
+| `frontend/src/features/agent/agentSkillUi.ts` | 从 message meta 解析 `totalTokens` |
+| `frontend/src/features/agent/AgentsPage.tsx` | 加载会话时恢复 token；侧栏 session 累计（可选） |
 | `docs/superpowers/specs/2026-05-26-agent-token-usage-design.md` | 状态 + 实现对照 |
 | `docs/agent-module-design.md` | §7 / §9.2 回填 |
 
@@ -1002,9 +1002,9 @@ git commit -m "feat(agent): expose session usage on v2 API"
 ### Task 12: 前端 — 刷新恢复与类型
 
 **Files:**
-- Modify: `minerva-ui/src/api/agent.ts`
-- Modify: `minerva-ui/src/features/agent/agentSkillUi.ts`
-- Modify: `minerva-ui/src/features/agent/AgentsPage.tsx`
+- Modify: `frontend/src/api/agent.ts`
+- Modify: `frontend/src/features/agent/agentSkillUi.ts`
+- Modify: `frontend/src/features/agent/AgentsPage.tsx`
 
 **说明:** 复制按钮旁 token 展示已在当前分支部分实现；本 Task 补齐持久化恢复。
 
@@ -1071,7 +1071,7 @@ totalTokens: totalTokensFromUsage((sm as any).meta...) ?? src?.totalTokens,
 - [ ] **Step 6: Commit**
 
 ```bash
-git add minerva-ui/src/api/agent.ts minerva-ui/src/features/agent/agentSkillUi.ts minerva-ui/src/features/agent/AgentsPage.tsx backend/app/agent/api/v2/schemas.py backend/app/agent/api/v2/router.py
+git add frontend/src/api/agent.ts frontend/src/features/agent/agentSkillUi.ts frontend/src/features/agent/AgentsPage.tsx backend/app/agent/api/v2/schemas.py backend/app/agent/api/v2/router.py
 git commit -m "feat(ui): restore per-message token usage from API meta"
 ```
 
@@ -1109,7 +1109,7 @@ Expected: 全部 PASS
 
 - [ ] **Step 2: 前端 typecheck（若项目有）**
 
-Run: `cd minerva-ui && npm run build`（或 `npm run lint`）
+Run: `cd frontend && npm run build`（或 `npm run lint`）
 
 Expected: 无 TS 错误
 

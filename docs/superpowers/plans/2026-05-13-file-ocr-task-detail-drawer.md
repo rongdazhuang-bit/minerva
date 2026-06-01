@@ -26,14 +26,14 @@
 | `backend/app/file_ocr/service/markdown_pages.py` | 加载 `OcrFile`、状态校验、调策略、解析 JSON、组装响应 |
 | `backend/app/file_ocr/api/router.py` | 注册 `GET /{ocr_file_id}/markdown-pages` |
 | `backend/tests/test_file_ocr_markdown_pages.py` | 接口与解析行为集成测试 |
-| `minerva-ui/src/features/file-ocr/applyOcrMarkdownImagePlaceholders.ts` | 占位符替换纯函数 |
-| `minerva-ui/src/features/file-ocr/applyOcrMarkdownImagePlaceholders.test.ts` | Vitest 单测 |
-| `minerva-ui/vite.config.ts` | 合并 `test` 配置块 |
-| `minerva-ui/package.json` | `devDependencies` 增加 `vitest`，`scripts` 增加 `test` |
-| `minerva-ui/src/api/ocrTask.ts` | `getOcrFileMarkdownPages` + 类型 |
-| `minerva-ui/src/features/file-ocr/FileOcrTaskPage.tsx` | Drawer、加载态、禁用查看按钮、Markdown 区 |
-| `minerva-ui/src/features/file-ocr/FileOcrTaskMarkdown.css`（可选） | Markdown 正文排版（可复用 `RulesManagementPage.css` 片段） |
-| `minerva-ui/src/i18n/locales/zh-CN.json`、`en.json` | 抽屉标题、空态、错误码文案 |
+| `frontend/src/features/file-ocr/applyOcrMarkdownImagePlaceholders.ts` | 占位符替换纯函数 |
+| `frontend/src/features/file-ocr/applyOcrMarkdownImagePlaceholders.test.ts` | Vitest 单测 |
+| `frontend/vite.config.ts` | 合并 `test` 配置块 |
+| `frontend/package.json` | `devDependencies` 增加 `vitest`，`scripts` 增加 `test` |
+| `frontend/src/api/ocrTask.ts` | `getOcrFileMarkdownPages` + 类型 |
+| `frontend/src/features/file-ocr/FileOcrTaskPage.tsx` | Drawer、加载态、禁用查看按钮、Markdown 区 |
+| `frontend/src/features/file-ocr/FileOcrTaskMarkdown.css`（可选） | Markdown 正文排版（可复用 `RulesManagementPage.css` 片段） |
+| `frontend/src/i18n/locales/zh-CN.json`、`en.json` | 抽屉标题、空态、错误码文案 |
 
 ---
 
@@ -407,17 +407,17 @@ git commit -m "test(file-ocr): cover markdown-pages API"
 ### Task 6: 前端占位符纯函数 + Vitest
 
 **Files:**
-- Modify: `minerva-ui/package.json`
-- Modify: `minerva-ui/vite.config.ts`
-- Create: `minerva-ui/src/features/file-ocr/applyOcrMarkdownImagePlaceholders.ts`
-- Create: `minerva-ui/src/features/file-ocr/applyOcrMarkdownImagePlaceholders.test.ts`
+- Modify: `frontend/package.json`
+- Modify: `frontend/vite.config.ts`
+- Create: `frontend/src/features/file-ocr/applyOcrMarkdownImagePlaceholders.ts`
+- Create: `frontend/src/features/file-ocr/applyOcrMarkdownImagePlaceholders.test.ts`
 
 - [ ] **Step 1: 安装 Vitest**
 
 Run:
 
 ```bash
-cd D:\ityeahProjects\minerva\minerva-ui
+cd D:\ityeahProjects\minerva\frontend
 npm install -D vitest@^3.0.0
 ```
 
@@ -489,13 +489,13 @@ describe('applyOcrMarkdownImagePlaceholders', () => {
 
 - [ ] **Step 5: 运行 Vitest**
 
-Run: `cd D:\ityeahProjects\minerva\minerva-ui && npm run test`  
+Run: `cd D:\ityeahProjects\minerva\frontend && npm run test`  
 Expected: **1 test file passed**。
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add minerva-ui/package.json minerva-ui/package-lock.json minerva-ui/vite.config.ts minerva-ui/src/features/file-ocr/applyOcrMarkdownImagePlaceholders.ts minerva-ui/src/features/file-ocr/applyOcrMarkdownImagePlaceholders.test.ts
+git add frontend/package.json frontend/package-lock.json frontend/vite.config.ts frontend/src/features/file-ocr/applyOcrMarkdownImagePlaceholders.ts frontend/src/features/file-ocr/applyOcrMarkdownImagePlaceholders.test.ts
 git commit -m "feat(file-ocr-ui): add markdown image placeholder helper and vitest"
 ```
 
@@ -504,7 +504,7 @@ git commit -m "feat(file-ocr-ui): add markdown image placeholder helper and vite
 ### Task 7: API 客户端类型与请求函数
 
 **Files:**
-- Modify: `minerva-ui/src/api/ocrTask.ts`
+- Modify: `frontend/src/api/ocrTask.ts`
 
 - [ ] **Step 1: 追加类型与函数**
 
@@ -537,7 +537,7 @@ export function getOcrFileMarkdownPages(
 - [ ] **Step 2: Commit**
 
 ```bash
-git add minerva-ui/src/api/ocrTask.ts
+git add frontend/src/api/ocrTask.ts
 git commit -m "feat(file-ocr-ui): add markdown-pages API client"
 ```
 
@@ -546,10 +546,10 @@ git commit -m "feat(file-ocr-ui): add markdown-pages API client"
 ### Task 8: 任务列表页 Drawer 与交互
 
 **Files:**
-- Modify: `minerva-ui/src/features/file-ocr/FileOcrTaskPage.tsx`
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`
-- Modify: `minerva-ui/src/i18n/locales/en.json`
-- Optional: `minerva-ui/src/features/file-ocr/FileOcrTaskMarkdown.css` + import
+- Modify: `frontend/src/features/file-ocr/FileOcrTaskPage.tsx`
+- Modify: `frontend/src/i18n/locales/zh-CN.json`
+- Modify: `frontend/src/i18n/locales/en.json`
+- Optional: `frontend/src/features/file-ocr/FileOcrTaskMarkdown.css` + import
 
 - [ ] **Step 1: 状态与 ref**
 
@@ -580,15 +580,15 @@ git commit -m "feat(file-ocr-ui): add markdown-pages API client"
 
 - [ ] **Step 7: Lint 与构建**
 
-Run: `cd D:\ityeahProjects\minerva\minerva-ui && npm run lint && npm run build`  
+Run: `cd D:\ityeahProjects\minerva\frontend && npm run lint && npm run build`  
 Expected: **无错误**。
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add minerva-ui/src/features/file-ocr/FileOcrTaskPage.tsx minerva-ui/src/i18n/locales/zh-CN.json minerva-ui/src/i18n/locales/en.json
+git add frontend/src/features/file-ocr/FileOcrTaskPage.tsx frontend/src/i18n/locales/zh-CN.json frontend/src/i18n/locales/en.json
 # 若新增 css：
-# git add minerva-ui/src/features/file-ocr/FileOcrTaskMarkdown.css
+# git add frontend/src/features/file-ocr/FileOcrTaskMarkdown.css
 git commit -m "feat(file-ocr-ui): markdown detail drawer for SUCCESS tasks"
 ```
 

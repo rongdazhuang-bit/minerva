@@ -4,10 +4,10 @@ description: >-
   Minerva 仓库级开发约定：(1) 数据库表设计禁止外键与 ON DELETE 级联，关联与删除在业务代码层实现；
   (2) 修 bug/改行为时先查 docs/superpowers/specs 与设计文档，改代码后再回填修订文档；
   (3) 环境变量在 app/config.py 或代码中新增/删除/更名/改默认值时，须同步 backend/.env.example 与 backend/.env.dev；
-  (4) minerva-ui 所有二次确认统一使用 Ant Design Popconfirm，禁止 Modal.confirm 等替代。
+  (4) frontend 所有二次确认统一使用 Ant Design Popconfirm，禁止 Modal.confirm 等替代。
   Use when designing tables, writing schema/SQL/ORM, implementing delete APIs, cascading cleanup,
   changing Settings or os.getenv, fixing bugs, aligning code with specs, updating requirements/design docs after code changes,
-  or adding minerva-ui destructive actions and confirmation UX.
+  or adding frontend destructive actions and confirmation UX.
   Triggers: 外键、级联删除、CASCADE、RESTRICT、schema、建表、删除接口、需求文档、设计文档、spec 回填、环境变量、.env、Settings、config.py、Popconfirm、二次确认、Modal.confirm、退出登录.
 ---
 
@@ -137,11 +137,11 @@ description: >-
 
 ---
 
-## 4. minerva-ui：二次确认统一使用 Popconfirm
+## 4. frontend：二次确认统一使用 Popconfirm
 
 ### 规则（硬性）
 
-- 在 `minerva-ui` 中，凡需用户**二次确认**的操作（删除、退出登录、不可逆提交、批量危险操作等），**必须**使用 Ant Design **`Popconfirm`**，将确认气泡锚定在触发控件上。
+- 在 `frontend` 中，凡需用户**二次确认**的操作（删除、退出登录、不可逆提交、批量危险操作等），**必须**使用 Ant Design **`Popconfirm`**，将确认气泡锚定在触发控件上。
 - **禁止**使用 `Modal.confirm`、`window.confirm` 或自定义全屏确认弹层作为常规二次确认手段（除非产品 spec 明确要求全屏阻断式对话框，且须在 PR 中说明例外原因）。
 
 ### 推荐写法
@@ -166,13 +166,13 @@ description: >-
 
 | 场景 | 位置 |
 |------|------|
-| 退出登录 | `minerva-ui/src/app/layout/AppHeaderToolbar.tsx` |
+| 退出登录 | `frontend/src/app/layout/AppHeaderToolbar.tsx` |
 | 删除字典 / 模型 / OCR 配置等 | `DictionaryPage.tsx`、`ModelProvidersPage.tsx`、`OcrSettingsPage.tsx` 等 |
 
 ### 实现检查清单
 
 1. 新增危险按钮时，用 `Popconfirm` 包裹触发器，**不要**在 `onClick` 里调 `Modal.confirm`。
-2. 文案键加入 `minerva-ui/src/i18n/locales/zh-CN.json` 与 `en.json`。
+2. 文案键加入 `frontend/src/i18n/locales/zh-CN.json` 与 `en.json`。
 3. Code review：搜索 `Modal.confirm`，若无 spec 例外说明则要求改为 `Popconfirm`。
 
 ### 禁止

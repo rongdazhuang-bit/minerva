@@ -140,7 +140,7 @@
 | 模块路径 | `backend/app/sys/tool/ocr/`（非 spec 初稿 `app/tool/ocr`） |
 | API | `GET/POST /workspaces/{id}/ocr-tools`，`GET/PATCH/DELETE .../ocr-tools/{id}` |
 | 表 | `sys_ocr_tool`；`auth_type` 存大写 `NONE`/`BASIC`/`API_KEY` |
-| UI | `minerva-ui` → `/app/settings/ocr`（`OcrSettingsPage`） |
+| UI | `frontend` → `/app/settings/ocr`（`OcrSettingsPage`） |
 | localStorage 迁移 | `readOcrSettings` +「从本机导入」+ `clearOcrSettings` |
 | 扩展字段 | `ocr_type`、`ocr_config`（扫描/参数表单，超出首版 spec） |
 | 测试 | `backend/tests/test_ocr_tools_api.py` |

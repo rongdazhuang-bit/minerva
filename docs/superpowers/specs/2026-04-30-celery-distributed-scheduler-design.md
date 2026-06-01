@@ -20,7 +20,7 @@
 - 后端新增 `backend/app/sys/celery` 模块，提供任务管理 API 与调度同步服务。
 - 补充 `sys_celery` 表字段以支持热更新、执行态可观测与参数化任务。
 - 集成 Celery Worker + Beat，采用“DB 真源 + Redis 失效通知”同步机制。
-- 前端新增 `minerva-ui/src/features/settings/celery` 管理页面与 Cron 生成器。
+- 前端新增 `frontend/src/features/settings/celery` 管理页面与 Cron 生成器。
 
 ### 2.2 非本次范围
 
@@ -175,7 +175,7 @@
 
 分页规则：
 
-- 默认每页 `10` 条（对齐 `minerva-ui/src/constants/pagination.ts`）。
+- 默认每页 `10` 条（对齐 `frontend/src/constants/pagination.ts`）。
 
 ## 6.3 新增/编辑表单设计
 

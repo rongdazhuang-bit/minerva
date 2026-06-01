@@ -2,7 +2,7 @@
 
 **日期**：2026-05-29  
 **状态**：已实现（2026-05-29 按代码回填）  
-**依据**：[MinerU Quick Usage — FastAPI](https://opendatalab.github.io/MinerU/usage/quick_usage/)（`POST /file_parse`、`POST /tasks`）；仓库内 Paddle 参考：`backend/app/file_ocr/service/strategies/paddle.py`、`backend/app/ocr/paddleocr/`、`minerva-ui/src/features/settings/ocr/paddleOcrParams.ts`。
+**依据**：[MinerU Quick Usage — FastAPI](https://opendatalab.github.io/MinerU/usage/quick_usage/)（`POST /file_parse`、`POST /tasks`）；仓库内 Paddle 参考：`backend/app/file_ocr/service/strategies/paddle.py`、`backend/app/ocr/paddleocr/`、`frontend/src/features/settings/ocr/paddleOcrParams.ts`。
 
 ---
 
@@ -39,7 +39,7 @@
 与 Paddle 采用 **相同分层模式**，模块间 **不交叉依赖**（MinerU 客户端不读 ORM；Paddle 模块不引用 MinerU）。
 
 ```text
-minerva-ui/settings/ocr/
+frontend/settings/ocr/
   mineruParams.ts              # ocr_config ↔ 表单
   PaddleOcrParamsTab.tsx       # MineruOcrParamsFields / Readonly
 
@@ -185,7 +185,7 @@ backend/app/file_ocr/service/
 
 ---
 
-## 8. 前端（minerva-ui）
+## 8. 前端（frontend）
 
 ### 8.1 `mineruParams.ts`
 

@@ -21,10 +21,10 @@
 | `backend/app/rule/api/schemas.py` | 新增 `RuleBaseOverviewStatsOut` |
 | `backend/app/rule/api/router.py` | `GET /overview-stats`，`Depends` 与列表一致 |
 | `backend/tests/test_rule_base_api.py`（或新建 `test_rule_overview_stats_api.py`） | HTTP 集成测试：多行规则 + 空码 + 断言 JSON |
-| `minerva-ui/src/api/ruleBase.ts` | `getRuleBaseOverviewStats`、`RuleBaseOverviewStats` 类型 |
-| `minerva-ui/src/features/rules/RulesOverviewPage.tsx` | KPI 卡片 + 三个分项列表、loading/空态 |
-| `minerva-ui/src/features/rules/RulesOverviewPage.css`（可选） | 若需与 `RulesManagementPage` 对齐的间距/卡片样式 |
-| `minerva-ui/src/i18n/locales/zh-CN.json`、`en.json` | 概览 KPI/分项标题/空列表提示 |
+| `frontend/src/api/ruleBase.ts` | `getRuleBaseOverviewStats`、`RuleBaseOverviewStats` 类型 |
+| `frontend/src/features/rules/RulesOverviewPage.tsx` | KPI 卡片 + 三个分项列表、loading/空态 |
+| `frontend/src/features/rules/RulesOverviewPage.css`（可选） | 若需与 `RulesManagementPage` 对齐的间距/卡片样式 |
+| `frontend/src/i18n/locales/zh-CN.json`、`en.json` | 概览 KPI/分项标题/空列表提示 |
 
 ---
 
@@ -247,7 +247,7 @@ git commit -m "test(rule): overview-stats API"
 
 **Files:**
 
-- Modify: `minerva-ui/src/api/ruleBase.ts`
+- Modify: `frontend/src/api/ruleBase.ts`
 
 - [ ] **Step 1: 类型与函数**
 
@@ -271,7 +271,7 @@ export function getRuleBaseOverviewStats(workspaceId: string) {
 - [ ] **Step 2: Commit**
 
 ```bash
-git add minerva-ui/src/api/ruleBase.ts
+git add frontend/src/api/ruleBase.ts
 git commit -m "feat(ui): rule base overview stats API client"
 ```
 
@@ -281,9 +281,9 @@ git commit -m "feat(ui): rule base overview stats API client"
 
 **Files:**
 
-- Modify: `minerva-ui/src/features/rules/RulesOverviewPage.tsx`
-- Create（可选）: `minerva-ui/src/features/rules/RulesOverviewPage.css`
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`、`en.json`
+- Modify: `frontend/src/features/rules/RulesOverviewPage.tsx`
+- Create（可选）: `frontend/src/features/rules/RulesOverviewPage.css`
+- Modify: `frontend/src/i18n/locales/zh-CN.json`、`en.json`
 
 - [ ] **Step 1: 数据**
 
@@ -306,7 +306,7 @@ git commit -m "feat(ui): rule base overview stats API client"
 Run:
 
 ```bash
-cd minerva-ui && npm run build
+cd frontend && npm run build
 ```
 
 Expected: 无 TS 错误。
@@ -314,9 +314,9 @@ Expected: 无 TS 错误。
 - [ ] **Step 5: Commit**
 
 ```bash
-git add minerva-ui/src/features/rules/RulesOverviewPage.tsx minerva-ui/src/i18n/locales/zh-CN.json minerva-ui/src/i18n/locales/en.json
+git add frontend/src/features/rules/RulesOverviewPage.tsx frontend/src/i18n/locales/zh-CN.json frontend/src/i18n/locales/en.json
 # 若有 CSS：
-# git add minerva-ui/src/features/rules/RulesOverviewPage.css
+# git add frontend/src/features/rules/RulesOverviewPage.css
 git commit -m "feat(ui): rules overview dashboard with KPI and scope lists"
 ```
 

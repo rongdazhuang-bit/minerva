@@ -6,7 +6,7 @@
 
 **Architecture:** 统一 `resolve_agent_thinking_config` + `ChatModelFactory` 注入 `extra_body`；`ReasoningCollector` 挂 `GraphDeps` 负责内存分段、SSE 推送与 Run 结束 message 聚合；各 LLM 节点在 `llm.round` 写入 `reasoning_text`；`memory.persist` 不改动。前端将运行过程与思考过程拆为两个 Collapse。
 
-**Tech Stack:** Python 3.13, FastAPI, SQLAlchemy 2 async, PostgreSQL, LangChain/LangGraph, pytest, React/minerva-ui, Ant Design, i18next
+**Tech Stack:** Python 3.13, FastAPI, SQLAlchemy 2 async, PostgreSQL, LangChain/LangGraph, pytest, React/frontend, Ant Design, i18next
 
 **Spec:** `docs/superpowers/specs/2026-05-26-agent-reasoning-design.md`
 
@@ -43,12 +43,12 @@
 | `backend/tests/test_agent_reasoning_collector.py` | **新建** |
 | `backend/tests/test_agent_event_mapper.py` | **新建** |
 | `backend/tests/test_agent_chat_model_factory.py` | 扩展 extra_body 测试 |
-| `minerva-ui/src/api/agent.ts` | Run body + message types |
-| `minerva-ui/src/api/agent-stream-v2.ts` | 新 SSE 类型 / trace 格式化 |
-| `minerva-ui/src/features/agent/agentSkillUi.ts` | `reasoningSegments` 类型与映射 |
-| `minerva-ui/src/features/agent/AgentsPage.tsx` | Switch + 双 Collapse |
-| `minerva-ui/src/features/agent/AgentsPage.css` | 思考区样式微调 |
-| `minerva-ui/src/i18n/locales/zh-CN.json` / `en.json` | `agents.thinkingMode` 等 |
+| `frontend/src/api/agent.ts` | Run body + message types |
+| `frontend/src/api/agent-stream-v2.ts` | 新 SSE 类型 / trace 格式化 |
+| `frontend/src/features/agent/agentSkillUi.ts` | `reasoningSegments` 类型与映射 |
+| `frontend/src/features/agent/AgentsPage.tsx` | Switch + 双 Collapse |
+| `frontend/src/features/agent/AgentsPage.css` | 思考区样式微调 |
+| `frontend/src/i18n/locales/zh-CN.json` / `en.json` | `agents.thinkingMode` 等 |
 | `docs/agent-module-design.md` | § SSE / 持久化回填 |
 | `docs/superpowers/specs/2026-05-26-agent-reasoning-design.md` | 状态改为已实现 |
 
@@ -646,9 +646,9 @@ git commit -m "feat(agent): expose reasoning fields on session message API"
 ### Task 9: 前端类型与 SSE 处理
 
 **Files:**
-- Modify: `minerva-ui/src/api/agent.ts`
-- Modify: `minerva-ui/src/api/agent-stream-v2.ts`
-- Modify: `minerva-ui/src/features/agent/agentSkillUi.ts`
+- Modify: `frontend/src/api/agent.ts`
+- Modify: `frontend/src/api/agent-stream-v2.ts`
+- Modify: `frontend/src/features/agent/agentSkillUi.ts`
 
 - [ ] **Step 1: Run 请求体**
 
@@ -700,7 +700,7 @@ export type AgentChatMsg = {
 - [ ] **Step 6: Commit**
 
 ```bash
-git add minerva-ui/src/api/agent.ts minerva-ui/src/api/agent-stream-v2.ts minerva-ui/src/features/agent/agentSkillUi.ts
+git add frontend/src/api/agent.ts frontend/src/api/agent-stream-v2.ts frontend/src/features/agent/agentSkillUi.ts
 git commit -m "feat(ui): agent types and SSE helpers for reasoning"
 ```
 
@@ -709,9 +709,9 @@ git commit -m "feat(ui): agent types and SSE helpers for reasoning"
 ### Task 10: AgentsPage UI — Switch + 双 Collapse
 
 **Files:**
-- Modify: `minerva-ui/src/features/agent/AgentsPage.tsx`
-- Modify: `minerva-ui/src/features/agent/AgentsPage.css`
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`, `en.json`
+- Modify: `frontend/src/features/agent/AgentsPage.tsx`
+- Modify: `frontend/src/features/agent/AgentsPage.css`
+- Modify: `frontend/src/i18n/locales/zh-CN.json`, `en.json`
 
 - [ ] **Step 1: 状态**
 
@@ -775,7 +775,7 @@ enable_thinking: thinkingEnabled ? true : false,
 - [ ] **Step 8: Commit**
 
 ```bash
-git add minerva-ui/src/features/agent/AgentsPage.tsx minerva-ui/src/features/agent/AgentsPage.css minerva-ui/src/i18n/locales/zh-CN.json minerva-ui/src/i18n/locales/en.json
+git add frontend/src/features/agent/AgentsPage.tsx frontend/src/features/agent/AgentsPage.css frontend/src/i18n/locales/zh-CN.json frontend/src/i18n/locales/en.json
 git commit -m "feat(ui): separate reasoning trace with thinking mode switch"
 ```
 
@@ -827,4 +827,4 @@ git commit -m "docs: agent reasoning design implementation notes"
 
 Run: `cd backend && python -m pytest tests/test_agent_thinking_config.py tests/test_agent_reasoning_collector.py tests/test_agent_event_mapper.py tests/test_agent_chat_model_factory.py -v`
 
-Run: `cd minerva-ui && npm run typecheck`（或项目等价命令）
+Run: `cd frontend && npm run typecheck`（或项目等价命令）

@@ -2,7 +2,7 @@
 
 **日期**：2026-04-27  
 **状态**：已实现（2026-05-18 按代码回填；`DictSelect` 未做）  
-**范围**：后端在现有 `GET /workspaces/{workspace_id}/dicts` 上增加可选 `code` 查询，并在有值时**在单响应内**返回多级 `item_tree`；`minerva-ui` 增加 `@tanstack/react-query`，以 **Query 为全站数据缓存与去重基座**，并提供可在表单、表格中复用的字典能力（`useQuery` + 小组件/Hook）。
+**范围**：后端在现有 `GET /workspaces/{workspace_id}/dicts` 上增加可选 `code` 查询，并在有值时**在单响应内**返回多级 `item_tree`；`frontend` 增加 `@tanstack/react-query`，以 **Query 为全站数据缓存与去重基座**，并提供可在表单、表格中复用的字典能力（`useQuery` + 小组件/Hook）。
 
 **设计依据（对话）**：`code` 过滤 + 响应 B（同包 `item_tree`）+ 多级树；全站采用 **方案 2（TanStack Query）**。
 
@@ -12,7 +12,7 @@
 
 - **传 `dict_code` 即得可用数据**：一次 `GET`（带 `code`）即可得到该工作空间下该字典的**表头信息** + **子项树**（`parent_uuid` 成树，与 `DictionaryPage` 现有展平→组树语义一致），避免「先 list 全量主表再按 id 拉 items」的附加往返。
 - **少重复请求**：同一路由/同屏多组件、多列表列复用同一 `dict_code` 时，在 **Query 去重** 下仅发起**一次**网络请求（在 `staleTime` 内复用缓存）。
-- **全站统一**：`minerva-ui` 在根布局挂载 **`QueryClientProvider`**，新特性及后续页面优先用 `useQuery` / `useMutation` + `queryClient.invalidateQueries` 管缓存失效，不引入并行的自研全局 Request 缓存层。
+- **全站统一**：`frontend` 在根布局挂载 **`QueryClientProvider`**，新特性及后续页面优先用 `useQuery` / `useMutation` + `queryClient.invalidateQueries` 管缓存失效，不引入并行的自研全局 Request 缓存层。
 - **适用场景**：表单（`Select` / `TreeSelect` 等，按产品选择）、表格列将存库的 **item `code` 转 `name`** 展示。
 
 ---
@@ -65,7 +65,7 @@
 
 ### 3.1 依赖与挂载
 
-- 在 `minerva-ui` 增加依赖 **`@tanstack/react-query`**（版本与 React 18 兼容的最新稳定主版本，实现计划里锁版本号）。
+- 在 `frontend` 增加依赖 **`@tanstack/react-query`**（版本与 React 18 兼容的最新稳定主版本，实现计划里锁版本号）。
 - 在 **`/app` 有鉴权、需拉业务数据的布局**上挂载 `QueryClientProvider`（与 `ConfigProvider` 并列或外层均可，**单一** `QueryClient` 实例，放在 `main.tsx` 或 `AppThemedLayout` 上择一、实现计划定稿）。
 - **默认 `QueryClient` 配置**（可在实现中微调，spec 定原则）：
   - **`staleTime`**：字典类只读数据可设 **1～5 分钟**（如 `3 * 60 * 1000`），减少重复请求；**`gcTime`（原 cacheTime）** 略大于 `staleTime`。
@@ -74,7 +74,7 @@
 ### 3.2 Query Key 约定
 
 - 列表（按 code）示例：`['dict', workspaceId, 'byCode', dictCode, { page, pageSize }]`，其中 **`workspaceId` 用字符串 UUID**，避免对象引用导致无效去重。
-- 若同页仅关心「带 `code` 的第一页树」，可固定 `page: 1, pageSize: 100` 与后端约定一致（与现分页常量对齐时可引用 `minerva-ui/src/constants/pagination`）。
+- 若同页仅关心「带 `code` 的第一页树」，可固定 `page: 1, pageSize: 100` 与后端约定一致（与现分页常量对齐时可引用 `frontend/src/constants/pagination`）。
 
 ### 3.3 API 层（`src/api/dicts.ts`）
 
@@ -119,7 +119,7 @@
 | 项 | 代码 |
 |----|------|
 | `GET .../dicts?code=` + `item_tree` | `backend/app/sys/dict/api/router.py` |
-| Query | `minerva-ui/src/hooks/useDictItemTree.ts`，`staleTime` 3min / `gcTime` 5min |
+| Query | `frontend/src/hooks/useDictItemTree.ts`，`staleTime` 3min / `gcTime` 5min |
 | Key | `constants/dictQueryKeys.ts` |
 | `DictText` | `components/dict/DictText.tsx` |
 | 写后失效 | `DictionaryPage` → `dictQueryKeys.all(workspaceId)` |

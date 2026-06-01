@@ -145,7 +145,7 @@ def _tags_include_chat(tags: object) -> bool:
 ### 5.1 表单
 
 - 字段 `tags`：`Select mode="multiple"`，选项来自 `MODEL_TAG` 字典；**必填**（`rules: [{ required: true, message: ... }]`）。
-- 遵循 minerva-ui 约定：其它 Select 可 `allowClear`；多选必填 tags 不使用 clear 清空到空（提交前校验至少一项）。
+- 遵循 frontend 约定：其它 Select 可 `allowClear`；多选必填 tags 不使用 clear 清空到空（提交前校验至少一项）。
 - `FormValues` / `detailToFormValues` / 提交 body 增加 `tags: string[]`。
 
 ### 5.2 列表与查看
@@ -163,7 +163,7 @@ def _tags_include_chat(tags: object) -> bool:
 
 ### 5.4 API 类型
 
-`minerva-ui/src/api/modelProviders.ts` 各类型与 body 增加 `tags: string[]`。
+`frontend/src/api/modelProviders.ts` 各类型与 body 增加 `tags: string[]`。
 
 ---
 
@@ -230,10 +230,10 @@ def _tags_include_chat(tags: object) -> bool:
 | API | `backend/app/sys/model_provider/api/schemas.py`、`router.py` | |
 | Agent 校验 | `backend/app/agent/infrastructure/chat_model_factory.py` | `agent.model_tag_not_allowed` |
 | 单测 | `backend/tests/test_model_provider_tags.py`、`test_agent_chat_model_factory.py` | |
-| 设置 UI | `minerva-ui/src/features/settings/model-providers/ModelProvidersPage.tsx` | 多选 + 列表列 |
-| Agent 下拉 | `minerva-ui/src/features/agent/AgentsPage.tsx` | `tags.includes('CHAT')` |
-| API 类型 | `minerva-ui/src/api/modelProviders.ts` | |
-| i18n | `minerva-ui/src/i18n/locales/zh-CN.json`、`en.json` | |
+| 设置 UI | `frontend/src/features/settings/model-providers/ModelProvidersPage.tsx` | 多选 + 列表列 |
+| Agent 下拉 | `frontend/src/features/agent/AgentsPage.tsx` | `tags.includes('CHAT')` |
+| API 类型 | `frontend/src/api/modelProviders.ts` | |
+| i18n | `frontend/src/i18n/locales/zh-CN.json`、`en.json` | |
 
 ---
 

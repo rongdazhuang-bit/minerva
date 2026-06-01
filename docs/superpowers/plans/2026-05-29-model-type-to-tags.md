@@ -58,12 +58,12 @@
 
 | 文件 | 职责 |
 |------|------|
-| `minerva-ui/src/api/modelProviders.ts` | 移除 `model_type` |
-| `minerva-ui/src/features/settings/model-providers/ModelProvidersPage.tsx` | 删 model_type UI/字典；默认 TEXT |
-| `minerva-ui/src/features/agent/AgentsPage.tsx` | `TEXT` 过滤 |
-| `minerva-ui/src/features/translate/TranslatePage.tsx` | `TRANSLATE` 过滤 |
-| `minerva-ui/src/i18n/locales/zh-CN.json` | 移除 model type i18n（保留 tags） |
-| `minerva-ui/src/i18n/locales/en.json` | 同上 |
+| `frontend/src/api/modelProviders.ts` | 移除 `model_type` |
+| `frontend/src/features/settings/model-providers/ModelProvidersPage.tsx` | 删 model_type UI/字典；默认 TEXT |
+| `frontend/src/features/agent/AgentsPage.tsx` | `TEXT` 过滤 |
+| `frontend/src/features/translate/TranslatePage.tsx` | `TRANSLATE` 过滤 |
+| `frontend/src/i18n/locales/zh-CN.json` | 移除 model type i18n（保留 tags） |
+| `frontend/src/i18n/locales/en.json` | 同上 |
 
 ### Docs — Modify
 
@@ -546,12 +546,12 @@ git commit -m "refactor(agent): validate TEXT tag instead of CHAT"
 ### Task 6: 前端 — 移除 model_type，统一 tags 过滤
 
 **Files:**
-- Modify: `minerva-ui/src/api/modelProviders.ts`
-- Modify: `minerva-ui/src/features/settings/model-providers/ModelProvidersPage.tsx`
-- Modify: `minerva-ui/src/features/agent/AgentsPage.tsx`
-- Modify: `minerva-ui/src/features/translate/TranslatePage.tsx`
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`
-- Modify: `minerva-ui/src/i18n/locales/en.json`
+- Modify: `frontend/src/api/modelProviders.ts`
+- Modify: `frontend/src/features/settings/model-providers/ModelProvidersPage.tsx`
+- Modify: `frontend/src/features/agent/AgentsPage.tsx`
+- Modify: `frontend/src/features/translate/TranslatePage.tsx`
+- Modify: `frontend/src/i18n/locales/zh-CN.json`
+- Modify: `frontend/src/i18n/locales/en.json`
 
 - [ ] **Step 1: modelProviders.ts**
 
@@ -587,18 +587,18 @@ git commit -m "refactor(agent): validate TEXT tag instead of CHAT"
 
 - [ ] **Step 6: Typecheck**
 
-Run: `cd minerva-ui && npm run build`  
+Run: `cd frontend && npm run build`  
 Expected: 编译成功，无 `model_type` 类型错误。
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add minerva-ui/src/api/modelProviders.ts \
-  minerva-ui/src/features/settings/model-providers/ModelProvidersPage.tsx \
-  minerva-ui/src/features/agent/AgentsPage.tsx \
-  minerva-ui/src/features/translate/TranslatePage.tsx \
-  minerva-ui/src/i18n/locales/zh-CN.json \
-  minerva-ui/src/i18n/locales/en.json
+git add frontend/src/api/modelProviders.ts \
+  frontend/src/features/settings/model-providers/ModelProvidersPage.tsx \
+  frontend/src/features/agent/AgentsPage.tsx \
+  frontend/src/features/translate/TranslatePage.tsx \
+  frontend/src/i18n/locales/zh-CN.json \
+  frontend/src/i18n/locales/en.json
 git commit -m "refactor(ui): drop model_type field, filter models by tags"
 ```
 

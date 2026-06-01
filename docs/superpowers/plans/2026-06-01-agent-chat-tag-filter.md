@@ -34,10 +34,10 @@
 
 ### Frontend
 
-- Modify: `minerva-ui/src/api/agent.ts` — `listAgentConversationModels`
-- Modify: `minerva-ui/src/features/agent/AgentsPage.tsx` — 新 API、移除本地过滤、`max_tokens`
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`
-- Modify: `minerva-ui/src/i18n/locales/en.json`
+- Modify: `frontend/src/api/agent.ts` — `listAgentConversationModels`
+- Modify: `frontend/src/features/agent/AgentsPage.tsx` — 新 API、移除本地过滤、`max_tokens`
+- Modify: `frontend/src/i18n/locales/zh-CN.json`
+- Modify: `frontend/src/i18n/locales/en.json`
 
 ### Docs（实现完成后）
 
@@ -479,7 +479,7 @@ git commit -m "chore(sql): seed MODEL_TAG CHAT dictionary item per workspace"
 ### Task 6: 前端 API 客户端
 
 **Files:**
-- Modify: `minerva-ui/src/api/agent.ts`
+- Modify: `frontend/src/api/agent.ts`
 
 - [ ] **Step 1: 新增类型与函数**
 
@@ -505,7 +505,7 @@ export function listAgentConversationModels(workspaceId: string) {
 - [ ] **Step 2: Commit**
 
 ```bash
-git add minerva-ui/src/api/agent.ts
+git add frontend/src/api/agent.ts
 git commit -m "feat(agent-ui): add listAgentConversationModels API helper"
 ```
 
@@ -514,7 +514,7 @@ git commit -m "feat(agent-ui): add listAgentConversationModels API helper"
 ### Task 7: AgentsPage — 改用专用接口
 
 **Files:**
-- Modify: `minerva-ui/src/features/agent/AgentsPage.tsx`
+- Modify: `frontend/src/features/agent/AgentsPage.tsx`
 
 - [ ] **Step 1: 替换 import 与 query**
 
@@ -593,7 +593,7 @@ Run frontend dev server，打开智能体页：
 - [ ] **Step 5: Commit**
 
 ```bash
-git add minerva-ui/src/features/agent/AgentsPage.tsx
+git add frontend/src/features/agent/AgentsPage.tsx
 git commit -m "feat(agent-ui): load conversation models from dedicated agent API"
 ```
 
@@ -602,8 +602,8 @@ git commit -m "feat(agent-ui): load conversation models from dedicated agent API
 ### Task 8: i18n 空状态文案
 
 **Files:**
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`
-- Modify: `minerva-ui/src/i18n/locales/en.json`
+- Modify: `frontend/src/i18n/locales/zh-CN.json`
+- Modify: `frontend/src/i18n/locales/en.json`
 
 - [ ] **Step 1: 更新中文**
 
@@ -624,7 +624,7 @@ git commit -m "feat(agent-ui): load conversation models from dedicated agent API
 - [ ] **Step 3: Commit**
 
 ```bash
-git add minerva-ui/src/i18n/locales/zh-CN.json minerva-ui/src/i18n/locales/en.json
+git add frontend/src/i18n/locales/zh-CN.json frontend/src/i18n/locales/en.json
 git commit -m "docs(i18n): mention CHAT tag in agent empty model state"
 ```
 

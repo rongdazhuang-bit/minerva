@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 用 LangGraph（Plan-and-Execute + 子 Agent）替换 `app/agent` 自研编排，新增 SQL 长期记忆、SSE v2、API v2（`model_id` 服务端托管），并同步更新 `minerva-ui`。
+**Goal:** 用 LangGraph（Plan-and-Execute + 子 Agent）替换 `app/agent` 自研编排，新增 SQL 长期记忆、SSE v2、API v2（`model_id` 服务端托管），并同步更新 `frontend`。
 
 **Architecture:** 外层主图 `memory.retrieve → planner → executor → synthesizer → memory.persist`；子 Agent 为 `create_react_agent`（`general` / `file` / `datetime`）；`AgentGraphEventMapper` 将 `astream_events` 映射为 SSE v2；持久化沿用并扩展 `agent_*` 表 + LangGraph `AsyncPostgresSaver`。
 
-**Tech Stack:** Python 3.11+, FastAPI, SQLAlchemy 2 async, PostgreSQL, LangGraph, LangChain, langchain-openai, langgraph-checkpoint-postgres, pytest, React/minerva-ui
+**Tech Stack:** Python 3.11+, FastAPI, SQLAlchemy 2 async, PostgreSQL, LangGraph, LangChain, langchain-openai, langgraph-checkpoint-postgres, pytest, React/frontend
 
 **Spec:** `docs/superpowers/specs/2026-05-16-agent-langgraph-redesign-design.md`
 
@@ -38,9 +38,9 @@
 | `backend/app/agent/api/v2/router.py` | HTTP v2 |
 | `backend/app/agent/api/v2/schemas.py` | Pydantic v2 |
 | `backend/app/core/api/router.py` | 注册 v2、移除 v1 |
-| `minerva-ui/src/api/agent-v2.ts` | 前端 API |
-| `minerva-ui/src/api/agent-stream-v2.ts` | SSE 解析 |
-| `minerva-ui/src/features/workspace/AgentsPage.tsx` | UI 改造 |
+| `frontend/src/api/agent-v2.ts` | 前端 API |
+| `frontend/src/api/agent-stream-v2.ts` | SSE 解析 |
+| `frontend/src/features/workspace/AgentsPage.tsx` | UI 改造 |
 
 **删除（Task 14）：** `backend/app/agent/skills/`、`skill_loader.py`、`skill_resolver.py`、`skill_tools.py`、`tool_registry.py`、`service/agent_run_service.py`、`domain/sse_minerva.py`、`domain/openai_chunk.py`、`infrastructure/sse_chunk_emitter.py`、`service/stream_accumulator.py`、`api/router.py`（v1）、`api/schemas.py`（v1）；对应 v1 测试文件。
 
@@ -793,11 +793,11 @@ git commit -m "refactor(agent): remove v1 skill loader and OpenAI SSE adapter"
 ### Task 15: 前端 SSE v2 与 AgentsPage
 
 **Files:**
-- Create: `minerva-ui/src/api/agent-stream-v2.ts`
-- Create: `minerva-ui/src/api/agent-v2.ts`
-- Modify: `minerva-ui/src/features/workspace/AgentsPage.tsx`
-- Modify: `minerva-ui/src/app/router.tsx`（若路径变）
-- Delete or stop using: `minerva-ui/src/api/agent.ts` 中 v1 run 逻辑（可删文件若全无引用）
+- Create: `frontend/src/api/agent-stream-v2.ts`
+- Create: `frontend/src/api/agent-v2.ts`
+- Modify: `frontend/src/features/workspace/AgentsPage.tsx`
+- Modify: `frontend/src/app/router.tsx`（若路径变）
+- Delete or stop using: `frontend/src/api/agent.ts` 中 v1 run 逻辑（可删文件若全无引用）
 
 - [ ] **Step 1: `agent-stream-v2.ts` 解析 `v===2` 事件**
 
@@ -833,8 +833,8 @@ export function parseAgentV2SseLine(raw: string): AgentSseEventV2 | 'done' | nul
 - [ ] **Step 5: Commit**
 
 ```bash
-git add minerva-ui/src/api/agent-v2.ts minerva-ui/src/api/agent-stream-v2.ts \
-  minerva-ui/src/features/workspace/AgentsPage.tsx
+git add frontend/src/api/agent-v2.ts frontend/src/api/agent-stream-v2.ts \
+  frontend/src/features/workspace/AgentsPage.tsx
 git commit -m "feat(ui): agent v2 SSE and planner trace UI"
 ```
 

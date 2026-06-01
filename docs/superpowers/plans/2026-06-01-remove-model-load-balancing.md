@@ -36,10 +36,10 @@
 
 ### Modify — Frontend
 
-- `minerva-ui/src/api/modelProviders.ts`
-- `minerva-ui/src/features/settings/model-providers/ModelProvidersPage.tsx`
-- `minerva-ui/src/i18n/locales/zh-CN.json`
-- `minerva-ui/src/i18n/locales/en.json`
+- `frontend/src/api/modelProviders.ts`
+- `frontend/src/features/settings/model-providers/ModelProvidersPage.tsx`
+- `frontend/src/i18n/locales/zh-CN.json`
+- `frontend/src/i18n/locales/en.json`
 
 ### Modify — Docs（实现完成后）
 
@@ -224,7 +224,7 @@ git commit -m "test: drop load_balancing_enabled from SysModel fixtures"
 ### Task 4: 前端 API 类型
 
 **Files:**
-- Modify: `minerva-ui/src/api/modelProviders.ts`
+- Modify: `frontend/src/api/modelProviders.ts`
 
 - [ ] **Step 1: 删除类型字段**
 
@@ -237,7 +237,7 @@ git commit -m "test: drop load_balancing_enabled from SysModel fixtures"
 - [ ] **Step 2: Commit**
 
 ```bash
-git add minerva-ui/src/api/modelProviders.ts
+git add frontend/src/api/modelProviders.ts
 git commit -m "refactor(ui): remove load_balancing_enabled from model provider types"
 ```
 
@@ -246,7 +246,7 @@ git commit -m "refactor(ui): remove load_balancing_enabled from model provider t
 ### Task 5: ModelProvidersPage UI
 
 **Files:**
-- Modify: `minerva-ui/src/features/settings/model-providers/ModelProvidersPage.tsx`
+- Modify: `frontend/src/features/settings/model-providers/ModelProvidersPage.tsx`
 
 - [ ] **Step 1: 删除 FormValues 字段**
 
@@ -315,7 +315,7 @@ git commit -m "refactor(ui): remove load_balancing_enabled from model provider t
 - [ ] **Step 11: Commit**
 
 ```bash
-git add minerva-ui/src/features/settings/model-providers/ModelProvidersPage.tsx
+git add frontend/src/features/settings/model-providers/ModelProvidersPage.tsx
 git commit -m "refactor(ui): remove load balancing from model providers page"
 ```
 
@@ -324,8 +324,8 @@ git commit -m "refactor(ui): remove load balancing from model providers page"
 ### Task 6: i18n 清理
 
 **Files:**
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`
-- Modify: `minerva-ui/src/i18n/locales/en.json`
+- Modify: `frontend/src/i18n/locales/zh-CN.json`
+- Modify: `frontend/src/i18n/locales/en.json`
 
 - [ ] **Step 1: 删除 zh-CN 键**
 
@@ -354,7 +354,7 @@ git commit -m "refactor(ui): remove load balancing from model providers page"
 - [ ] **Step 3: Commit**
 
 ```bash
-git add minerva-ui/src/i18n/locales/zh-CN.json minerva-ui/src/i18n/locales/en.json
+git add frontend/src/i18n/locales/zh-CN.json frontend/src/i18n/locales/en.json
 git commit -m "chore(i18n): remove load balancing strings for model providers"
 ```
 
@@ -378,7 +378,7 @@ Expected: 无匹配（或仅剩历史归档 spec/plan 与 `health.py` 中 unrela
 - [ ] **Step 2: 前端类型检查（若项目有脚本）**
 
 ```bash
-cd minerva-ui
+cd frontend
 npm run build
 ```
 
@@ -408,7 +408,7 @@ Expected: 构建成功，无 `load_balancing_enabled` 类型错误。
 | Migration | `backend/alembic/versions/<rev>_drop_sys_models_load_balancing_enabled.py` |
 | SQL 补丁 | `backend/sql/patches/2026-06-01-drop-sys-models-load-balancing-enabled.sql` |
 | 后端 | `backend/app/sys/model_provider/` |
-| 前端 | `minerva-ui/src/features/settings/model-providers/ModelProvidersPage.tsx` |
+| 前端 | `frontend/src/features/settings/model-providers/ModelProvidersPage.tsx` |
 ```
 
 - [ ] **Step 4: Commit**

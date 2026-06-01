@@ -2,7 +2,7 @@
 
 **日期**：2026-04-28  
 **状态**：已实现（2026-05-18 按代码回填；表名/API 已演进，见 §实现对照）  
-**范围**：在 **`backend/app/rule`** 内实现表 **`public.rule_config_model`** 的 CRUD 与 **`model_id` → `sys_models.id`** 的引用校验；抽取 **工程 / 专业 / 文档类型** 三元组共用能力（**方案 B**），供 **`rule_base`** 与 **`rule_config_model`** 共用；前端在 **`minerva-ui/src/features/rules`** 新增独立页面，替换当前 **`/app/rules/config/models`** 误用的 `ModelProvidersPage`；定义运行时按上下文 **解析配置** 的优先级，**未命中则报错**（不静默回退默认模型）。
+**范围**：在 **`backend/app/rule`** 内实现表 **`public.rule_config_model`** 的 CRUD 与 **`model_id` → `sys_models.id`** 的引用校验；抽取 **工程 / 专业 / 文档类型** 三元组共用能力（**方案 B**），供 **`rule_base`** 与 **`rule_config_model`** 共用；前端在 **`frontend/src/features/rules`** 新增独立页面，替换当前 **`/app/rules/config/models`** 误用的 `ModelProvidersPage`；定义运行时按上下文 **解析配置** 的优先级，**未命中则报错**（不静默回退默认模型）。
 
 ---
 

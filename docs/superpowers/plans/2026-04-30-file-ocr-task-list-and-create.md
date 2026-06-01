@@ -19,11 +19,11 @@
 - `backend/app/file_ocr/api/schemas.py`：列表查询、分页、创建入参/出参模型。
 - `backend/app/file_ocr/api/router.py`：新增列表接口、创建接口，保留概览统计接口。
 - `backend/tests/test_file_ocr_api.py`（新建）：`file_ocr` API 集成测试。
-- `minerva-ui/src/api/ocrFile.ts`：新增列表、创建、S3 上传（含进度）API 方法与类型。
-- `minerva-ui/src/features/file-ocr/RulesFileOcrPage.tsx`：实现任务列表页、筛选、分页、两屏不可关闭弹窗、手动上传进度。
-- `minerva-ui/src/features/file-ocr/RulesFileOcrPage.css`：任务列表与上传区域样式（含进度区域）。
-- `minerva-ui/src/i18n/locales/zh-CN.json`：新增中文文案。
-- `minerva-ui/src/i18n/locales/en.json`：新增英文文案。
+- `frontend/src/api/ocrFile.ts`：新增列表、创建、S3 上传（含进度）API 方法与类型。
+- `frontend/src/features/file-ocr/RulesFileOcrPage.tsx`：实现任务列表页、筛选、分页、两屏不可关闭弹窗、手动上传进度。
+- `frontend/src/features/file-ocr/RulesFileOcrPage.css`：任务列表与上传区域样式（含进度区域）。
+- `frontend/src/i18n/locales/zh-CN.json`：新增中文文案。
+- `frontend/src/i18n/locales/en.json`：新增英文文案。
 
 ---
 
@@ -411,14 +411,14 @@ git commit -m "chore(file-ocr): sync ocr_file SQL schema fields"
 ## Task 5: 前端 API 层（列表/创建/S3手动上传进度）
 
 **Files:**
-- Modify: `minerva-ui/src/api/ocrFile.ts`
+- Modify: `frontend/src/api/ocrFile.ts`
 
 - [ ] **Step 1: 写失败类型检查目标**
 
 先在 `ocrFile.ts` 里声明待实现函数签名（仅声明不实现），再运行：
 
 ```bash
-cd minerva-ui && npm run build
+cd frontend && npm run build
 ```
 
 Expected: FAIL（调用方或导出缺失，作为红灯起点）。
@@ -475,7 +475,7 @@ export async function uploadOcrSourceFile(
 Run:
 
 ```bash
-cd minerva-ui && npm run build
+cd frontend && npm run build
 ```
 
 Expected: PASS。
@@ -485,7 +485,7 @@ Expected: PASS。
 Run:
 
 ```bash
-rg "listOcrFiles|createOcrFiles|uploadOcrSourceFile" minerva-ui/src/api/ocrFile.ts
+rg "listOcrFiles|createOcrFiles|uploadOcrSourceFile" frontend/src/api/ocrFile.ts
 ```
 
 Expected: 三个导出函数均存在。
@@ -493,7 +493,7 @@ Expected: 三个导出函数均存在。
 - [ ] **Step 5: Commit**
 
 ```bash
-git add minerva-ui/src/api/ocrFile.ts
+git add frontend/src/api/ocrFile.ts
 git commit -m "feat(file-ocr-ui): add list create and upload APIs"
 ```
 
@@ -502,17 +502,17 @@ git commit -m "feat(file-ocr-ui): add list create and upload APIs"
 ## Task 6: 前端任务列表页（筛选+分页+操作列）
 
 **Files:**
-- Modify: `minerva-ui/src/features/file-ocr/RulesFileOcrPage.tsx`
-- Modify: `minerva-ui/src/features/file-ocr/RulesFileOcrPage.css`
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`
-- Modify: `minerva-ui/src/i18n/locales/en.json`
+- Modify: `frontend/src/features/file-ocr/RulesFileOcrPage.tsx`
+- Modify: `frontend/src/features/file-ocr/RulesFileOcrPage.css`
+- Modify: `frontend/src/i18n/locales/zh-CN.json`
+- Modify: `frontend/src/i18n/locales/en.json`
 
 - [ ] **Step 1: 写失败构建检查**
 
 先在 `RulesFileOcrTasksPage` 引入但未实现新 API，运行：
 
 ```bash
-cd minerva-ui && npm run build
+cd frontend && npm run build
 ```
 
 Expected: FAIL（缺失实现/类型不匹配）。
@@ -544,8 +544,8 @@ Expected: FAIL（缺失实现/类型不匹配）。
 Run:
 
 ```bash
-cd minerva-ui && npm run build
-cd minerva-ui && npm run lint
+cd frontend && npm run build
+cd frontend && npm run lint
 ```
 
 Expected: PASS。
@@ -553,7 +553,7 @@ Expected: PASS。
 - [ ] **Step 5: Commit**
 
 ```bash
-git add minerva-ui/src/features/file-ocr/RulesFileOcrPage.tsx minerva-ui/src/features/file-ocr/RulesFileOcrPage.css minerva-ui/src/i18n/locales/zh-CN.json minerva-ui/src/i18n/locales/en.json
+git add frontend/src/features/file-ocr/RulesFileOcrPage.tsx frontend/src/features/file-ocr/RulesFileOcrPage.css frontend/src/i18n/locales/zh-CN.json frontend/src/i18n/locales/en.json
 git commit -m "feat(file-ocr-ui): implement task list filters and table"
 ```
 
@@ -562,16 +562,16 @@ git commit -m "feat(file-ocr-ui): implement task list filters and table"
 ## Task 7: 两屏新增弹窗（不可关闭 + 手动上传 + 进度 + 完成入库）
 
 **Files:**
-- Modify: `minerva-ui/src/features/file-ocr/RulesFileOcrPage.tsx`
-- Modify: `minerva-ui/src/features/file-ocr/RulesFileOcrPage.css`
+- Modify: `frontend/src/features/file-ocr/RulesFileOcrPage.tsx`
+- Modify: `frontend/src/features/file-ocr/RulesFileOcrPage.css`
 
 - [ ] **Step 1: 写失败流程检查（构建+关键文案）**
 
 Run:
 
 ```bash
-cd minerva-ui && npm run build
-rg "上一步|下一步|完成|PaddleOCR|MinerU" minerva-ui/src/features/file-ocr/RulesFileOcrPage.tsx
+cd frontend && npm run build
+rg "上一步|下一步|完成|PaddleOCR|MinerU" frontend/src/features/file-ocr/RulesFileOcrPage.tsx
 ```
 
 Expected: 第二条命令在实现前缺少完整流程关键字。
@@ -632,8 +632,8 @@ await createOcrFiles(workspaceId, { ocr_type: ocrType, files: createPayload.file
 Run:
 
 ```bash
-cd minerva-ui && npm run build
-cd minerva-ui && npm run lint
+cd frontend && npm run build
+cd frontend && npm run lint
 ```
 
 Expected: PASS。
@@ -641,7 +641,7 @@ Expected: PASS。
 - [ ] **Step 5: Commit**
 
 ```bash
-git add minerva-ui/src/features/file-ocr/RulesFileOcrPage.tsx minerva-ui/src/features/file-ocr/RulesFileOcrPage.css
+git add frontend/src/features/file-ocr/RulesFileOcrPage.tsx frontend/src/features/file-ocr/RulesFileOcrPage.css
 git commit -m "feat(file-ocr-ui): add two-step non-closable create wizard with upload progress"
 ```
 
@@ -652,7 +652,7 @@ git commit -m "feat(file-ocr-ui): add two-step non-closable create wizard with u
 **Files:**
 - Modify: `backend/tests/test_file_ocr_api.py`
 - Modify: `backend/app/file_ocr/api/router.py`（仅在联调发现缺口时）
-- Modify: `minerva-ui/src/features/file-ocr/RulesFileOcrPage.tsx`（仅在联调发现缺口时）
+- Modify: `frontend/src/features/file-ocr/RulesFileOcrPage.tsx`（仅在联调发现缺口时）
 
 - [ ] **Step 1: 后端测试全量 file_ocr**
 
@@ -669,8 +669,8 @@ Expected: PASS。
 Run:
 
 ```bash
-cd minerva-ui && npm run build
-cd minerva-ui && npm run lint
+cd frontend && npm run build
+cd frontend && npm run lint
 ```
 
 Expected: PASS。
@@ -691,7 +691,7 @@ Run:
 
 ```bash
 cd backend && pytest tests/test_file_ocr_api.py -v
-cd minerva-ui && npm run build
+cd frontend && npm run build
 ```
 
 Expected: PASS。
@@ -699,7 +699,7 @@ Expected: PASS。
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/app/file_ocr backend/sql/schema_postgresql.sql backend/tests/test_file_ocr_api.py minerva-ui/src/api/ocrFile.ts minerva-ui/src/features/file-ocr minerva-ui/src/i18n/locales/zh-CN.json minerva-ui/src/i18n/locales/en.json
+git add backend/app/file_ocr backend/sql/schema_postgresql.sql backend/tests/test_file_ocr_api.py frontend/src/api/ocrFile.ts frontend/src/features/file-ocr frontend/src/i18n/locales/zh-CN.json frontend/src/i18n/locales/en.json
 git commit -m "feat(file-ocr): implement task list filters and two-step create flow"
 ```
 

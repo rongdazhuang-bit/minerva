@@ -22,9 +22,9 @@
 | `backend/app/api/router.py` | `include_router` 挂载 `rule_base` 路由 |
 | `backend/app/infrastructure/db/bootstrap.py` | `_import_models` 中 `import app.sys.rule.domain.db.models` |
 | `backend/tests/test_rule_base_api.py` | 接口测试，风格对齐 `test_dict_api.py` |
-| `minerva-ui/src/api/ruleBase.ts` | `listRuleBase` / `createRuleBase` / `patchRuleBase` / `deleteRuleBase` |
-| `minerva-ui/src/features/workspace/rules/RulesManagementPage.tsx` | 主表格、分页、Drawer 表单、删除确认 |
-| `minerva-ui/src/i18n/locales/zh-CN.json` / `en.json` | 表头、表单项、按钮、消息文案 |
+| `frontend/src/api/ruleBase.ts` | `listRuleBase` / `createRuleBase` / `patchRuleBase` / `deleteRuleBase` |
+| `frontend/src/features/workspace/rules/RulesManagementPage.tsx` | 主表格、分页、Drawer 表单、删除确认 |
+| `frontend/src/i18n/locales/zh-CN.json` / `en.json` | 表头、表单项、按钮、消息文案 |
 
 > **环境说明:** 若某环境已用 `schema_postgresql.sql` 手工建过无 FK 的 `rule_base`，应先用 Alembic 版本与库一致再执行迁移；或在本任务内用迁移 **仅** `op.create_foreign_key`（不重复建表）。首版以「库中尚无 `rule_base`」的干净 `alembic upgrade head` 为主路径，冲突时在任务中改迁移为 `inspector` 分支。
 
@@ -119,7 +119,7 @@
 
 **Files:**
 
-- Create: `minerva-ui/src/api/ruleBase.ts`
+- Create: `frontend/src/api/ruleBase.ts`
 
 - [ ] **Step 1:** 定义与后端一致的 TypeScript 类型；`listRuleBase(workspaceId, { page, page_size, status?, subject_code?, document_type? })` 拼 query；`createRuleBase`/`patchRuleBase`/`deleteRuleBase` 使用 `apiJson` 与 `method`；路径 `/workspaces/${workspaceId}/rule-base`。
 - [ ] **Step 2:** Commit: `feat(ui): ruleBase API client`。
@@ -130,7 +130,7 @@
 
 **Files:**
 
-- Modify: `minerva-ui/src/features/workspace/rules/RulesManagementPage.tsx`
+- Modify: `frontend/src/features/workspace/rules/RulesManagementPage.tsx`
 - Create（如需）: `RulesManagementPage.css`（与 `DictionaryPage.css` 一样处理表格区滚动、sticky 表头）
 
 - [ ] **Step 1:** 使用 `useAuth().workspaceId`；无 workspace 时 `null` 早退或 `Empty`。
@@ -145,7 +145,7 @@
 
 **Files:**
 
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`, `en.json`
+- Modify: `frontend/src/i18n/locales/zh-CN.json`, `en.json`
 
 - [ ] **Step 1:** 为规则列表页补充键：`rules.*` 或 `rulesList.*`（表头、新增、编辑、删除确认、各字段 label、空状态文案）；**不得**在 UI 中硬编码中文（除已存在的占位键若复用可合并）。
 - [ ] **Step 2:** Commit: `i18n: rules management page strings`。
@@ -155,7 +155,7 @@
 ## Task 11: 联调与收尾
 
 - [ ] **Step 1:** 后端与前端同开，走通新增→编辑→删→翻页；确认字典未配置时仍可保存可空项。
-- [ ] **Step 2:** `cd minerva-ui && npm run build && npm run lint`；`cd backend && ruff check app/sys/rule`（或全量）`&& pytest tests/test_rule_base_api.py`。
+- [ ] **Step 2:** `cd frontend && npm run build && npm run lint`；`cd backend && ruff check app/sys/rule`（或全量）`&& pytest tests/test_rule_base_api.py`。
 - [ ] **Step 3:** 如需要，在 `docs/superpowers/specs/2026-04-27-rule-base-crud-design.md` 文首把状态改为 **已实现** 并单开 commit；否则省略。
 
 ---

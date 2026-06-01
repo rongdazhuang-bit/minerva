@@ -27,10 +27,10 @@
 | `backend/tests/test_mineru_result_parse.py` | ZIP 解析单测 |
 | `backend/tests/test_mineru_client.py` | HTTP 客户端 mock 单测 |
 | `backend/tests/fixtures/mineru/sample.zip` | 最小 ZIP fixture |
-| `minerva-ui/src/features/settings/ocr/mineruParams.ts` | 配置序列化 |
-| `minerva-ui/src/features/settings/ocr/PaddleOcrParamsTab.tsx` | MinerU 表单/只读 |
-| `minerva-ui/src/i18n/locales/en.json` | 英文 i18n |
-| `minerva-ui/src/i18n/locales/zh-CN.json` | 中文 i18n |
+| `frontend/src/features/settings/ocr/mineruParams.ts` | 配置序列化 |
+| `frontend/src/features/settings/ocr/PaddleOcrParamsTab.tsx` | MinerU 表单/只读 |
+| `frontend/src/i18n/locales/en.json` | 英文 i18n |
+| `frontend/src/i18n/locales/zh-CN.json` | 中文 i18n |
 
 **注释：** 新增 Python 类/方法按仓库 `code-comments` skill 写 docstring。
 
@@ -595,7 +595,7 @@ git commit -m "feat(ocr): implement MinerU sync file_parse strategy"
 ### Task 7: 前端 `mineruParams.ts`
 
 **Files:**
-- Modify: `minerva-ui/src/features/settings/ocr/mineruParams.ts`
+- Modify: `frontend/src/features/settings/ocr/mineruParams.ts`
 
 - [ ] **Step 1: 全量重写序列化**
 
@@ -629,7 +629,7 @@ export const MINERU_DEFAULT_OUTPUT_DIR = './output'
 - [ ] **Step 3: Commit**
 
 ```bash
-git add minerva-ui/src/features/settings/ocr/mineruParams.ts
+git add frontend/src/features/settings/ocr/mineruParams.ts
 git commit -m "feat(ui): rewrite MinerU ocr_config params for mineru-api"
 ```
 
@@ -638,9 +638,9 @@ git commit -m "feat(ui): rewrite MinerU ocr_config params for mineru-api"
 ### Task 8: 前端表单 + i18n
 
 **Files:**
-- Modify: `minerva-ui/src/features/settings/ocr/PaddleOcrParamsTab.tsx`
-- Modify: `minerva-ui/src/i18n/locales/en.json`
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`
+- Modify: `frontend/src/features/settings/ocr/PaddleOcrParamsTab.tsx`
+- Modify: `frontend/src/i18n/locales/en.json`
+- Modify: `frontend/src/i18n/locales/zh-CN.json`
 
 - [ ] **Step 1: 替换 `MineruOcrParamsFields`**
 
@@ -665,7 +665,7 @@ git commit -m "feat(ui): rewrite MinerU ocr_config params for mineru-api"
 - [ ] **Step 3: Commit**
 
 ```bash
-git add minerva-ui/src/features/settings/ocr/PaddleOcrParamsTab.tsx minerva-ui/src/i18n/locales/en.json minerva-ui/src/i18n/locales/zh-CN.json
+git add frontend/src/features/settings/ocr/PaddleOcrParamsTab.tsx frontend/src/i18n/locales/en.json frontend/src/i18n/locales/zh-CN.json
 git commit -m "feat(ui): MinerU settings form for mineru-api parameters"
 ```
 
@@ -688,7 +688,7 @@ Expected: all passed
 - [ ] **Step 2: 前端 typecheck（若项目有）**
 
 ```bash
-cd minerva-ui
+cd frontend
 npm run build
 ```
 

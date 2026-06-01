@@ -2,7 +2,7 @@
 
 **日期**：2026-05-20  
 **状态**：已实现（2026-05-20；UI 重构 2026-05-21 见 `docs/superpowers/specs/2026-05-21-document-translate-ui-refresh-design.md`）  
-**范围**：工作区「文档翻译 → 翻译」：支持 Word（DOC / DOCX）/ PDF / TXT / MD / CSV / Excel（XLS / XLSX）；上传区选择源/目标语言与 `model_type=translate` 模型；后台 `backend/app/translate/`；前端 `minerva-ui/src/features/translate/`；**表格列表 + 顶部筛选**；**上传 Modal**；**全屏详情 Modal** 内左右段落对照 + 译文下载；扫描 PDF 自动走现有 `file_ocr` 后再段落翻译；按文件后缀策略模式独立实现；单条 Celery 流水线；首期进度 HTTP 轮询。
+**范围**：工作区「文档翻译 → 翻译」：支持 Word（DOC / DOCX）/ PDF / TXT / MD / CSV / Excel（XLS / XLSX）；上传区选择源/目标语言与 `model_type=translate` 模型；后台 `backend/app/translate/`；前端 `frontend/src/features/translate/`；**表格列表 + 顶部筛选**；**上传 Modal**；**全屏详情 Modal** 内左右段落对照 + 译文下载；扫描 PDF 自动走现有 `file_ocr` 后再段落翻译；按文件后缀策略模式独立实现；单条 Celery 流水线；首期进度 HTTP 轮询。
 
 ---
 
@@ -69,12 +69,12 @@ backend/app/translate/
 ### 2.2 前端
 
 ```text
-minerva-ui/src/features/translate/
+frontend/src/features/translate/
   TranslatePage.tsx          # 主页面（布局对齐 AgentsPage）
   TranslatePage.css
   translateJobUi.ts          # 侧栏标题、日期格式化等
   index.ts
-minerva-ui/src/api/translate.ts
+frontend/src/api/translate.ts
 ```
 
 - 路由：`/app/translate`（替换现有 `/app/doc-translate/translate`）。

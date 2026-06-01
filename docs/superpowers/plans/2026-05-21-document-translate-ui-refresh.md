@@ -24,11 +24,11 @@
 
 ### 前端
 
-- Modify: `minerva-ui/src/api/translate.ts` — 列表类型与 query 参数
-- Modify: `minerva-ui/src/features/translate/TranslatePage.tsx` — 表格 + 双 Modal
-- Modify: `minerva-ui/src/features/translate/TranslatePage.css` — 移除侧栏样式，增加表格页布局
-- Modify: `minerva-ui/src/app/layout/AppLayout.tsx` — `/app/translate` 不再使用 agents 零 padding
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`, `en.json`
+- Modify: `frontend/src/api/translate.ts` — 列表类型与 query 参数
+- Modify: `frontend/src/features/translate/TranslatePage.tsx` — 表格 + 双 Modal
+- Modify: `frontend/src/features/translate/TranslatePage.css` — 移除侧栏样式，增加表格页布局
+- Modify: `frontend/src/app/layout/AppLayout.tsx` — `/app/translate` 不再使用 agents 零 padding
+- Modify: `frontend/src/i18n/locales/zh-CN.json`, `en.json`
 - Modify: `docs/superpowers/specs/2026-05-20-document-translate-design.md` — §6.2、§7 回填
 
 ---
@@ -204,7 +204,7 @@ git commit -m "feat(translate): paginated filtered job list API"
 ## Task 3: 前端 API 客户端
 
 **Files:**
-- Modify: `minerva-ui/src/api/translate.ts`
+- Modify: `frontend/src/api/translate.ts`
 
 - [ ] **Step 1: 替换列表类型与函数**
 
@@ -240,7 +240,7 @@ export function listTranslateJobs(workspaceId: string, params?: DocTranslateJobL
 - [ ] **Step 2: 类型检查**
 
 ```bash
-cd minerva-ui && npm run build
+cd frontend && npm run build
 ```
 
 Expected: 仅 `TranslatePage.tsx` 因旧字段报错（下一步修复）。
@@ -248,7 +248,7 @@ Expected: 仅 `TranslatePage.tsx` 因旧字段报错（下一步修复）。
 - [ ] **Step 3: Commit**
 
 ```bash
-git add minerva-ui/src/api/translate.ts
+git add frontend/src/api/translate.ts
 git commit -m "feat(ui): translate job list API params and response shape"
 ```
 
@@ -257,8 +257,8 @@ git commit -m "feat(ui): translate job list API params and response shape"
 ## Task 4: i18n 与 AppLayout
 
 **Files:**
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`, `en.json`
-- Modify: `minerva-ui/src/app/layout/AppLayout.tsx`
+- Modify: `frontend/src/i18n/locales/zh-CN.json`, `en.json`
+- Modify: `frontend/src/app/layout/AppLayout.tsx`
 
 - [ ] **Step 1: 新增 i18n 键（zh-CN / en 同步）**
 
@@ -288,7 +288,7 @@ git commit -m "feat(ui): translate job list API params and response shape"
 - [ ] **Step 3: Commit**
 
 ```bash
-git add minerva-ui/src/i18n/locales/zh-CN.json minerva-ui/src/i18n/locales/en.json minerva-ui/src/app/layout/AppLayout.tsx
+git add frontend/src/i18n/locales/zh-CN.json frontend/src/i18n/locales/en.json frontend/src/app/layout/AppLayout.tsx
 git commit -m "feat(ui): translate page i18n and standard layout padding"
 ```
 
@@ -297,8 +297,8 @@ git commit -m "feat(ui): translate page i18n and standard layout padding"
 ## Task 5: TranslatePage — 表格与筛选
 
 **Files:**
-- Modify: `minerva-ui/src/features/translate/TranslatePage.tsx`
-- Modify: `minerva-ui/src/features/translate/TranslatePage.css`
+- Modify: `frontend/src/features/translate/TranslatePage.tsx`
+- Modify: `frontend/src/features/translate/TranslatePage.css`
 
 - [ ] **Step 1: 替换页面状态与列表查询**
 
@@ -377,7 +377,7 @@ const [tableBodyScrollY, setTableBodyScrollY] = useState(420)
 - [ ] **Step 5: Commit**
 
 ```bash
-git add minerva-ui/src/features/translate/TranslatePage.tsx minerva-ui/src/features/translate/TranslatePage.css
+git add frontend/src/features/translate/TranslatePage.tsx frontend/src/features/translate/TranslatePage.css
 git commit -m "feat(ui): translate jobs table with filters"
 ```
 
@@ -386,8 +386,8 @@ git commit -m "feat(ui): translate jobs table with filters"
 ## Task 6: 上传 Modal 与详情全屏 Modal
 
 **Files:**
-- Modify: `minerva-ui/src/features/translate/TranslatePage.tsx`
-- Modify: `minerva-ui/src/features/translate/TranslatePage.css`
+- Modify: `frontend/src/features/translate/TranslatePage.tsx`
+- Modify: `frontend/src/features/translate/TranslatePage.css`
 
 - [ ] **Step 1: 上传 Modal**
 
@@ -457,7 +457,7 @@ git commit -m "feat(ui): translate jobs table with filters"
 - [ ] **Step 5: Commit**
 
 ```bash
-git add minerva-ui/src/features/translate/TranslatePage.tsx minerva-ui/src/features/translate/TranslatePage.css
+git add frontend/src/features/translate/TranslatePage.tsx frontend/src/features/translate/TranslatePage.css
 git commit -m "feat(ui): translate upload and fullscreen detail modals"
 ```
 
@@ -467,7 +467,7 @@ git commit -m "feat(ui): translate upload and fullscreen detail modals"
 
 **Files:**
 - Modify: `docs/superpowers/specs/2026-05-20-document-translate-design.md`
-- Modify: `minerva-ui/src/i18n/locales/zh-CN.json`, `en.json`（删除未引用键，可选）
+- Modify: `frontend/src/i18n/locales/zh-CN.json`, `en.json`（删除未引用键，可选）
 
 - [ ] **Step 1: 回填原设计文档 §7**
 
@@ -481,7 +481,7 @@ git commit -m "feat(ui): translate upload and fullscreen detail modals"
 
 ```bash
 cd backend && pytest tests/test_doc_translate_list_api.py tests/test_doc_translate_repository_cursor.py tests/test_doc_translate_strategies_txt_md_csv.py -v
-cd minerva-ui && npm run build
+cd frontend && npm run build
 ```
 
 Expected: 全部 PASS。
@@ -489,7 +489,7 @@ Expected: 全部 PASS。
 - [ ] **Step 4: Commit**
 
 ```bash
-git add docs/superpowers/specs/2026-05-20-document-translate-design.md minerva-ui/src/i18n/locales/*.json
+git add docs/superpowers/specs/2026-05-20-document-translate-design.md frontend/src/i18n/locales/*.json
 git commit -m "docs: align document-translate spec with table UI refresh"
 ```
 

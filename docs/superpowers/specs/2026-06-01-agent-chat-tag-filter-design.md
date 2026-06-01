@@ -163,7 +163,7 @@ def _tags_allow_agent(tags: object) -> bool:
 
 ### 6.1 API 客户端
 
-`minerva-ui/src/api/agent.ts` 新增：
+`frontend/src/api/agent.ts` 新增：
 
 ```typescript
 export type AgentConversationModel = {

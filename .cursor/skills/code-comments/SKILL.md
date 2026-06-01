@@ -5,10 +5,10 @@ description: >-
   plus variable documentation where required; (2) full 「注释说明规则」—scope, exclusions,
   templates, self-checklist, backlog strategy; (3) when and how to write code comments in TypeScript/React
   and Python; (4) backend tool modules under `app/sys/tool` with `backend/app/sys/tool/ocr` as
-  the layout template, including table scroll rules; (5) minerva-ui Ant Design forms:
+  the layout template, including table scroll rules; (5) frontend Ant Design forms:
   `allowClear` on text inputs and selects, and InputNumber limitations; (6) paginated
   lists: default 10 per page (shared constants in `app/pagination.py` and
-  `minerva-ui/src/constants/pagination.ts`); (7) minerva-ui scrollbar widths via shared
+  `frontend/src/constants/pagination.ts`); (7) frontend scrollbar widths via shared
   classes in `appLayoutScroll.css` (`minerva-scrollbar-thin` 4px vs
   `minerva-scrollbar-styled` 5px); (8) secondary confirmations use Ant Design Popconfirm only
   (see `minerva-conventions` §4). Cross-cutting rules (no DB foreign keys / doc-first fixes):
@@ -46,7 +46,7 @@ description: >-
 | 区域 | 路径模式 | 说明 |
 |------|-----------|------|
 | 后端应用 | `backend/app/**/*.py` | 业务与基础设施 Python 源码。 |
-| 前端应用 | `minerva-ui/src/**/*.{ts,tsx}` | 页面、组件、hooks、API 封装等。 |
+| 前端应用 | `frontend/src/**/*.{ts,tsx}` | 页面、组件、hooks、API 封装等。 |
 
 **不在此范围**：`node_modules/`、`dist/`、`__pycache__/`、锁文件、纯二进制；**测试代码**建议同等对待，但不与本 Skill 的「工具模块」条款混为一谈。
 
@@ -54,7 +54,7 @@ description: >-
 
 | 情形 | 做法 |
 |------|------|
-| `minerva-ui/src/vite-env.d.ts` | 保留 `/// <reference types="vite/client" />` 等三斜杠指令即可；无需为每个 `ImportMeta` 字段重复作文档 unless 自定义扩展。 |
+| `frontend/src/vite-env.d.ts` | 保留 `/// <reference types="vite/client" />` 等三斜杠指令即可；无需为每个 `ImportMeta` 字段重复作文档 unless 自定义扩展。 |
 | 纯 barrel `index.ts` / `index.ts` 仅 `export * from "./x"` | 模块顶部 **一行** `/** Re-exports ... */` 或等价注释即可，不要求对每个再导出逐一注解（导出目标的注释在原文件）。 |
 | Python **仅** 空白、`from pkg import mod` 的 `__init__.py` | 单行 docstring：`"""Exports public symbols for package `<qualified name>`."""` 或说明留白 intentionally empty（若团队约定保留空文件）。 |
 | SQL / Alembic 迁移 | 以分段 `--` 注释为主；不按「类/方法 docstring」句式强求。 |
@@ -112,7 +112,7 @@ export const queryClient = ...
 ### 存量代码补齐策略（全仓统一补注释时）
 
 - **增量**：凡触碰的文件顺带补齐缺注释的顶层符号（不要求在同 PR 改无关文件，但若改动已过红线则应补齐）。
-- **专项**：按子树分批（例如 `app/rule`、`minerva-ui/src/features/rules`）提交，便于评审。
+- **专项**：按子树分批（例如 `app/rule`、`frontend/src/features/rules`）提交，便于评审。
 - **自动化**：可选自建脚本 AST 扫模块 docstring、或 ESLint `jsdoc/require-jsdoc` 仅对新代码启用——不在此 Skill 固定命令名，以免与仓库演进脱节。
 
 ## 语言
@@ -138,28 +138,28 @@ export const queryClient = ...
 - **Hooks**：在 `useEffect`/`useLayoutEffect` 中注明**依赖项含义**与**与 DOM/布局相关的顺序**（先同步 class 再持久化等）。
 - **与全局样式联动**：若依赖 `document.documentElement` 的 class 或 `index.css` 变量，在 **单一同步函数**处集中说明，避免在多处散写。
 
-### minerva-ui：二次确认（Popconfirm）
+### frontend：二次确认（Popconfirm）
 
 凡需用户二次确认的操作（删除、退出登录等），**统一使用 Ant Design `Popconfirm`** 包裹触发按钮；**禁止** `Modal.confirm` / `window.confirm`。细则与示例见 **`minerva-conventions` Skill §4**。
 
-### minerva-ui：Ant Design 表单可清除
+### frontend：Ant Design 表单可清除
 
-在 `minerva-ui` 中，凡**用户可编辑、且清空在业务上成立**的字段，对支持该能力的组件应加 **`allowClear`**，有值时展示清除图标，便于一键置空；**不得**在业务上禁止清空的只读/强必选场景为凑规范而强行可清。
+在 `frontend` 中，凡**用户可编辑、且清空在业务上成立**的字段，对支持该能力的组件应加 **`allowClear`**，有值时展示清除图标，便于一键置空；**不得**在业务上禁止清空的只读/强必选场景为凑规范而强行可清。
 
 - 适用：普通 **`Input`**、**`Input.Password`**、**`Select`**、**`TreeSelect`** 等（与 antd 文档一致有 `allowClear` 的组件）。
 - **不适用**：**`InputNumber`**（本仓库使用 **antd 6**：类型与实现**均无** `allowClear`）——不要给 `InputNumber` 写 `allowClear`，否则 **TypeScript 与构建会失败**；需「一键清数字」时单独封装，或与表单约定 `null` / `??` 默认值的交互一致，依靠键盘删空等。
 
-### minerva-ui：分页列表默认每页 10 条
+### frontend：分页列表默认每页 10 条
 
 凡**带服务端/接口分页**的 `Table` 或列表请求，**默认每页条数固定为 10**，与后端列表 API 的默认 `page_size` 一致。
 
-- **前端**：自 `minerva-ui/src/constants/pagination.ts` 引用 **`DEFAULT_PAGE_SIZE`** 作为 `Table` 的 `pagination.pageSize` 与请求参数中的 `page_size` 初始值；**新建**分页列表时不得再写死其他数字（如 20）作为默认，除非有明确产品要求并同时改常量与相关 API 默认值。
+- **前端**：自 `frontend/src/constants/pagination.ts` 引用 **`DEFAULT_PAGE_SIZE`** 作为 `Table` 的 `pagination.pageSize` 与请求参数中的 `page_size` 初始值；**新建**分页列表时不得再写死其他数字（如 20）作为默认，除非有明确产品要求并同时改常量与相关 API 默认值。
 - **后端**：自 `app.pagination` 引用 **`DEFAULT_PAGE_SIZE`** 作为 `Query(..., default=DEFAULT_PAGE_SIZE)` 等；新增分页列表端点沿用同一常量。
 - **例外**：在客户端**循环拉全量**（如合并多页直到 `total` 满足）时，为减少往返可对单次请求使用**不超过**接口 `le` 上限的较大 `page_size`；这不改变「用户打开列表时看到的」默认 10 条约定。
 
-### minerva-ui：滚动条粗细（统一尺寸）
+### frontend：滚动条粗细（统一尺寸）
 
-可滚动区域的滚动条**不得**依赖浏览器默认粗条（Windows 上约 12–17px）。样式集中在 **`minerva-ui/src/app/layout/appLayoutScroll.css`**（由 `AppLayout` 引入）；新增可滚动容器时**复用既有 class**，勿在业务 CSS 里另写 `width: 8px` 等一次性尺寸。
+可滚动区域的滚动条**不得**依赖浏览器默认粗条（Windows 上约 12–17px）。样式集中在 **`frontend/src/app/layout/appLayoutScroll.css`**（由 `AppLayout` 引入）；新增可滚动容器时**复用既有 class**，勿在业务 CSS 里另写 `width: 8px` 等一次性尺寸。
 
 | 档位 | WebKit `width` / `height` | 工具 class / 选择器 | 适用场景 |
 |------|---------------------------|---------------------|----------|
@@ -305,4 +305,4 @@ app/sys/tool/<name>/
 1. **右侧页面不滚动**：保持外层容器 `overflow: hidden`，不要让主内容区随表格数据量出现整页纵向滚动。
 2. **仅表格体滚动 + 表头固定**：表格使用 `scroll.y`（限制表格体高度）和 `sticky`（固定表头），确保大量数据时只滚动表格内容区。
 3. **滚动条按需显示**：表格体滚动容器使用 `overflow: auto`，默认不展示滚动条，仅在内容溢出时显示（避免常驻滚动条影响视觉）。
-4. **滚动条尺寸**：表格体使用 **`minerva-card-table-scroll-ocr`** 或 **`minerva-table-body-scrollbar-ocr`**（WebKit **5px**，见上文「minerva-ui：滚动条粗细」）；与智能体消息内嵌 Markdown 的 **4px 细条**不可混用同一容器上的两套自定义宽度。
+4. **滚动条尺寸**：表格体使用 **`minerva-card-table-scroll-ocr`** 或 **`minerva-table-body-scrollbar-ocr`**（WebKit **5px**，见上文「frontend：滚动条粗细」）；与智能体消息内嵌 Markdown 的 **4px 细条**不可混用同一容器上的两套自定义宽度。
