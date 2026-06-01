@@ -24,7 +24,7 @@
 
 ### 2.1 表 `sys_models`（目标形态）
 
-沿用现有字段：`id`, `workspace_id`, `provider_name`, `model_name`, `model_type`, `enabled`, `load_balancing_enabled`, `auth_type`, `endpoint_url`, `api_key`, `auth_name`, `auth_passwd`, `context_size`, `max_tokens_to_sample`, `model_config`, `create_at`, `update_at`。
+沿用现有字段：`id`, `workspace_id`, `provider_name`, `model_name`, `model_type`, `enabled`, `load_balancing_enabled`, `auth_type`, `endpoint_url`, `api_key`, `auth_name`, `auth_passwd`, `context_size`, `max_tokens`, `model_config`, `create_at`, `update_at`。
 
 本期关键约束：
 
@@ -118,7 +118,7 @@ app/sys/model_provider/
 - `model_type`：必填，必须命中字典 `MODEL_TYPE.code`（key）。
 - `enabled`、`load_balancing_enabled`：布尔值。
 - `endpoint_url`：可空；非空时需通过 URL 合法性校验。
-- `context_size`、`max_tokens_to_sample`：可空；非空时为正整数。
+- `context_size`、`max_tokens`：可空；非空时为正整数。
 - `model_config`：可空文本；首版不做 JSON Schema 强校验。
 
 ### 5.2 认证联动规则

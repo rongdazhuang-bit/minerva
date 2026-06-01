@@ -71,7 +71,7 @@ async def translate_segment(
         f"You are a professional translator. Translate from {source_lang} to {target_lang}. "
         "Output only the translated text without explanations or quotes."
     )
-    configured_max = row.max_tokens_to_sample
+    configured_max = row.max_tokens
     estimated_out = min(32767, max(512, int(len(source_text) * 1.6) + 128))
     max_tokens = min(32767, max(configured_max or 0, estimated_out))
 

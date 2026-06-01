@@ -55,7 +55,7 @@ def _to_agent_conversation_model(row) -> AgentConversationModelOut:
         provider_name=row.provider_name,
         model_name=row.model_name,
         endpoint_url=endpoint,
-        max_tokens=row.max_tokens_to_sample,
+        max_tokens=row.max_tokens,
         tags=list(row.tags or []),
     )
 

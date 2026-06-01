@@ -4,7 +4,7 @@
 
 **Goal:** 智能体对话页仅展示 Agent 可用模型（`CHAT` tag + enabled + endpoint + api_key），通过专用 `GET /agent/v2/models` 在 SQL 层过滤；跑图校验同步改为 `CHAT`。
 
-**Architecture:** 在 `model_provider` repository 新增 `list_agent_conversation_models()`（PostgreSQL JSONB `@>` + btrim 条件 + provider/model 排序）；`agent/v2` router 暴露只读列表并映射为 `AgentConversationModelOut`（`max_tokens` ← `max_tokens_to_sample`）；`ChatModelFactory` 独立校验 `MODEL_TAG_CHAT`；前端改调新 API 并移除本地过滤。不改 `/model-providers/models` 与 `app/llm` tag 规则。
+**Architecture:** 在 `model_provider` repository 新增 `list_agent_conversation_models()`（PostgreSQL JSONB `@>` + btrim 条件 + provider/model 排序）；`agent/v2` router 暴露只读列表并映射为 `AgentConversationModelOut`（`max_tokens` 与 DB 列同名）；`ChatModelFactory` 独立校验 `MODEL_TAG_CHAT`；前端改调新 API 并移除本地过滤。不改 `/model-providers/models` 与 `app/llm` tag 规则。
 
 **Tech Stack:** FastAPI, SQLAlchemy 2.x (JSONB), pytest, React 18, TanStack Query, TypeScript, i18next.
 
@@ -254,7 +254,7 @@ def agent_models_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
         provider_name="OpenAI",
         model_name="gpt-test",
         endpoint_url="https://example.com/v1",
-        max_tokens_to_sample=4096,
+        max_tokens=4096,
         tags=["CHAT", "TEXT"],
     )
     monkeypatch.setattr(
@@ -284,7 +284,6 @@ def test_list_agent_conversation_models_maps_max_tokens(agent_models_client: Tes
     assert body[0]["max_tokens"] == 4096
     assert body[0]["tags"] == ["CHAT", "TEXT"]
     assert "api_key" not in body[0]
-    assert "max_tokens_to_sample" not in body[0]
 ```
 
 - [ ] **Step 3: 运行测试确认失败**
@@ -313,7 +312,7 @@ def _to_agent_conversation_model(row) -> AgentConversationModelOut:
         provider_name=row.provider_name,
         model_name=row.model_name,
         endpoint_url=endpoint,
-        max_tokens=row.max_tokens_to_sample,
+        max_tokens=row.max_tokens,
         tags=list(row.tags or []),
     )
 
@@ -567,9 +566,9 @@ const usableModels = useMemo(
 在 `onSend` / stream 逻辑中，将：
 
 ```typescript
-modelRow?.max_tokens_to_sample != null &&
-Number.isFinite(modelRow.max_tokens_to_sample)
-  ? modelRow.max_tokens_to_sample
+modelRow?.max_tokens != null &&
+Number.isFinite(modelRow.max_tokens)
+  ? modelRow.max_tokens
   : null
 ```
 

@@ -166,7 +166,7 @@ CREATE TABLE public.sys_models (
 	auth_name varchar(64) NULL,
 	auth_passwd varchar(128) NULL,
 	context_size int2 NULL,
-	max_tokens_to_sample int2 NULL,
+	max_tokens int2 NULL,
 	model_config text NULL,
 	tags jsonb DEFAULT '["TEXT"]'::jsonb NOT NULL,
 	create_at timestamptz NULL,
@@ -188,7 +188,7 @@ COMMENT ON COLUMN public.sys_models.api_key IS 'api key';
 COMMENT ON COLUMN public.sys_models.auth_name IS '账号';
 COMMENT ON COLUMN public.sys_models.auth_passwd IS '密码';
 COMMENT ON COLUMN public.sys_models.context_size IS '上下文窗口大小';
-COMMENT ON COLUMN public.sys_models.max_tokens_to_sample IS '最大 token 上限';
+COMMENT ON COLUMN public.sys_models.max_tokens IS '最大 token 上限';
 COMMENT ON COLUMN public.sys_models.model_config IS '其它配置项';
 COMMENT ON COLUMN public.sys_models.tags IS '模型用途标签（MODEL_TAG 字典 code 数组）';
 COMMENT ON COLUMN public.sys_models.create_at IS '创建时间';

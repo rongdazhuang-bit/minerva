@@ -1090,7 +1090,7 @@ def _row(**overrides) -> SysModel:  # noqa: ANN003
         auth_name=None,
         auth_passwd=None,
         context_size=None,
-        max_tokens_to_sample=None,
+        max_tokens=None,
         model_config=None,
         create_at=None,
         update_at=None,

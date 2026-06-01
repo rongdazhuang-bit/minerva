@@ -539,7 +539,7 @@ def _model_row(**overrides):
         "endpoint_url": "https://example.com/v1/",
         "api_key": "secret",
         "model_name": "gpt-compatible",
-        "max_tokens_to_sample": 512,
+        "max_tokens": 512,
     }
     values.update(overrides)
     return SimpleNamespace(**values), workspace_id

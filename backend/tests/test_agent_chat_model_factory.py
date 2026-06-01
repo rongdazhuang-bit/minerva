@@ -23,7 +23,7 @@ def _model_row(**overrides):
         "endpoint_url": "https://example.com/v1/chat/completions",
         "api_key": "secret",
         "model_name": "gpt-compatible",
-        "max_tokens_to_sample": 512,
+        "max_tokens": 512,
         "tags": ["CHAT"],
     }
     values.update(overrides)

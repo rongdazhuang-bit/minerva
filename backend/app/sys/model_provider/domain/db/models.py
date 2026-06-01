@@ -39,7 +39,7 @@ class SysModel(Base):
     auth_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
     auth_passwd: Mapped[str | None] = mapped_column(String(128), nullable=True)
     context_size: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
-    max_tokens_to_sample: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    max_tokens: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     model_config: Mapped[str | None] = mapped_column(Text, nullable=True)
     tags: Mapped[list[str]] = mapped_column(
         JSONB,

@@ -66,7 +66,7 @@ type FormValues = {
   auth_passwd?: string
   api_key?: string
   context_size?: number | null
-  max_tokens_to_sample?: number | null
+  max_tokens?: number | null
   model_config?: string
 }
 
@@ -115,7 +115,7 @@ function detailToFormValues(detail: ModelProviderDetail, omitPassword: boolean):
     auth_passwd: omitPassword ? '' : detail.auth_passwd ?? '',
     api_key: detail.api_key ?? '',
     context_size: detail.context_size ?? null,
-    max_tokens_to_sample: detail.max_tokens_to_sample ?? null,
+    max_tokens: detail.max_tokens ?? null,
     model_config: normModelConfigField(detail.model_config) ?? '',
   }
 }
@@ -357,7 +357,7 @@ export function ModelProvidersPage() {
       auth_passwd: isOcrBasicAuth(raw) ? values.auth_passwd?.trim() || null : null,
       api_key: isOcrApiKeyAuth(raw) ? values.api_key?.trim() || null : null,
       context_size: values.context_size ?? null,
-      max_tokens_to_sample: values.max_tokens_to_sample ?? null,
+      max_tokens: values.max_tokens ?? null,
       model_config: normModelConfigField(values.model_config),
     }
   }
@@ -474,7 +474,7 @@ export function ModelProvidersPage() {
           'endpoint_url',
           'auth_name',
           'context_size',
-          'max_tokens_to_sample',
+          'max_tokens',
         ]
         for (const k of keys) {
           if (next[k] !== (editingBase as unknown as Record<string, unknown>)[k]) {
@@ -895,7 +895,7 @@ export function ModelProvidersPage() {
           <Form.Item name="context_size" label={t('settings.modelProvidersFieldContext')}>
             <InputNumber className="minerva-model-providers__num" min={1} max={32767} />
           </Form.Item>
-          <Form.Item name="max_tokens_to_sample" label={t('settings.modelProvidersFieldMaxTokens')}>
+          <Form.Item name="max_tokens" label={t('settings.modelProvidersFieldMaxTokens')}>
             <InputNumber className="minerva-model-providers__num" min={1} max={32767} />
           </Form.Item>
           <Form.Item name="model_config" label={t('settings.modelProvidersFieldConfig')}>

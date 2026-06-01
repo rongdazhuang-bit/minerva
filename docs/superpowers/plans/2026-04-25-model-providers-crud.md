@@ -169,7 +169,7 @@ class SysModel(Base):
     model_type: Mapped[str] = mapped_column(String(64), nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=sa.true())
     load_balancing_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=sa.false())
-    # ... auth_type/endpoint_url/api_key/auth_name/auth_passwd/context_size/max_tokens_to_sample/model_config/create_at/update_at
+    # ... auth_type/endpoint_url/api_key/auth_name/auth_passwd/context_size/max_tokens/model_config/create_at/update_at
 ```
 
 ```python

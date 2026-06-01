@@ -20,7 +20,7 @@
 - **专用列表 API**：`GET /workspaces/{workspace_id}/agent/v2/models`，在 SQL 层过滤可用模型，前端不再本地过滤 tag / enabled / endpoint / api_key。
 - **跑图防绕过**：`ChatModelFactory` 校验 `CHAT` tag（422 `agent.model_tag_not_allowed`）。
 - **字典**：各工作区 `MODEL_TAG` 字典 idempotent 插入 `CHAT` 项，供管理员手动勾选。
-- **响应字段**：对外暴露 `max_tokens`（映射自 `sys_models.max_tokens_to_sample`），与 run 请求体字段名一致。
+- **响应字段**：对外暴露 `max_tokens`（读取 `sys_models.max_tokens`），与 run 请求体字段名一致。
 
 ### 1.2 成功标准
 
@@ -41,7 +41,7 @@
 | 列表接口 | **独立** `GET /agent/v2/models`（不改通用 `/models?tags=`） |
 | 过滤位置 | **SQL WHERE**（tag + enabled + endpoint + api_key） |
 | 排序 | `provider_name ASC`, `model_name ASC`, `id ASC` |
-| 响应 max tokens 字段 | **`max_tokens`** ← `max_tokens_to_sample` |
+| 响应 max tokens 字段 | **`max_tokens`**（与 DB 列同名） |
 | 字典 | SQL 补丁插入 `CHAT` 字典项；不改 `sys_models.tags` 存量 |
 
 ---
@@ -65,11 +65,11 @@ class AgentConversationModelOut(BaseModel):
     provider_name: str
     model_name: str
     endpoint_url: str          # SQL 过滤后必非空
-    max_tokens: int | None     # 来自 sys_models.max_tokens_to_sample
+    max_tokens: int | None     # 来自 sys_models.max_tokens
     tags: list[str]
 ```
 
-- 不返回 `api_key`；不返回 `max_tokens_to_sample` 字段名。
+- 不返回 `api_key`。
 - `has_api_key` 省略（SQL 已保证有 key）。
 
 ### 2.3 不变更的端点
@@ -186,7 +186,7 @@ export function listAgentConversationModels(workspaceId: string) {
 
 - `useQuery` 改调 `listAgentConversationModels`。
 - `usableModels` 直接使用 API 返回数组（删除 `includes('TEXT')` 及 enabled / endpoint / `has_api_key` 本地过滤）。
-- run 时使用 `modelRow.max_tokens`（不再读 `max_tokens_to_sample`）。
+- run 时使用 `modelRow.max_tokens`。
 - Select `options` label 仍为 `` `${provider_name} · ${model_name}` ``。
 
 ### 6.3 空状态 i18n

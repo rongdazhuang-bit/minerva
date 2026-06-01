@@ -1,7 +1,7 @@
 # sys_models 字段重命名：max_tokens_to_sample → max_tokens
 
 **日期**：2026-06-02  
-**状态**：待实现  
+**状态**：已实现（2026-06-02）  
 **范围**：将 `sys_models.max_tokens_to_sample` 全量重命名为 `max_tokens`；同步更新 ORM、模型供应商 REST API、设置页 UI、Agent/规则/翻译运行时读取、测试及仓库内全部引用该字段名的文档。**不提供** `max_tokens_to_sample` 兼容别名。
 
 **关联文档**：

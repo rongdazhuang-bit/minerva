@@ -29,7 +29,7 @@ def agent_models_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
         provider_name="OpenAI",
         model_name="gpt-test",
         endpoint_url="https://example.com/v1",
-        max_tokens_to_sample=4096,
+        max_tokens=4096,
         tags=["CHAT", "TEXT"],
     )
     monkeypatch.setattr(
@@ -61,4 +61,3 @@ def test_list_agent_conversation_models_maps_max_tokens(
     assert body[0]["max_tokens"] == 4096
     assert body[0]["tags"] == ["CHAT", "TEXT"]
     assert "api_key" not in body[0]
-    assert "max_tokens_to_sample" not in body[0]

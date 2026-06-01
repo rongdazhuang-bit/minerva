@@ -760,7 +760,7 @@
   "settings.modelProvidersFieldEnabled": "Enabled",
   "settings.modelProvidersFieldLb": "Load balancing",
   "settings.modelProvidersFieldContext": "Context size",
-  "settings.modelProvidersFieldMaxTokens": "Max tokens to sample",
+  "settings.modelProvidersFieldMaxTokens": "Max tokens",
   "settings.modelProvidersFieldConfig": "Model configuration",
   "settings.modelProvidersFieldConfigPh": "Optional. If provided, must be valid JSON.",
   "settings.modelProvidersFieldConfigJsonInvalid": "Invalid JSON. Check brackets, quotes, and commas.",

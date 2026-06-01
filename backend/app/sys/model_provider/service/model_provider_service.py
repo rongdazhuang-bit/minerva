@@ -190,7 +190,7 @@ async def create_model(
         auth_name=data.get("auth_name"),
         auth_passwd=data.get("auth_passwd"),
         context_size=data.get("context_size"),
-        max_tokens_to_sample=data.get("max_tokens_to_sample"),
+        max_tokens=data.get("max_tokens"),
         model_config=data.get("model_config"),
         tags=data["tags"],
         create_at=now,

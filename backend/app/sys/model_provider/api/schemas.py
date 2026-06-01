@@ -21,7 +21,7 @@ class ModelProviderCreateIn(BaseModel):
     auth_name: str | None = Field(default=None, max_length=64)
     auth_passwd: str | None = Field(default=None, max_length=128)
     context_size: int | None = Field(default=None, ge=1, le=32767)
-    max_tokens_to_sample: int | None = Field(default=None, ge=1, le=32767)
+    max_tokens: int | None = Field(default=None, ge=1, le=32767)
     other_config: str | None = Field(default=None, alias="model_config")
     tags: list[str] = Field(min_length=1)
 
@@ -39,7 +39,7 @@ class ModelProviderPatchIn(BaseModel):
     auth_name: str | None = Field(default=None, max_length=64)
     auth_passwd: str | None = Field(default=None, max_length=128)
     context_size: int | None = Field(default=None, ge=1, le=32767)
-    max_tokens_to_sample: int | None = Field(default=None, ge=1, le=32767)
+    max_tokens: int | None = Field(default=None, ge=1, le=32767)
     other_config: str | None = Field(default=None, alias="model_config")
     tags: list[str] | None = Field(default=None, min_length=1)
 
@@ -58,7 +58,7 @@ class ModelProviderListItemOut(BaseModel):
     has_api_key: bool
     has_password: bool
     context_size: int | None
-    max_tokens_to_sample: int | None
+    max_tokens: int | None
     other_config: str | None = Field(
         default=None,
         alias="model_config",
@@ -84,7 +84,7 @@ class ModelProviderDetailOut(BaseModel):
     auth_name: str | None
     auth_passwd: str | None
     context_size: int | None
-    max_tokens_to_sample: int | None
+    max_tokens: int | None
     other_config: str | None = Field(
         default=None,
         alias="model_config",
@@ -107,7 +107,7 @@ class ModelProviderGroupItemOut(BaseModel):
     has_api_key: bool
     has_password: bool
     context_size: int | None
-    max_tokens_to_sample: int | None
+    max_tokens: int | None
     other_config: str | None = Field(
         default=None,
         alias="model_config",

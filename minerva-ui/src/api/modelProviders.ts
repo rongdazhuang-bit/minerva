@@ -11,7 +11,7 @@ export type ModelProviderGroupItem = {
   has_api_key: boolean
   has_password: boolean
   context_size: number | null
-  max_tokens_to_sample: number | null
+  max_tokens: number | null
   model_config: string | null
   create_at: string | null
   update_at: string | null
@@ -40,7 +40,7 @@ export type ModelProviderDetail = {
   auth_name: string | null
   auth_passwd: string | null
   context_size: number | null
-  max_tokens_to_sample: number | null
+  max_tokens: number | null
   model_config: string | null
   create_at: string | null
   update_at: string | null
@@ -58,7 +58,7 @@ export type ModelProviderCreateBody = {
   auth_name?: string | null
   auth_passwd?: string | null
   context_size?: number | null
-  max_tokens_to_sample?: number | null
+  max_tokens?: number | null
   model_config?: string | null
 }
 

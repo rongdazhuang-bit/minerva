@@ -205,7 +205,7 @@ async def polish_review_rules(
         msgs.append(ChatMessage(role="user", content=cfg.user_prompt.strip()))
     msgs.append(ChatMessage(role="user", content=rules))
 
-    mt = model_row.max_tokens_to_sample
+    mt = model_row.max_tokens
     max_tokens = int(mt) if mt is not None else None
 
     result = await llm_service.complete_chat(
