@@ -210,3 +210,11 @@ app/sys/model_provider/
 | 脱敏 | `has_api_key` / `has_password` |
 | **未做** | 响应附带 `provider_code` / `model_type_code`（spec 可选） |
 | 测试 | `backend/tests/test_model_providers_api.py` |
+
+---
+
+## 11. 修订记录
+
+| 日期 | 变更 |
+|------|------|
+| 2026-06-01 | 移除 `load_balancing_enabled` 字段及全栈引用。该字段从未参与运行时逻辑，详见 `docs/superpowers/specs/2026-06-01-remove-model-load-balancing-design.md`。§2.1 字段列表中 `load_balancing_enabled` 已不再适用。 |
