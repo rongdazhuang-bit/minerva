@@ -86,6 +86,15 @@ export type AgentRunCreateBodyV2 = {
   enable_thinking?: boolean | null
 }
 
+export type AgentConversationModel = {
+  id: string
+  provider_name: string
+  model_name: string
+  endpoint_url: string
+  max_tokens: number | null
+  tags: string[]
+}
+
 export type AgentStreamEvent = AgentStreamV2ParseResult
 
 function v2Base(workspaceId: string) {
@@ -159,6 +168,16 @@ export async function listAgentSkills(
   const text = await res.text()
   if (!res.ok) await parseJsonError(text, res)
   return JSON.parse(text) as { skills: AgentSkillListItem[] }
+}
+
+/** GET Agent 对话页可选模型（服务端 SQL 已过滤 CHAT tag 等条件）。 */
+export async function listAgentConversationModels(
+  workspaceId: string,
+): Promise<AgentConversationModel[]> {
+  const res = await authFetch(`${v2Base(workspaceId)}/models`)
+  const text = await res.text()
+  if (!res.ok) await parseJsonError(text, res)
+  return JSON.parse(text) as AgentConversationModel[]
 }
 
 /** GET 近 7 日智能体 token 用量（按 token 类型分 series）。 */

@@ -1,7 +1,7 @@
 # Agent 对话选模：CHAT tag 与专用模型列表接口设计
 
 **日期**：2026-06-01  
-**状态**：待实现  
+**状态**：已实现（2026-06-01）  
 **范围**：智能体对话页模型下拉改为仅展示 Agent 可用模型；新增 `GET /agent/v2/models` 专用接口（SQL 一次过滤）；Agent 跑图校验 `tags` 含 `CHAT`；`MODEL_TAG` 字典新增 `CHAT` 项。**不**修改 `/model-providers/models`、规则、`app/llm` 的 tag 规则；**不**自动给存量模型写入 `CHAT`。
 
 **关联文档**：

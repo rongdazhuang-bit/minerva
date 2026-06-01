@@ -139,6 +139,17 @@ class AgentRunCreateV2(BaseModel):
     )
 
 
+class AgentConversationModelOut(BaseModel):
+    """Agent 对话页可选模型（已由服务端过滤）。"""
+
+    id: UUID
+    provider_name: str
+    model_name: str
+    endpoint_url: str
+    max_tokens: int | None = None
+    tags: list[str]
+
+
 class SkillRegistryItemOut(BaseModel):
     """One skill package row in the global skills registry."""
 

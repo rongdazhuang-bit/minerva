@@ -31,6 +31,7 @@ import {
   deleteAgentSession,
   getAgentSessionDetail,
   AGENT_SESSIONS_PAGE_SIZE,
+  listAgentConversationModels,
   listAgentSessions,
   streamAgentRun,
   type AgentSessionListItem,
@@ -52,7 +53,6 @@ import {
   type AgentChatMsg,
 } from '@/features/agent/agentSkillUi'
 import { ApiError } from '@/api/client'
-import { listModelProviders, type ModelProviderListItem } from '@/api/modelProviders'
 import { useAuth } from '@/app/AuthContext'
 import { useAppMessage } from '@/app/useAppMessage'
 import { copyTextToClipboard } from '@/components/markdown/copyToClipboard'
@@ -119,8 +119,8 @@ export function AgentsPage() {
   const userScrolledUpRef = useRef(false)
 
   const modelsQuery = useQuery({
-    queryKey: ['agent-model-providers', workspaceId],
-    queryFn: () => listModelProviders(workspaceId!),
+    queryKey: ['agent-conversation-models', workspaceId],
+    queryFn: () => listAgentConversationModels(workspaceId!),
     enabled: Boolean(workspaceId),
   })
 
@@ -286,16 +286,7 @@ export function AgentsPage() {
     return () => observer.disconnect()
   }, [sessionList.length, sessionsHasNextPage, maybeLoadMoreSessions])
 
-  const usableModels = useMemo(() => {
-    const rows = modelsQuery.data ?? []
-    return rows.filter(
-      (m: ModelProviderListItem) =>
-        (Array.isArray(m.tags) ? m.tags : []).includes('TEXT') &&
-        m.enabled &&
-        Boolean(m.endpoint_url?.trim()) &&
-        m.has_api_key,
-    )
-  }, [modelsQuery.data])
+  const usableModels = useMemo(() => modelsQuery.data ?? [], [modelsQuery.data])
 
   useEffect(() => {
     setPrefs((p) => {
@@ -556,9 +547,8 @@ export function AgentsPage() {
       try {
         const modelRow = usableModels.find((m) => m.id === mid)
         const maxTok =
-          modelRow?.max_tokens_to_sample != null &&
-          Number.isFinite(modelRow.max_tokens_to_sample)
-            ? modelRow.max_tokens_to_sample
+          modelRow?.max_tokens != null && Number.isFinite(modelRow.max_tokens)
+            ? modelRow.max_tokens
             : null
 
         if (!sid) {

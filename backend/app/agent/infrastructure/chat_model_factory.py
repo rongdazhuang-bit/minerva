@@ -14,17 +14,17 @@ from app.agent.infrastructure.direct_endpoint_openai_client import (
 from app.agent.infrastructure.thinking_config import ThinkingConfig
 from app.exceptions import AppError
 from app.llm.strategies.http_common import normalize_openai_base_url
-from app.sys.model_provider.domain.constants import MODEL_TAG_TEXT
+from app.sys.model_provider.domain.constants import MODEL_TAG_CHAT
 from app.sys.model_provider.domain.db.models import SysModel
 from app.sys.model_provider.infrastructure import repository as model_repo
 
 
 def _tags_allow_agent(tags: object) -> bool:
-    """Return whether the model row is tagged for agent text chat usage."""
+    """Return whether the model row is tagged for agent conversation usage."""
 
     if not isinstance(tags, list):
         return False
-    return MODEL_TAG_TEXT in {str(t).strip() for t in tags if t is not None}
+    return MODEL_TAG_CHAT in {str(t).strip() for t in tags if t is not None}
 
 
 class ChatModelFactory:
@@ -48,7 +48,7 @@ class ChatModelFactory:
         if not _tags_allow_agent(getattr(row, "tags", None)):
             raise AppError(
                 "agent.model_tag_not_allowed",
-                "该模型未标记为文本对话用途。",
+                "该模型未标记为 Agent 对话用途。",
                 422,
             )
         endpoint_url = normalize_openai_base_url((row.endpoint_url or "").strip())

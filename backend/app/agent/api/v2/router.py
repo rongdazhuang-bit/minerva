@@ -9,6 +9,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.api.v2.schemas import (
+    AgentConversationModelOut,
     AgentOverviewUsageDailyStatsOut,
     AgentSkillItemOut,
     AgentSkillListOut,
@@ -38,10 +39,37 @@ from app.core.api.deps import get_current_user, require_workspace_member
 from app.core.domain.identity.models import User
 from app.dependencies import get_db
 from app.exceptions import AppError
+from app.sys.model_provider.infrastructure import repository as model_repo
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/agent/v2", tags=["agent-v2"])
 
 router.include_router(skills_mgmt_router)
+
+
+def _to_agent_conversation_model(row) -> AgentConversationModelOut:
+    """Map a filtered SysModel row to the agent conversation picker payload."""
+
+    endpoint = (row.endpoint_url or "").strip()
+    return AgentConversationModelOut(
+        id=row.id,
+        provider_name=row.provider_name,
+        model_name=row.model_name,
+        endpoint_url=endpoint,
+        max_tokens=row.max_tokens_to_sample,
+        tags=list(row.tags or []),
+    )
+
+
+@router.get("/models", response_model=list[AgentConversationModelOut])
+async def list_agent_conversation_models(
+    workspace_id: uuid.UUID,
+    _workspace: uuid.UUID = Depends(require_workspace_member),
+    db: AsyncSession = Depends(get_db),
+) -> list[AgentConversationModelOut]:
+    """返回当前工作区可用于 Agent 对话的模型（SQL 已过滤）。"""
+
+    rows = await model_repo.list_agent_conversation_models(db, workspace_id=workspace_id)
+    return [_to_agent_conversation_model(r) for r in rows]
 
 
 @router.get("/skills", response_model=AgentSkillListOut)

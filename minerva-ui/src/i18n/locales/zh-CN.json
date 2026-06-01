@@ -40,7 +40,7 @@
   "agents.noModelsConfigured": "暂无可用的已配置模型",
   "agents.noModelsConfiguredHint": "请先在",
   "agents.openModelSettings": "模型提供商",
-  "agents.noModelsConfiguredHintSuffix": "中为至少一条模型配置「接入地址」与「API Key」，并启用。",
+  "agents.noModelsConfiguredHintSuffix": "中为至少一条模型勾选「对话（CHAT）」标签，并配置「接入地址」与「API Key」，且启用。",
   "agents.modelMissingSecret": "该模型缺少接入地址或 API Key，请在系统设置中编辑该模型。",
   "agents.assistantTrace": "运行过程",
   "agents.modelReasoning": "模型思考",
