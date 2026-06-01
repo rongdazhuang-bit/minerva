@@ -1,7 +1,7 @@
 # 移除模型供应商 load_balancing_enabled 字段设计
 
 **日期**：2026-06-01  
-**状态**：已定稿，待实现  
+**状态**：已实现（2026-06-01）  
 **范围**：从 `sys_models` 表及全栈（后端 API、管理端 UI、测试）彻底移除 `load_balancing_enabled`（负载均衡）字段及其所有引用。
 
 **关联文档**：
@@ -152,3 +152,14 @@ op.add_column(
 - [x] 数据库、后端、前端、测试、文档范围完整且一致。
 - [x] 与 `2026-05-28-llm-multi-capability-design` 非目标对齐。
 - [x] 单次 PR 策略明确，可直接进入实现计划。
+
+---
+
+## 10. 实现对照
+
+| 项 | 代码 |
+|----|------|
+| Migration | `backend/alembic/versions/f6a7b8c9d0e1_drop_sys_models_load_balancing_enabled.py` |
+| SQL 补丁 | `backend/sql/patches/2026-06-01-drop-sys-models-load-balancing-enabled.sql` |
+| 后端 | `backend/app/sys/model_provider/` |
+| 前端 | `minerva-ui/src/features/settings/model-providers/ModelProvidersPage.tsx` |

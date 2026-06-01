@@ -183,7 +183,6 @@ async def create_model(
         provider_name=str(data["provider_name"]).strip(),
         model_name=str(data["model_name"]).strip(),
         enabled=bool(data["enabled"]),
-        load_balancing_enabled=bool(data["load_balancing_enabled"]),
         auth_type=_normalize_model_auth_type(str(data["auth_type"])),
         endpoint_url=data.get("endpoint_url"),
         api_key=data.get("api_key"),

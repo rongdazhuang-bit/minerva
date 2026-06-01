@@ -59,7 +59,6 @@ type FormValues = {
   model_name: string
   tags?: string[]
   enabled: boolean
-  load_balancing_enabled: boolean
   auth_type?: string
   endpoint_url?: string
   auth_name?: string
@@ -108,7 +107,6 @@ function detailToFormValues(detail: ModelProviderDetail, omitPassword: boolean):
     model_name: detail.model_name,
     tags: detail.tags ?? [],
     enabled: detail.enabled,
-    load_balancing_enabled: detail.load_balancing_enabled,
     auth_type: authType,
     endpoint_url: detail.endpoint_url ?? '',
     auth_name: detail.auth_name ?? '',
@@ -350,7 +348,6 @@ export function ModelProvidersPage() {
       model_name: values.model_name.trim(),
       tags: (values.tags ?? []).map((c) => c.trim()).filter(Boolean),
       enabled: Boolean(values.enabled),
-      load_balancing_enabled: Boolean(values.load_balancing_enabled),
       auth_type: canonicalOcrAuthType(raw) || raw.trim(),
       endpoint_url: values.endpoint_url?.trim() ? values.endpoint_url.trim() : null,
       auth_name: isOcrBasicAuth(raw) ? values.auth_name?.trim() || null : null,
@@ -377,7 +374,6 @@ export function ModelProvidersPage() {
       model_name: '',
       tags: defaultTagsForCreate(),
       enabled: true,
-      load_balancing_enabled: false,
       model_config: '',
     })
     setOpen(true)
@@ -469,7 +465,6 @@ export function ModelProvidersPage() {
           'provider_name',
           'model_name',
           'enabled',
-          'load_balancing_enabled',
           'auth_type',
           'endpoint_url',
           'auth_name',
@@ -536,39 +531,13 @@ export function ModelProvidersPage() {
     }
   }
 
-  const handleToggleLoadBalancing = async (row: ModelProviderGroupItem, next: boolean) => {
-    if (!workspaceId || !isWorkspaceManager) return
-    const prev = row.load_balancing_enabled
-    setGroups((g0) =>
-      g0.map((g) => ({
-        ...g,
-        items: g.items.map((it) =>
-          it.id === row.id ? { ...it, load_balancing_enabled: next } : it,
-        ),
-      })),
-    )
-    try {
-      await patchModelProvider(workspaceId, row.id, { load_balancing_enabled: next })
-    } catch {
-      void message.error(t('common.error'))
-      setGroups((g0) =>
-        g0.map((g) => ({
-          ...g,
-          items: g.items.map((it) =>
-            it.id === row.id ? { ...it, load_balancing_enabled: prev } : it,
-          ),
-        })),
-      )
-    }
-  }
-
   const authTypeForRow = watchedAuthType ?? ''
   const showBasic = isOcrBasicAuth(authTypeForRow)
   const showApiKey = isOcrApiKeyAuth(authTypeForRow)
   const isNone = isOcrNoneAuth(authTypeForRow)
 
   /** Horizontal scroll width; model name column uses ~20% of this value. */
-  const tableScrollX = 1400
+  const tableScrollX = 1300
 
   const columns: ColumnsType<ModelProviderGroupItem> = [
     {
@@ -620,19 +589,6 @@ export function ModelProvidersPage() {
           checked={Boolean(v)}
           disabled={!isWorkspaceManager}
           onChange={(n) => void handleToggleEnabled(row, n)}
-        />
-      ),
-    },
-    {
-      title: t('settings.modelProvidersColLb'),
-      dataIndex: 'load_balancing_enabled',
-      key: 'load_balancing_enabled',
-      width: 100,
-      render: (v, row) => (
-        <Switch
-          checked={Boolean(v)}
-          disabled={!isWorkspaceManager}
-          onChange={(n) => void handleToggleLoadBalancing(row, n)}
         />
       ),
     },
@@ -834,9 +790,6 @@ export function ModelProvidersPage() {
           <Form.Item name="enabled" label={t('settings.modelProvidersFieldEnabled')}>
             <Select options={booleanOptions} />
           </Form.Item>
-          <Form.Item name="load_balancing_enabled" label={t('settings.modelProvidersFieldLb')}>
-            <Select options={booleanOptions} />
-          </Form.Item>
           <Form.Item
             name="auth_type"
             label={t('settings.ocrToolsAuthType')}
@@ -939,9 +892,6 @@ export function ModelProvidersPage() {
               </Descriptions.Item>
               <Descriptions.Item label={t('settings.modelProvidersFieldEnabled')}>
                 {viewDetail.enabled ? t('common.yes') : t('common.no')}
-              </Descriptions.Item>
-              <Descriptions.Item label={t('settings.modelProvidersFieldLb')}>
-                {viewDetail.load_balancing_enabled ? t('common.yes') : t('common.no')}
               </Descriptions.Item>
               <Descriptions.Item label={t('settings.ocrToolsAuthType')}>
                 {resolveAuthLabel(String(viewDetail.auth_type))}

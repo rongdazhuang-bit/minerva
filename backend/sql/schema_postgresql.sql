@@ -159,7 +159,6 @@ CREATE TABLE public.sys_models (
 	provider_name varchar(128) NOT NULL,
 	model_name varchar(128) NOT NULL,
 	enabled bool DEFAULT true NOT NULL,
-	load_balancing_enabled bool DEFAULT false NOT NULL,
 	auth_type varchar(64) NOT NULL,
 	endpoint_url varchar(128) NULL,
 	api_key varchar(128) NULL,
@@ -181,7 +180,6 @@ COMMENT ON COLUMN public.sys_models.workspace_id IS '工作空间id';
 COMMENT ON COLUMN public.sys_models.provider_name IS '模型供应商id';
 COMMENT ON COLUMN public.sys_models.model_name IS '模型名称';
 COMMENT ON COLUMN public.sys_models.enabled IS '状态';
-COMMENT ON COLUMN public.sys_models.load_balancing_enabled IS '负载均衡';
 COMMENT ON COLUMN public.sys_models.auth_type IS '认证方式';
 COMMENT ON COLUMN public.sys_models.endpoint_url IS '模型地址';
 COMMENT ON COLUMN public.sys_models.api_key IS 'api key';

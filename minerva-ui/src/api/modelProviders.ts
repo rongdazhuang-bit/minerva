@@ -5,7 +5,6 @@ export type ModelProviderGroupItem = {
   model_name: string
   tags: string[]
   enabled: boolean
-  load_balancing_enabled: boolean
   auth_type: string
   endpoint_url: string | null
   has_api_key: boolean
@@ -33,7 +32,6 @@ export type ModelProviderDetail = {
   model_name: string
   tags: string[]
   enabled: boolean
-  load_balancing_enabled: boolean
   auth_type: string
   endpoint_url: string | null
   api_key: string | null
@@ -51,7 +49,6 @@ export type ModelProviderCreateBody = {
   model_name: string
   tags: string[]
   enabled: boolean
-  load_balancing_enabled: boolean
   auth_type: string
   endpoint_url?: string | null
   api_key?: string | null

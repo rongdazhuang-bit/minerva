@@ -14,7 +14,6 @@ class ModelProviderCreateIn(BaseModel):
     provider_name: str = Field(min_length=1, max_length=128)
     model_name: str = Field(min_length=1, max_length=128)
     enabled: bool = True
-    load_balancing_enabled: bool = False
     auth_type: str = Field(min_length=1, max_length=64)
     endpoint_url: str | None = Field(default=None, max_length=128)
     api_key: str | None = Field(default=None, max_length=128)
@@ -32,7 +31,6 @@ class ModelProviderPatchIn(BaseModel):
     provider_name: str | None = Field(default=None, min_length=1, max_length=128)
     model_name: str | None = Field(default=None, min_length=1, max_length=128)
     enabled: bool | None = None
-    load_balancing_enabled: bool | None = None
     auth_type: str | None = Field(default=None, min_length=1, max_length=64)
     endpoint_url: str | None = Field(default=None, max_length=128)
     api_key: str | None = Field(default=None, max_length=128)
@@ -52,7 +50,6 @@ class ModelProviderListItemOut(BaseModel):
     provider_name: str
     model_name: str
     enabled: bool
-    load_balancing_enabled: bool
     auth_type: str
     endpoint_url: str | None
     has_api_key: bool
@@ -77,7 +74,6 @@ class ModelProviderDetailOut(BaseModel):
     provider_name: str
     model_name: str
     enabled: bool
-    load_balancing_enabled: bool
     auth_type: str
     endpoint_url: str | None
     api_key: str | None
@@ -101,7 +97,6 @@ class ModelProviderGroupItemOut(BaseModel):
     id: uuid.UUID
     model_name: str
     enabled: bool
-    load_balancing_enabled: bool
     auth_type: str
     endpoint_url: str | None
     has_api_key: bool

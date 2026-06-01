@@ -51,7 +51,6 @@ def _row(**overrides) -> SysModel:  # noqa: ANN003
         provider_name="openai",
         model_name="gpt-4o-mini",
         enabled=True,
-        load_balancing_enabled=False,
         auth_type="api_key",
         endpoint_url="https://example.com/v1/chat/completions",
         api_key="secret",

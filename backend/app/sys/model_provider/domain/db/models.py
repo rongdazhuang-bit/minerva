@@ -30,9 +30,6 @@ class SysModel(Base):
     provider_name: Mapped[str] = mapped_column(String(128), nullable=False)
     model_name: Mapped[str] = mapped_column(String(128), nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=sa.true())
-    load_balancing_enabled: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=sa.false()
-    )
     auth_type: Mapped[str] = mapped_column(String(64), nullable=False)
     endpoint_url: Mapped[str | None] = mapped_column(String(128), nullable=True)
     api_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
