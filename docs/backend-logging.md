@@ -126,7 +126,8 @@ if log.is_enabled_for(logging.DEBUG):
 
 ## 4. HTTP 与 Celery 上下文
 
-- HTTP：`HttpLoggingMiddleware` 注入 `request_id`、`trace_id`、`x_chat_id`。
+- HTTP：`HttpLoggingMiddleware` 注入 `request_id`、`trace_id`、`x_chat_id`，并输出结构化 `http.request` / `http.response`（logger `app.http`）。
+- **Uvicorn access**：`configure_logging` 会清除 `uvicorn` / `uvicorn.error` / `uvicorn.access` / `uvicorn.asgi` 的默认 handler，设 `propagate=True`，使 access 行（客户端地址 + 请求行 + 状态码）与业务日志共用 `PatternLogFormatter`，不再出现 `INFO: 127.0.0.1 - "GET ..."` 默认格式。
 - Celery：`celery_app` 通过 task headers 恢复上下文；任务入口使用 `get_logger(__name__)`。
 
 跨进程排查时优先用日志行中的 **traceId / request_id** 关联 API 与 worker。

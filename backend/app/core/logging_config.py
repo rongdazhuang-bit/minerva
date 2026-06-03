@@ -33,6 +33,13 @@ _QUIET_DATABASE_LOGGERS = (
     "asyncpg",
     "alembic",
 )
+# Uvicorn loggers that should use root PatternLogFormatter instead of uvicorn defaults.
+_UVICORN_LOGGER_NAMES = (
+    "uvicorn",
+    "uvicorn.error",
+    "uvicorn.access",
+    "uvicorn.asgi",
+)
 _queue_listener: QueueListener | None = None
 _atexit_registered = False
 
@@ -97,6 +104,16 @@ def _configure_quiet_database_loggers() -> None:
         logging.getLogger(logger_name).setLevel(logging.WARNING)
 
 
+def _configure_uvicorn_loggers(level: int) -> None:
+    """Route uvicorn loggers through root handlers so access logs use PatternLogFormatter."""
+
+    for logger_name in _UVICORN_LOGGER_NAMES:
+        logger = logging.getLogger(logger_name)
+        logger.handlers.clear()
+        logger.propagate = True
+        logger.setLevel(level)
+
+
 def configure_logging(
     *,
     process_type: str,
@@ -151,9 +168,9 @@ def configure_logging(
             atexit.register(_stop_queue_listener)
             _atexit_registered = True
 
-    for logger_name in ("uvicorn", "uvicorn.error", "celery"):
+    for logger_name in ("celery",):
         logging.getLogger(logger_name).setLevel(level)
-    logging.getLogger("uvicorn.access").propagate = True
+    _configure_uvicorn_loggers(level)
     # Uvicorn --reload uses watchfiles; its INFO chatter is not useful in app logs.
     logging.getLogger("watchfiles").setLevel(logging.WARNING)
     _configure_quiet_database_loggers()
