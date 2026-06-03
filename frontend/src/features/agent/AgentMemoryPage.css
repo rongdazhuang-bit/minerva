@@ -1,0 +1,22 @@
+.minerva-agent-memory-page {
+  max-width: 1200px;
+}
+
+.minerva-agent-memory-page__card {
+  background: var(--minerva-surface-elevated, rgba(255, 255, 255, 0.02));
+}
+
+.minerva-agent-memory-page__title {
+  display: block;
+  margin-bottom: 16px;
+  font-size: 16px;
+}
+
+.minerva-agent-memory-page__toolbar {
+  margin-bottom: 16px;
+}
+
+.minerva-agent-memory-page__table-wrap {
+  max-height: min(70vh, 720px);
+  overflow: auto;
+}
