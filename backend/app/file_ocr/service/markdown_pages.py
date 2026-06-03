@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from app.core.log import get_logger
 import json
-import logging
 import uuid
 
 from sqlalchemy import select
@@ -18,7 +18,7 @@ from app.layout.serialize import layout_page_from_blocks_json
 from app.layout.to_markdown import page_markdown
 from sqlalchemy import asc, nullslast, select
 
-_LOGGER = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 def _parse_markdown_images(raw: str | None) -> dict[str, str] | None:
@@ -29,14 +29,14 @@ def _parse_markdown_images(raw: str | None) -> dict[str, str] | None:
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:
-        _LOGGER.warning("markdown_images JSON decode failed for OCR result page")
+        log.warning("markdown_images JSON decode failed for OCR result page")
         return None
     if not isinstance(data, dict):
         return None
     out: dict[str, str] = {}
     for k, v in data.items():
         if not isinstance(k, str) or not isinstance(v, str):
-            _LOGGER.warning("markdown_images contains non-string key or value")
+            log.warning("markdown_images contains non-string key or value")
             return None
         out[k] = v
     return out if out else None

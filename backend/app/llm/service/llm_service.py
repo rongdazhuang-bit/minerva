@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from app.core.log import get_logger
 import asyncio
-import logging
 from collections.abc import AsyncIterator
 from typing import Any
 from uuid import UUID
@@ -34,7 +34,7 @@ from app.llm.strategies import (
     get_text_chat_strategy,
 )
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 _RETRIABLE_CODES = frozenset(
     {
@@ -81,7 +81,7 @@ class LlmService:
                 if e.code not in _RETRIABLE_CODES or attempt >= settings.ai_retry_max_attempts - 1:
                     raise
                 log.warning(
-                    "ai complete retry attempt=%s/%s code=%s",
+                    "ai complete retry attempt={}/{} code={}",
                     attempt + 1,
                     settings.ai_retry_max_attempts,
                     e.code,

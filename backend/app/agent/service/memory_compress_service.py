@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import logging
+from app.core.log import get_logger
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -10,11 +10,11 @@ from typing import Any
 from sqlalchemy import create_engine, nulls_last, select
 
 from app.agent.domain.db.models import AgentSession
-from app.agent.memory.mem0.client import get_mem0_memory
+from app.agent.memory.mem0.client import get_mem0_memory, mem0_entity_filters
 from app.agent.service.mem0_llm_client import mem0_llm_complete
 from app.config import settings
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 _COMPRESS_SYSTEM_PROMPT = (
     "Merge the following memory snippets into one concise summary in the same language "
@@ -79,9 +79,11 @@ def _compress_session(
 
     stats = {"scanned": 0, "merged": 0, "deleted": 0}
     raw = memory.get_all(
-        user_id=str(workspace_id),
-        run_id=str(session_id),
-        limit=500,
+        filters=mem0_entity_filters(
+            workspace_id=workspace_id,
+            session_id=session_id,
+        ),
+        top_k=500,
     )
     results = raw.get("results") if isinstance(raw, dict) else raw
     if not results:
@@ -114,7 +116,7 @@ def _compress_session(
         )
     except Exception:
         log.exception(
-            "mem0 compress LLM failed workspace=%s session=%s",
+            "mem0 compress LLM failed workspace={} session={}",
             workspace_id,
             session_id,
         )
@@ -146,7 +148,7 @@ def _compress_session(
             stats["deleted"] += 1
         except Exception:
             log.warning(
-                "mem0 delete failed id=%s workspace=%s session=%s",
+                "mem0 delete failed id={} workspace={} session={}",
                 mid,
                 workspace_id,
                 session_id,
@@ -188,7 +190,7 @@ def run_mem0_memory_compress() -> dict[str, object]:
             )
         except Exception:
             log.exception(
-                "mem0 compress session failed workspace=%s session=%s",
+                "mem0 compress session failed workspace={} session={}",
                 workspace_id,
                 session_id,
             )
@@ -198,5 +200,5 @@ def run_mem0_memory_compress() -> dict[str, object]:
         if session_stats["merged"]:
             totals["sessions_merged"] += 1
 
-    log.info("mem0 compress done %s", totals)
+    log.info("mem0 compress done {}", totals)
     return totals

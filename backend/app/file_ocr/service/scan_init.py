@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import logging
+from app.core.log import get_logger
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -23,7 +23,7 @@ from app.file_ocr.domain.db.models_log import OcrFileLog
 from app.file_ocr.service.ocr_tool_pick import select_default_ocr_tool
 from app.file_ocr.service.strategies.registry import get_file_ocr_strategy
 
-_LOGGER = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 def _utc_now() -> datetime:
@@ -136,7 +136,7 @@ async def _process_one_claimed(session: AsyncSession, *, ocr_file_id: uuid.UUID)
         try:
             await strategy.process(session=session, ocr_file=row, tool=tool)
         except Exception as exc:  # noqa: BLE001 - vendor/S3 failures become FAILED rows.
-            _LOGGER.exception("file_ocr scan failed for ocr_file_id=%s", ocr_file_id)
+            log.exception("file_ocr scan failed for ocr_file_id={}", ocr_file_id)
             row.status = "FAILED"
             row.remark = _truncate_remark(f"file_ocr:{exc.__class__.__name__}:{exc}")
             row.update_at = _utc_now()
@@ -172,9 +172,10 @@ async def run_file_ocr_scan_tick(session: AsyncSession) -> dict[str, Any]:
             summary["skipped"] += 1
         else:
             summary["failed"] += 1
-    _LOGGER.info(
-        "file_ocr scan tick finished %s",
+    log.info(
+        "file_ocr scan tick finished {}",
         summary,
-        extra={"event": "ocr.scan.initialized", "file_count": summary["claimed"]},
+        event="ocr.scan.initialized",
+        file_count=summary["claimed"],
     )
     return summary

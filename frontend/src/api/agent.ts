@@ -103,8 +103,24 @@ function v2Base(workspaceId: string) {
 
 async function parseJsonError(text: string, res: Response): Promise<never> {
   try {
-    const j = JSON.parse(text) as { code?: string; message?: string }
-    throw new ApiError(j.code ?? 'error', j.message ?? text)
+    const j = JSON.parse(text) as {
+      code?: string
+      message?: string
+      details?: { errors?: Array<{ loc?: unknown[]; msg?: string }> }
+    }
+    let message = j.message ?? text
+    const errs = j.details?.errors
+    if (Array.isArray(errs) && errs.length > 0) {
+      const hint = errs
+        .map((e) => {
+          const loc = Array.isArray(e.loc) ? e.loc.join('.') : ''
+          return loc ? `${loc}: ${e.msg ?? ''}` : (e.msg ?? '')
+        })
+        .filter(Boolean)
+        .join('; ')
+      if (hint) message = `${message} (${hint})`
+    }
+    throw new ApiError(j.code ?? 'error', message)
   } catch (e) {
     if (e instanceof ApiError) throw e
     throw new ApiError('http', text || res.statusText)
@@ -113,6 +129,9 @@ async function parseJsonError(text: string, res: Response): Promise<never> {
 
 /** Default page size for agent session sidebar infinite scroll. */
 export const AGENT_SESSIONS_PAGE_SIZE = 20
+
+/** GET /sessions 允许的 ``limit`` 上限（与后端 Query le=50 一致）。 */
+export const AGENT_SESSIONS_LIST_MAX = 50
 
 export type AgentSessionListResponse = {
   sessions: AgentSessionListItem[]
@@ -267,6 +286,132 @@ export async function streamAgentRun(
     }
   }
   return { runId }
+}
+
+export type AgentV2ConfigOut = {
+  memory_backend: string
+}
+
+export type AgentMemoryProfileOut = {
+  id: string
+  workspace_id: string
+  session_id: string | null
+  profile_text: string
+  updated_by: string | null
+  updated_at: string
+}
+
+export type AgentMem0MemoryItemOut = {
+  id: string
+  memory: string
+  created_at: string | null
+}
+
+export type AgentMem0MemoryListOut = {
+  items: AgentMem0MemoryItemOut[]
+  total: number
+}
+
+function memoryBase(workspaceId: string) {
+  return `${v2Base(workspaceId)}/memory`
+}
+
+/** GET Agent v2 runtime flags (e.g. memory backend). */
+export async function getAgentV2Config(workspaceId: string): Promise<AgentV2ConfigOut> {
+  const res = await authFetch(`${v2Base(workspaceId)}/config`)
+  const text = await res.text()
+  if (!res.ok) await parseJsonError(text, res)
+  return JSON.parse(text) as AgentV2ConfigOut
+}
+
+/** GET persistent memory profiles (mem0 backend only). */
+export async function listAgentMemoryProfiles(
+  workspaceId: string,
+  sessionId?: string | null,
+): Promise<AgentMemoryProfileOut[]> {
+  const params = new URLSearchParams()
+  if (sessionId) params.set('session_id', sessionId)
+  const q = params.toString()
+  const res = await authFetch(
+    `${memoryBase(workspaceId)}/profiles${q ? `?${q}` : ''}`,
+  )
+  const text = await res.text()
+  if (!res.ok) await parseJsonError(text, res)
+  return JSON.parse(text) as AgentMemoryProfileOut[]
+}
+
+/** POST upsert memory profile. */
+export async function createAgentMemoryProfile(
+  workspaceId: string,
+  body: { session_id?: string | null; profile_text: string },
+): Promise<AgentMemoryProfileOut> {
+  const res = await authFetch(`${memoryBase(workspaceId)}/profiles`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const text = await res.text()
+  if (!res.ok) await parseJsonError(text, res)
+  return JSON.parse(text) as AgentMemoryProfileOut
+}
+
+/** PATCH profile text. */
+export async function patchAgentMemoryProfile(
+  workspaceId: string,
+  profileId: string,
+  body: { profile_text: string },
+): Promise<AgentMemoryProfileOut> {
+  const res = await authFetch(`${memoryBase(workspaceId)}/profiles/${profileId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const text = await res.text()
+  if (!res.ok) await parseJsonError(text, res)
+  return JSON.parse(text) as AgentMemoryProfileOut
+}
+
+/** DELETE profile. */
+export async function deleteAgentMemoryProfile(
+  workspaceId: string,
+  profileId: string,
+): Promise<void> {
+  const res = await authFetch(`${memoryBase(workspaceId)}/profiles/${profileId}`, {
+    method: 'DELETE',
+  })
+  if (res.status === 204) return
+  const text = await res.text()
+  if (!res.ok) await parseJsonError(text, res)
+}
+
+/** GET mem0 memories for a session. */
+export async function listAgentMem0Memories(
+  workspaceId: string,
+  sessionId: string,
+  limit = 50,
+): Promise<AgentMem0MemoryListOut> {
+  const params = new URLSearchParams({
+    session_id: sessionId,
+    limit: String(limit),
+  })
+  const res = await authFetch(`${memoryBase(workspaceId)}/memories?${params}`)
+  const text = await res.text()
+  if (!res.ok) await parseJsonError(text, res)
+  return JSON.parse(text) as AgentMem0MemoryListOut
+}
+
+/** DELETE one mem0 memory. */
+export async function deleteAgentMem0Memory(
+  workspaceId: string,
+  memoryId: string,
+): Promise<void> {
+  const res = await authFetch(
+    `${memoryBase(workspaceId)}/memories/${encodeURIComponent(memoryId)}`,
+    { method: 'DELETE' },
+  )
+  if (res.status === 204) return
+  const text = await res.text()
+  if (!res.ok) await parseJsonError(text, res)
 }
 
 export type { AgentSseEventV2 }

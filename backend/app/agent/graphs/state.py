@@ -6,7 +6,7 @@ import uuid
 from typing import TypedDict
 
 from app.agent.domain.plan import Plan
-from app.agent.infrastructure.memory_store import MemoryHit
+from app.agent.memory.hits import MemoryHit
 
 
 class StepResult(TypedDict, total=False):
@@ -31,6 +31,7 @@ class AgentGraphState(TypedDict, total=False):
     plan_id: uuid.UUID | None
     current_step_index: int
     retrieved_memories: list[MemoryHit]
+    memory_context: str
     subagent_results: list[StepResult]
     final_answer: str | None
     error: str | None

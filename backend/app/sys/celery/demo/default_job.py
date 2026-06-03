@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
+from app.core.log import get_logger
 import json
 import time
 from collections.abc import Mapping
 from typing import Any
 
 from celery import Task, shared_task
-from celery.utils.log import get_task_logger
 
 from app.sys.celery.service.scheduled_task_guard import scheduled_singleton_guard
 
 # Celery wires this logger under ``celery.task`` so ``celery worker --loglevel=INFO`` prints it.
-logger = get_task_logger(__name__)
+log = get_logger(__name__)
 
 # Max characters per log field so worker logs stay bounded for large payloads.
 _LOG_PREVIEW_LIMIT = 2000
@@ -63,21 +63,21 @@ def default_job(self: Task, *args: Any, **kwargs: Any) -> dict[str, Any]:
     extra = _request_log_extra(request)
     started = time.perf_counter()
 
-    logger.info(
-        "demo.default_job start args=%s kwargs=%s",
+    log.info(
+        "demo.default_job start args={} kwargs={}",
         _payload_preview(list(args)),
         _payload_preview(kwargs),
-        extra=extra,
+        **extra,
     )
 
     elapsed_ms = round((time.perf_counter() - started) * 1000, 3)
     message = "default job completed successfully"
 
-    logger.info(
-        "demo.default_job finish task_id=%s elapsed_ms=%s",
+    log.info(
+        "demo.default_job finish task_id={} elapsed_ms={}",
         extra["celery_task_id"],
         elapsed_ms,
-        extra=extra,
+        **extra,
     )
 
     headers = getattr(request, "headers", None)

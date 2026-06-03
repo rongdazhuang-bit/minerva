@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import logging
+from app.core.log import get_logger
 import shutil
 import subprocess
 import sys
@@ -11,7 +11,7 @@ from pathlib import Path
 from app.config import settings
 from app.exceptions import AppError
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 def resolve_soffice_executable() -> str | None:
@@ -78,7 +78,7 @@ def convert_office_file(
         ) from e
     if proc.returncode != 0:
         log.warning(
-            "soffice convert failed rc=%s stderr=%s",
+            "soffice convert failed rc={} stderr={}",
             proc.returncode,
             (proc.stderr or "")[:500],
         )

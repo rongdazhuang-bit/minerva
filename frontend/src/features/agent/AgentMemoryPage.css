@@ -1,22 +1,86 @@
+/** Agent memory page: full-width / full-height card + scrollable tables (aligns with skills list). */
 .minerva-agent-memory-page {
-  max-width: 1200px;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .minerva-agent-memory-page__card {
-  background: var(--minerva-surface-elevated, rgba(255, 255, 255, 0.02));
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--minerva-surface, #1a2836) !important;
+  border: 1px solid var(--minerva-border, #2a3f58) !important;
+  border-radius: 12px;
+  box-shadow: 0 6px 16px rgb(0 0 0 / 14%);
 }
 
-.minerva-agent-memory-page__title {
-  display: block;
-  margin-bottom: 16px;
-  font-size: 16px;
+html.minerva-tone-sunshine .minerva-agent-memory-page__card {
+  background: var(--minerva-surface, #fff) !important;
+  box-shadow: 0 6px 16px rgb(15 23 42 / 8%);
+}
+
+.minerva-agent-memory-page__card .ant-card-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.minerva-agent-memory-page__tabs {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-agent-memory-page__tabs .ant-tabs-nav {
+  flex-shrink: 0;
+}
+
+.minerva-agent-memory-page__tabs .ant-tabs-content-holder {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-agent-memory-page__tabs .ant-tabs-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+.minerva-agent-memory-page__tabs .ant-tabs-tabpane-active {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+.minerva-agent-memory-page__tab-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .minerva-agent-memory-page__toolbar {
+  flex-shrink: 0;
   margin-bottom: 16px;
 }
 
 .minerva-agent-memory-page__table-wrap {
-  max-height: min(70vh, 720px);
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
 }

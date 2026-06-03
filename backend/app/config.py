@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Literal, Self
 
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _BACKEND_DIR = Path(__file__).resolve().parent.parent  # backend/ root (parent of app/)
@@ -314,6 +315,174 @@ class Settings(BaseSettings):
             "agent_message_fallback_limit",
         ),
     )
+    agent_memory_backend: Literal["sql", "mem0"] = Field(
+        default="sql",
+        description="Agent 长期记忆后端：sql（二维表）或 mem0（pgvector + Neo4j）。",
+        validation_alias=AliasChoices("AGENT_MEMORY_BACKEND", "agent_memory_backend"),
+    )
+    mem0_database_url: str = Field(
+        default="",
+        description="mem0 pgvector 库连接串（库名通常为 minerva_memory）。",
+        validation_alias=AliasChoices("MEM0_DATABASE_URL", "mem0_database_url"),
+    )
+    mem0_pg_host: str = Field(
+        default="",
+        validation_alias=AliasChoices("MEM0_PG_HOST", "mem0_pg_host"),
+    )
+    mem0_pg_port: int = Field(
+        default=5432,
+        ge=1,
+        le=65535,
+        validation_alias=AliasChoices("MEM0_PG_PORT", "mem0_pg_port"),
+    )
+    mem0_pg_user: str = Field(
+        default="",
+        validation_alias=AliasChoices("MEM0_PG_USER", "mem0_pg_user"),
+    )
+    mem0_pg_password: str = Field(
+        default="",
+        validation_alias=AliasChoices("MEM0_PG_PASSWORD", "mem0_pg_password"),
+    )
+    mem0_pg_dbname: str = Field(
+        default="minerva_memory",
+        validation_alias=AliasChoices("MEM0_PG_DBNAME", "mem0_pg_dbname"),
+    )
+    mem0_vector_collection: str = Field(
+        default="mem0",
+        validation_alias=AliasChoices("MEM0_VECTOR_COLLECTION", "mem0_vector_collection"),
+    )
+    mem0_embedding_dims: int = Field(
+        default=1536,
+        ge=1,
+        validation_alias=AliasChoices("MEM0_EMBEDDING_DIMS", "mem0_embedding_dims"),
+    )
+    mem0_pg_pool_min: int = Field(
+        default=1,
+        ge=1,
+        validation_alias=AliasChoices("MEM0_PG_POOL_MIN", "mem0_pg_pool_min"),
+    )
+    mem0_pg_pool_max: int = Field(
+        default=5,
+        ge=1,
+        validation_alias=AliasChoices("MEM0_PG_POOL_MAX", "mem0_pg_pool_max"),
+    )
+    mem0_graph_enabled: bool = Field(
+        default=True,
+        description="为 False 时 mem0 仅使用 pgvector，不连接 Neo4j。",
+        validation_alias=AliasChoices("MEM0_GRAPH_ENABLED", "mem0_graph_enabled"),
+    )
+    mem0_neo4j_url: str = Field(
+        default="",
+        validation_alias=AliasChoices("MEM0_NEO4J_URL", "mem0_neo4j_url"),
+    )
+    mem0_neo4j_username: str = Field(
+        default="neo4j",
+        validation_alias=AliasChoices("MEM0_NEO4J_USERNAME", "mem0_neo4j_username"),
+    )
+    mem0_neo4j_password: str = Field(
+        default="",
+        validation_alias=AliasChoices("MEM0_NEO4J_PASSWORD", "mem0_neo4j_password"),
+    )
+    mem0_neo4j_database: str = Field(
+        default="neo4j",
+        validation_alias=AliasChoices("MEM0_NEO4J_DATABASE", "mem0_neo4j_database"),
+    )
+    mem0_neo4j_base_label: bool | None = Field(
+        default=None,
+        validation_alias=AliasChoices("MEM0_NEO4J_BASE_LABEL", "mem0_neo4j_base_label"),
+    )
+    mem0_llm_provider: str = Field(
+        default="openai",
+        validation_alias=AliasChoices("MEM0_LLM_PROVIDER", "mem0_llm_provider"),
+    )
+    mem0_llm_model: str = Field(
+        default="",
+        validation_alias=AliasChoices("MEM0_LLM_MODEL", "mem0_llm_model"),
+    )
+    mem0_llm_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("MEM0_LLM_API_KEY", "mem0_llm_api_key"),
+    )
+    mem0_llm_base_url: str = Field(
+        default="",
+        validation_alias=AliasChoices("MEM0_LLM_BASE_URL", "mem0_llm_base_url"),
+    )
+    mem0_embedder_provider: str = Field(
+        default="openai",
+        validation_alias=AliasChoices("MEM0_EMBEDDER_PROVIDER", "mem0_embedder_provider"),
+    )
+    mem0_embedder_model: str = Field(
+        default="",
+        validation_alias=AliasChoices("MEM0_EMBEDDER_MODEL", "mem0_embedder_model"),
+    )
+    mem0_embedder_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("MEM0_EMBEDDER_API_KEY", "mem0_embedder_api_key"),
+    )
+    mem0_embedder_base_url: str = Field(
+        default="",
+        validation_alias=AliasChoices("MEM0_EMBEDDER_BASE_URL", "mem0_embedder_base_url"),
+    )
+    mem0_embedder_direct_base_url: str = Field(
+        default="",
+        description=(
+            "Embedding 专用 OpenAI 兼容根地址（如 vLLM/TEI /v1）。"
+            "设置后优先于 MEM0_EMBEDDER_BASE_URL，用于绕过仅支持 chat 的 LiteLLM 代理。"
+        ),
+        validation_alias=AliasChoices(
+            "MEM0_EMBEDDER_DIRECT_BASE_URL",
+            "mem0_embedder_direct_base_url",
+        ),
+    )
+    agent_memory_mem0_rerank_enabled: bool = Field(
+        default=False,
+        description="mem0 search 是否启用 rerank（需 mem0 reranker 配置）。",
+        validation_alias=AliasChoices(
+            "AGENT_MEMORY_MEM0_RERANK_ENABLED",
+            "agent_memory_mem0_rerank_enabled",
+        ),
+    )
+    agent_memory_llm_compress_enabled: bool = Field(
+        default=False,
+        description="Run 内是否对召回记忆做 LLM 压缩（mem0 路径）。",
+        validation_alias=AliasChoices(
+            "AGENT_MEMORY_LLM_COMPRESS_ENABLED",
+            "agent_memory_llm_compress_enabled",
+        ),
+    )
+    agent_memory_profile_llm_enabled: bool = Field(
+        default=False,
+        description="Run 时现场 session 画像是否经 LLM 合成。",
+        validation_alias=AliasChoices(
+            "AGENT_MEMORY_PROFILE_LLM_ENABLED",
+            "agent_memory_profile_llm_enabled",
+        ),
+    )
+    agent_memory_compress_celery_enabled: bool = Field(
+        default=False,
+        description="为 True 时注册 mem0 记忆 Celery 压缩任务。",
+        validation_alias=AliasChoices(
+            "AGENT_MEMORY_COMPRESS_CELERY_ENABLED",
+            "agent_memory_compress_celery_enabled",
+        ),
+    )
+    agent_memory_compress_cron: str | None = Field(
+        default=None,
+        description="mem0 压缩 beat cron（sys_celery 行可另行配置）。",
+        validation_alias=AliasChoices(
+            "AGENT_MEMORY_COMPRESS_CRON",
+            "agent_memory_compress_cron",
+        ),
+    )
+    agent_memory_compress_max_age_days: int = Field(
+        default=90,
+        ge=1,
+        description="Celery 压缩任务处理的记忆最大保留天数阈值。",
+        validation_alias=AliasChoices(
+            "AGENT_MEMORY_COMPRESS_MAX_AGE_DAYS",
+            "agent_memory_compress_max_age_days",
+        ),
+    )
     agent_chat_history_message_limit: int = Field(
         default=40,
         ge=1,
@@ -488,6 +657,44 @@ class Settings(BaseSettings):
             "layout_schema_version",
         ),
     )
+
+    @model_validator(mode="after")
+    def validate_agent_memory_backend_config(self) -> Self:
+        """When mem0 backend is selected, require PG and optional Neo4j settings."""
+
+        if self.agent_memory_backend != "mem0":
+            return self
+        import importlib.util
+
+        if importlib.util.find_spec("mem0") is None:
+            raise ValueError(
+                "AGENT_MEMORY_BACKEND=mem0 requires the mem0ai package "
+                '(PyPI name "mem0ai", import "mem0"). '
+                'Install with: cd backend && pip install -e ".[dev]" '
+                "(includes mem0ai[nlp] for spaCy)."
+            )
+        if importlib.util.find_spec("spacy") is None:
+            raise ValueError(
+                "AGENT_MEMORY_BACKEND=mem0 requires spaCy (mem0ai[nlp]). "
+                'Install with: cd backend && pip install -e ".[dev]"'
+            )
+        has_db_url = bool(self.mem0_database_url.strip())
+        has_pg_parts = bool(self.mem0_pg_host.strip()) and bool(self.mem0_pg_user.strip())
+        if not has_db_url and not has_pg_parts:
+            raise ValueError(
+                "AGENT_MEMORY_BACKEND=mem0 requires MEM0_DATABASE_URL or "
+                "MEM0_PG_HOST with MEM0_PG_USER"
+            )
+        if self.mem0_graph_enabled:
+            if not self.mem0_neo4j_url.strip():
+                raise ValueError(
+                    "MEM0_GRAPH_ENABLED=true requires MEM0_NEO4J_URL"
+                )
+            if not self.mem0_neo4j_password.strip():
+                raise ValueError(
+                    "MEM0_GRAPH_ENABLED=true requires MEM0_NEO4J_PASSWORD"
+                )
+        return self
 
 
 def resolve_agent_files_root() -> Path:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import logging
+from app.core.log import get_logger
 import tempfile
 import uuid
 from pathlib import Path
@@ -35,7 +35,7 @@ from app.translate.service.strategies.registry import get_doc_translate_strategy
 from app.translate.infrastructure.pg_text import sanitize_postgres_json, sanitize_postgres_text
 from app.translate.service.translate_llm import translate_segment
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 def _pipeline_error_message(exc: BaseException) -> str:
@@ -75,7 +75,8 @@ async def run_job_once(session: AsyncSession, job_id: uuid.UUID) -> dict[str, An
     workspace_id = job.workspace_id
     log.info(
         "translate pipeline started",
-        extra={"event": "translate.pipeline.started", "task_id": str(job_id)},
+        event="translate.pipeline.started",
+        task_id=str(job_id),
     )
     try:
         with tempfile.TemporaryDirectory(prefix="doc_translate_") as tmp:
@@ -278,15 +279,17 @@ async def run_job_once(session: AsyncSession, job_id: uuid.UUID) -> dict[str, An
             await session.commit()
             log.info(
                 "translate pipeline finished",
-                extra={"event": "translate.pipeline.finished", "task_id": str(job_id)},
+                event="translate.pipeline.finished",
+                task_id=str(job_id),
             )
             return {"ok": True, "job_id": str(job_id)}
 
     except Exception as exc:
         log.exception(
-            "doc_translate job failed job_id=%s",
+            "doc_translate job failed job_id={}",
             job_id,
-            extra={"event": "translate.pipeline.failed", "task_id": str(job_id)},
+            event="translate.pipeline.failed",
+            task_id=str(job_id),
         )
         await session.rollback()
         code = exc.code if isinstance(exc, AppError) else "translate.pipeline_failed"
@@ -302,6 +305,6 @@ async def run_job_once(session: AsyncSession, job_id: uuid.UUID) -> dict[str, An
             )
             await session.commit()
         except Exception:
-            log.exception("doc_translate failed to persist FAILED status job_id=%s", job_id)
+            log.exception("doc_translate failed to persist FAILED status job_id={}", job_id)
             await session.rollback()
         return {"ok": False, "job_id": str(job_id), "error": msg}

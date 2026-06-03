@@ -171,6 +171,39 @@ class AgentLongTermMemory(Base):
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class AgentMemoryProfile(Base):
+    """工作区/会话级持久人物画像（mem0 记忆后端使用）。"""
+
+    __tablename__ = "agent_memory_profile"
+    __table_args__ = (
+        Index("ix_agent_memory_profile_workspace_session", "workspace_id", "session_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        index=True,
+        nullable=False,
+    )
+    session_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        index=True,
+        nullable=True,
+    )
+    profile_text: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=sa.text("''")
+    )
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), nullable=False
+    )
+
+
 class AgentRunNode(Base):
     """单次 run 下的细粒度节点树（如 ``llm.round``、``tool.execute`` 等）。"""
 

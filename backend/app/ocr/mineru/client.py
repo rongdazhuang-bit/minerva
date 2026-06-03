@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import logging
+from app.core.log import get_logger
 import mimetypes
 from collections.abc import Mapping
 
@@ -17,7 +17,7 @@ _DEFAULT_READ_S = 300.0
 _DEFAULT_WRITE_S = 300.0
 _DEFAULT_POOL_S = 5.0
 
-_LOGGER = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 def mineru_default_timeout(
@@ -131,8 +131,8 @@ async def post_file_parse(
     )
     hdrs = dict(headers) if headers else {}
     hdrs["Content-Type"] = multipart_content_type
-    _LOGGER.info(
-        "MinerU file_parse request url=%s file_name=%s file_len=%s form_keys=%s body_len=%s",
+    log.info(
+        "MinerU file_parse request url={} file_name={} file_len={} form_keys={} body_len={}",
         url,
         file_name,
         len(file_bytes),
@@ -150,8 +150,8 @@ async def post_file_parse(
                 url=url,
             ) from exc
         raw_text = response.text
-        _LOGGER.info(
-            "MinerU file_parse response url=%s http_status=%s content_type=%s body_len=%s",
+        log.info(
+            "MinerU file_parse response url={} http_status={} content_type={} body_len={}",
             str(response.request.url),
             response.status_code,
             response.headers.get("content-type", ""),

@@ -2,19 +2,17 @@
 
 from __future__ import annotations
 
-import logging
+from app.core.log import get_logger
 from typing import Any
 
 from celery import Task, shared_task
-from celery.utils.log import get_task_logger
 
 from app.agent.constants import AGENT_MEMORY_COMPRESS_TASK_NAME
 from app.agent.service.memory_compress_service import run_mem0_memory_compress
 from app.config import settings
 from app.sys.celery.service.scheduled_task_guard import scheduled_singleton_guard
 
-log = logging.getLogger(__name__)
-logger = get_task_logger(__name__)
+log = get_logger(__name__)
 
 
 @shared_task(bind=True, name=AGENT_MEMORY_COMPRESS_TASK_NAME)
@@ -22,8 +20,8 @@ logger = get_task_logger(__name__)
 def compress_mem0_memories(self: Task, *args: Any, **kwargs: Any) -> dict[str, Any]:
     """Merge aged mem0 memories into summaries (mem0 backend only)."""
 
-    logger.info(
-        "agent.memory.compress_mem0 start task_id=%s",
+    log.info(
+        "agent.memory.compress_mem0 start task_id={}",
         getattr(self.request, "id", None),
     )
     if settings.agent_memory_backend != "mem0":
@@ -31,5 +29,5 @@ def compress_mem0_memories(self: Task, *args: Any, **kwargs: Any) -> dict[str, A
     if not settings.agent_memory_compress_celery_enabled:
         return {"skipped": True, "reason": "celery_disabled"}
     summary = run_mem0_memory_compress()
-    log.info("agent.memory.compress_mem0 done summary=%s", summary)
+    log.info("agent.memory.compress_mem0 done summary={}", summary)
     return summary

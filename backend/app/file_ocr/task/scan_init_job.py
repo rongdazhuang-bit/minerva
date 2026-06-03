@@ -7,14 +7,14 @@ import sys
 from typing import Any
 
 from celery import Task, shared_task
-from celery.utils.log import get_task_logger
 
 from app.core.infrastructure.db.session import async_session_factory
 from app.core.infrastructure.db.session import engine
+from app.core.log import get_logger
 from app.file_ocr.constants import FILE_OCR_SCAN_INIT_TASK_NAME
 from app.file_ocr.service.scan_init import run_file_ocr_scan_tick
 
-logger = get_task_logger(__name__)
+log = get_logger(__name__)
 
 
 def _run_async_scan_tick() -> dict[str, Any]:
@@ -50,7 +50,7 @@ def scan_init_ocr_files(self: Task, *args: Any, **kwargs: Any) -> dict[str, Any]
     (for example ``source`` for audit); extra positional or keyword arguments are ignored.
     """
 
-    logger.info("file_ocr.scan_init start task_id=%s", getattr(self.request, "id", None))
+    log.info("file_ocr.scan_init start task_id={}", getattr(self.request, "id", None))
     summary = _run_async_scan_tick()
-    logger.info("file_ocr.scan_init done summary=%s", summary)
+    log.info("file_ocr.scan_init done summary={}", summary)
     return summary

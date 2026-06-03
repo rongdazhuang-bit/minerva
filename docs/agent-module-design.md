@@ -19,7 +19,7 @@ Agent 模块是 Minerva 工作区内的**多轮智能对话与任务编排**后�
 | 任务规划 | Planner 节点 + 结构化 `Plan`（Pydantic） |
 | 分步执行 | Executor 按步路由到不同 **Skill 子 Agent** |
 | 子 Agent | LangGraph `create_react_agent`，每 Skill 独立工具集 |
-| 长期记忆 | SQL 表检索 + 历史消息 ILIKE 回退；Run 成功后后台 LLM 抽取写入 |
+| 长期记忆 | **互斥双后端**（`AGENT_MEMORY_BACKEND`）：`sql` = 表检索 + ILIKE 回退 + LLM 抽取；`mem0` = pgvector（`minerva_memory`）+ Neo4j + 持久画像表 |
 | 流式可观测 | SSE v2 事件（计划、工具、LLM delta、子 Agent 生命周期） |
 | 模型托管 | 请求仅传 `model_id`，由 `ChatModelFactory` 从 `SysModel` 构造 LangChain 客户端 |
 
@@ -272,26 +272,39 @@ START → memory.retrieve → planner → executor ⇄ executor
 
 ## 8. 长期记忆
 
-### 8.1 检索（Run 开始时）
+环境变量 **`AGENT_MEMORY_BACKEND`**：`sql`（默认）| `mem0`。实现位于 `app/agent/memory/`（`MemoryRetrieveStrategy` / `MemoryPersistStrategy` + 工厂），`GraphDeps` 注入双策略。
 
-`AgentMemoryStore.retrieve`：
+**设计 spec**：`docs/superpowers/specs/2026-06-02-agent-mem0-memory-design.md`
+
+### 8.1 后端 `sql`（现网默认）
+
+**检索（Run 开始）** — `SqlMemoryRetrieveStrategy` → `AgentMemoryStore.retrieve`：
 
 1. 查 `agent_long_term_memory`（`workspace_id` + session 级或全局 `session_id IS NULL`）。
 2. 有 query 时对 `content`/`key` ILIKE。
 3. 不足时回退同会话 `agent_message` ILIKE。
 
-上限：`agent_memory_retrieve_limit`（默认 20）。
+**持久化（Run 成功后后台）** — `SqlMemoryPersistStrategy`：
 
-### 8.2 持久化（Run 成功后，后台）
+1. 独立 DB Session + 业务 `model_id` → `invoke_memory_extract`。
+2. `insert_summary` / `upsert_fact` / `touch_session_summary`。
+3. `agent_run_node`（`memory.persist`）。
 
-`memory_persist_service.schedule_persist_turn_memory_background`：
+### 8.2 后端 `mem0`
 
-1. 独立 DB Session + 同一 `model_id` 构造模型。
-2. `invoke_memory_extract` → 结构化 `MemoryExtract`（summary + 最多 5 条 fact）。
-3. `insert_summary`、`upsert_fact`、`touch_session_summary`。
-4. 写入 `agent_run_node`（`memory.persist`）。
+- **存储**：PostgreSQL 库 `minerva_memory`（pgvector）+ Neo4j（`graph_store`）；mem0 标识 `user_id=workspace_id`，`run_id=session_id`。
+- **配置**：`MEM0_*` / `MEM0_LLM_*` / `MEM0_EMBEDDER_*`（不读 `sys_models`）。
+- **检索**：`Mem0MemoryRetrieveStrategy` — `search` + 持久画像表 `agent_memory_profile`（工作区/会话）+ 现场 session 画像（search，默认不落库）。
+- **持久化**：`Mem0MemoryPersistStrategy` — `memory.add(..., infer=True)`。
+- **管理 API**：`/agent/v2/memory/*`、前端 `/app/agents/memory`（仅 `mem0` 时侧栏可见）。
+- **Celery**：`agent.memory.compress_mem0`（`AGENT_MEMORY_COMPRESS_CELERY_ENABLED=true` 时）：扫描最近会话，将早于 `AGENT_MEMORY_COMPRESS_MAX_AGE_DAYS` 的 mem0 记忆经 `MEM0_LLM_*` 合并为摘要后删除细项。
 
-与主图解耦，避免拉长 SSE 连接时间。
+### 8.3 图节点与 SSE
+
+- `memory.retrieve` 写入 `memory_context`；Planner 优先使用该字段。
+- SSE `memory.retrieved` 扩展：`backend`、`degraded`（mem0 检索失败时）。
+
+与主图解耦：写入仍在 Run 成功后的 `schedule_persist_turn_memory_background`。
 
 ---
 

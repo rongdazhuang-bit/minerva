@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from app.core.log import get_logger
 import functools
-import logging
 from collections.abc import Callable, Mapping
 from typing import Any, TypeVar
 
@@ -13,7 +13,7 @@ from app.agent.constants import AGENT_CHECKPOINT_PURGE_TASK_NAME
 from app.config import settings
 from app.sys.celery.service.redis_connection import create_celery_redis_client
 
-_LOGGER = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 _LOCK_PREFIX = "minerva:celery:scheduled_singleton:"
 
@@ -90,8 +90,8 @@ def try_acquire_scheduled_singleton_lock(lock_key: str, task_id: str) -> bool:
         acquired = client.set(lock_key, task_id, nx=True, ex=ttl)
         return bool(acquired)
     except Exception as exc:
-        _LOGGER.warning(
-            "scheduled singleton lock acquire failed key=%s: %s",
+        log.warning(
+            "scheduled singleton lock acquire failed key={}: {}",
             lock_key,
             exc,
             exc_info=True,
@@ -112,8 +112,8 @@ def release_scheduled_singleton_lock(lock_key: str, task_id: str) -> None:
         client = _redis_client()
         client.eval(script, 1, lock_key, task_id)
     except Exception as exc:
-        _LOGGER.warning(
-            "scheduled singleton lock release failed key=%s: %s",
+        log.warning(
+            "scheduled singleton lock release failed key={}: {}",
             lock_key,
             exc,
             exc_info=True,
@@ -133,8 +133,8 @@ def run_with_scheduled_singleton_guard(
         _request_headers(task.request),
     )
     if not try_acquire_scheduled_singleton_lock(lock_key, task_id):
-        _LOGGER.info(
-            "scheduled task skipped (already running) task=%s lock_key=%s task_id=%s",
+        log.info(
+            "scheduled task skipped (already running) task={} lock_key={} task_id={}",
             task_name,
             lock_key,
             task_id,

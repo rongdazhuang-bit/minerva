@@ -96,7 +96,7 @@ export const remarkMathInTableCells: Plugin<[], Root> = function remarkMathInTab
       if (!isPlainTextTableCell(cell)) return
 
       const prepared = source.includes('$') ? source.trim() : wrapBareLatexSpansInPlainText(source.trim())
-      cell.children = parseTableCellPhrasing(prepared)
+      ;(cell as TableCell).children = parseTableCellPhrasing(prepared)
     })
 
     visit(tree, 'listItem', (item: ListItem) => {
@@ -104,7 +104,9 @@ export const remarkMathInTableCells: Plugin<[], Root> = function remarkMathInTab
         if (!isPlainTextParagraph(paragraph)) return
         const source = paragraph.children[0].value
         if (!source.includes('$')) return
-        paragraph.children = parsePhrasingWithMath(source.trim())
+        ;(paragraph as Paragraph).children = parsePhrasingWithMath(
+          source.trim(),
+        ) as Paragraph['children']
       })
     })
   }

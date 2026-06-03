@@ -34,6 +34,12 @@
   align-items: stretch;
 }
 
+/* 记忆管理等全高页：占满主内容区，表格在页内滚动 */
+.minerva-app-main-scroll > .minerva-agent-memory-page {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .minerva-app-sider-scroll::-webkit-scrollbar,
 .minerva-app-main-scroll::-webkit-scrollbar,
 .minerva-scrollbar-styled::-webkit-scrollbar,

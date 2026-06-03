@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from app.core.log import get_logger
 import json
-import logging
 import uuid
 
 from sqlalchemy import asc, nullslast, select
@@ -19,7 +19,7 @@ from app.layout.serialize import layout_page_from_blocks_json
 from app.layout.to_markdown import page_markdown
 from app.s3.service.s3_file_service import S3FileService
 
-_LOGGER = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 def _parse_markdown_images(raw: str | None) -> dict[str, str] | None:
@@ -30,7 +30,7 @@ def _parse_markdown_images(raw: str | None) -> dict[str, str] | None:
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:
-        _LOGGER.warning("markdown_images JSON decode failed for layout page")
+        log.warning("markdown_images JSON decode failed for layout page")
         return None
     if not isinstance(data, dict):
         return None
@@ -104,7 +104,7 @@ async def get_ocr_file_layout_pages(
                 )
                 page_raster_url = redirect.url
             except Exception:
-                _LOGGER.warning("layout page raster presign failed file_id=%s page=%s", ocr_file_id, page_index)
+                log.warning("layout page raster presign failed file_id={} page={}", ocr_file_id, page_index)
 
         blocks_out = [
             LayoutBlockOut(

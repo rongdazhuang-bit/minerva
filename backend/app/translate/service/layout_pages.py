@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import logging
+from app.core.log import get_logger
 import re
 import uuid
 from typing import Any
@@ -29,7 +29,7 @@ from app.translate.domain.db.models import DocTranslateJob, DocTranslateSegment
 from app.translate.domain.dto import SegmentDraft
 from app.layout.segments import segment_drafts_to_layout_document
 
-_LOGGER = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 def _page_index_from_block_key(block_key: str | None) -> int | None:
@@ -304,7 +304,7 @@ async def get_translate_job_layout_pages(
                 )
                 page_raster_url = redirect.url
             except Exception:
-                _LOGGER.warning("translate layout raster presign failed job=%s", job_id)
+                log.warning("translate layout raster presign failed job={}", job_id)
 
         blocks_out = [
             LayoutBlockOut(

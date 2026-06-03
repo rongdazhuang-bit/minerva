@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from app.core.log import get_logger
 import json
-import logging
 from collections.abc import Mapping
 from typing import Any
 
@@ -27,7 +27,7 @@ _LOG_JSON_MAX_LEN = 65536
 
 _JSON_HEADERS = {"Content-Type": "application/json", "Accept": "application/json"}
 
-_LOGGER = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 # Default per-phase timeouts when the caller does not inject an ``AsyncClient``.
 # Write is generous for large Base64 payloads; read for slow VLM inference.
@@ -260,8 +260,8 @@ async def _post_envelope(
 ) -> LayoutParsingApiResponse:
     """POST JSON to ``url`` and return a validated envelope."""
     hdrs = _merge_headers(headers)
-    _LOGGER.info(
-        "PaddleOCR-VL request url=%s body=%s",
+    log.info(
+        "PaddleOCR-VL request url={} body={}",
         url,
         _request_json_for_log(payload),
     )
@@ -274,8 +274,8 @@ async def _post_envelope(
         ) from exc
 
     raw_text = response.text
-    _LOGGER.info(
-        "PaddleOCR-VL response url=%s http_status=%s body=%s",
+    log.info(
+        "PaddleOCR-VL response url={} http_status={} body={}",
         str(response.request.url),
         response.status_code,
         raw_text,

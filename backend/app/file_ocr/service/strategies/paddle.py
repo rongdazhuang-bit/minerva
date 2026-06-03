@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from app.core.log import get_logger
 import base64
 import json
-import logging
 import uuid
 from datetime import UTC, datetime
 from typing import ClassVar
@@ -28,7 +28,7 @@ from app.sys.tool.ocr.domain.db.models import SysOcrTool
 
 from .base import FileOcrEngineStrategy
 
-_LOGGER = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 def _utc_now() -> datetime:
@@ -126,8 +126,8 @@ class PaddleOcrFileStrategy(FileOcrEngineStrategy):
         ocr_file.status = "SUCCESS"
         ocr_file.remark = None
         ocr_file.update_at = now
-        _LOGGER.info(
-            "paddle ocr success file_id=%s layout_cards=%s page_count=%s log_id=%s",
+        log.info(
+            "paddle ocr success file_id={} layout_cards={} page_count={} log_id={}",
             ocr_file.id,
             len(pages),
             page_total,

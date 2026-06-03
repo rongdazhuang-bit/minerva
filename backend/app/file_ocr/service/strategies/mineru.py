@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from app.core.log import get_logger
 import json
-import logging
 import uuid
 from datetime import UTC, datetime
 from typing import ClassVar
@@ -27,7 +27,7 @@ from app.sys.tool.ocr.domain.db.models import SysOcrTool
 
 from .base import FileOcrEngineStrategy
 
-_LOGGER = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 def _utc_now() -> datetime:
@@ -118,8 +118,8 @@ class MineruFileStrategy(FileOcrEngineStrategy):
         ocr_file.status = "SUCCESS"
         ocr_file.remark = None
         ocr_file.update_at = now
-        _LOGGER.info(
-            "mineru ocr success file_id=%s pages=%s page_count=%s",
+        log.info(
+            "mineru ocr success file_id={} pages={} page_count={}",
             ocr_file.id,
             len(pages),
             ocr_file.page_count,

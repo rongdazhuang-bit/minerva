@@ -12,7 +12,7 @@ from pathlib import Path
 from app.config import settings
 from app.core.logging_context import set_logging_context
 from app.core.logging_handlers import WindowsSafeTimedRotatingFileHandler
-from app.core.logging_json import JsonLogFormatter
+from app.core.logging_text import PatternLogFormatter
 
 _VALID_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 _PROCESS_LOG_FILES = {
@@ -86,7 +86,7 @@ def _mark_managed(handler: logging.Handler) -> logging.Handler:
     """Mark one handler as owned by the Minerva logging configuration."""
 
     handler._minerva_logging = True  # type: ignore[attr-defined]
-    handler.setFormatter(JsonLogFormatter())
+    handler.setFormatter(PatternLogFormatter())
     return handler
 
 

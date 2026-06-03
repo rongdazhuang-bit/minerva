@@ -1,8 +1,8 @@
-"""Tests for Celery request_id propagation into task logging context."""
+"""Tests for Celery logging context propagation into task headers."""
 
 import pytest
 
-from app.celery_app import _merge_request_id_header
+from app.celery_app import _merge_task_context_headers
 from app.core.logging_context import clear_logging_context, use_logging_context
 
 
@@ -17,19 +17,40 @@ def isolate_logging_context():
         clear_logging_context()
 
 
-def test_merge_request_id_header_uses_context_when_missing() -> None:
-    """Current request_id is injected into Celery headers when absent."""
+def test_merge_task_context_headers_uses_context_when_missing() -> None:
+    """Current logging context is injected into Celery headers when absent."""
 
-    with use_logging_context(request_id="req-1"):
-        headers = _merge_request_id_header({"existing": "value"})
+    with use_logging_context(
+        request_id="req-1",
+        trace_id="trace-1",
+        x_chat_id="chat-1",
+    ):
+        headers = _merge_task_context_headers({"existing": "value"})
 
-    assert headers == {"existing": "value", "request_id": "req-1"}
+    assert headers == {
+        "existing": "value",
+        "request_id": "req-1",
+        "trace_id": "trace-1",
+        "x_chat_id": "chat-1",
+    }
 
 
-def test_merge_request_id_header_preserves_explicit_value() -> None:
-    """Explicit Celery request_id header wins over context."""
+def test_merge_task_context_headers_preserves_explicit_values() -> None:
+    """Explicit Celery headers win over current logging context."""
 
-    with use_logging_context(request_id="req-context"):
-        headers = _merge_request_id_header({"request_id": "req-explicit"})
+    with use_logging_context(
+        request_id="req-context",
+        trace_id="trace-context",
+        x_chat_id="chat-context",
+    ):
+        headers = _merge_task_context_headers(
+            {
+                "request_id": "req-explicit",
+                "trace_id": "trace-explicit",
+                "x_chat_id": "chat-explicit",
+            }
+        )
 
     assert headers["request_id"] == "req-explicit"
+    assert headers["trace_id"] == "trace-explicit"
+    assert headers["x_chat_id"] == "chat-explicit"

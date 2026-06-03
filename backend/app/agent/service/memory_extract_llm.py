@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from app.core.log import get_logger
 import json
-import logging
 import re
 from typing import Any
 
@@ -12,7 +12,7 @@ from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
 from app.agent.domain.memory_extract import MemoryExtract
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 _MEMORY_EXTRACT_SYSTEM = """从本轮对话提取长期记忆，只输出一个 JSON 对象，不要 markdown 代码块，不要其它说明。
 格式严格为：{"summary":"一句中文摘要","facts":[{"key":null,"content":"...","tags":[]}]}
@@ -98,7 +98,7 @@ async def invoke_memory_extract(
                 return result, result
         except Exception as exc:
             log.debug(
-                "memory.extract structured method=%s failed: %s",
+                "memory.extract structured method={} failed: {}",
                 method,
                 exc,
             )
@@ -111,6 +111,6 @@ async def invoke_memory_extract(
             if parsed is not None:
                 return parsed, resp
     except Exception as exc:
-        log.debug("memory.extract plain invoke failed: %s", exc)
+        log.debug("memory.extract plain invoke failed: {}", exc)
 
     return fallback_memory_extract(user_message, final_answer), None

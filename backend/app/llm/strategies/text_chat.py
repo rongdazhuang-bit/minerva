@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import logging
+from app.core.log import get_logger
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -22,7 +22,7 @@ from app.llm.strategies.http_common import (
     request_headers,
 )
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 def _chat_body(resolved: ResolvedModel, params: TextChatCallParams, *, stream: bool) -> dict[str, Any]:
@@ -84,7 +84,7 @@ class TextChatStrategy:
 
         url = normalize_endpoint_url(resolved.endpoint_url)
         body = _chat_body(resolved, params, stream=True)
-        log.info("ai chat.completions request method=stream url=%s body=%s", url, json_for_log(body))
+        log.info("ai chat.completions request method=stream url={} body={}", url, json_for_log(body))
         try:
             async with AsyncClient(timeout=client_timeout()) as client:
                 first_chunk: dict[str, Any] | None = None
@@ -115,7 +115,7 @@ class TextChatStrategy:
                     "last_chunk": last_chunk,
                 }
                 log.info(
-                    "ai chat.completions response method=stream url=%s body=%s",
+                    "ai chat.completions response method=stream url={} body={}",
                     url,
                     json_for_log(summary),
                 )
@@ -123,10 +123,10 @@ class TextChatStrategy:
             log_upstream_http_error(url=url, exc=e, method="stream")
             raise map_upstream_error(e) from None
         except (TimeoutException, RequestError) as e:
-            log.warning("ai chat.completions transport error method=stream url=%s error=%s", url, e)
+            log.warning("ai chat.completions transport error method=stream url={} error={}", url, e)
             raise map_upstream_error(e) from None
         except AppError:
             raise
         except Exception as e:
-            log.exception("ai stream unexpected error model=%s", resolved.model_name)
+            log.exception("ai stream unexpected error model={}", resolved.model_name)
             raise AppError("ai.error", "Unexpected error calling upstream.", 500) from e

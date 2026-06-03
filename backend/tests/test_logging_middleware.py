@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
@@ -11,19 +10,13 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.testclient import TestClient
 from _pytest.logging import LogCaptureFixture
 
-from app.core.logging_json import JsonLogFormatter
 from app.core.logging_middleware import HttpLoggingMiddleware
 
 
-def _http_log_messages(caplog: LogCaptureFixture) -> list[dict[str, Any]]:
-    """Return formatted JSON payloads emitted by the HTTP logger."""
+def _http_log_records(caplog: LogCaptureFixture) -> list[logging.LogRecord]:
+    """Return raw HTTP logger records captured during a test."""
 
-    formatter = JsonLogFormatter()
-    return [
-        json.loads(formatter.format(record))
-        for record in caplog.records
-        if record.name == "app.http"
-    ]
+    return [record for record in caplog.records if record.name == "app.http"]
 
 
 def _build_app() -> FastAPI:
@@ -67,17 +60,16 @@ def test_http_logging_middleware_logs_request_params_only(caplog: LogCaptureFixt
     assert response.headers["x-request-id"]
     assert response.json()["received"] == {"password": "pw", "name": "alice"}
 
-    http_records = [record for record in caplog.records if record.name == "app.http"]
+    http_records = _http_log_records(caplog)
     assert all(record.getMessage() in {"http.request", "http.response"} for record in http_records)
 
-    messages = _http_log_messages(caplog)
-    request_log = next(message for message in messages if message["event"] == "http.request")
-    response_log = next(message for message in messages if message["event"] == "http.response")
-    assert request_log["path"] == "/echo"
-    assert request_log["request_body"]["password"] == "[REDACTED]"
-    assert "response_body" not in response_log
-    assert response_log["status_code"] == 200
-    assert "duration_ms" in response_log
+    request_log = next(record for record in http_records if record.getMessage() == "http.request")
+    response_log = next(record for record in http_records if record.getMessage() == "http.response")
+    assert request_log.path == "/echo"
+    assert request_log.request_body["password"] == "[REDACTED]"
+    assert not hasattr(response_log, "response_body")
+    assert response_log.status_code == 200
+    assert response_log.duration_ms is not None
 
 
 def test_http_logging_middleware_does_not_consume_streams(caplog: LogCaptureFixture) -> None:
@@ -92,10 +84,10 @@ def test_http_logging_middleware_does_not_consume_streams(caplog: LogCaptureFixt
     assert response.text == "hello"
 
     response_log = next(
-        message for message in _http_log_messages(caplog) if message["event"] == "http.response"
+        record for record in _http_log_records(caplog) if record.getMessage() == "http.response"
     )
-    assert "response_body" not in response_log
-    assert response_log["status_code"] == 200
+    assert not hasattr(response_log, "response_body")
+    assert response_log.status_code == 200
 
 
 def test_http_logging_middleware_post_sse_does_not_hang(caplog: LogCaptureFixture) -> None:
@@ -122,6 +114,6 @@ def test_http_logging_middleware_binary_stream_not_buffered(caplog: LogCaptureFi
     assert len(response.content) == 10000
 
     response_log = next(
-        message for message in _http_log_messages(caplog) if message["event"] == "http.response"
+        record for record in _http_log_records(caplog) if record.getMessage() == "http.response"
     )
-    assert "response_body" not in response_log
+    assert not hasattr(response_log, "response_body")

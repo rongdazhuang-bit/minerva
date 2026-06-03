@@ -1,10 +1,14 @@
 # Backend Logging Framework Implementation Plan
 
+> **Historical plan (2026-05-23).** Business logging API superseded by [`2026-06-03-unified-log-tool`](../plans/2026-06-03-unified-log-tool.md) and [`docs/backend-logging.md`](../../backend-logging.md). Use `get_logger(__name__)` for new code.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a backend logging framework that emits JSON logs to stdout and 7-day rolling files, captures sanitized API request/response payloads, and carries `request_id` across FastAPI and Celery.
 
 **Architecture:** Keep the existing stdlib `logging.getLogger(__name__)` pattern and add focused infrastructure modules under `backend/app/core/`. Context handling uses `contextvars`; JSON formatting, redaction, file/stdout handler setup, and HTTP body logging stay separated so each part is testable. FastAPI initializes logging before app construction, Celery initializes logging during app wiring and propagates request context through task headers.
+
+**Note (2026-06-03):** Production format is `PatternLogFormatter` text; business code uses `get_logger` from `app.core.log`.
 
 **Tech Stack:** Python 3.11+, FastAPI, Starlette ASGI middleware, Celery, Pydantic Settings, stdlib `logging`, `TimedRotatingFileHandler`, pytest.
 

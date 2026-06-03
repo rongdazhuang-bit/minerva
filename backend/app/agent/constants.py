@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 AGENT_CHECKPOINT_PURGE_TASK_NAME = "agent.checkpoint_purge"
+AGENT_MEMORY_COMPRESS_TASK_NAME = "agent.memory.compress_mem0"
 # pg_advisory_lock(bigint): stable app-scoped key, must not collide with other locks.
 AGENT_CHECKPOINT_PURGE_ADVISORY_LOCK_KEY = 2026051801
 

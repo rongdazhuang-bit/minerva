@@ -21,6 +21,7 @@ from app.agent.api.v2.schemas import (
     AgentSessionListItemOut,
     AgentSessionListOut,
     AgentSessionOut,
+    AgentV2ConfigOut,
 )
 from app.agent.infrastructure.repository import (
     RECENT_AGENT_SESSIONS_DEFAULT_LIMIT,
@@ -29,7 +30,9 @@ from app.agent.infrastructure.repository import (
 )
 from app.agent.infrastructure import repository as agent_repo
 from app.agent.infrastructure.skill_loader import list_indexed_skills
+from app.agent.api.v2.memory_router import router as memory_router
 from app.agent.api.v2.skills_mgmt_router import router as skills_mgmt_router
+from app.config import settings
 from app.agent.service.agent_graph_run_service import (
     AgentGraphRunService,
     get_agent_graph_run_service,
@@ -44,6 +47,19 @@ from app.sys.model_provider.infrastructure import repository as model_repo
 router = APIRouter(prefix="/workspaces/{workspace_id}/agent/v2", tags=["agent-v2"])
 
 router.include_router(skills_mgmt_router)
+router.include_router(memory_router)
+
+
+@router.get("/config", response_model=AgentV2ConfigOut)
+async def get_agent_v2_config(
+    workspace_id: uuid.UUID,
+    _user: User = Depends(get_current_user),
+    _member=Depends(require_workspace_member),
+) -> AgentV2ConfigOut:
+    """Expose agent runtime flags (e.g. memory backend) to the UI."""
+
+    _ = workspace_id
+    return AgentV2ConfigOut(memory_backend=settings.agent_memory_backend)
 
 
 def _to_agent_conversation_model(row) -> AgentConversationModelOut:

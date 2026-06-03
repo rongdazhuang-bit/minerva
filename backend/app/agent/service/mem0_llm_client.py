@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import logging
+from app.core.log import get_logger
 
 import httpx
 
 from app.config import settings
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 def mem0_llm_complete(
@@ -46,5 +46,5 @@ def mem0_llm_complete(
     try:
         return (data["choices"][0]["message"]["content"] or "").strip()
     except (KeyError, IndexError, TypeError) as e:
-        log.warning("mem0 LLM unexpected response: %s", data)
+        log.warning("mem0 LLM unexpected response: {}", data)
         raise ValueError("mem0 LLM returned an unexpected response") from e

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import logging
+from app.core.log import get_logger
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 _MEM0_NLP_INSTALL_HINT = (
     'Install NLP deps with: cd backend && pip install -e ".[dev]" '
@@ -32,4 +32,4 @@ def ensure_mem0_spacy_ready() -> None:
             f"mem0 spaCy model {_SPACY_MODEL!r} is unavailable. "
             f"Run: python -m spacy download {_SPACY_MODEL}"
         )
-    log.info("mem0 spaCy models ready model=%s", _SPACY_MODEL)
+    log.info("mem0 spaCy models ready model={}", _SPACY_MODEL)

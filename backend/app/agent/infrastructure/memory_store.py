@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
@@ -11,18 +10,12 @@ from sqlalchemy import desc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.domain.db.models import AgentLongTermMemory, AgentMessage
+from app.agent.memory.hits import MemoryHit
 from app.config import settings
 
 
-@dataclass(frozen=True)
-class MemoryHit:
-    """One memory item returned to the planner or executor."""
-
-    content: str
-    kind: str
-    source: str
-    key: str | None = None
-    memory_id: uuid.UUID | None = None
+# Re-export for backward compatibility.
+__all__ = ["AgentMemoryStore", "MemoryHit"]
 
 
 class AgentMemoryStore:

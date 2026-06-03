@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from app.core.log import get_logger
 import json
-import logging
 import re
 from typing import Any
 
@@ -12,7 +12,7 @@ from langchain_core.messages import HumanMessage
 
 from app.agent.skills.ppt.pptmaker.constants import AI_MIN_CONFIDENCE
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 def layout_summary(layout_index: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -249,7 +249,7 @@ async def call_llm_layout_selector(
             [HumanMessage(content=json.dumps(prompt, ensure_ascii=False))]
         )
     except Exception as exc:
-        log.warning("LLM layout selection failed: %s", exc)
+        log.warning("LLM layout selection failed: {}", exc)
         return None
 
     text = response.content
@@ -261,7 +261,7 @@ async def call_llm_layout_selector(
     try:
         return extract_json_object(text)
     except (json.JSONDecodeError, TypeError) as exc:
-        log.warning("LLM layout selection invalid JSON: %s", exc)
+        log.warning("LLM layout selection invalid JSON: {}", exc)
         return None
 
 
@@ -286,7 +286,7 @@ async def select_layout_name(
             if selected in layout_names(layout_index) and confidence >= AI_MIN_CONFIDENCE:
                 return selected, "ai", str(ai_result.get("reason", ""))
             log.info(
-                "AI layout rejected: selected=%r confidence=%s",
+                "AI layout rejected: selected=%r confidence={}",
                 selected,
                 confidence,
             )

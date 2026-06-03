@@ -5,7 +5,13 @@ import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom'
 import { AppThemedLayout } from '@/app/AppThemedLayout'
 import { AppLayout } from '@/app/layout/AppLayout'
 import { RulesFileOcrOverviewPage, RulesFileOcrTaskPage } from '@/features/file-ocr'
-import { AgentSkillsListPage, AgentSkillDetailPage, AgentSkillRegistryPage, AgentsPage } from '@/features/agent'
+import {
+  AgentMemoryPage,
+  AgentSkillsListPage,
+  AgentSkillDetailPage,
+  AgentSkillRegistryPage,
+  AgentsPage,
+} from '@/features/agent'
 import { TranslatePage } from '@/features/translate'
 import { KnowledgeBasePage } from '@/features/workspace/KnowledgeBasePage'
 import { OverviewPage } from '@/features/workspace/OverviewPage'
@@ -57,6 +63,7 @@ const router = createBrowserRouter([
           { path: 'overview', element: <OverviewPage /> },
           { path: 'agents', element: <Navigate to="agents/chat" replace /> },
           { path: 'agents/chat', element: <AgentsPage /> },
+          { path: 'agents/memory', element: <AgentMemoryPage /> },
           { path: 'agents/skills', element: <AgentSkillsListPage /> },
           { path: 'agents/skills/registry', element: <AgentSkillRegistryPage /> },
           { path: 'agents/skills/:skillId', element: <AgentSkillDetailPage /> },

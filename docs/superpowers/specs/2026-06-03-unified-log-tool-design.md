@@ -1,12 +1,15 @@
 # Backend 统一日志工具（log4j 风格）设计
 
 **日期**：2026-06-03  
-**状态**：已定稿（brainstorming 确认）  
-**范围**：在现有 `app/core/logging_*` 基础设施之上，新增 `get_logger` 工厂与 `MinervaLogger` 封装；统一 `{}` 占位符传参与结构化字段写法；对齐 log4j 文本格式；**本期全量迁移** `backend/app/` 下所有 `logging.getLogger` 调用。仅 Backend（Python），不含 Frontend。
+**状态**：已实现（2026-06-03）— **仓库 Backend 日志业务 API 权威标准**  
+**计划**：`docs/superpowers/plans/2026-06-03-unified-log-tool.md`  
+**开发者指南**：[`docs/backend-logging.md`](../backend-logging.md)（日常规范，本文为实现 spec）  
+**范围**：在现有 `app/core/logging_*` 基础设施之上，新增 `get_logger` 工厂与 `MinervaLogger` 封装；统一 `{}` 占位符传参与结构化字段写法；对齐 log4j 文本格式；**全量迁移** `backend/app/` 下所有 `logging.getLogger` 调用。仅 Backend（Python），不含 Frontend。
 
 **关联文档**：
 
-- `backend/app/core/logging_config.py`（进程级配置，不变更职责）
+- [`docs/backend-logging.md`](../backend-logging.md) — **业务代码必读**
+- `docs/superpowers/specs/2026-05-23-backend-logging-framework-design.md` — 进程配置 / 上下文 / 脱敏（业务 API 以本文为准）
 - `backend/app/core/logging_context.py`（MDC 等价物：request_id / trace_id / x_chat_id 等）
 - `backend/app/core/logging_text.py`（PatternLogFormatter）
 - `.cursor/skills/minerva-conventions/SKILL.md`（环境变量变更须同步 `.env.example` / `.env.dev`；本期无新增环境变量）
@@ -117,7 +120,9 @@ log = get_logger(__name__)
 
 1. 先复制 `extra`（若提供）。
 2. kwargs 写入同名 key 时 **覆盖** `extra` 中已有字段。
-3. kwargs 中的 key 不得与保留关键字冲突；冲突时 raise `TypeError`（fail fast，便于测试）。
+3. **新代码优先 kwargs**；`extra=` 仅在与 helper 签名兼容或历史代码时使用。
+
+**保留关键字行为**：`exc_info` / `stack_info` / `stacklevel` / `extra` 作为 **stdlib 透传参数**从 kwargs 中提取，不进入结构化 fields（例如 `log.error("...", exc_info=True)`）。不向业务层抛 `TypeError`——与 log4j/slf4j 常用写法一致。
 
 **示例**：
 
@@ -142,8 +147,8 @@ log.debug("skip reason: {}", reason)
 
 委托 stdlib 时设置 `stacklevel`：
 
-- wrapper 默认：`stacklevel = (kwargs.get("stacklevel") or 1) + 1`
-- 保证 `PatternLogFormatter` 中 `:lineno` 指向 **业务调用行**，而非 `MinervaLogger.info` 内部。
+- wrapper 默认：`stacklevel = (kwargs.get("stacklevel") or 1) + 2`（经 `info()` → `_emit()` 两层，行号指向业务调用方）
+- 保证 `PatternLogFormatter` 中 `:lineno` 指向 **业务调用行**，而非 `MinervaLogger` 内部
 
 ### 3.6 与 stdlib 的边界
 
@@ -231,7 +236,7 @@ log.debug("skip reason: {}", reason)
 | 场景 | 行为 |
 |------|------|
 | 占位符个数 ≠ args 个数 | WARNING 内部日志 + 原 template 输出 |
-| kwargs 使用保留关键字名 | `TypeError` |
+| kwargs 使用保留关键字名 | 作为 stdlib 透传（`exc_info=True` 等），不进入 structured extra |
 | `exc_info=True` / `log.exception` | 与 stdlib 一致，formatter 追加 traceback |
 | 敏感字段 | 业务侧继续用 `logging_redaction`；wrapper 不自动脱敏（避免隐式性能开销） |
 | DEBUG 关闭 | stdlib level 判断不变；不引入 lazy lambda API（YAGNI） |
@@ -269,11 +274,28 @@ log.debug("skip reason: {}", reason)
 | 占位符 / TBD | 无 TBD；占位符不匹配策略已明确（内部 WARNING + 原样输出） |
 | 一致性 | Wrapper 委托 stdlib，与现有 Formatter/Handler/Context 架构一致 |
 | 范围 | 单特性（统一 Logger API + 全量迁移），适合一份实现计划 |
-| 歧义 | kwargs 覆盖 extra 同名 key；不支持命名 `{}`；无 lazy logging |
+| 歧义 | kwargs 覆盖 extra 同名 key；不支持命名 `{}`；无 lazy logging；保留字为 stdlib 透传 |
 | 环境变量 | 本期无新增/变更 |
 
 ---
 
 ## 9. 后续工作入口
 
-用户审阅本 spec 并确认后，使用 **`writing-plans`** 产出分步实现清单（`docs/superpowers/plans/2026-06-03-unified-log-tool.md`）。
+实现计划：`docs/superpowers/plans/2026-06-03-unified-log-tool.md`（已完成）。
+
+---
+
+## 10. 实现对照（2026-06-03）
+
+| 项 | 代码位置 |
+|----|----------|
+| `get_logger` / `MinervaLogger` | `backend/app/core/log.py` |
+| `{}` 占位符 | `backend/app/core/log_placeholders.py` |
+| 文本格式 | `backend/app/core/logging_text.py` — `PatternLogFormatter` |
+| HTTP 日志 | `backend/app/core/logging_middleware.py` — `get_logger("app.http")` |
+| 占位符单测 | `backend/tests/test_log_placeholders.py` |
+| Wrapper 单测 | `backend/tests/test_log_wrapper.py` |
+| 格式集成测 | `backend/tests/test_logging_pattern_formatter.py` |
+| Celery 任务 | `translate/task/run_job.py` 等使用 `get_logger` |
+| `stacklevel` | `_emit` 默认 `(user_stacklevel or 1) + 2` |
+| 开发者指南 | [`docs/backend-logging.md`](../../../backend-logging.md) |

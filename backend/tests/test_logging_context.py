@@ -26,12 +26,20 @@ def isolate_logging_context() -> Iterator[None]:
 def test_set_and_clear_logging_context() -> None:
     """Context fields are visible after set and removed after clear."""
 
-    set_logging_context(request_id="req-1", task_id="task-1", process_type="api")
+    set_logging_context(
+        request_id="req-1",
+        task_id="task-1",
+        process_type="api",
+        x_chat_id="chat-1",
+        trace_id="trace-1",
+    )
 
     assert get_logging_context() == {
         "request_id": "req-1",
         "task_id": "task-1",
         "process_type": "api",
+        "x_chat_id": "chat-1",
+        "trace_id": "trace-1",
     }
 
     clear_logging_context()

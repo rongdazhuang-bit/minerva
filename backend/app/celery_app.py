@@ -14,13 +14,13 @@ children, causing ``ValueError: not enough values to unpack (expected 3, got 0)`
 
 from __future__ import annotations
 
-import logging
 import os
 import sys
 from socket import timeout as SocketTimeout
 from typing import Any
 
 from app.config import settings
+from app.core.log import get_logger
 from app.core.logging_config import configure_logging
 from app.core.logging_context import clear_logging_context, get_logging_context, set_logging_context
 from app.exceptions import AppError
@@ -48,7 +48,7 @@ except ImportError:  # pragma: no cover - kombu ships with celery
     _KombuBrokerConnectionError = None  # type: ignore[misc, assignment]
 
 _VALID_CELERY_POOLS = frozenset({"solo", "threads", "prefork"})
-logger = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 def _resolve_celery_process_type() -> str:
@@ -60,13 +60,15 @@ def _resolve_celery_process_type() -> str:
     return "worker"
 
 
-def _merge_request_id_header(headers: dict[str, Any] | None) -> dict[str, Any] | None:
-    """Return Celery headers with current request_id when the caller did not provide one."""
+def _merge_task_context_headers(headers: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Return Celery headers with current logging context when callers omit them."""
 
     merged = dict(headers or {})
-    context_request_id = get_logging_context().get("request_id")
-    if context_request_id and "request_id" not in merged:
-        merged["request_id"] = context_request_id
+    context = get_logging_context()
+    for key in ("request_id", "trace_id", "x_chat_id"):
+        value = context.get(key)
+        if value and key not in merged:
+            merged[key] = value
     return merged or None
 
 
@@ -117,7 +119,7 @@ def _build_celery_app() -> Any:
         accept_content=["json"],
         result_serializer="json",
         enable_utc=True,
-        # Let application/task loggers propagate; hijacking root often hides ``logging.getLogger(__name__)``.
+        # Let application/task loggers propagate; hijacking root often hides ``get_logger(__name__)``.
         worker_hijack_root_logger=False,
         broker_connection_retry=True,
         broker_connection_retry_on_startup=True,
@@ -159,6 +161,7 @@ if celery_app is not None:
     _import_models()
     # Registers ``shared_task`` symbols (e.g. ``demo.default_job``) on this app for workers.
     import app.agent.task.checkpoint_purge_job  # noqa: F401
+    import app.agent.task.memory_compress_job  # noqa: F401
     import app.file_ocr.task.scan_init_job  # noqa: F401
     import app.translate.task.run_job  # noqa: F401
     import app.sys.celery.demo.default_job  # noqa: F401
@@ -173,28 +176,31 @@ if celery_app is not None:
             request = getattr(task, "request", None)
             headers = getattr(request, "headers", None) or {}
             request_id = headers.get("request_id")
+            trace_id = headers.get("trace_id") or request_id
+            x_chat_id = headers.get("x_chat_id")
             task_name = getattr(task, "name", None)
-            set_logging_context(request_id=request_id, task_id=str(task_id) if task_id else None)
-            logger.info(
+            set_logging_context(
+                request_id=request_id,
+                trace_id=trace_id,
+                x_chat_id=x_chat_id,
+                task_id=str(task_id) if task_id else None,
+            )
+            log.info(
                 "celery task started",
-                extra={
-                    "event": "celery.task.started",
-                    "task_name": task_name,
-                    "task_id": str(task_id) if task_id else None,
-                },
+                event="celery.task.started",
+                task_name=task_name,
+                task_id=str(task_id) if task_id else None,
             )
 
         def _clear_task_logging_context(task=None, task_id=None, state=None, **kwargs) -> None:
             """Log Celery task completion and clear task-scoped context."""
 
-            logger.info(
+            log.info(
                 "celery task finished",
-                extra={
-                    "event": "celery.task.finished",
-                    "task_name": getattr(task, "name", None),
-                    "task_id": str(task_id) if task_id else None,
-                    "state": state,
-                },
+                event="celery.task.finished",
+                task_name=getattr(task, "name", None),
+                task_id=str(task_id) if task_id else None,
+                state=state,
             )
             clear_logging_context()
 
@@ -291,21 +297,19 @@ def enqueue_task(
             task_name,
             args=args or [],
             kwargs=kwargs or {},
-            headers=_merge_request_id_header(headers),
+            headers=_merge_task_context_headers(headers),
             queue=settings.celery_default_queue,
         )
     except AppError:
         raise
     except Exception as exc:
         raise _translate_enqueue_error(exc) from exc
-    logger.info(
+    log.info(
         "celery task enqueued",
-        extra={
-            "event": "celery.task.enqueued",
-            "task_name": task_name,
-            "task_id": str(result.id),
-            "queue": settings.celery_default_queue,
-        },
+        event="celery.task.enqueued",
+        task_name=task_name,
+        task_id=str(result.id),
+        queue=settings.celery_default_queue,
     )
     return str(result.id)
 

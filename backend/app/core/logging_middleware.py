@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import time
 import uuid
 from typing import Any
@@ -13,10 +12,11 @@ from starlette.requests import Request
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.config import settings
+from app.core.log import get_logger
 from app.core.logging_context import use_logging_context
 from app.core.logging_redaction import redact_for_log
 
-_HTTP_LOGGER = logging.getLogger("app.http")
+log = get_logger("app.http")
 
 
 def _parse_body(raw: bytes, headers: Headers, *, max_chars: int) -> Any:
@@ -40,7 +40,7 @@ def _parse_body(raw: bytes, headers: Headers, *, max_chars: int) -> Any:
 def _emit_http_log(message: str, **fields: Any) -> None:
     """Emit one structured HTTP log line without pre-serializing the payload."""
 
-    _HTTP_LOGGER.info(message, extra=fields)
+    log.info(message, **fields)
 
 
 class HttpLoggingMiddleware:
@@ -68,6 +68,8 @@ class HttpLoggingMiddleware:
 
         request = Request(scope, receive)
         request_id = request.headers.get("x-request-id") or str(uuid.uuid4())
+        x_chat_id = request.headers.get("x-chat-id", "")
+        trace_id = request.headers.get("x-trace-id") or request_id
         started = time.perf_counter()
         request_headers = Headers(scope=scope)
         content_length = request_headers.get("content-length", "").strip()
@@ -89,7 +91,11 @@ class HttpLoggingMiddleware:
 
             downstream_receive = receive_with_replay
 
-        with use_logging_context(request_id=request_id):
+        with use_logging_context(
+            request_id=request_id,
+            x_chat_id=x_chat_id or None,
+            trace_id=trace_id,
+        ):
             if self.body_enabled:
                 _emit_http_log(
                     "http.request",

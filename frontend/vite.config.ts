@@ -1,3 +1,4 @@
+import type { IncomingMessage } from 'node:http'
 import path from 'node:path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -25,7 +26,7 @@ const devApiProxy = {
 /** /auth POST 走 API；GET 多为 SPA，但 /auth/login/captcha 与 register/captcha 须代理到后端。 */
 const authApiProxy = {
   ...devApiProxy,
-  bypass(req) {
+  bypass(req: IncomingMessage) {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       return
     }

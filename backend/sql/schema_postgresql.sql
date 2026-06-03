@@ -573,6 +573,25 @@ CREATE INDEX IF NOT EXISTS ix_agent_ltm_session_id ON public.agent_long_term_mem
 CREATE INDEX IF NOT EXISTS ix_agent_ltm_workspace_session ON public.agent_long_term_memory (workspace_id, session_id);
 COMMENT ON TABLE public.agent_long_term_memory IS '长期记忆（SQL 检索）';
 
+CREATE TABLE IF NOT EXISTS public.agent_memory_profile (
+  id uuid NOT NULL,
+  workspace_id uuid NOT NULL,
+  session_id uuid NULL,
+  profile_text text NOT NULL DEFAULT '',
+  updated_by uuid NULL,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS ix_agent_memory_profile_workspace
+  ON public.agent_memory_profile (workspace_id);
+CREATE INDEX IF NOT EXISTS ix_agent_memory_profile_workspace_session
+  ON public.agent_memory_profile (workspace_id, session_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_memory_profile_workspace_null_session
+  ON public.agent_memory_profile (workspace_id) WHERE session_id IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_memory_profile_workspace_session
+  ON public.agent_memory_profile (workspace_id, session_id) WHERE session_id IS NOT NULL;
+COMMENT ON TABLE public.agent_memory_profile IS 'Agent 持久人物画像（mem0 模式；工作区/会话级）';
+
 CREATE TABLE IF NOT EXISTS public.agent_run_node (
   id uuid NOT NULL,
   run_id uuid NOT NULL,

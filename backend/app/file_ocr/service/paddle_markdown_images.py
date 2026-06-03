@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
+from app.core.log import get_logger
 import asyncio
 import base64
-import logging
 import mimetypes
 from urllib.parse import urlparse
 
 import httpx
 
-_LOGGER = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 # Single-image cap to avoid loading multi‑MB raster into DB memory by mistake.
 _DEFAULT_MAX_IMAGE_BYTES = 20 * 1024 * 1024
@@ -97,7 +97,7 @@ async def inline_http_markdown_images_to_data_uris(
 
     for item in results:
         if isinstance(item, BaseException):
-            _LOGGER.warning("paddle markdown_images inline fetch failed: %s", item)
+            log.warning("paddle markdown_images inline fetch failed: {}", item)
             continue
         key, data_uri = item
         out[key] = data_uri

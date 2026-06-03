@@ -24,7 +24,6 @@ import {
   type RuleConfigPromptListItem,
 } from '@/api/ruleConfigPrompt'
 import { listModelProviders, type ModelProviderListItem } from '@/api/modelProviders'
-import { ApiError } from '@/api/client'
 import { useAuth } from '@/app/AuthContext'
 import { showAppError, useAppMessage } from '@/app/useAppMessage'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'

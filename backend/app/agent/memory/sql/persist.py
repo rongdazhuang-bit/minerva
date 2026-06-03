@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import logging
+from app.core.log import get_logger
 import uuid
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -18,7 +18,7 @@ from app.agent.infrastructure.openai_usage import (
 )
 from app.agent.service.memory_extract_llm import invoke_memory_extract
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 class SqlMemoryPersistStrategy:
@@ -144,4 +144,4 @@ class SqlMemoryPersistStrategy:
                 },
             )
         except Exception as e:
-            log.exception("memory.persist failed run_id=%s err=%s", run_id, e)
+            log.exception("memory.persist failed run_id={} err={}", run_id, e)

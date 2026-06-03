@@ -194,4 +194,49 @@ class SkillWriteResultOut(BaseModel):
     cache_reloaded: bool = True
 
 
+class AgentV2ConfigOut(BaseModel):
+    """Runtime agent feature flags exposed to the frontend."""
+
+    memory_backend: str
+
+
+class AgentMemoryProfileOut(BaseModel):
+    """Persistent workspace or session memory profile."""
+
+    id: UUID
+    workspace_id: UUID
+    session_id: UUID | None
+    profile_text: str
+    updated_by: UUID | None
+    updated_at: datetime
+
+
+class AgentMemoryProfileCreateIn(BaseModel):
+    """Create or replace profile text for a scope."""
+
+    session_id: UUID | None = None
+    profile_text: str = Field(min_length=0, max_length=8000)
+
+
+class AgentMemoryProfilePatchIn(BaseModel):
+    """Update profile body."""
+
+    profile_text: str = Field(min_length=0, max_length=8000)
+
+
+class AgentMem0MemoryItemOut(BaseModel):
+    """One mem0 memory row for management UI."""
+
+    id: str
+    memory: str
+    created_at: str | None = None
+
+
+class AgentMem0MemoryListOut(BaseModel):
+    """Paginated mem0 memories."""
+
+    items: list[AgentMem0MemoryItemOut]
+    total: int
+
+
 SkillFileTreeNodeOut.model_rebuild()

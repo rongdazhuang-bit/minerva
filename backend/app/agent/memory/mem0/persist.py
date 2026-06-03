@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from app.core.log import get_logger
 import asyncio
-import logging
 import uuid
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agent.infrastructure import repository as agent_repo
 from app.agent.memory.mem0.client import get_mem0_memory
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 class Mem0MemoryPersistStrategy:
@@ -77,7 +77,7 @@ class Mem0MemoryPersistStrategy:
                 outputs_json={"backend": "mem0"},
             )
         except Exception as e:
-            log.exception("mem0 memory.persist failed run_id=%s err=%s", run_id, e)
+            log.exception("mem0 memory.persist failed run_id={} err={}", run_id, e)
             await agent_repo.insert_run_node(
                 session,
                 node_id=uuid.uuid4(),

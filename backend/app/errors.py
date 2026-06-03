@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any, Literal
 
 from fastapi import Request
@@ -10,9 +9,10 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from pydantic_core import to_jsonable_python
 
+from app.core.log import get_logger
 from app.core.logging_context import get_logging_context
 
-logger = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 class ErrorBody(BaseModel):
@@ -35,15 +35,13 @@ def register_exception_handlers(app) -> None:
     async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
         """Serialize ``AppError`` to ``ErrorBody`` with HTTP status from the exception."""
 
-        logger.warning(
+        log.warn(
             "application error",
-            extra={
-                "event": "http.error",
-                "request_id": get_logging_context().get("request_id"),
-                "path": str(request.url.path),
-                "code": exc.code,
-                "status_code": exc.status_code,
-            },
+            event="http.error",
+            request_id=get_logging_context().get("request_id"),
+            path=str(request.url.path),
+            code=exc.code,
+            status_code=exc.status_code,
         )
         return JSONResponse(
             status_code=exc.status_code,
@@ -59,15 +57,18 @@ def register_exception_handlers(app) -> None:
     async def validation_handler(request: Request, exc: RequestValidationError):
         """Return 422 with structured Pydantic validation issues."""
 
-        logger.warning(
-            "request validation error",
-            extra={
-                "event": "http.error",
-                "request_id": get_logging_context().get("request_id"),
-                "path": str(request.url.path),
-                "code": "request.validation",
-                "status_code": 422,
-            },
+        validation_errors = to_jsonable_python(exc.errors())
+        log.warn(
+            "request validation error: {}",
+            validation_errors,
+            event="http.error",
+            request_id=get_logging_context().get("request_id"),
+            path=str(request.url.path),
+            http_method=request.method,
+            query_params=dict(request.query_params),
+            code="request.validation",
+            status_code=422,
+            validation_errors=validation_errors,
         )
         return JSONResponse(
             status_code=422,
@@ -83,15 +84,13 @@ def register_exception_handlers(app) -> None:
     async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         """Return a stable 500 body while logging the original exception."""
 
-        logger.exception(
+        log.exception(
             "unhandled request error",
-            extra={
-                "event": "http.error",
-                "request_id": get_logging_context().get("request_id"),
-                "path": str(request.url.path),
-                "code": "internal.error",
-                "status_code": 500,
-            },
+            event="http.error",
+            request_id=get_logging_context().get("request_id"),
+            path=str(request.url.path),
+            code="internal.error",
+            status_code=500,
         )
         return JSONResponse(
             status_code=500,

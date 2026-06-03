@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from app.core.log import get_logger
 import importlib
-import logging
 import re
 import sys
 from dataclasses import dataclass
@@ -17,7 +17,7 @@ from langgraph.prebuilt import create_react_agent
 
 from app.agent.infrastructure.skill_tool_context import SkillToolContext
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 _SKILLS_ROOT = Path(__file__).resolve().parents[1] / "skills"
 _INDEX_FILE = "INDEX.md"
@@ -171,7 +171,7 @@ def load_tools_for_skill(skill_id: str, ctx: SkillToolContext) -> list[Any]:
     try:
         module = importlib.import_module(module_name)
     except ModuleNotFoundError:
-        log.warning("skill tools module missing: %s", module_name)
+        log.warning("skill tools module missing: {}", module_name)
         return []
     register = getattr(module, "register_tools", None)
     if register is None:
@@ -179,10 +179,10 @@ def load_tools_for_skill(skill_id: str, ctx: SkillToolContext) -> list[Any]:
     try:
         tools = register(ctx)
     except Exception:
-        log.exception("register_tools failed for skill=%s", sid)
+        log.exception("register_tools failed for skill={}", sid)
         return []
     if not isinstance(tools, list):
-        log.warning("register_tools for %s did not return a list", sid)
+        log.warning("register_tools for {} did not return a list", sid)
         return []
     return tools
 

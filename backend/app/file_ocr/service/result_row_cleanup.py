@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import logging
+from app.core.log import get_logger
 import uuid
 
 from sqlalchemy import delete
@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.file_ocr.domain.db.models_result import OcrFileMineru, OcrFilePaddleocr
 
-_LOGGER = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 async def delete_ocr_file_engine_result_rows(
@@ -29,8 +29,8 @@ async def delete_ocr_file_engine_result_rows(
                 OcrFilePaddleocr.file_id == file_id,
             )
         )
-        _LOGGER.info(
-            "cleared ocr_file_paddleocr for retry file_id=%s workspace_id=%s",
+        log.info(
+            "cleared ocr_file_paddleocr for retry file_id={} workspace_id={}",
             file_id,
             workspace_id,
         )
@@ -42,14 +42,14 @@ async def delete_ocr_file_engine_result_rows(
                 OcrFileMineru.file_id == file_id,
             )
         )
-        _LOGGER.info(
-            "cleared ocr_file_mineru for retry file_id=%s workspace_id=%s",
+        log.info(
+            "cleared ocr_file_mineru for retry file_id={} workspace_id={}",
             file_id,
             workspace_id,
         )
         return
-    _LOGGER.warning(
-        "skip engine result cleanup on retry: unknown ocr_type=%s file_id=%s",
+    log.warning(
+        "skip engine result cleanup on retry: unknown ocr_type={} file_id={}",
         ocr_type,
         file_id,
     )

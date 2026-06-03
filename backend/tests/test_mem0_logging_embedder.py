@@ -81,7 +81,7 @@ def test_logging_wrapper_emits_request_and_response(caplog) -> None:
 
 
 def test_log_helpers_include_url_and_body(caplog) -> None:
-    """Standalone log helpers include URL and JSON body."""
+    """Standalone log helpers include URL and plain-text fields."""
 
     caplog.set_level(logging.INFO)
     inner = _FakeEmbedder()
@@ -89,5 +89,5 @@ def test_log_helpers_include_url_and_body(caplog) -> None:
     log_embedder_response(inner=inner, vectors=[[0.0, 1.0]], extra={"status_code": 200})
     joined = "\n".join(record.message for record in caplog.records)
     assert "http://127.0.0.1:4000/v1/embeddings" in joined
-    assert "memory_action" in joined
-    assert "status_code" in joined
+    assert "memory_action=probe" in joined
+    assert "status_code=200" in joined

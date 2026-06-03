@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from app.core.log import get_logger
 import json
 import logging
 from typing import Any
@@ -12,7 +13,7 @@ from app.ocr.paddleocr.schemas import LayoutParsingRequest
 from app.sys.tool.ocr.domain.db.models import SysOcrTool
 from app.sys.tool.ocr.service.ocr_tool_service import normalize_ocr_config_from_db
 
-_LOGGER = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 # Keys that must never be taken from persisted config alone (runtime always supplies ``file``).
 _FORBIDDEN_CONFIG_KEYS: frozenset[str] = frozenset({"file"})
@@ -104,9 +105,9 @@ def merge_paddle_layout_parsing_payload(
     if not _config_has_explicit_file_type(payload) and inferred is not None:
         payload["fileType"] = inferred
     payload["file"] = file_b64
-    if _LOGGER.isEnabledFor(logging.DEBUG):
-        _LOGGER.debug(
-            "paddle layout-parsing payload keys=%s file_len_b64=%s",
+    if log.isEnabledFor(logging.DEBUG):
+        log.debug(
+            "paddle layout-parsing payload keys={} file_len_b64={}",
             sorted(payload.keys()),
             len(file_b64),
         )

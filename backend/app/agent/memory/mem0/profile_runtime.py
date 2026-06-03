@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
+from app.core.log import get_logger
 import asyncio
-import logging
 import uuid
 
-from app.agent.memory.mem0.client import get_mem0_memory
+from app.agent.memory.mem0.client import get_mem0_memory, mem0_entity_filters
 from app.config import settings
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 def _search_sync(
@@ -24,10 +24,12 @@ def _search_sync(
     memory = get_mem0_memory()
     result = memory.search(
         query_text or "user context",
-        user_id=str(workspace_id),
-        run_id=str(session_id),
-        limit=limit,
-        rerank=True,
+        top_k=limit,
+        filters=mem0_entity_filters(
+            workspace_id=workspace_id,
+            session_id=session_id,
+        ),
+        rerank=settings.agent_memory_mem0_rerank_enabled,
     )
     lines: list[str] = []
     for item in result.get("results") or []:

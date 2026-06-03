@@ -7,8 +7,8 @@ description: >-
   (4) frontend 所有二次确认统一使用 Ant Design Popconfirm，禁止 Modal.confirm 等替代。
   Use when designing tables, writing schema/SQL/ORM, implementing delete APIs, cascading cleanup,
   changing Settings or os.getenv, fixing bugs, aligning code with specs, updating requirements/design docs after code changes,
-  or adding frontend destructive actions and confirmation UX.
-  Triggers: 外键、级联删除、CASCADE、RESTRICT、schema、建表、删除接口、需求文档、设计文档、spec 回填、环境变量、.env、Settings、config.py、Popconfirm、二次确认、Modal.confirm、退出登录.
+  or adding frontend destructive actions and confirmation UX, or writing backend log statements.
+  Triggers: 外键、级联删除、CASCADE、RESTRICT、schema、建表、删除接口、需求文档、设计文档、spec 回填、环境变量、.env、Settings、config.py、Popconfirm、二次确认、Modal.confirm、退出登录、get_logger、logging、日志.
 ---
 
 # Minerva 项目约定
@@ -182,9 +182,29 @@ description: >-
 
 ---
 
-## 5. 与其他 Skill 的关系
+## 5. Backend 日志（业务代码）
+
+### 规则（硬性）
+
+- 业务与 Celery 任务模块 **必须** 使用 `from app.core.log import get_logger` + `log = get_logger(__name__)`。
+- **禁止** `logging.getLogger(__name__)`、`get_task_logger`（`logging_config.py` 等配置模块除外）。
+- 消息使用 **`{}` 占位符**；结构化字段 **优先 kwargs**（如 `event="..."`）；级别推荐 `log.warn` / `log.info` / `log.error` / `log.debug` / `log.exception`。
+- **禁止** f-string / `%s` 拼接日志正文；敏感信息须脱敏（见 logging 文档）。
+
+### 文档
+
+| 项 | 位置 |
+|----|------|
+| 日常规范 | `docs/backend-logging.md` |
+| 设计 spec | `docs/superpowers/specs/2026-06-03-unified-log-tool-design.md` |
+| 进程配置 spec | `docs/superpowers/specs/2026-05-23-backend-logging-framework-design.md` |
+| 实现 | `backend/app/core/log.py`、`log_placeholders.py`、`logging_config.py` |
+
+---
+
+## 6. 与其他 Skill 的关系
 
 - **注释与目录**：`/.cursor/skills/code-comments/SKILL.md`（类/方法注释、`app/sys/tool` 分层、分页、表单与滚动条等 UI 约定）。
-- **本 Skill**：库表无外键 + 文档驱动修改闭环 + 环境变量配置文件同步 + **二次确认 Popconfirm**。
+- **本 Skill**：库表无外键 + 文档驱动修改闭环 + 环境变量配置文件同步 + **二次确认 Popconfirm** + **Backend 日志 API**。
 
 两者同时适用时，均应遵守。

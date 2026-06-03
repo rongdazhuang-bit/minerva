@@ -26,6 +26,7 @@ import {
   getAgentV2Config,
   listAgentMem0Memories,
   listAgentMemoryProfiles,
+  AGENT_SESSIONS_LIST_MAX,
   listAgentSessions,
   patchAgentMemoryProfile,
   type AgentMem0MemoryItemOut,
@@ -84,7 +85,9 @@ export function AgentMemoryPage() {
   const loadSessions = useCallback(async () => {
     if (!workspaceId) return
     try {
-      const data = await listAgentSessions(workspaceId, { limit: 100 })
+      const data = await listAgentSessions(workspaceId, {
+        limit: AGENT_SESSIONS_LIST_MAX,
+      })
       setSessions(data.sessions)
       if (!memorySessionId && data.sessions[0]) {
         setMemorySessionId(data.sessions[0].id)
@@ -267,7 +270,7 @@ export function AgentMemoryPage() {
   if (backend === null) {
     return (
       <div className="minerva-agent-memory-page">
-        <Card loading variant="borderless" />
+        <Card className="minerva-agent-memory-page__card" loading variant="borderless" />
       </div>
     )
   }
@@ -275,14 +278,16 @@ export function AgentMemoryPage() {
   if (backend !== 'mem0') {
     return (
       <div className="minerva-agent-memory-page">
-        <Alert
-          type="info"
-          showIcon
-          message={t('agents.memory.disabled', {
-            defaultValue:
-              '当前环境未启用 mem0 记忆后端（AGENT_MEMORY_BACKEND=sql）。请在环境变量中切换为 mem0 后使用本页。',
-          })}
-        />
+        <Card className="minerva-agent-memory-page__card" variant="borderless">
+          <Alert
+            type="info"
+            showIcon
+            message={t('agents.memory.disabled', {
+              defaultValue:
+                '当前环境未启用 mem0 记忆后端（AGENT_MEMORY_BACKEND=sql）。请在环境变量中切换为 mem0 后使用本页。',
+            })}
+          />
+        </Card>
       </div>
     )
   }
@@ -290,16 +295,14 @@ export function AgentMemoryPage() {
   return (
     <div className="minerva-agent-memory-page">
       <Card className="minerva-agent-memory-page__card" variant="borderless">
-        <Text strong className="minerva-agent-memory-page__title">
-          {t('agents.memory.title', { defaultValue: '记忆管理' })}
-        </Text>
         <Tabs
+          className="minerva-agent-memory-page__tabs"
           items={[
             {
               key: 'profiles',
               label: t('agents.memory.tabProfiles', { defaultValue: '持久画像' }),
               children: (
-                <>
+                <div className="minerva-agent-memory-page__tab-pane">
                   <div className="minerva-agent-memory-page__toolbar">
                     <Button type="primary" icon={<PlusOutlined />} onClick={openCreateProfile}>
                       {t('agents.memory.newProfile', { defaultValue: '新建画像' })}
@@ -315,14 +318,14 @@ export function AgentMemoryPage() {
                       scroll={{ x: 'max-content' }}
                     />
                   </div>
-                </>
+                </div>
               ),
             },
             {
               key: 'memories',
-              label: t('agents.memory.tabMemories', { defaultValue: 'mem0 记忆' }),
+              label: t('agents.memory.tabMemories', { defaultValue: '记忆' }),
               children: (
-                <>
+                <div className="minerva-agent-memory-page__tab-pane">
                   <Space className="minerva-agent-memory-page__toolbar" wrap>
                     <Text>{t('agents.memory.pickSession', { defaultValue: '会话' })}</Text>
                     <Select
@@ -352,7 +355,7 @@ export function AgentMemoryPage() {
                       scroll={{ x: 'max-content' }}
                     />
                   </div>
-                </>
+                </div>
               ),
             },
           ]}

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from app.core.log import get_logger
 import asyncio
-import logging
 import uuid
 from collections.abc import AsyncIterator
 from typing import Any
@@ -28,13 +28,13 @@ from app.agent.infrastructure.langgraph_checkpointer import (
     get_langgraph_checkpointer,
     reset_langgraph_checkpointer,
 )
-from app.agent.infrastructure.memory_store import AgentMemoryStore
+from app.agent.memory.factory import create_memory_strategies
 from app.agent.service.memory_persist_service import schedule_persist_turn_memory_background
 from app.config import settings
 from app.exceptions import AppError
 from app.sys.model_provider.infrastructure import repository as model_repo
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 async def _finalize_run_usage(
@@ -92,7 +92,7 @@ class AgentGraphRunService:
     """Run the main LangGraph and stream SSE v2 events in real time."""
 
     def __init__(self) -> None:
-        self._memory = AgentMemoryStore()
+        self._memory_retrieve, self._memory_persist = create_memory_strategies()
         self._graph = None
 
     async def _get_graph(self):
@@ -115,7 +115,7 @@ class AgentGraphRunService:
             return await graph.ainvoke(initial, config=run_config)
         except PoolTimeout as e:
             log.warning(
-                "checkpoint pool timeout during agent run, rebuilding pool: %s", e
+                "checkpoint pool timeout during agent run, rebuilding pool: {}", e
             )
             await reset_langgraph_checkpointer()
             self._graph = None
@@ -155,11 +155,9 @@ class AgentGraphRunService:
             try:
                 log.info(
                     "agent run started",
-                    extra={
-                        "event": "agent.run.started",
-                        "run_id": str(run_id),
-                        "session_id": str(session_id),
-                    },
+                    event="agent.run.started",
+                    run_id=str(run_id),
+                    session_id=str(session_id),
                 )
                 sess = await agent_repo.get_agent_session(
                     session, workspace_id=workspace_id, session_id=session_id
@@ -332,7 +330,8 @@ class AgentGraphRunService:
                     session_id=session_id,
                     run_id=run_id,
                     user_id=user_id,
-                    memory_store=self._memory,
+                    memory_retrieve=self._memory_retrieve,
+                    memory_persist=self._memory_persist,
                     reasoning_collector=reasoning_collector,
                     emit_sse=emit,
                     temperature=temperature,
@@ -413,12 +412,10 @@ class AgentGraphRunService:
                 )
                 log.info(
                     "agent run finished",
-                    extra={
-                        "event": "agent.run.finished",
-                        "run_id": str(run_id),
-                        "session_id": str(session_id),
-                        "status": "success",
-                    },
+                    event="agent.run.finished",
+                    run_id=str(run_id),
+                    session_id=str(session_id),
+                    status="success",
                 )
                 if final_answer:
                     schedule_persist_turn_memory_background(
@@ -432,16 +429,14 @@ class AgentGraphRunService:
                         max_tokens=max_tokens,
                     )
             except AppError as e:
-                log.warning(
-                    "agent v2 AppError run_id=%s code=%s",
+                log.warn(
+                    "agent v2 AppError run_id={} code={}",
                     run_id,
                     e.code,
-                    extra={
-                        "event": "agent.run.failed",
-                        "run_id": str(run_id),
-                        "session_id": str(session_id),
-                        "code": e.code,
-                    },
+                    event="agent.run.failed",
+                    run_id=str(run_id),
+                    session_id=str(session_id),
+                    code=e.code,
                 )
                 await agent_repo.finalize_agent_run(
                     session,
@@ -483,13 +478,11 @@ class AgentGraphRunService:
                 )
             except Exception as e:
                 log.exception(
-                    "agent v2 run failed run_id=%s",
+                    "agent v2 run failed run_id={}",
                     run_id,
-                    extra={
-                        "event": "agent.run.failed",
-                        "run_id": str(run_id),
-                        "session_id": str(session_id),
-                    },
+                    event="agent.run.failed",
+                    run_id=str(run_id),
+                    session_id=str(session_id),
                 )
                 await agent_repo.finalize_agent_run(
                     session,

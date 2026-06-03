@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 import httpx
 
-log = logging.getLogger(__name__)
+from app.core.log import get_logger
+
+log = get_logger(__name__)
 
 _resolved_embedder: tuple[str, str, bool] | None = None
 
@@ -106,14 +107,14 @@ def probe_embedder_endpoint(*, base_url: str, api_key: str, model: str) -> bool:
         log_embedder_response(inner=probe_inner, vectors=vectors, extra=extra)
         if not ok:
             log.warning(
-                "mem0 embedder probe failed url=%s status=%s",
+                "mem0 embedder probe failed url={} status={}",
                 url,
                 resp.status_code,
             )
         return ok
     except (httpx.TimeoutException, httpx.ConnectError, httpx.NetworkError, OSError) as exc:
         log_embedder_response(inner=probe_inner, vectors=[], extra={"status_code": None, "error": str(exc)})
-        log.warning("mem0 embedder probe transport error url=%s error=%s", url, exc)
+        log.warning("mem0 embedder probe transport error url={} error={}", url, exc)
         return False
 
 
@@ -143,7 +144,7 @@ def resolve_working_embedder_credentials() -> tuple[str, str, bool]:
     if configured_base and llm_base and llm_base != configured_base:
         if probe_embedder_endpoint(base_url=llm_base, api_key=llm_key, model=model):
             log.warning(
-                "mem0 embedder unreachable at %s; using MEM0_LLM_BASE_URL=%s",
+                "mem0 embedder unreachable at {}; using MEM0_LLM_BASE_URL={}",
                 configured_base,
                 llm_base,
             )

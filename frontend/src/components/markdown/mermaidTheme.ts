@@ -177,8 +177,8 @@ export function harmonizeMermaidSvgBackground(svg: string): string {
     '#fff',
   ]
   for (const hex of opaqueFills) {
-    out = out.replaceAll(`fill="${hex}"`, 'fill="transparent"')
-    out = out.replaceAll(`fill='${hex}'`, "fill='transparent'")
+    out = out.replace(new RegExp(`fill="${hex}"`, 'g'), 'fill="transparent"')
+    out = out.replace(new RegExp(`fill='${hex}'`, 'g'), "fill='transparent'")
   }
   return out
 }

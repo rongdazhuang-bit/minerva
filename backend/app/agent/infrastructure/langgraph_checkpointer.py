@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import logging
+from app.core.log import get_logger
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from psycopg.rows import dict_row
@@ -10,7 +10,7 @@ from psycopg_pool import AsyncConnectionPool
 
 from app.config import settings
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 _checkpointer: BaseCheckpointSaver | None = None
 _pool: AsyncConnectionPool | None = None
@@ -85,17 +85,17 @@ async def get_langgraph_checkpointer() -> BaseCheckpointSaver | None:
         _checkpointer = saver
         log.info(
             "LangGraph AsyncPostgresSaver ready "
-            "(pool min=%s max=%s timeout=%ss, connection pre-check enabled)",
+            "(pool min={} max={} timeout={}s, connection pre-check enabled)",
             min_size,
             max_size,
             timeout,
-            extra={"event": "agent.checkpointer.init"},
+            event="agent.checkpointer.init",
         )
     except Exception as e:
-        log.warning(
-            "LangGraph checkpoint disabled: %s",
+        log.warn(
+            "LangGraph checkpoint disabled: {}",
             e,
-            extra={"event": "agent.checkpointer.failed"},
+            event="agent.checkpointer.failed",
         )
         _checkpointer = None
         if _pool is not None:
@@ -125,12 +125,12 @@ async def close_langgraph_checkpointer() -> None:
         return
     try:
         await _pool.close()
-        log.info("langgraph checkpointer closed", extra={"event": "agent.checkpointer.closed"})
+        log.info("langgraph checkpointer closed", event="agent.checkpointer.closed")
     except Exception as e:
-        log.warning(
-            "LangGraph checkpoint pool close failed: %s",
+        log.warn(
+            "LangGraph checkpoint pool close failed: {}",
             e,
-            extra={"event": "agent.checkpointer.failed"},
+            event="agent.checkpointer.failed",
         )
     finally:
         _pool = None

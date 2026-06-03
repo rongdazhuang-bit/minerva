@@ -21,7 +21,6 @@ import type { TreeSelectProps } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ApiError } from '@/api/client'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   createDict,
@@ -133,13 +132,13 @@ function buildParentTreeData(
   return out
 }
 
-function renderCodeCopyable(code: string, t: (k: string) => string) {
+function renderCodeCopyable(code: string, onCopied: () => void) {
   const v = code.trim()
   if (!v) return '—'
   return (
     <Typography.Text
       copyable={{
-        onCopy: () => void messageApi.success(t('common.copied')),
+        onCopy: onCopied,
       }}
       ellipsis={{ tooltip: v }}
       style={{ maxWidth: '100%' }}
@@ -367,7 +366,10 @@ export function DictionaryPage() {
       key: 'dict_code',
       width: 200,
       ellipsis: true,
-      render: (v: string) => renderCodeCopyable(v, t),
+      render: (v: string) =>
+        renderCodeCopyable(v, () => {
+          void messageApi.success(t('common.copied'))
+        }),
     },
     {
       title: t('settings.dictName'),
@@ -433,7 +435,10 @@ export function DictionaryPage() {
       key: 'code',
       width: 200,
       ellipsis: true,
-      render: (v: string) => renderCodeCopyable(v, t),
+      render: (v: string) =>
+        renderCodeCopyable(v, () => {
+          void messageApi.success(t('common.copied'))
+        }),
     },
     {
       title: t('settings.dictItemName'),

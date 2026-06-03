@@ -2,20 +2,21 @@
 
 from __future__ import annotations
 
+from app.core.log import get_logger
 import asyncio
-import logging
 import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.memory.hits import MemoryHit
-from app.agent.memory.mem0.client import get_mem0_memory
+from app.agent.memory.mem0.client import get_mem0_memory, mem0_entity_filters
 from app.agent.memory.mem0.profile_runtime import build_runtime_session_profile
 from app.agent.memory.profile import service as profile_service
 from app.agent.memory.sql.retrieve import format_memory_hits_for_planner
+from app.agent.memory.mem0.embedder_config import mem0_embedder_endpoint_summary
 from app.config import settings
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 def _search_hits_sync(
@@ -28,13 +29,15 @@ def _search_hits_sync(
     """Blocking mem0 search mapped to ``MemoryHit``."""
 
     memory = get_mem0_memory()
-    kwargs: dict = {
-        "user_id": str(workspace_id),
-        "limit": limit,
-    }
-    if session_id is not None:
-        kwargs["run_id"] = str(session_id)
-    result = memory.search(query_text or "", rerank=True, **kwargs)
+    result = memory.search(
+        query_text or "",
+        top_k=limit,
+        filters=mem0_entity_filters(
+            workspace_id=workspace_id,
+            session_id=session_id,
+        ),
+        rerank=settings.agent_memory_mem0_rerank_enabled,
+    )
     hits: list[MemoryHit] = []
     for item in result.get("results") or []:
         text = (item.get("memory") or item.get("text") or "").strip()
@@ -78,8 +81,13 @@ class Mem0MemoryRetrieveStrategy:
                 query_text=query_text,
                 limit=cap,
             )
-        except Exception:
-            log.warning("mem0 retrieve failed", exc_info=True)
+        except Exception as e:
+            log.warning(
+                "mem0 retrieve failed ({}): {}",
+                mem0_embedder_endpoint_summary(),
+                e,
+                exc_info=True,
+            )
             return []
 
     async def build_planner_context(

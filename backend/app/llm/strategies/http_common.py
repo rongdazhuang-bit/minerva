@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import logging
+from app.core.log import get_logger
 from typing import Any
 
 import orjson
@@ -11,7 +11,7 @@ from httpx import AsyncClient, HTTPStatusError, RequestError, Timeout, TimeoutEx
 from app.config import settings
 from app.exceptions import AppError
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 _LOG_JSON_MAX_CHARS = 100_000
 
@@ -72,7 +72,7 @@ def log_upstream_http_error(*, url: str, exc: HTTPStatusError, method: str) -> N
         except Exception:  # noqa: BLE001
             body = repr(exc)
     log.warning(
-        "ai upstream error method=%s url=%s status=%s response=%s",
+        "ai upstream error method={} url={} status={} response={}",
         method,
         url,
         exc.response.status_code if exc.response is not None else "unknown",
@@ -111,22 +111,22 @@ async def post_json(
     """POST JSON to upstream and return parsed response dict."""
 
     target = normalize_endpoint_url(url)
-    log.info("ai %s request url=%s body=%s", log_label, target, json_for_log(body))
+    log.info("ai {} request url={} body={}", log_label, target, json_for_log(body))
     try:
         async with AsyncClient(timeout=client_timeout()) as client:
             resp = await client.post(target, json=body, headers=request_headers(api_key))
             resp.raise_for_status()
             out = resp.json()
-            log.info("ai %s response url=%s body=%s", log_label, target, json_for_log(out))
+            log.info("ai {} response url={} body={}", log_label, target, json_for_log(out))
             return out
     except HTTPStatusError as e:
         log_upstream_http_error(url=target, exc=e, method=log_label)
         raise map_upstream_error(e) from None
     except (TimeoutException, RequestError) as e:
-        log.warning("ai %s transport error url=%s error=%s", log_label, target, e)
+        log.warning("ai {} transport error url={} error={}", log_label, target, e)
         raise map_upstream_error(e) from None
     except AppError:
         raise
     except Exception as e:
-        log.exception("ai %s unexpected error url=%s", log_label, target)
+        log.exception("ai {} unexpected error url={}", log_label, target)
         raise AppError("ai.error", "Unexpected error calling upstream.", 500) from e

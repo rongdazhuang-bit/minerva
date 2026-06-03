@@ -4,8 +4,8 @@ import {
   BookOutlined,
   CommentOutlined,
   ClockCircleOutlined,
-  DashboardOutlined,
   DatabaseOutlined,
+  DashboardOutlined,
   FileSearchOutlined,
   FileTextOutlined,
   FolderOpenOutlined,
@@ -31,6 +31,7 @@ import type { CSSProperties } from 'react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { getAgentV2Config } from '@/api/agent'
 import { useAuth } from '@/app/AuthContext'
 import { useMinervaTone } from '@/app/useMinervaTone'
 import {
@@ -129,6 +130,13 @@ function contentScrollStyleForPath(pathname: string): CSSProperties {
       overflowX: 'hidden',
     }
   }
+  if (pathname.startsWith('/app/agents/memory')) {
+    return {
+      ...contentScrollStyle,
+      overflowY: 'hidden',
+      overflowX: 'hidden',
+    }
+  }
   return contentScrollStyle
 }
 
@@ -146,6 +154,7 @@ function menuKeyForPath(pathname: string): string {
   if (pathname.startsWith('/app/settings/celery')) return 'settings-celery'
   if (pathname.startsWith('/app/settings')) return 'settings-models'
   if (pathname.startsWith('/app/agents/skills')) return 'agents-skills'
+  if (pathname.startsWith('/app/agents/memory')) return 'agents-memory'
   if (pathname.startsWith('/app/agents/chat') || pathname.match(/^\/app\/agents\/?$/)) {
     return 'agents-chat'
   }
@@ -166,7 +175,8 @@ export function AppLayout() {
   const { t } = useTranslation()
   const nav = useNavigate()
   const { pathname } = useLocation()
-  const { clear } = useAuth()
+  const { clear, workspaceId } = useAuth()
+  const [memoryBackend, setMemoryBackend] = useState('sql')
   const tone = useMinervaTone()
   const shellLight = tone === 'sunshine'
   const {
@@ -202,6 +212,39 @@ export function AppLayout() {
           },
     [collapsed, menuOpenKeys],
   )
+
+  useEffect(() => {
+    if (!workspaceId) return
+    void getAgentV2Config(workspaceId)
+      .then((c) => setMemoryBackend(c.memory_backend))
+      .catch(() => setMemoryBackend('sql'))
+  }, [workspaceId])
+
+  const agentSubMenuItems = useMemo(() => {
+    const children = [
+      {
+        key: 'agents-chat',
+        icon: <CommentOutlined />,
+        label: t('nav.agentsChat'),
+        onClick: () => void nav('/app/agents/chat'),
+      },
+      {
+        key: 'agents-skills',
+        icon: <ThunderboltOutlined />,
+        label: t('nav.agentsSkills'),
+        onClick: () => void nav('/app/agents/skills'),
+      },
+    ]
+    if (memoryBackend === 'mem0') {
+      children.push({
+        key: 'agents-memory',
+        icon: <DatabaseOutlined />,
+        label: t('nav.agentsMemory'),
+        onClick: () => void nav('/app/agents/memory'),
+      })
+    }
+    return children
+  }, [memoryBackend, nav, t])
 
   useEffect(() => {
     setMenuOpenKeys((prev) => {
@@ -314,20 +357,7 @@ export function AppLayout() {
                   key: SUB_AGENTS,
                   icon: <RobotOutlined />,
                   label: t('nav.agents'),
-                  children: [
-                    {
-                      key: 'agents-chat',
-                      icon: <CommentOutlined />,
-                      label: t('nav.agentsChat'),
-                      onClick: () => void nav('/app/agents/chat'),
-                    },
-                    {
-                      key: 'agents-skills',
-                      icon: <ThunderboltOutlined />,
-                      label: t('nav.agentsSkills'),
-                      onClick: () => void nav('/app/agents/skills'),
-                    },
-                  ],
+                  children: agentSubMenuItems,
                 },
                 {
                   key: SUB_DOC_TRANSLATE,

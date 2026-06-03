@@ -37,7 +37,6 @@ import {
   polishReviewRules,
   type RuleBaseListItem,
 } from '@/api/ruleBase'
-import { ApiError } from '@/api/client'
 import { useAuth } from '@/app/AuthContext'
 import { showAppError, useAppMessage } from '@/app/useAppMessage'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
@@ -124,7 +123,7 @@ export function RulesManagementPage() {
   }, [engSubDocDictQ.isSuccess, engSubDocDictQ.data?.listRow, t, messageApi])
 
   useEffect(() => {
-    if (engSubDocDictQ.isError) showErr(messageApi, t, engSubDocDictQ.error)
+    if (engSubDocDictQ.isError) showAppError(messageApi, t, engSubDocDictQ.error)
   }, [engSubDocDictQ.isError, engSubDocDictQ.error, t, messageApi])
 
   useEffect(() => {

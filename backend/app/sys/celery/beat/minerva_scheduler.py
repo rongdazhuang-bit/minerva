@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import logging
+from app.core.log import get_logger
 import threading
 from typing import Any
 
@@ -18,7 +18,7 @@ from app.sys.celery.service.task_schedule_validation import validate_celery_sche
 
 from .cron_schedule import cron_expr_to_celery_schedule
 
-_LOGGER = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 _engine = None
 _SessionLocal: sessionmaker[Session] | None = None
@@ -70,13 +70,14 @@ class MinervaBeatScheduler(Scheduler):
         payload = self._rows_to_schedule_dict(rows)
         self.merge_inplace(payload)
         if rows:
-            _LOGGER.info(
-                "minerva beat: loaded %s enabled celery job(s) from Postgres",
+            log.info(
+                "minerva beat: loaded {} enabled celery job(s) from Postgres",
                 len(rows),
-                extra={"event": "celery.beat.reconcile", "job_count": len(rows)},
+                event="celery.beat.reconcile",
+                job_count=len(rows),
             )
         else:
-            _LOGGER.warning(
+            log.warning(
                 "minerva beat: no enabled sys_celery rows with valid cron "
                 "(check DB and ENABLED/CRON fields)",
             )
@@ -93,9 +94,9 @@ class MinervaBeatScheduler(Scheduler):
 
         if self._hot_reload_event.is_set():
             self._hot_reload_event.clear()
-            _LOGGER.info(
+            log.info(
                 "minerva beat: reloading schedules after Redis notify",
-                extra={"event": "celery.beat.reload"},
+                event="celery.beat.reload",
             )
             self.sync()
             self.old_schedulers = None
@@ -119,8 +120,8 @@ class MinervaBeatScheduler(Scheduler):
         )
         self._listener_thread = thread
         thread.start()
-        _LOGGER.info(
-            "minerva beat: Redis hot-reload listener on channel %s",
+        log.info(
+            "minerva beat: Redis hot-reload listener on channel {}",
             settings.celery_schedule_sync_channel,
         )
 
@@ -137,7 +138,7 @@ class MinervaBeatScheduler(Scheduler):
         try:
             import redis as redis_mod
         except ModuleNotFoundError:
-            _LOGGER.warning("minerva beat: redis package missing; skipping hot-reload listener")
+            log.warning("minerva beat: redis package missing; skipping hot-reload listener")
             return
 
         client = None
@@ -154,8 +155,8 @@ class MinervaBeatScheduler(Scheduler):
                     continue
                 self._hot_reload_event.set()
         except Exception as exc:
-            _LOGGER.warning(
-                "minerva beat: Redis listener exited with error: %s",
+            log.warning(
+                "minerva beat: Redis listener exited with error: {}",
                 exc,
                 exc_info=True,
             )
@@ -179,7 +180,7 @@ class MinervaBeatScheduler(Scheduler):
             rows = self._enabled_rows()
             self.merge_inplace(self._rows_to_schedule_dict(rows))
         except Exception as exc:
-            _LOGGER.warning("minerva beat: reload from Postgres failed: %s", exc, exc_info=True)
+            log.warning("minerva beat: reload from Postgres failed: {}", exc, exc_info=True)
 
     def _enabled_rows(self) -> list[SysCelery]:
         """Fetch all enabled celery schedule rows."""
@@ -217,16 +218,16 @@ class MinervaBeatScheduler(Scheduler):
                     kwargs_payload,
                 )
             except ValueError as exc:
-                _LOGGER.warning(
-                    "minerva beat: skip job %s / %s: %s",
+                log.warning(
+                    "minerva beat: skip job {} / {}: {}",
                     row.id,
                     row.task_code,
                     exc,
                 )
                 continue
             except TypeError as exc:
-                _LOGGER.warning(
-                    "minerva beat: skip job %s / %s (invalid kwargs_json): %s",
+                log.warning(
+                    "minerva beat: skip job {} / {} (invalid kwargs_json): {}",
                     row.id,
                     row.task_code,
                     exc,

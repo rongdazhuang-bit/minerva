@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any, Literal
 
-from app.llm.strategies.http_common import json_for_log, text_for_log
+from app.core.log import get_logger
+from app.core.logging_text import format_log_kv
+from app.llm.strategies.http_common import text_for_log
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 def wrap_embedder_with_logging(inner: Any) -> Any:
     """Return ``inner`` wrapped with embedder HTTP-style request/response logs."""
@@ -86,7 +87,11 @@ def log_embedder_request(*, inner: Any, inputs: list[str], memory_action: str | 
 
     url = embeddings_url_for(inner)
     body = build_embedder_request_body(inner=inner, inputs=inputs, memory_action=memory_action)
-    log.info("mem0 embedder request url=%s body=%s", url, json_for_log(body))
+    details = format_log_kv(url=url, **body)
+    if details:
+        log.info("mem0 embedder request {}", details)
+    else:
+        log.info("mem0 embedder request")
 
 
 def log_embedder_response(
@@ -103,7 +108,11 @@ def log_embedder_response(
     body["model"] = getattr(config, "model", None) or "(default)"
     if extra:
         body.update(extra)
-    log.info("mem0 embedder response url=%s body=%s", url, json_for_log(body))
+    details = format_log_kv(url=url, **body)
+    if details:
+        log.info("mem0 embedder response {}", details)
+    else:
+        log.info("mem0 embedder response")
 
 
 def make_probe_embedder_stand_in(*, base_url: str, model: str) -> Any:

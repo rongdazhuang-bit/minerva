@@ -6,6 +6,18 @@ import logging
 from logging.handlers import QueueHandler
 
 from app.core.logging_config import configure_logging
+from app.core.logging_text import PatternLogFormatter
+
+
+def test_configure_logging_uses_pattern_formatter() -> None:
+    """Managed handlers use the plain-text pattern formatter."""
+
+    import app.core.logging_config as logging_config_module
+
+    configure_logging(process_type="api", stdout_enabled=True, file_enabled=False)
+    listener = logging_config_module._queue_listener
+    assert listener is not None
+    assert isinstance(listener.handlers[0].formatter, PatternLogFormatter)
 
 
 def test_configure_logging_uses_queue_handler_for_async_sinks() -> None:

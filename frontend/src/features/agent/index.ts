@@ -1,4 +1,5 @@
 export { AgentsPage } from '@/features/agent/AgentsPage'
+export { AgentMemoryPage } from '@/features/agent/AgentMemoryPage'
 export { AgentSkillsListPage } from '@/features/agent/skills/AgentSkillsListPage'
 /** @deprecated Use AgentSkillsListPage; kept for router until Task 12 wires routes. */
 export { AgentSkillsListPage as AgentSkillsPage } from '@/features/agent/skills/AgentSkillsListPage'

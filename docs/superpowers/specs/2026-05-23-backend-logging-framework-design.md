@@ -1,8 +1,9 @@
 # 后端日志框架设计
 
 **日期**：2026-05-23  
-**状态**：已实现（2026-05-23）  
-**范围**：为后端运行进程设计统一日志框架，覆盖 FastAPI API、Celery Worker、Celery Beat。日志以 JSON 行格式同时输出到 stdout 与本地滚动文件，按标准级别划分，文件按天滚动并保留 7 天。API 请求与响应报文需要进入日志，但必须经过统一脱敏与大小截断。整体设计保留现有 `logging.getLogger(__name__)` 使用方式，并为关键业务边界补充结构化日志，方便排查问题。
+**状态**：已实现（2026-05-23）；**业务日志 API 已由 2026-06-03 统一日志工具取代**  
+**后继标准**：[`docs/superpowers/specs/2026-06-03-unified-log-tool-design.md`](2026-06-03-unified-log-tool-design.md) + [`docs/backend-logging.md`](../../backend-logging.md)  
+**范围**：为后端运行进程设计统一日志框架，覆盖 FastAPI API、Celery Worker、Celery Beat。日志输出至 stdout 与本地滚动文件（当前为 **PatternLogFormatter 文本行**，非 JSON；`JsonLogFormatter` 仍保留未接入默认配置）。API 请求与响应报文需要进入日志，但必须经过统一脱敏与大小截断。**历史：** 本文曾约定保留 `logging.getLogger(__name__)`；现业务代码统一为 `get_logger(__name__)`（见 2026-06-03 spec）。
 
 ---
 

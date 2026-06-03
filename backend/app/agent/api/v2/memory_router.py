@@ -15,7 +15,7 @@ from app.agent.api.v2.schemas import (
     AgentMemoryProfileOut,
     AgentMemoryProfilePatchIn,
 )
-from app.agent.memory.mem0.client import get_mem0_memory
+from app.agent.memory.mem0.client import get_mem0_memory, mem0_entity_filters
 from app.agent.memory.profile import repository as profile_repo
 from app.config import settings
 from app.core.api.deps import get_current_user, require_workspace_member
@@ -147,9 +147,11 @@ async def list_mem0_memories(
     def _get_all() -> dict:
         memory = get_mem0_memory()
         return memory.get_all(
-            user_id=str(workspace_id),
-            run_id=str(session_id),
-            limit=limit,
+            filters=mem0_entity_filters(
+                workspace_id=workspace_id,
+                session_id=session_id,
+            ),
+            top_k=limit,
         )
 
     raw = await asyncio.to_thread(_get_all)
