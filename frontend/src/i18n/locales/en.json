@@ -346,7 +346,7 @@
   "fileOcr.tasks.upload.empty": "Please select at least one file.",
   "fileOcr.tasks.upload.noneSucceeded": "No task can be created. Check upload results.",
   "fileOcr.tasks.createSuccess": "{{count}} OCR task(s) created.",
-  "settings.models": "Model providers",
+  "settings.models": "Models",
   "settings.dataSources": "Data sources",
   "settings.menuConfig": "Menu configuration",
   "settings.users": "User management",

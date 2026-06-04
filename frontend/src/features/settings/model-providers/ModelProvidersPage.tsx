@@ -537,7 +537,7 @@ export function ModelProvidersPage() {
   const isNone = isOcrNoneAuth(authTypeForRow)
 
   /** Horizontal scroll width; model name column uses ~20% of this value. */
-  const tableScrollX = 1300
+  const tableScrollX = 1460
 
   const columns: ColumnsType<ModelProviderGroupItem> = [
     {
@@ -551,12 +551,12 @@ export function ModelProvidersPage() {
       title: t('settings.modelProvidersColTags'),
       dataIndex: 'tags',
       key: 'tags',
-      width: 160,
+      width: 320,
       render: (v: string[] | undefined) => {
         const codes = Array.isArray(v) ? v : []
         if (codes.length === 0) return '—'
         return (
-          <Space size={[0, 4]} wrap>
+          <Space size={2} wrap>
             {codes.map((code) => (
               <Tag key={code}>{resolveTagLabel(code)}</Tag>
             ))}
@@ -883,7 +883,7 @@ export function ModelProvidersPage() {
                 {(viewDetail.tags ?? []).length === 0 ? (
                   '—'
                 ) : (
-                  <Space size={[0, 4]} wrap>
+                  <Space size={2} wrap>
                     {viewDetail.tags.map((code) => (
                       <Tag key={code}>{resolveTagLabel(code)}</Tag>
                     ))}

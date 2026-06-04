@@ -346,7 +346,7 @@
   "fileOcr.tasks.upload.empty": "请先选择至少一个文件。",
   "fileOcr.tasks.upload.noneSucceeded": "没有可创建的任务，请检查上传结果。",
   "fileOcr.tasks.createSuccess": "已创建 {{count}} 条OCR任务。",
-  "settings.models": "模型供应商",
+  "settings.models": "模型",
   "settings.dataSources": "数据源",
   "settings.menuConfig": "菜单配置",
   "settings.users": "用户管理",
