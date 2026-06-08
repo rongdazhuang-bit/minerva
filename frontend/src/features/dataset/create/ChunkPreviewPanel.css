@@ -1,0 +1,146 @@
+/** Right-side chunk preview panel (Dify-style). */
+.minerva-chunk-preview {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.minerva-chunk-preview__title {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--minerva-primary, #1677ff);
+}
+
+.minerva-chunk-preview__toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex-shrink: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--minerva-border);
+}
+
+.minerva-chunk-preview__file-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  line-height: 1.5;
+}
+
+.minerva-chunk-preview__file-trigger:hover .minerva-chunk-preview__file-name {
+  color: var(--minerva-primary, #1677ff);
+}
+
+.minerva-chunk-preview__file-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.minerva-chunk-preview__file-icon {
+  flex-shrink: 0;
+  font-size: 15px;
+  color: var(--minerva-text-secondary);
+}
+
+.minerva-chunk-preview__file-name {
+  max-width: min(280px, 42vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  color: var(--minerva-text, inherit);
+  transition: color 0.2s;
+}
+
+.minerva-chunk-preview__file-chevron {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--minerva-text-secondary);
+}
+
+.minerva-chunk-preview__chunk-badge {
+  flex-shrink: 0;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--minerva-text-secondary);
+  background: transparent;
+  border: 1px solid var(--minerva-border);
+  white-space: nowrap;
+}
+
+.minerva-chunk-preview__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+.minerva-chunk-preview__truncated-hint {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+
+.minerva-chunk-preview__segments {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.minerva-chunk-preview__segment {
+  border: 1px solid var(--minerva-border);
+  border-radius: 10px;
+  background: var(--minerva-surface, #fff);
+  overflow: hidden;
+}
+
+.minerva-chunk-preview__segment-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--minerva-border);
+  background: var(--minerva-surface-elevated, rgb(0 0 0 / 2%));
+}
+
+.minerva-chunk-preview__segment-index {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--minerva-text-secondary);
+}
+
+.minerva-chunk-preview__segment-meta {
+  font-size: 12px;
+  color: var(--minerva-text-secondary);
+}
+
+.minerva-chunk-preview__segment-content {
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--minerva-text, inherit);
+}
+
+.minerva-chunk-preview__segment-extra {
+  padding: 0 12px 12px;
+  font-size: 12px;
+  color: var(--minerva-text-secondary);
+  white-space: pre-wrap;
+}

@@ -53,6 +53,7 @@ CELERY_APP="app.celery_app:celery_app"
 "${MINERVA_PYTHON}" -m app.sys.celery.service.broker_preflight
 export MINERVA_CELERY_POOL="${MINERVA_CELERY_POOL:-}"
 export MINERVA_CELERY_CONCURRENCY="${MINERVA_CELERY_CONCURRENCY:-4}"
+export MINERVA_CELERY_QUEUES="${MINERVA_CELERY_QUEUES:-default,dataset}"
 if [[ "${SUBCMD}" == "worker" ]]; then
   POOL="${MINERVA_CELERY_POOL}"
   if [[ -z "${POOL}" ]]; then
@@ -63,7 +64,7 @@ if [[ "${SUBCMD}" == "worker" ]]; then
     fi
   fi
   exec "${MINERVA_PYTHON}" -m celery -A "${CELERY_APP}" worker --loglevel=INFO \
-    --pool="${POOL}" --concurrency="${MINERVA_CELERY_CONCURRENCY}"
+    --pool="${POOL}" --concurrency="${MINERVA_CELERY_CONCURRENCY}" -Q "${MINERVA_CELERY_QUEUES}"
 else
   exec "${MINERVA_PYTHON}" -m celery -A "${CELERY_APP}" beat --loglevel=INFO
 fi

@@ -774,3 +774,179 @@ COMMENT ON COLUMN public.doc_translate_segment.translated_text IS '译文段落'
 COMMENT ON COLUMN public.doc_translate_segment.status IS 'PENDING/DONE/FAILED';
 COMMENT ON COLUMN public.doc_translate_segment.anchor_json IS '策略写回锚点 JSON';
 COMMENT ON COLUMN public.doc_translate_segment.error_message IS '单段失败信息';
+
+-- dataset knowledge base tables (no FOREIGN KEY; app-layer cascade)
+
+CREATE TABLE IF NOT EXISTS public.dataset (
+  id uuid NOT NULL,
+  workspace_id uuid NOT NULL,
+  name varchar(255) NOT NULL,
+  description text NULL,
+  provider varchar(255) NOT NULL DEFAULT 'vendor',
+  permission varchar(255) NOT NULL DEFAULT 'only_me',
+  data_source_type varchar(255) NULL,
+  indexing_technique varchar(255) NULL,
+  index_struct text NULL,
+  embedding_model varchar(255) NULL,
+  embedding_model_provider varchar(255) NULL,
+  keyword_number integer NULL DEFAULT 10,
+  collection_binding_id uuid NULL,
+  retrieval_model jsonb NULL,
+  chunk_structure varchar(255) NULL,
+  created_by uuid NOT NULL,
+  updated_by uuid NULL,
+  create_at timestamptz NULL DEFAULT now(),
+  update_at timestamptz NULL,
+  PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS ix_dataset_workspace_id ON public.dataset (workspace_id);
+
+CREATE TABLE IF NOT EXISTS public.dataset_process_rule (
+  id uuid NOT NULL,
+  dataset_id uuid NOT NULL,
+  mode varchar(255) NOT NULL DEFAULT 'automatic',
+  rules text NULL,
+  created_by uuid NOT NULL,
+  create_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS ix_dataset_process_rule_dataset_id ON public.dataset_process_rule (dataset_id);
+
+CREATE TABLE IF NOT EXISTS public.dataset_upload_file (
+  id uuid NOT NULL,
+  workspace_id uuid NOT NULL,
+  storage_key varchar(512) NOT NULL,
+  name varchar(255) NOT NULL,
+  size integer NOT NULL,
+  extension varchar(32) NOT NULL,
+  mime_type varchar(128) NULL,
+  created_by uuid NOT NULL,
+  create_at timestamptz NULL DEFAULT now(),
+  PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS ix_dataset_upload_file_workspace_id ON public.dataset_upload_file (workspace_id);
+
+CREATE TABLE IF NOT EXISTS public.dataset_document (
+  id uuid NOT NULL,
+  workspace_id uuid NOT NULL,
+  dataset_id uuid NOT NULL,
+  position integer NOT NULL,
+  data_source_type varchar(255) NOT NULL,
+  data_source_info text NULL,
+  dataset_process_rule_id uuid NULL,
+  batch varchar(255) NOT NULL,
+  name varchar(255) NOT NULL,
+  created_from varchar(255) NOT NULL,
+  created_by uuid NOT NULL,
+  file_id text NULL,
+  word_count integer NULL,
+  indexing_status varchar(255) NOT NULL DEFAULT 'waiting',
+  enabled boolean NOT NULL DEFAULT true,
+  archived boolean NOT NULL DEFAULT false,
+  is_paused boolean NULL DEFAULT false,
+  doc_form varchar(255) NOT NULL DEFAULT 'text_model',
+  doc_type varchar(40) NULL,
+  doc_language varchar(255) NULL,
+  error text NULL,
+  tokens integer NULL,
+  indexing_latency double precision NULL,
+  processing_started_at timestamptz NULL,
+  parsing_completed_at timestamptz NULL,
+  cleaning_completed_at timestamptz NULL,
+  splitting_completed_at timestamptz NULL,
+  completed_at timestamptz NULL,
+  stopped_at timestamptz NULL,
+  create_at timestamptz NOT NULL DEFAULT now(),
+  update_at timestamptz NULL,
+  PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS ix_dataset_document_dataset_id ON public.dataset_document (dataset_id);
+CREATE INDEX IF NOT EXISTS ix_dataset_document_workspace_id ON public.dataset_document (workspace_id);
+
+CREATE TABLE IF NOT EXISTS public.dataset_document_segment (
+  id uuid NOT NULL,
+  workspace_id uuid NOT NULL,
+  dataset_id uuid NOT NULL,
+  document_id uuid NOT NULL,
+  position integer NOT NULL,
+  content text NOT NULL,
+  answer text NULL,
+  word_count integer NOT NULL,
+  tokens integer NOT NULL,
+  keywords jsonb NULL,
+  index_node_id varchar(255) NULL,
+  index_node_hash varchar(255) NULL,
+  hit_count integer NOT NULL DEFAULT 0,
+  enabled boolean NOT NULL DEFAULT true,
+  status varchar(255) NOT NULL DEFAULT 'waiting',
+  error text NULL,
+  created_by uuid NOT NULL,
+  create_at timestamptz NOT NULL DEFAULT now(),
+  update_at timestamptz NULL,
+  PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS ix_dataset_document_segment_dataset_id ON public.dataset_document_segment (dataset_id);
+CREATE INDEX IF NOT EXISTS ix_dataset_document_segment_document_id ON public.dataset_document_segment (document_id);
+
+CREATE TABLE IF NOT EXISTS public.dataset_child_chunk (
+  id uuid NOT NULL,
+  workspace_id uuid NOT NULL,
+  dataset_id uuid NOT NULL,
+  document_id uuid NOT NULL,
+  segment_id uuid NOT NULL,
+  position integer NOT NULL,
+  content text NOT NULL,
+  word_count integer NOT NULL,
+  index_node_id varchar(255) NULL,
+  index_node_hash varchar(255) NULL,
+  type varchar(255) NOT NULL DEFAULT 'automatic',
+  created_by uuid NOT NULL,
+  create_at timestamptz NOT NULL DEFAULT now(),
+  update_at timestamptz NULL,
+  PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS ix_dataset_child_chunk_segment_id ON public.dataset_child_chunk (segment_id);
+
+CREATE TABLE IF NOT EXISTS public.dataset_keyword_table (
+  id uuid NOT NULL,
+  dataset_id uuid NOT NULL,
+  keyword_table text NOT NULL,
+  data_source_type varchar(255) NOT NULL DEFAULT 'database',
+  PRIMARY KEY (id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_dataset_keyword_table_dataset_id ON public.dataset_keyword_table (dataset_id);
+
+CREATE TABLE IF NOT EXISTS public.dataset_embedding (
+  id uuid NOT NULL,
+  model_name varchar(255) NOT NULL DEFAULT 'text-embedding-ada-002',
+  hash varchar(64) NOT NULL,
+  embedding bytea NOT NULL,
+  provider_name varchar(255) NOT NULL DEFAULT '',
+  create_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (id),
+  CONSTRAINT dataset_embedding_hash_idx UNIQUE (model_name, hash, provider_name)
+);
+
+CREATE TABLE IF NOT EXISTS public.dataset_collection_binding (
+  id uuid NOT NULL,
+  provider_name varchar(255) NOT NULL,
+  model_name varchar(255) NOT NULL,
+  type varchar(40) NOT NULL DEFAULT 'dataset',
+  collection_name varchar(64) NOT NULL,
+  create_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS ix_dataset_collection_binding_provider_model ON public.dataset_collection_binding (provider_name, model_name);
+
+CREATE TABLE IF NOT EXISTS public.dataset_query (
+  id uuid NOT NULL,
+  dataset_id uuid NOT NULL,
+  content text NOT NULL,
+  source varchar(255) NOT NULL,
+  source_app_id uuid NULL,
+  created_by_role varchar(255) NOT NULL,
+  created_by uuid NOT NULL,
+  create_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS ix_dataset_query_dataset_id ON public.dataset_query (dataset_id);

@@ -1,0 +1,75 @@
+.minerva-indexing-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 0;
+}
+
+.minerva-indexing-mode-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 576px) {
+  .minerva-indexing-mode-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.minerva-indexing-mode-card {
+  border: 1px solid var(--minerva-border, #d9d9d9);
+  border-radius: 10px;
+  background: var(--minerva-surface, #fff);
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  padding: 14px 16px;
+}
+
+.minerva-indexing-mode-card:hover:not(.is-disabled) {
+  border-color: var(--minerva-primary, #1677ff);
+}
+
+.minerva-indexing-mode-card.is-active {
+  border-color: var(--minerva-primary, #1677ff);
+  box-shadow: 0 0 0 1px var(--minerva-primary, #1677ff);
+}
+
+.minerva-indexing-mode-card.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.minerva-indexing-mode-card__header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.minerva-indexing-mode-card__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.minerva-indexing-mode-card__icon--high-quality {
+  background: rgba(250, 140, 22, 0.12);
+  color: #fa8c16;
+}
+
+.minerva-indexing-mode-card__icon--economy {
+  background: rgba(114, 46, 209, 0.12);
+  color: #722ed1;
+}
+
+.minerva-indexing-mode-card__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}

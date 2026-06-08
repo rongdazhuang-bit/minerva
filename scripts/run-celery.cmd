@@ -27,11 +27,12 @@ if errorlevel 1 exit /b 1
 set "CELERY_APP=app.celery_app:celery_app"
 if not defined MINERVA_CELERY_POOL set "MINERVA_CELERY_POOL=threads"
 if not defined MINERVA_CELERY_CONCURRENCY set "MINERVA_CELERY_CONCURRENCY=4"
+if not defined MINERVA_CELERY_QUEUES set "MINERVA_CELERY_QUEUES=default,dataset"
 echo [run-celery] dir: %MINERVA_BACKEND_DIR%  subcmd: %SUBCMD%
 "%MINERVA_PYTHON%" -m app.sys.celery.service.broker_preflight
 if errorlevel 1 exit /b 1
 if /i "%SUBCMD%"=="worker" (
-  "%MINERVA_PYTHON%" -m celery -A %CELERY_APP% worker --loglevel=INFO --pool=%MINERVA_CELERY_POOL% --concurrency=%MINERVA_CELERY_CONCURRENCY%
+  "%MINERVA_PYTHON%" -m celery -A %CELERY_APP% worker --loglevel=INFO --pool=%MINERVA_CELERY_POOL% --concurrency=%MINERVA_CELERY_CONCURRENCY% -Q %MINERVA_CELERY_QUEUES%
 ) else (
   "%MINERVA_PYTHON%" -m celery -A %CELERY_APP% beat --loglevel=INFO
 )

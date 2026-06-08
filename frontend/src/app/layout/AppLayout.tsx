@@ -1,5 +1,6 @@
 import {
   ApiOutlined,
+  AuditOutlined,
   BarChartOutlined,
   BookOutlined,
   CommentOutlined,
@@ -13,6 +14,7 @@ import {
   MenuFoldOutlined,
   MenuOutlined,
   MenuUnfoldOutlined,
+  PictureOutlined,
   ReadOutlined,
   RobotOutlined,
   ScanOutlined,
@@ -51,6 +53,7 @@ const SUB_RULES_CONFIG = 'sub-rules-config'
 const SUB_FILE_OCR = 'sub-file-ocr'
 const SUB_AGENTS = 'sub-agents'
 const SUB_DOC_TRANSLATE = 'sub-doc-translate'
+const SUB_SMART_REVIEW = 'sub-smart-review'
 
 const siderStyle: CSSProperties = {
   background: 'var(--minerva-surface, #1b2838)',
@@ -161,8 +164,18 @@ function menuKeyForPath(pathname: string): string {
   if (pathname.startsWith('/app/translate')) {
     return 'doc-translate-translate'
   }
-  if (pathname.startsWith('/app/knowledge-base')) return 'knowledge-base'
-  if (pathname.startsWith('/app/smart-review')) return 'smart-review'
+  if (pathname.startsWith('/app/dataset')) return 'dataset'
+  if (pathname.startsWith('/app/knowledge-base')) return 'dataset'
+  if (pathname.startsWith('/app/smart-review/text-proofreading')) {
+    return 'smart-review-text-proofreading'
+  }
+  if (pathname.startsWith('/app/smart-review/review-by-text')) {
+    return 'smart-review-text-to-text'
+  }
+  if (pathname.startsWith('/app/smart-review/drawing-review')) {
+    return 'smart-review-drawing-review'
+  }
+  if (pathname.startsWith('/app/smart-review')) return 'smart-review-text-proofreading'
   if (pathname.startsWith('/app/file-ocr')) return 'file-ocr-overview'
   if (pathname.startsWith('/app/rules/config/config-prompts')) return 'rules-config-config-prompts'
   if (pathname.startsWith('/app/rules/management')) return 'rules-mgmt-list'
@@ -279,6 +292,11 @@ export function AppLayout() {
       } else {
         next = next.filter((k) => k !== SUB_DOC_TRANSLATE)
       }
+      if (pathname.startsWith('/app/smart-review')) {
+        if (!next.includes(SUB_SMART_REVIEW)) next.push(SUB_SMART_REVIEW)
+      } else {
+        next = next.filter((k) => k !== SUB_SMART_REVIEW)
+      }
       return next
     })
   }, [pathname])
@@ -373,16 +391,35 @@ export function AppLayout() {
                   ],
                 },
                 {
-                  key: 'knowledge-base',
+                  key: 'dataset',
                   icon: <ReadOutlined />,
-                  label: t('nav.knowledgeBase'),
-                  onClick: () => void nav('/app/knowledge-base'),
+                  label: t('nav.dataset'),
+                  onClick: () => void nav('/app/dataset'),
                 },
                 {
-                  key: 'smart-review',
+                  key: SUB_SMART_REVIEW,
                   icon: <FileSearchOutlined />,
                   label: t('nav.smartReview'),
-                  onClick: () => void nav('/app/smart-review'),
+                  children: [
+                    {
+                      key: 'smart-review-text-proofreading',
+                      icon: <FileTextOutlined />,
+                      label: t('nav.smartReviewTextProofreading'),
+                      onClick: () => void nav('/app/smart-review/text-proofreading'),
+                    },
+                    {
+                      key: 'smart-review-text-to-text',
+                      icon: <AuditOutlined />,
+                      label: t('nav.smartReviewTextToText'),
+                      onClick: () => void nav('/app/smart-review/review-by-text'),
+                    },
+                    {
+                      key: 'smart-review-drawing-review',
+                      icon: <PictureOutlined />,
+                      label: t('nav.smartReviewDrawingReview'),
+                      onClick: () => void nav('/app/smart-review/drawing-review'),
+                    },
+                  ],
                 },
                 {
                   key: SUB_RULES,

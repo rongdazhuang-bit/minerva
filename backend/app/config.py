@@ -657,6 +657,75 @@ class Settings(BaseSettings):
             "layout_schema_version",
         ),
     )
+    dataset_vector_store: str = Field(
+        default="pgvector",
+        description="知识库向量后端：pgvector / qdrant / weaviate 等。",
+        validation_alias=AliasChoices("DATASET_VECTOR_STORE", "dataset_vector_store"),
+    )
+    dataset_vector_index_name_prefix: str = Field(
+        default="Vector_index",
+        description="向量 collection 名称前缀。",
+        validation_alias=AliasChoices(
+            "DATASET_VECTOR_INDEX_NAME_PREFIX",
+            "dataset_vector_index_name_prefix",
+        ),
+    )
+    dataset_keyword_store: str = Field(
+        default="jieba",
+        description="经济模式关键词提取后端。",
+        validation_alias=AliasChoices("DATASET_KEYWORD_STORE", "dataset_keyword_store"),
+    )
+    dataset_batch_upload_limit: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        description="知识库单批上传文件数上限。",
+        validation_alias=AliasChoices(
+            "DATASET_BATCH_UPLOAD_LIMIT",
+            "dataset_batch_upload_limit",
+        ),
+    )
+    dataset_max_files_per_dataset: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        description="创建知识库时文件总数上限。",
+        validation_alias=AliasChoices(
+            "DATASET_MAX_FILES_PER_DATASET",
+            "dataset_max_files_per_dataset",
+        ),
+    )
+    dataset_single_file_size_limit_mb: int = Field(
+        default=100,
+        ge=1,
+        le=500,
+        description="知识库单文件大小上限（MB）。",
+        validation_alias=AliasChoices(
+            "DATASET_SINGLE_FILE_SIZE_LIMIT_MB",
+            "dataset_single_file_size_limit_mb",
+        ),
+    )
+    dataset_pgvector_url: str = Field(
+        default="",
+        description="pgvector 连接串；空则使用 sync_database_url 对应库。",
+        validation_alias=AliasChoices("DATASET_PGVECTOR_URL", "dataset_pgvector_url"),
+    )
+    dataset_qdrant_url: str = Field(
+        default="",
+        validation_alias=AliasChoices("DATASET_QDRANT_URL", "dataset_qdrant_url"),
+    )
+    dataset_qdrant_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("DATASET_QDRANT_API_KEY", "dataset_qdrant_api_key"),
+    )
+    dataset_weaviate_endpoint: str = Field(
+        default="",
+        validation_alias=AliasChoices("DATASET_WEAVIATE_ENDPOINT", "dataset_weaviate_endpoint"),
+    )
+    dataset_weaviate_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("DATASET_WEAVIATE_API_KEY", "dataset_weaviate_api_key"),
+    )
 
     @model_validator(mode="after")
     def validate_agent_memory_backend_config(self) -> Self:

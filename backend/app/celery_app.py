@@ -164,6 +164,7 @@ if celery_app is not None:
     import app.agent.task.memory_compress_job  # noqa: F401
     import app.file_ocr.task.scan_init_job  # noqa: F401
     import app.translate.task.run_job  # noqa: F401
+    import app.dataset.task.indexing_task  # noqa: F401
     import app.sys.celery.demo.default_job  # noqa: F401
 
     try:

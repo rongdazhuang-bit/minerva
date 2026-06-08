@@ -191,6 +191,46 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 - 登录/注册 调用 `POST /auth/login`、`/auth/register`；当前工作空间 ID 在 JWT 的 `wid` 声明中，前端会据此请求需授权的后端资源。
 
+## 六、知识库（Dataset / 智库）
+
+前端路由：`/app/dataset`（旧路径 `/app/knowledge-base` 会重定向）。后端模块：`backend/app/dataset/`。
+
+### 依赖与向量库
+
+1. **PostgreSQL pgvector**：高质量索引默认使用 `DATASET_VECTOR_STORE=pgvector`。需在数据库中启用扩展（迁移 `g7h8i9j0k1l2` 会尝试 `CREATE EXTENSION vector`）。若 Alembic 历史链与本地库不一致，可先 `alembic stamp f6a7b8c9d0e1` 再 `alembic upgrade head`，或对照 `backend/alembic/versions/g7h8i9j0k1l2_dataset_tables.py` 手动建表。
+2. **可选向量后端**：Qdrant / Weaviate 需安装 `pip install -e ".[vector]"` 并配置 `DATASET_QDRANT_*` 或 `DATASET_WEAVIATE_*`（见 `backend/.env.example`）。
+3. **Embedding 模型**：高质量模式需在「模型供应商」中配置可用的 **Embeddings** 模型。
+
+### Celery 索引队列
+
+文档解析与向量化由 Celery 异步执行。`run-celery` 脚本默认让 Worker 监听 **`default,dataset`** 队列（可通过 `MINERVA_CELERY_QUEUES` 覆盖），例如：
+
+```bash
+# 仓库根目录
+scripts\run-celery.cmd local worker
+bash scripts/run-celery.sh local worker
+```
+
+未消费 `dataset` 队列时，上传文档会一直处于 `waiting` / `indexing` 状态。
+
+### 环境变量（节选）
+
+| 变量 | 说明 |
+|------|------|
+| `DATASET_VECTOR_STORE` | `pgvector`（默认）/ `qdrant` / `weaviate` |
+| `DATASET_PGVECTOR_URL` | 留空则复用 `SYNC_DATABASE_URL` |
+| `DATASET_BATCH_UPLOAD_LIMIT` | 单次批量上传文档数上限 |
+| `DATASET_SINGLE_FILE_SIZE_LIMIT_MB` | 单文件大小上限（MB） |
+
+### 测试
+
+```bash
+cd backend
+pytest tests/ -k dataset -q
+```
+
+可选全链路集成测试（需 DB、pgvector、Celery Worker、`EMBEDDINGS` 模型）：设置 `RUN_DATASET_INTEGRATION=1` 后运行 `tests/test_dataset_integration.py`。
+
 ## 参与贡献
 
 1. Fork 本仓库并新建功能分支。  

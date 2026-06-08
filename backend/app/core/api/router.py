@@ -15,6 +15,7 @@ from app.llm.api.router import router as llm_router
 from app.agent.api.v2.router import router as agent_router
 from app.translate.api.router import router as translate_router
 from app.sys.celery.api.router import router as celery_jobs_router
+from app.dataset.api.router import router as datasets_router
 
 api = APIRouter()
 api.include_router(health.router)
@@ -32,3 +33,4 @@ api.include_router(dicts_router)
 api.include_router(rule_base_router)
 api.include_router(rule_config_prompt_router)
 api.include_router(celery_jobs_router)
+api.include_router(datasets_router)

@@ -1,0 +1,158 @@
+/** Create wizard shell — flex column so step 2 can fill height with split panes. */
+
+.minerva-dataset-create-wizard {
+
+  display: flex;
+
+  flex-direction: column;
+
+  flex: 1 1 auto;
+
+  min-height: 0;
+
+  overflow: hidden;
+
+}
+
+
+
+.minerva-dataset-create-wizard__header {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  padding: 20px 56px 0;
+  border-bottom: 1px solid var(--minerva-border, rgba(255, 255, 255, 0.12));
+}
+
+
+
+html.minerva-tone-sunshine .minerva-dataset-create-wizard__header {
+
+  border-bottom-color: var(--minerva-border, rgba(0, 0, 0, 0.08));
+
+}
+
+
+
+.minerva-dataset-create-wizard__steps {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto 16px;
+}
+
+
+
+.minerva-dataset-create-wizard__steps.ant-steps-horizontal .ant-steps-item-title {
+
+  font-size: 14px;
+
+  font-weight: 500;
+
+  line-height: 1.4;
+
+}
+
+
+
+.minerva-dataset-create-wizard__steps .ant-steps-item-finish .ant-steps-item-icon {
+
+  background: transparent;
+
+  border-color: var(--minerva-primary, #1677ff);
+
+}
+
+
+
+.minerva-dataset-create-wizard__steps .ant-steps-item-finish .ant-steps-item-icon .ant-steps-icon {
+
+  color: var(--minerva-primary, #1677ff);
+
+}
+
+
+
+.minerva-dataset-create-wizard__steps .ant-steps-item-finish > .ant-steps-item-container > .ant-steps-item-content > .ant-steps-item-title {
+
+  color: var(--minerva-text, rgba(255, 255, 255, 0.88));
+
+}
+
+
+
+.minerva-dataset-create-wizard__steps .ant-steps-item-process .ant-steps-item-icon {
+
+  background: var(--minerva-primary, #1677ff);
+
+  border-color: var(--minerva-primary, #1677ff);
+
+}
+
+
+
+.minerva-dataset-create-wizard__steps .ant-steps-item-process > .ant-steps-item-container > .ant-steps-item-content > .ant-steps-item-title {
+
+  color: var(--minerva-text, rgba(255, 255, 255, 0.88));
+
+  font-weight: 600;
+
+}
+
+
+
+.minerva-dataset-create-wizard__steps .ant-steps-item-wait > .ant-steps-item-container > .ant-steps-item-content > .ant-steps-item-title {
+
+  color: var(--minerva-text-secondary, rgba(255, 255, 255, 0.45));
+
+}
+
+
+
+.minerva-dataset-create-wizard__steps .ant-steps-item-tail::after {
+
+  background: var(--minerva-border, rgba(255, 255, 255, 0.12));
+
+}
+
+
+
+.minerva-dataset-create-wizard__body {
+
+  flex: 1 1 auto;
+
+  min-height: 320px;
+
+  overflow: auto;
+
+}
+
+
+
+.minerva-dataset-create-wizard__body--split {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-dataset-create-wizard__body--complete {
+  min-height: 0;
+  overflow: auto;
+}
+
+
+
+.minerva-dataset-create-wizard__footer {
+
+  flex-shrink: 0;
+
+  display: flex;
+
+  justify-content: space-between;
+
+  padding: 16px 24px;
+
+  border-top: 1px solid var(--minerva-border);
+
+}
+

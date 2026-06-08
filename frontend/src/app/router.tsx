@@ -13,9 +13,9 @@ import {
   AgentsPage,
 } from '@/features/agent'
 import { TranslatePage } from '@/features/translate'
-import { KnowledgeBasePage } from '@/features/workspace/KnowledgeBasePage'
+import { DatasetListPage, DatasetSectionLayout, DocumentDetailPage, DocumentListPage, DatasetSettingsPage, HitTestingPage } from '@/features/dataset'
 import { OverviewPage } from '@/features/workspace/OverviewPage'
-import { SmartReviewPage } from '@/features/workspace/SmartReviewPage'
+import { DrawingReviewPage, TextProofreadingPage, TextReviewByTextPage } from '@/features/smart-review'
 import {
   RulesManagementPage,
   RulesPromptManagementPage,
@@ -68,8 +68,28 @@ const router = createBrowserRouter([
           { path: 'agents/skills/registry', element: <AgentSkillRegistryPage /> },
           { path: 'agents/skills/:skillId', element: <AgentSkillDetailPage /> },
           { path: 'translate', element: <TranslatePage /> },
-          { path: 'knowledge-base', element: <KnowledgeBasePage /> },
-          { path: 'smart-review', element: <SmartReviewPage /> },
+          { path: 'knowledge-base', element: <Navigate to="/app/dataset" replace /> },
+          { path: 'dataset', element: <DatasetListPage /> },
+          {
+            path: 'dataset/:datasetId',
+            element: <DatasetSectionLayout />,
+            children: [
+              { index: true, element: <Navigate to="documents" replace /> },
+              { path: 'documents', element: <DocumentListPage /> },
+              { path: 'documents/:documentId', element: <DocumentDetailPage /> },
+              { path: 'hit-testing', element: <HitTestingPage /> },
+              { path: 'settings', element: <DatasetSettingsPage /> },
+            ],
+          },
+          {
+            path: 'smart-review',
+            children: [
+              { index: true, element: <Navigate to="text-proofreading" replace /> },
+              { path: 'text-proofreading', element: <TextProofreadingPage /> },
+              { path: 'review-by-text', element: <TextReviewByTextPage /> },
+              { path: 'drawing-review', element: <DrawingReviewPage /> },
+            ],
+          },
           {
             path: 'rules',
             element: <RulesSectionLayout />,

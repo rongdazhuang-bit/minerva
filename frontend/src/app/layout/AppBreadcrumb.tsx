@@ -84,6 +84,27 @@ function fileOcrBreadcrumb(
   return [home, fileOcrBase, { title: t('nav.rulesFileOcrOverview') }]
 }
 
+function smartReviewBreadcrumb(
+  pathname: string,
+  t: (k: string) => string,
+  home: ItemType,
+): ItemType[] | null {
+  if (!pathname.startsWith('/app/smart-review')) return null
+  const smartReviewBase: ItemType = {
+    title: <Link to="/app/smart-review/text-proofreading">{t('nav.smartReview')}</Link>,
+  }
+  if (pathname.startsWith('/app/smart-review/review-by-text')) {
+    return [home, smartReviewBase, { title: t('nav.smartReviewTextToText') }]
+  }
+  if (pathname.startsWith('/app/smart-review/text-proofreading')) {
+    return [home, smartReviewBase, { title: t('nav.smartReviewTextProofreading') }]
+  }
+  if (pathname.startsWith('/app/smart-review/drawing-review')) {
+    return [home, smartReviewBase, { title: t('nav.smartReviewDrawingReview') }]
+  }
+  return [home, smartReviewBase, { title: t('nav.smartReviewTextProofreading') }]
+}
+
 export function AppBreadcrumb() {
   const { t } = useTranslation()
   const { pathname } = useLocation()
@@ -95,12 +116,11 @@ export function AppBreadcrumb() {
     if (agents) return agents
     const docTranslate = docTranslateBreadcrumb(pathname, t, home)
     if (docTranslate) return docTranslate
-    if (pathname.startsWith('/app/knowledge-base')) {
-      return [home, { title: t('nav.knowledgeBase') }]
+    if (pathname.startsWith('/app/dataset') || pathname.startsWith('/app/knowledge-base')) {
+      return [home, { title: t('nav.dataset') }]
     }
-    if (pathname.startsWith('/app/smart-review')) {
-      return [home, { title: t('nav.smartReview') }]
-    }
+    const smartReview = smartReviewBreadcrumb(pathname, t, home)
+    if (smartReview) return smartReview
     const fileOcr = fileOcrBreadcrumb(pathname, t, home)
     if (fileOcr) return fileOcr
     const rules = rulesBreadcrumb(pathname, t, home)

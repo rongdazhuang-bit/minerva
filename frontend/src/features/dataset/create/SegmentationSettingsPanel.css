@@ -1,0 +1,83 @@
+.minerva-segmentation-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.minerva-segmentation-mode-card {
+  border: 1px solid var(--minerva-border, #d9d9d9);
+  border-radius: 10px;
+  background: var(--minerva-surface, #fff);
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.minerva-segmentation-mode-card:hover {
+  border-color: var(--minerva-primary, #1677ff);
+}
+
+.minerva-segmentation-mode-card.is-active {
+  border-color: var(--minerva-primary, #1677ff);
+  box-shadow: 0 0 0 1px var(--minerva-primary, #1677ff);
+}
+
+.minerva-segmentation-mode-card__header {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  align-items: flex-start;
+}
+
+.minerva-segmentation-mode-card__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.minerva-segmentation-mode-card__icon--general {
+  background: rgba(114, 46, 209, 0.12);
+  color: #722ed1;
+}
+
+.minerva-segmentation-mode-card__icon--hierarchical {
+  background: rgba(22, 119, 255, 0.12);
+  color: #1677ff;
+}
+
+.minerva-segmentation-mode-card__body {
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--minerva-border, #f0f0f0);
+  margin-top: 0;
+  padding-top: 16px;
+}
+
+.minerva-segmentation-subsection {
+  margin-bottom: 16px;
+}
+
+.minerva-segmentation-subsection:last-child {
+  margin-bottom: 0;
+}
+
+.minerva-segmentation-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 576px) {
+  .minerva-segmentation-field-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.minerva-segmentation-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}

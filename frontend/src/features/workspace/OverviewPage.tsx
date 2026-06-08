@@ -47,6 +47,7 @@ type OverviewAppItem = {
   iconModifier:
     | 'agents'
     | 'translate'
+    | 'dataset'
     | 'knowledge-base'
     | 'smart-review'
     | 'rules'
@@ -74,8 +75,8 @@ const OVERVIEW_APPS: OverviewAppItem[] = [
     descKey: 'overview.apps.translateDesc',
   },
   {
-    key: 'knowledge-base',
-    path: '/app/knowledge-base',
+    key: 'dataset',
+    path: '/app/dataset',
     icon: ReadOutlined,
     iconModifier: 'knowledge-base',
     titleKey: 'overview.apps.knowledgeBase',
@@ -83,7 +84,7 @@ const OVERVIEW_APPS: OverviewAppItem[] = [
   },
   {
     key: 'smart-review',
-    path: '/app/smart-review',
+    path: '/app/smart-review/text-proofreading',
     icon: FileSearchOutlined,
     iconModifier: 'smart-review',
     titleKey: 'overview.apps.smartReview',

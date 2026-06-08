@@ -1,0 +1,217 @@
+/** Step 3 — Dify-style completion layout with embedding progress. */
+.minerva-dataset-step-three {
+  padding: 24px;
+  height: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.minerva-dataset-step-three__layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.minerva-dataset-step-three__main {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 28px 32px;
+  border: 1px solid var(--minerva-border, rgba(255, 255, 255, 0.12));
+  border-radius: 16px;
+  background: var(--minerva-surface, rgba(255, 255, 255, 0.02));
+}
+
+.minerva-dataset-step-three__aside {
+  flex: 0 0 320px;
+  padding: 24px;
+  border: 1px solid var(--minerva-border, rgba(255, 255, 255, 0.12));
+  border-radius: 16px;
+  background: var(--minerva-surface, rgba(255, 255, 255, 0.02));
+}
+
+.minerva-dataset-step-three__celebrate {
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--minerva-text, rgba(255, 255, 255, 0.92));
+}
+
+.minerva-dataset-step-three__subtitle {
+  display: block;
+  margin-bottom: 24px;
+  font-size: 13px;
+  color: var(--minerva-text-secondary, rgba(255, 255, 255, 0.55));
+}
+
+.minerva-dataset-step-three__field-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--minerva-text-secondary, rgba(255, 255, 255, 0.55));
+}
+
+.minerva-dataset-step-three__name-input.ant-input-affix-wrapper {
+  margin-bottom: 24px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--minerva-surface-elevated, rgba(0, 0, 0, 0.2));
+}
+
+.minerva-dataset-step-three__name-icon {
+  color: #f97316;
+  font-size: 18px;
+}
+
+.minerva-dataset-step-three__section-title {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--minerva-text-secondary, rgba(255, 255, 255, 0.55));
+}
+
+.minerva-dataset-step-three__file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.minerva-dataset-step-three__file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--minerva-border, rgba(255, 255, 255, 0.12));
+  border-radius: 10px;
+  background: var(--minerva-surface-elevated, rgba(0, 0, 0, 0.15));
+}
+
+.minerva-dataset-step-three__file-row .anticon-file-text {
+  flex-shrink: 0;
+  color: var(--minerva-text-secondary);
+}
+
+.minerva-dataset-step-three__file-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.minerva-dataset-step-three__file-status {
+  flex-shrink: 0;
+  font-size: 16px;
+}
+
+.minerva-dataset-step-three__file-status--done {
+  color: #52c41a;
+}
+
+.minerva-dataset-step-three__file-status--error {
+  color: #ff4d4f;
+}
+
+.minerva-dataset-step-three__summary {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 28px;
+  padding-top: 4px;
+}
+
+.minerva-dataset-step-three__summary-row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 12px;
+  align-items: start;
+  font-size: 13px;
+}
+
+.minerva-dataset-step-three__summary-label {
+  color: var(--minerva-text-secondary, rgba(255, 255, 255, 0.55));
+}
+
+.minerva-dataset-step-three__summary-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--minerva-text, rgba(255, 255, 255, 0.88));
+  line-height: 1.5;
+}
+
+.minerva-dataset-step-three__summary-icon {
+  flex-shrink: 0;
+  font-size: 16px;
+}
+
+.minerva-dataset-step-three__summary-icon--indexing {
+  color: #f97316;
+}
+
+.minerva-dataset-step-three__summary-icon--retrieval {
+  color: #a855f7;
+}
+
+.minerva-dataset-step-three__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.minerva-dataset-step-three__aside-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 16px;
+  border-radius: 10px;
+  background: rgb(22 119 255 / 12%);
+  color: var(--minerva-primary, #1677ff);
+  font-size: 20px;
+}
+
+.minerva-dataset-step-three__aside-title {
+  margin: 0 0 12px !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+}
+
+.minerva-dataset-step-three__aside-desc {
+  display: block;
+  margin-bottom: 16px;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.minerva-dataset-step-three__aside-link {
+  padding: 0;
+  font-size: 13px;
+}
+
+.minerva-dataset-step-three--append .minerva-dataset-step-three__layout {
+  max-width: 640px;
+}
+
+@media (max-width: 991px) {
+  .minerva-dataset-step-three__layout {
+    flex-direction: column;
+  }
+
+  .minerva-dataset-step-three__aside {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+
+  .minerva-dataset-step-three__summary-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
