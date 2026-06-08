@@ -1,12 +1,16 @@
 /** Step 1 — upload source files for dataset creation. */
 
 import { InboxOutlined } from '@ant-design/icons'
-import { Alert, Form, Input, Upload } from 'antd'
+import { Alert, Form, Input, Upload, message } from 'antd'
 import type { FormInstance } from 'antd'
 import type { UploadFile, UploadProps } from 'antd/es/upload/interface'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { uploadDatasetFile, type DatasetUploadOut } from '@/features/dataset/api/datasets'
+import {
+  DATASET_UPLOAD_ACCEPT,
+  isDatasetAllowedExtension,
+} from '@/features/dataset/shared/allowedExtensions'
 import './StepOneUpload.css'
 
 export type UploadedDatasetFile = DatasetUploadOut & { uid: string }
@@ -111,7 +115,7 @@ export function StepOneUpload({ workspaceId, value, onChange, form }: StepOneUpl
       />
       <Upload.Dragger
         multiple
-        accept=".txt,.md,.markdown,.mdx,.pdf,.docx,.html,.htm,.csv,.xls,.xlsx,.vtt,.properties"
+        accept={DATASET_UPLOAD_ACCEPT}
         fileList={fileList}
         customRequest={customRequest}
         onChange={handleUploadChange}
@@ -123,6 +127,10 @@ export function StepOneUpload({ workspaceId, value, onChange, form }: StepOneUpl
           return true
         }}
         beforeUpload={(file, batch) => {
+          if (!isDatasetAllowedExtension(file.name)) {
+            message.error(t('dataset.create.uploadInvalidExt'))
+            return Upload.LIST_IGNORE
+          }
           const doneCount = valueRef.current.length
           const uploadingCount = fileList.filter((item) => item.status === 'uploading').length
           if (doneCount + uploadingCount + batch.length > MAX_FILES) {

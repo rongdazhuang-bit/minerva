@@ -31,21 +31,22 @@ DEFAULT_KEYWORD_NUMBER = 10
 
 DATASET_INDEXING_TASK_NAME = "dataset.document_indexing"
 
+# MARKDOWN, MDX, VTT, PROPERTIES, DOCX, HTM, MD, PDF, XLS, XLSX, HTML, TXT, CSV
 DATASET_ALLOWED_EXTENSIONS = frozenset(
     {
-        "txt",
-        "md",
         "markdown",
         "mdx",
-        "pdf",
-        "docx",
-        "html",
-        "htm",
-        "csv",
-        "xls",
-        "xlsx",
         "vtt",
         "properties",
+        "docx",
+        "htm",
+        "md",
+        "pdf",
+        "xls",
+        "xlsx",
+        "html",
+        "txt",
+        "csv",
     }
 )
 
