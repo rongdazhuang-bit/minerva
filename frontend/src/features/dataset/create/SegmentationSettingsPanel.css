@@ -70,6 +70,22 @@
   gap: 12px;
 }
 
+.minerva-segmentation-field-row--triple {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.minerva-segmentation-preprocess-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+@media (max-width: 768px) {
+  .minerva-segmentation-field-row--triple {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 576px) {
   .minerva-segmentation-field-row {
     grid-template-columns: 1fr;

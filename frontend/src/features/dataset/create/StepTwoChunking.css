@@ -38,6 +38,8 @@ html.minerva-tone-sunshine .minerva-dataset-step-two__section-divider {
 .minerva-dataset-step-two__pane--preview {
   display: flex;
   flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
   overflow: hidden;
   border-left: 1px solid var(--minerva-border);
   padding-left: 24px;

@@ -66,7 +66,7 @@ def parse_parent_segmentation(process_rule: dict[str, Any] | None) -> tuple[str,
     if not isinstance(block, dict):
         block = {}
     delimiter = str(_seg_value(block, "separator", "delimiter", "\\n\\n"))
-    max_length = int(_seg_value(block, "max_tokens", "max_length", 2000))
+    max_length = int(_seg_value(block, "max_tokens", "max_length", 1024))
     overlap = int(block.get("chunk_overlap") or 100)
     return delimiter, max_length, overlap
 

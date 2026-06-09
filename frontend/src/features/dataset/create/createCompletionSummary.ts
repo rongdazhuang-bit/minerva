@@ -52,6 +52,12 @@ export function formatPreprocessingRules(values: CreateCompletionSnapshot, t: TF
   if (values.remove_urls_emails) {
     parts.push(t('dataset.create.field.removeUrls'))
   }
+  if (values.recognize_formula) {
+    parts.push(t('dataset.create.field.recognizeFormula'))
+  }
+  if (values.recognize_table) {
+    parts.push(t('dataset.create.field.recognizeTable'))
+  }
   return parts.length > 0 ? parts.join('、') : t('dataset.create.complete.preprocessNone')
 }
 

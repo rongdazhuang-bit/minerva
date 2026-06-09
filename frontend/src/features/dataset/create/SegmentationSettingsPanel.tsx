@@ -2,7 +2,8 @@
 
 import { ApartmentOutlined, QuestionCircleOutlined, SettingOutlined } from '@ant-design/icons'
 import { Button, Checkbox, Form, Input, InputNumber, Radio, Select, Space, Tooltip, Typography } from 'antd'
-import type { FormInstance } from 'antd'
+import type { FormInstance, Rule } from 'antd'
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ChunkingFormValues, ParentModeType } from '@/features/dataset/shared/chunkingForm'
 import './SegmentationSettingsPanel.css'
@@ -12,6 +13,29 @@ export type SegmentationSettingsPanelProps = {
   onPreview: () => void
   onReset: () => void
   previewLoading?: boolean
+}
+
+/** Shared preprocessing rule checkboxes for general and hierarchical modes. */
+function PreprocessRulesFields() {
+  const { t } = useTranslation()
+
+  return (
+    <div className="minerva-segmentation-preprocess-rules">
+      <Typography.Text type="secondary">{t('dataset.create.segmentation.preprocessTitle')}</Typography.Text>
+      <Form.Item name="remove_extra_spaces" valuePropName="checked" style={{ marginBottom: 8, marginTop: 8 }}>
+        <Checkbox>{t('dataset.create.field.removeSpaces')}</Checkbox>
+      </Form.Item>
+      <Form.Item name="remove_urls_emails" valuePropName="checked" style={{ marginBottom: 8 }}>
+        <Checkbox>{t('dataset.create.field.removeUrls')}</Checkbox>
+      </Form.Item>
+      <Form.Item name="recognize_formula" valuePropName="checked" style={{ marginBottom: 8 }}>
+        <Checkbox>{t('dataset.create.field.recognizeFormula')}</Checkbox>
+      </Form.Item>
+      <Form.Item name="recognize_table" valuePropName="checked" style={{ marginBottom: 12 }}>
+        <Checkbox>{t('dataset.create.field.recognizeTable')}</Checkbox>
+      </Form.Item>
+    </div>
+  )
 }
 
 /** Segmentation settings with General and Parent-child mode cards. */
@@ -29,16 +53,34 @@ export function SegmentationSettingsPanel({
   const isGeneralActive = docForm === 'text_model' || docForm === 'qa_model'
   const isHierarchicalActive = docForm === 'hierarchical_model'
 
+  const delimiterRules = useMemo<Rule[]>(
+    () => [{ required: true, whitespace: true, message: t('dataset.create.field.delimiterRequired') }],
+    [t],
+  )
+  const maxLengthRules = useMemo<Rule[]>(
+    () => [{ required: true, message: t('dataset.create.field.maxLengthRequired') }],
+    [t],
+  )
+  const overlapRules = useMemo<Rule[]>(
+    () => [{ required: true, message: t('dataset.create.field.overlapRequired') }],
+    [t],
+  )
+
   const selectGeneral = () => {
     const qa = form.getFieldValue('use_qa_segmentation') === true
     form.setFieldValue('doc_form', qa ? 'qa_model' : 'text_model')
   }
 
   const selectHierarchical = () => {
+    const current = form.getFieldsValue()
     form.setFieldsValue({
       doc_form: 'hierarchical_model',
       use_qa_segmentation: false,
-      parent_mode_type: form.getFieldValue('parent_mode_type') ?? 'paragraph',
+      parent_mode_type: current.parent_mode_type ?? 'paragraph',
+      parent_delimiter: current.parent_delimiter ?? '\\n\\n',
+      parent_max_length: current.parent_max_length ?? 1024,
+      sub_delimiter: current.sub_delimiter ?? '\\n',
+      sub_max_length: current.sub_max_length ?? 512,
     })
   }
 
@@ -82,7 +124,7 @@ export function SegmentationSettingsPanel({
             onClick={(event) => event.stopPropagation()}
             onKeyDown={(event) => event.stopPropagation()}
           >
-            <div className="minerva-segmentation-field-row">
+            <div className="minerva-segmentation-field-row minerva-segmentation-field-row--triple">
               <Form.Item
                 name="delimiter"
                 label={
@@ -93,34 +135,30 @@ export function SegmentationSettingsPanel({
                     </Tooltip>
                   </Space>
                 }
+                rules={delimiterRules}
               >
                 <Input allowClear placeholder="\\n\\n" />
               </Form.Item>
-              <Form.Item name="max_length" label={t('dataset.create.field.maxLength')}>
+              <Form.Item name="max_length" label={t('dataset.create.field.maxLength')} rules={maxLengthRules}>
                 <InputNumber min={100} max={8192} addonAfter={t('dataset.create.segmentation.charUnit')} style={{ width: '100%' }} />
               </Form.Item>
+              <Form.Item
+                name="chunk_overlap"
+                label={
+                  <Space size={4}>
+                    {t('dataset.create.field.overlap')}
+                    <Tooltip title={t('dataset.create.segmentation.overlapHint')}>
+                      <QuestionCircleOutlined />
+                    </Tooltip>
+                  </Space>
+                }
+                rules={overlapRules}
+              >
+                <InputNumber min={0} max={500} addonAfter={t('dataset.create.segmentation.charUnit')} style={{ width: '100%' }} />
+              </Form.Item>
             </div>
-            <Form.Item
-              name="chunk_overlap"
-              label={
-                <Space size={4}>
-                  {t('dataset.create.field.overlap')}
-                  <Tooltip title={t('dataset.create.segmentation.overlapHint')}>
-                    <QuestionCircleOutlined />
-                  </Tooltip>
-                </Space>
-              }
-            >
-              <InputNumber min={0} max={500} addonAfter={t('dataset.create.segmentation.charUnit')} style={{ width: '100%' }} />
-            </Form.Item>
 
-            <Typography.Text type="secondary">{t('dataset.create.segmentation.preprocessTitle')}</Typography.Text>
-            <Form.Item name="remove_extra_spaces" valuePropName="checked" style={{ marginBottom: 8 }}>
-              <Checkbox>{t('dataset.create.field.removeSpaces')}</Checkbox>
-            </Form.Item>
-            <Form.Item name="remove_urls_emails" valuePropName="checked" style={{ marginBottom: 12 }}>
-              <Checkbox>{t('dataset.create.field.removeUrls')}</Checkbox>
-            </Form.Item>
+            <PreprocessRulesFields />
 
             <Space align="center" wrap>
               <Form.Item name="use_qa_segmentation" valuePropName="checked" style={{ marginBottom: 0 }}>
@@ -208,10 +246,18 @@ export function SegmentationSettingsPanel({
 
               {parentModeType !== 'full-doc' ? (
                 <div className="minerva-segmentation-field-row">
-                  <Form.Item name="parent_delimiter" label={t('dataset.create.field.delimiter')}>
+                  <Form.Item
+                    name="parent_delimiter"
+                    label={t('dataset.create.field.delimiter')}
+                    rules={delimiterRules}
+                  >
                     <Input allowClear placeholder="\\n\\n" />
                   </Form.Item>
-                  <Form.Item name="parent_max_length" label={t('dataset.create.field.maxLength')}>
+                  <Form.Item
+                    name="parent_max_length"
+                    label={t('dataset.create.field.maxLength')}
+                    rules={maxLengthRules}
+                  >
                     <InputNumber
                       min={200}
                       max={8192}
@@ -226,10 +272,10 @@ export function SegmentationSettingsPanel({
             <div className="minerva-segmentation-subsection">
               <Typography.Text strong>{t('dataset.create.segmentation.childRetrieval')}</Typography.Text>
               <div className="minerva-segmentation-field-row" style={{ marginTop: 8 }}>
-                <Form.Item name="sub_delimiter" label={t('dataset.create.field.delimiter')}>
+                <Form.Item name="sub_delimiter" label={t('dataset.create.field.delimiter')} rules={delimiterRules}>
                   <Input allowClear placeholder="\\n" />
                 </Form.Item>
-                <Form.Item name="sub_max_length" label={t('dataset.create.field.maxLength')}>
+                <Form.Item name="sub_max_length" label={t('dataset.create.field.maxLength')} rules={maxLengthRules}>
                   <InputNumber
                     min={100}
                     max={4096}
@@ -240,13 +286,7 @@ export function SegmentationSettingsPanel({
               </div>
             </div>
 
-            <Typography.Text type="secondary">{t('dataset.create.segmentation.preprocessTitle')}</Typography.Text>
-            <Form.Item name="remove_extra_spaces" valuePropName="checked" style={{ marginBottom: 8 }}>
-              <Checkbox>{t('dataset.create.field.removeSpaces')}</Checkbox>
-            </Form.Item>
-            <Form.Item name="remove_urls_emails" valuePropName="checked" style={{ marginBottom: 12 }}>
-              <Checkbox>{t('dataset.create.field.removeUrls')}</Checkbox>
-            </Form.Item>
+            <PreprocessRulesFields />
 
             <div className="minerva-segmentation-actions">
               <Button type="primary" loading={previewLoading} onClick={onPreview}>

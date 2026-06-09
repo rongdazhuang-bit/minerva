@@ -16,6 +16,8 @@ export type ChunkingFormValues = {
   sub_chunk_overlap?: number
   remove_extra_spaces?: boolean
   remove_urls_emails?: boolean
+  recognize_formula?: boolean
+  recognize_table?: boolean
   use_qa_segmentation?: boolean
   qa_language?: string
 }
@@ -69,14 +71,39 @@ function readParentMode(rules: Record<string, unknown>): ParentModeType {
   return 'paragraph'
 }
 
+/** Default parent/child field values (always hydrated so mode switches show values). */
+function readHierarchicalFormFields(
+  rules: Record<string, unknown>,
+): Pick<
+  ChunkingFormValues,
+  | 'parent_mode_type'
+  | 'parent_delimiter'
+  | 'parent_max_length'
+  | 'parent_chunk_overlap'
+  | 'sub_delimiter'
+  | 'sub_max_length'
+  | 'sub_chunk_overlap'
+> {
+  const seg = ruleBlock(rules, 'segmentation')
+  const sub = ruleBlock(rules, 'subchunk_segmentation')
+  return {
+    parent_mode_type: readParentMode(rules),
+    parent_delimiter: readSeparator(seg, '\\n\\n'),
+    parent_max_length: readMaxTokens(seg, 1024),
+    parent_chunk_overlap: readOverlap(seg, 100),
+    sub_delimiter: readSeparator(sub, '\\n'),
+    sub_max_length: readMaxTokens(sub, 512),
+    sub_chunk_overlap: readOverlap(sub, 50),
+  }
+}
+
 /** Hydrate chunking fields from a saved process_rule payload. */
 export function parseProcessRuleToForm(processRule: Record<string, unknown> | null | undefined) {
   if (!processRule) return {}
   const rules = rulesDict(processRule)
   const seg = ruleBlock(rules, 'segmentation')
-  const sub = ruleBlock(rules, 'subchunk_segmentation')
+  const hierarchical = readHierarchicalFormFields(rules)
   const mode = String(processRule.mode ?? 'custom')
-  const parentMode = readParentMode(rules)
   const docForm =
     mode === 'hierarchical'
       ? 'hierarchical_model'
@@ -84,22 +111,16 @@ export function parseProcessRuleToForm(processRule: Record<string, unknown> | nu
         ? 'qa_model'
         : 'text_model'
 
-  const isHierarchical = docForm === 'hierarchical_model'
-
   return {
     doc_form: docForm as ChunkingFormValues['doc_form'],
     delimiter: readSeparator(seg, '\\n\\n'),
     max_length: readMaxTokens(seg, 1024),
     chunk_overlap: readOverlap(seg, 50),
-    parent_mode_type: parentMode,
-    parent_delimiter: isHierarchical ? readSeparator(seg, '\\n\\n') : undefined,
-    parent_max_length: isHierarchical ? readMaxTokens(seg, 1024) : undefined,
-    parent_chunk_overlap: isHierarchical ? readOverlap(seg, 100) : undefined,
-    sub_delimiter: readSeparator(sub, '\\n'),
-    sub_max_length: readMaxTokens(sub, 512),
-    sub_chunk_overlap: readOverlap(sub, 50),
+    ...hierarchical,
     remove_extra_spaces: preRuleEnabled(rules, 'remove_extra_spaces', true),
     remove_urls_emails: preRuleEnabled(rules, 'remove_urls_emails', true),
+    recognize_formula: preRuleEnabled(rules, 'recognize_formula', false),
+    recognize_table: preRuleEnabled(rules, 'recognize_table', false),
     use_qa_segmentation: docForm === 'qa_model',
     qa_language: seg.qa_language != null ? String(seg.qa_language) : 'Chinese Simplified',
   } satisfies Partial<ChunkingFormValues>
@@ -151,6 +172,8 @@ export function buildProcessRule(values: ChunkingFormValues, defaultRule: Record
     pre_processing_rules: [
       { id: 'remove_extra_spaces', enabled: values.remove_extra_spaces !== false },
       { id: 'remove_urls_emails', enabled: values.remove_urls_emails !== false },
+      { id: 'recognize_formula', enabled: values.recognize_formula === true },
+      { id: 'recognize_table', enabled: values.recognize_table === true },
     ],
   }
 

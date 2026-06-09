@@ -20,6 +20,7 @@ import {
 } from '@/features/dataset/create/StepTwoChunking'
 import { buildRetrievalModel } from '@/features/dataset/shared/retrievalForm'
 import { StepThreeProcessing } from '@/features/dataset/create/StepThreeProcessing'
+import { getFirstFormValidationMessage, isFormValidationError } from '@/utils/formValidation'
 
 
 
@@ -158,7 +159,11 @@ export function DatasetCreateWizard({
       })
       setStep(2)
     } catch (err) {
-      message.error(err instanceof Error ? err.message : t('dataset.create.initFailed'))
+      if (isFormValidationError(err)) {
+        message.error(getFirstFormValidationMessage(err) ?? t('dataset.create.validation.formIncomplete'))
+      } else {
+        message.error(err instanceof Error ? err.message : t('dataset.create.initFailed'))
+      }
       onIndexingChange?.(false)
     } finally {
       setSubmitting(false)

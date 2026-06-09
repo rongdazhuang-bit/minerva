@@ -1,9 +1,10 @@
 /** Step 2 — chunking settings and segment preview. */
 
 import { useQuery } from '@tanstack/react-query'
-import { Form, Input } from 'antd'
+import { Form, Input, message } from 'antd'
 import type { FormInstance } from 'antd'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { listModelProviders } from '@/api/modelProviders'
 import {
   estimateDatasetIndexing,
@@ -24,6 +25,7 @@ import {
   defaultRetrievalFormValues,
   type RetrievalFormValues,
 } from '@/features/dataset/shared/retrievalForm'
+import { getFirstFormValidationMessage } from '@/utils/formValidation'
 import './StepTwoChunking.css'
 
 export type UploadedDatasetFile = DatasetUploadOut & { uid: string }
@@ -49,6 +51,7 @@ export type StepTwoChunkingProps = {
 
 /** Chunking form and preview panel with independent left/right scroll. */
 export function StepTwoChunking({ workspaceId, uploads, form }: StepTwoChunkingProps) {
+  const { t } = useTranslation()
   const [previewFileId, setPreviewFileId] = useState<string | undefined>(uploads[0]?.id)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewState, setPreviewState] = useState<{
@@ -121,7 +124,13 @@ export function StepTwoChunking({ workspaceId, uploads, form }: StepTwoChunkingP
   }, [form, ruleQ.data?.process_rule])
 
   const onPreview = useCallback(async () => {
-    const values = await form.validateFields()
+    let values: StepTwoFormValues
+    try {
+      values = await form.validateFields()
+    } catch (error) {
+      message.error(getFirstFormValidationMessage(error) ?? t('dataset.create.validation.formIncomplete'))
+      return
+    }
     const defaultRule = ruleQ.data?.process_rule ?? {}
     const processRule = buildProcessRule(values, defaultRule)
     setPreviewLoading(true)
@@ -144,7 +153,7 @@ export function StepTwoChunking({ workspaceId, uploads, form }: StepTwoChunkingP
     } finally {
       setPreviewLoading(false)
     }
-  }, [form, previewFileId, ruleQ.data?.process_rule, uploads, workspaceId])
+  }, [form, previewFileId, ruleQ.data?.process_rule, t, uploads, workspaceId])
 
   const onResetChunking = useCallback(() => {
     const defaultRule = ruleQ.data?.process_rule ?? {}
@@ -169,10 +178,19 @@ export function StepTwoChunking({ workspaceId, uploads, form }: StepTwoChunkingP
             indexing_technique: 'high_quality',
             doc_form: 'text_model',
             parent_mode_type: 'paragraph',
+            delimiter: '\\n\\n',
+            max_length: 1024,
+            chunk_overlap: 50,
+            parent_delimiter: '\\n\\n',
+            parent_max_length: 1024,
+            sub_delimiter: '\\n',
+            sub_max_length: 512,
             use_qa_segmentation: false,
             qa_language: 'Chinese Simplified',
             remove_extra_spaces: true,
             remove_urls_emails: false,
+            recognize_formula: false,
+            recognize_table: false,
             ...defaultRetrievalFormValues(),
           }}
         >

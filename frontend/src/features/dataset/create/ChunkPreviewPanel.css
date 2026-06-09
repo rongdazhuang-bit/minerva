@@ -80,6 +80,23 @@
   white-space: nowrap;
 }
 
+.minerva-chunk-preview__spin-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.minerva-chunk-preview__spin-wrap.ant-spin-nested-loading,
+.minerva-chunk-preview__spin-wrap .ant-spin-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .minerva-chunk-preview__body {
   flex: 1 1 auto;
   min-height: 0;

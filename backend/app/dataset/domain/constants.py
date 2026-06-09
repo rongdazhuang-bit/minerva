@@ -56,6 +56,8 @@ DEFAULT_PROCESS_RULE: dict = {
         "pre_processing_rules": [
             {"id": "remove_extra_spaces", "enabled": True},
             {"id": "remove_urls_emails", "enabled": True},
+            {"id": "recognize_formula", "enabled": False},
+            {"id": "recognize_table", "enabled": False},
         ],
         "segmentation": {
             "separator": "\\n\\n",

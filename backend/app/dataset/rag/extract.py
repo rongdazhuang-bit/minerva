@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import csv
 import io
-import tempfile
 from pathlib import Path
 
 import fitz
@@ -29,23 +28,18 @@ def extract_text_from_bytes(payload: bytes, *, file_name: str) -> str:
         reader = csv.reader(text_io)
         return "\n".join(",".join(row) for row in reader)
     if ext in {"xls", "xlsx"}:
-        with tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=True) as tmp:
-            tmp.write(payload)
-            tmp.flush()
-            wb = load_workbook(tmp.name, read_only=True, data_only=True)
-            lines: list[str] = []
-            for sheet in wb.worksheets:
-                for row in sheet.iter_rows(values_only=True):
-                    cells = [str(c) if c is not None else "" for c in row]
-                    if any(cells):
-                        lines.append("\t".join(cells))
-            return "\n".join(lines)
+        wb = load_workbook(io.BytesIO(payload), read_only=True, data_only=True)
+        lines: list[str] = []
+        for sheet in wb.worksheets:
+            for row in sheet.iter_rows(values_only=True):
+                cells = [str(c) if c is not None else "" for c in row]
+                if any(cells):
+                    lines.append("\t".join(cells))
+        wb.close()
+        return "\n".join(lines)
     if ext == "docx":
-        with tempfile.NamedTemporaryFile(suffix=".docx", delete=True) as tmp:
-            tmp.write(payload)
-            tmp.flush()
-            doc = DocxDocument(tmp.name)
-            return "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+        doc = DocxDocument(io.BytesIO(payload))
+        return "\n".join(p.text for p in doc.paragraphs if p.text.strip())
     if ext == "pdf":
         with fitz.open(stream=payload, filetype="pdf") as doc:
             return "\n".join(page.get_text() for page in doc)

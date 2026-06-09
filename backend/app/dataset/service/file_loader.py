@@ -23,9 +23,14 @@ async def load_upload_bytes(
     if row is None or row.workspace_id != workspace_id:
         raise AppError("dataset.upload_not_found", "上传文件不存在。", 404)
     s3 = S3FileService(session=session)
-    stream = await s3.open_download_stream(
+    proxy = await s3.get_download_proxy(
         workspace_id=workspace_id,
         object_key=row.storage_key,
     )
-    payload = stream.body.read()
+    try:
+        payload = proxy.stream.read()
+    finally:
+        close = getattr(proxy.stream, "close", None)
+        if callable(close):
+            close()
     return row, payload

@@ -83,7 +83,7 @@ export function ChunkPreviewPanel({
         </span>
       </div>
 
-      <Spin spinning={loading}>
+      <Spin spinning={loading} wrapperClassName="minerva-chunk-preview__spin-wrap">
         <div className="minerva-chunk-preview__body minerva-scrollbar-thin">
           {previewReady && segments.length > 0 ? (
             <>
