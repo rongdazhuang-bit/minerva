@@ -54,6 +54,7 @@ const SUB_FILE_OCR = 'sub-file-ocr'
 const SUB_AGENTS = 'sub-agents'
 const SUB_DOC_TRANSLATE = 'sub-doc-translate'
 const SUB_SMART_REVIEW = 'sub-smart-review'
+const SUB_DATASET = 'sub-dataset'
 
 const siderStyle: CSSProperties = {
   background: 'var(--minerva-surface, #1b2838)',
@@ -164,8 +165,8 @@ function menuKeyForPath(pathname: string): string {
   if (pathname.startsWith('/app/translate')) {
     return 'doc-translate-translate'
   }
-  if (pathname.startsWith('/app/dataset')) return 'dataset'
-  if (pathname.startsWith('/app/knowledge-base')) return 'dataset'
+  if (pathname.startsWith('/app/dataset')) return 'dataset-list'
+  if (pathname.startsWith('/app/knowledge-base')) return 'dataset-list'
   if (pathname.startsWith('/app/smart-review/text-proofreading')) {
     return 'smart-review-text-proofreading'
   }
@@ -297,6 +298,11 @@ export function AppLayout() {
       } else {
         next = next.filter((k) => k !== SUB_SMART_REVIEW)
       }
+      if (pathname.startsWith('/app/dataset') || pathname.startsWith('/app/knowledge-base')) {
+        if (!next.includes(SUB_DATASET)) next.push(SUB_DATASET)
+      } else {
+        next = next.filter((k) => k !== SUB_DATASET)
+      }
       return next
     })
   }, [pathname])
@@ -391,10 +397,17 @@ export function AppLayout() {
                   ],
                 },
                 {
-                  key: 'dataset',
+                  key: SUB_DATASET,
                   icon: <ReadOutlined />,
-                  label: t('nav.dataset'),
-                  onClick: () => void nav('/app/dataset'),
+                  label: t('nav.knowledgeBase'),
+                  children: [
+                    {
+                      key: 'dataset-list',
+                      icon: <UnorderedListOutlined />,
+                      label: t('nav.dataset'),
+                      onClick: () => void nav('/app/dataset'),
+                    },
+                  ],
                 },
                 {
                   key: SUB_SMART_REVIEW,
