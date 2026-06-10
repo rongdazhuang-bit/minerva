@@ -26,10 +26,11 @@ CREATE TABLE IF NOT EXISTS tenants (
 CREATE UNIQUE INDEX IF NOT EXISTS ix_tenants_slug ON tenants (slug);
 
 CREATE TABLE IF NOT EXISTS users (
-  id            UUID         NOT NULL,
-  email         VARCHAR(320) NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  created_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  id              UUID         NOT NULL,
+  email           VARCHAR(320) NOT NULL,
+  password_hash   VARCHAR(255) NOT NULL,
+  is_super_admin  BOOLEAN      NOT NULL DEFAULT false,
+  created_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
   PRIMARY KEY (id)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (email);
@@ -152,6 +153,33 @@ COMMENT ON COLUMN public.sys_dict_item.parent_uuid IS 'sys_dict_item.id';
 COMMENT ON COLUMN public.sys_dict_item.create_at IS '创建时间';
 COMMENT ON COLUMN public.sys_dict_item.update_at IS '更新时间';
 COMMENT ON COLUMN public.sys_dict_item.item_sort IS '排序';
+
+CREATE TABLE IF NOT EXISTS public.sys_menu (
+  id            UUID         NOT NULL,
+  parent_id     UUID         NULL,
+  menu_name     VARCHAR(64)  NOT NULL,
+  i18n_key      VARCHAR(128) NULL,
+  menu_key      VARCHAR(64)  NULL,
+  order_num     INT          NOT NULL DEFAULT 0,
+  path          VARCHAR(256) NULL,
+  menu_type     CHAR(1)      NOT NULL,
+  perms         VARCHAR(128) NULL,
+  icon          VARCHAR(64)  NULL,
+  visible       BOOLEAN      NOT NULL DEFAULT true,
+  status        BOOLEAN      NOT NULL DEFAULT true,
+  is_external   BOOLEAN      NOT NULL DEFAULT false,
+  remark        VARCHAR(500) NULL,
+  create_at     TIMESTAMPTZ  NULL DEFAULT now(),
+  update_at     TIMESTAMPTZ  NULL,
+  CONSTRAINT sys_menu_pk PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS ix_sys_menu_parent_id ON public.sys_menu (parent_id);
+CREATE INDEX IF NOT EXISTS ix_sys_menu_menu_type ON public.sys_menu (menu_type);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_menu_menu_key
+  ON public.sys_menu (menu_key) WHERE menu_key IS NOT NULL;
+COMMENT ON TABLE public.sys_menu IS '系统菜单（全局）';
+COMMENT ON COLUMN public.sys_menu.parent_id IS '父菜单 id；NULL 为根';
+COMMENT ON COLUMN public.sys_menu.menu_type IS 'M目录 C菜单 F按钮';
 
 CREATE TABLE public.sys_models (
 	id uuid NOT NULL,

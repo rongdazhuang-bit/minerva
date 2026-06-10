@@ -1,0 +1,52 @@
+/* 占满主内容区高度，纵向滚动仅发生在表体，避免整页双滚动条。 */
+.minerva-menu-config-page {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.minerva-menu-config-page__card {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.minerva-menu-config-page__card .ant-card-body {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-menu-config-page__toolbar {
+  flex-shrink: 0;
+  margin-bottom: 12px;
+}
+
+.minerva-menu-config-page__table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-menu-config-page__table {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+.minerva-menu-config-page__table .ant-spin-nested-loading,
+.minerva-menu-config-page__table .ant-spin-container,
+.minerva-menu-config-page__table .ant-table-wrapper {
+  height: 100%;
+  min-height: 0;
+}
+
+.minerva-menu-config-page__table.minerva-card-table-scroll-ocr .ant-table-body {
+  scrollbar-gutter: auto;
+}

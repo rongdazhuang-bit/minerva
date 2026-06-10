@@ -7,7 +7,8 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, Enum, String, UniqueConstraint, text
+import sqlalchemy as sa
+from sqlalchemy import Boolean, DateTime, Enum, String, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -31,6 +32,9 @@ class User(Base):
     )
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    is_super_admin: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=sa.false()
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), nullable=False
     )

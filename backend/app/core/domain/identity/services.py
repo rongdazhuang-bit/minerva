@@ -168,3 +168,28 @@ async def find_tenant_role_for_user(
         )
     )
     return r.scalar_one_or_none()
+
+
+async def is_super_admin_user(session: AsyncSession, *, user_id: uuid.UUID) -> bool:
+    """True when the user row has platform super-admin flag."""
+
+    user = await session.get(User, user_id)
+    return user is not None and bool(user.is_super_admin)
+
+
+async def is_any_tenant_owner_or_admin(
+    session: AsyncSession, *, user_id: uuid.UUID
+) -> bool:
+    """True when super-admin, or owner/admin in at least one tenant."""
+
+    if await is_super_admin_user(session, user_id=user_id):
+        return True
+    r = await session.execute(
+        select(TenantMembership.id)
+        .where(
+            TenantMembership.user_id == user_id,
+            TenantMembership.role.in_((MembershipRole.owner, MembershipRole.admin)),
+        )
+        .limit(1)
+    )
+    return r.scalar_one_or_none() is not None

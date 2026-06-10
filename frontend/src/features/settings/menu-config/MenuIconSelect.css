@@ -1,0 +1,8 @@
+.minerva-menu-icon-select-dropdown .rc-virtual-list-holder {
+  max-height: 280px;
+}
+
+.minerva-menu-icon-select__option .anticon {
+  font-size: 16px;
+  color: var(--minerva-primary, #38bdf8);
+}

@@ -22,6 +22,7 @@ from app.core.logging_middleware import HttpLoggingMiddleware
 from app.errors import register_exception_handlers
 from app.agent.infrastructure.langgraph_checkpointer import close_langgraph_checkpointer
 from app.core.infrastructure.db.bootstrap import create_missing_tables
+from app.sys.menu.service.menu_seed import bootstrap_sys_menu_seed
 from app.limits import limiter
 
 configure_logging(process_type="api")
@@ -32,6 +33,7 @@ async def lifespan(app: FastAPI):
     """Ensure ORM tables exist when configured; release resources on shutdown."""
 
     await create_missing_tables()
+    await bootstrap_sys_menu_seed()
     # LangGraph checkpoint 在首次 Agent 运行时懒加载，避免启动阻塞 HTTP（尤其 Windows 上池初始化较慢）。
     yield
     await close_langgraph_checkpointer()

@@ -1,31 +1,4 @@
-import {
-  ApiOutlined,
-  AuditOutlined,
-  BarChartOutlined,
-  BookOutlined,
-  CommentOutlined,
-  ClockCircleOutlined,
-  DatabaseOutlined,
-  DashboardOutlined,
-  FileSearchOutlined,
-  FileTextOutlined,
-  FolderOpenOutlined,
-  IdcardOutlined,
-  MenuFoldOutlined,
-  MenuOutlined,
-  MenuUnfoldOutlined,
-  PictureOutlined,
-  ReadOutlined,
-  RobotOutlined,
-  ScanOutlined,
-  SettingOutlined,
-  SlidersOutlined,
-  TagsOutlined,
-  ThunderboltOutlined,
-  TranslationOutlined,
-  UnorderedListOutlined,
-  UserOutlined,
-} from '@ant-design/icons'
+import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons'
 import { Button, Layout, Menu } from 'antd'
 import { AppBreadcrumb } from '@/app/layout/AppBreadcrumb'
 import { AppHeaderToolbar } from '@/app/layout/AppHeaderToolbar'
@@ -34,7 +7,11 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'reac
 import { useTranslation } from 'react-i18next'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { getAgentV2Config } from '@/api/agent'
+import { listNavMenus, type SysMenuNode } from '@/api/menus'
 import { useAuth } from '@/app/AuthContext'
+import { buildSiderMenuItems } from '@/app/layout/buildSiderMenuItems'
+import { resolveMenuNavState } from '@/app/layout/menuNavMatch'
+import { subscribeMenuNavRefresh } from '@/app/menuNavRefresh'
 import { useMinervaTone } from '@/app/useMinervaTone'
 import {
   SIDER_COLLAPSED_PX,
@@ -46,15 +23,6 @@ import './appSiderMenu.css'
 import './appLayoutScroll.css'
 
 const { Sider, Header, Content } = Layout
-
-const SUB_SETTINGS = 'sub-settings'
-const SUB_RULES = 'sub-rules'
-const SUB_RULES_CONFIG = 'sub-rules-config'
-const SUB_FILE_OCR = 'sub-file-ocr'
-const SUB_AGENTS = 'sub-agents'
-const SUB_DOC_TRANSLATE = 'sub-doc-translate'
-const SUB_SMART_REVIEW = 'sub-smart-review'
-const SUB_DATASET = 'sub-dataset'
 
 const siderStyle: CSSProperties = {
   background: 'var(--minerva-surface, #1b2838)',
@@ -141,56 +109,24 @@ function contentScrollStyleForPath(pathname: string): CSSProperties {
       overflowX: 'hidden',
     }
   }
+  if (pathname.startsWith('/app/settings/menus')) {
+    return {
+      ...contentScrollStyle,
+      overflowY: 'hidden',
+      overflowX: 'hidden',
+    }
+  }
   return contentScrollStyle
-}
-
-function menuKeyForPath(pathname: string): string {
-  if (pathname.startsWith('/app/file-ocr/overview')) return 'file-ocr-overview'
-  if (pathname.startsWith('/app/file-ocr/tasks')) return 'file-ocr-tasks'
-  if (pathname.startsWith('/app/settings/models')) return 'settings-models'
-  if (pathname.startsWith('/app/settings/ocr')) return 'settings-ocr'
-  if (pathname.startsWith('/app/settings/file-storage')) return 'settings-file-storage'
-  if (pathname.startsWith('/app/settings/data-sources')) return 'settings-data-sources'
-  if (pathname.startsWith('/app/settings/menus')) return 'settings-menus'
-  if (pathname.startsWith('/app/settings/users')) return 'settings-users'
-  if (pathname.startsWith('/app/settings/roles')) return 'settings-roles'
-  if (pathname.startsWith('/app/settings/dictionary')) return 'settings-dictionary'
-  if (pathname.startsWith('/app/settings/celery')) return 'settings-celery'
-  if (pathname.startsWith('/app/settings')) return 'settings-models'
-  if (pathname.startsWith('/app/agents/skills')) return 'agents-skills'
-  if (pathname.startsWith('/app/agents/memory')) return 'agents-memory'
-  if (pathname.startsWith('/app/agents/chat') || pathname.match(/^\/app\/agents\/?$/)) {
-    return 'agents-chat'
-  }
-  if (pathname.startsWith('/app/translate')) {
-    return 'doc-translate-translate'
-  }
-  if (pathname.startsWith('/app/dataset')) return 'dataset-list'
-  if (pathname.startsWith('/app/knowledge-base')) return 'dataset-list'
-  if (pathname.startsWith('/app/smart-review/text-proofreading')) {
-    return 'smart-review-text-proofreading'
-  }
-  if (pathname.startsWith('/app/smart-review/review-by-text')) {
-    return 'smart-review-text-to-text'
-  }
-  if (pathname.startsWith('/app/smart-review/drawing-review')) {
-    return 'smart-review-drawing-review'
-  }
-  if (pathname.startsWith('/app/smart-review')) return 'smart-review-text-proofreading'
-  if (pathname.startsWith('/app/file-ocr')) return 'file-ocr-overview'
-  if (pathname.startsWith('/app/rules/config/config-prompts')) return 'rules-config-config-prompts'
-  if (pathname.startsWith('/app/rules/management')) return 'rules-mgmt-list'
-  if (pathname.startsWith('/app/rules/overview')) return 'rules-overview'
-  if (pathname.startsWith('/app/rules')) return 'rules-overview'
-  return 'overview'
 }
 
 export function AppLayout() {
   const { t } = useTranslation()
   const nav = useNavigate()
   const { pathname } = useLocation()
-  const { clear, workspaceId } = useAuth()
+  const { clear, workspaceId, isAuthenticated } = useAuth()
   const [memoryBackend, setMemoryBackend] = useState('sql')
+  const [navMenus, setNavMenus] = useState<SysMenuNode[]>([])
+  const [navMenusRev, setNavMenusRev] = useState(0)
   const tone = useMinervaTone()
   const shellLight = tone === 'sunshine'
   const {
@@ -202,7 +138,20 @@ export function AppLayout() {
     onResizeTouchStart,
   } = useResizableSiderWidth()
 
-  const selectedKeys = useMemo(() => [menuKeyForPath(pathname)], [pathname])
+  const hideMenuKeys = useMemo(
+    () => (memoryBackend !== 'mem0' ? new Set(['agents-memory']) : undefined),
+    [memoryBackend],
+  )
+
+  const menuNavState = useMemo(
+    () => resolveMenuNavState(navMenus, pathname, hideMenuKeys),
+    [navMenus, pathname, hideMenuKeys],
+  )
+
+  const selectedKeys = useMemo(
+    () => (menuNavState.selectedKey ? [menuNavState.selectedKey] : []),
+    [menuNavState.selectedKey],
+  )
 
   const mainScrollStyle = useMemo(
     () => contentScrollStyleForPath(pathname),
@@ -234,78 +183,34 @@ export function AppLayout() {
       .catch(() => setMemoryBackend('sql'))
   }, [workspaceId])
 
-  const agentSubMenuItems = useMemo(() => {
-    const children = [
-      {
-        key: 'agents-chat',
-        icon: <CommentOutlined />,
-        label: t('nav.agentsChat'),
-        onClick: () => void nav('/app/agents/chat'),
-      },
-      {
-        key: 'agents-skills',
-        icon: <ThunderboltOutlined />,
-        label: t('nav.agentsSkills'),
-        onClick: () => void nav('/app/agents/skills'),
-      },
-    ]
-    if (memoryBackend === 'mem0') {
-      children.push({
-        key: 'agents-memory',
-        icon: <DatabaseOutlined />,
-        label: t('nav.agentsMemory'),
-        onClick: () => void nav('/app/agents/memory'),
-      })
-    }
-    return children
-  }, [memoryBackend, nav, t])
+  useEffect(() => subscribeMenuNavRefresh(() => setNavMenusRev((v) => v + 1)), [])
 
   useEffect(() => {
-    setMenuOpenKeys((prev) => {
-      let next = [...prev]
-      if (pathname.startsWith('/app/settings')) {
-        if (!next.includes(SUB_SETTINGS)) next.push(SUB_SETTINGS)
-      } else {
-        next = next.filter((k) => k !== SUB_SETTINGS)
-      }
-      if (pathname.startsWith('/app/rules')) {
-        if (!next.includes(SUB_RULES)) next.push(SUB_RULES)
-      } else {
-        next = next.filter((k) => k !== SUB_RULES)
-      }
-      if (pathname.startsWith('/app/rules/config')) {
-        if (!next.includes(SUB_RULES_CONFIG)) next.push(SUB_RULES_CONFIG)
-      } else {
-        next = next.filter((k) => k !== SUB_RULES_CONFIG)
-      }
-      if (pathname.startsWith('/app/file-ocr')) {
-        if (!next.includes(SUB_FILE_OCR)) next.push(SUB_FILE_OCR)
-      } else {
-        next = next.filter((k) => k !== SUB_FILE_OCR)
-      }
-      if (pathname.startsWith('/app/agents')) {
-        if (!next.includes(SUB_AGENTS)) next.push(SUB_AGENTS)
-      } else {
-        next = next.filter((k) => k !== SUB_AGENTS)
-      }
-      if (pathname.startsWith('/app/translate')) {
-        if (!next.includes(SUB_DOC_TRANSLATE)) next.push(SUB_DOC_TRANSLATE)
-      } else {
-        next = next.filter((k) => k !== SUB_DOC_TRANSLATE)
-      }
-      if (pathname.startsWith('/app/smart-review')) {
-        if (!next.includes(SUB_SMART_REVIEW)) next.push(SUB_SMART_REVIEW)
-      } else {
-        next = next.filter((k) => k !== SUB_SMART_REVIEW)
-      }
-      if (pathname.startsWith('/app/dataset') || pathname.startsWith('/app/knowledge-base')) {
-        if (!next.includes(SUB_DATASET)) next.push(SUB_DATASET)
-      } else {
-        next = next.filter((k) => k !== SUB_DATASET)
-      }
-      return next
-    })
-  }, [pathname])
+    if (!isAuthenticated) {
+      setNavMenus([])
+      return
+    }
+    let cancelled = false
+    void listNavMenus()
+      .then((rows) => {
+        if (!cancelled) setNavMenus(rows)
+      })
+      .catch(() => {
+        if (!cancelled) setNavMenus([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthenticated, navMenusRev])
+
+  const siderItems = useMemo(
+    () => buildSiderMenuItems(navMenus, { t, nav, hideMenuKeys }),
+    [navMenus, t, nav, hideMenuKeys],
+  )
+
+  useEffect(() => {
+    setMenuOpenKeys(menuNavState.openKeys)
+  }, [menuNavState.openKeys])
 
   const showBreadcrumb = useMemo(() => {
     if (pathname === '/app/overview' || pathname === '/app/overview/') return false
@@ -370,183 +275,7 @@ export function AppLayout() {
               style={{ background: 'transparent', border: 'none', paddingTop: 8 }}
               selectedKeys={selectedKeys}
               {...siderMenuModeProps}
-              items={[
-                {
-                  key: 'overview',
-                  icon: <BarChartOutlined />,
-                  label: t('nav.overview'),
-                  onClick: () => void nav('/app/overview'),
-                },
-                {
-                  key: SUB_AGENTS,
-                  icon: <RobotOutlined />,
-                  label: t('nav.agents'),
-                  children: agentSubMenuItems,
-                },
-                {
-                  key: SUB_DOC_TRANSLATE,
-                  icon: <TranslationOutlined />,
-                  label: t('nav.docTranslate'),
-                  children: [
-                    {
-                      key: 'doc-translate-translate',
-                      icon: <FileTextOutlined />,
-                      label: t('nav.docTranslateTranslate'),
-                      onClick: () => void nav('/app/translate'),
-                    },
-                  ],
-                },
-                {
-                  key: SUB_DATASET,
-                  icon: <ReadOutlined />,
-                  label: t('nav.knowledgeBase'),
-                  children: [
-                    {
-                      key: 'dataset-list',
-                      icon: <UnorderedListOutlined />,
-                      label: t('nav.dataset'),
-                      onClick: () => void nav('/app/dataset'),
-                    },
-                  ],
-                },
-                {
-                  key: SUB_SMART_REVIEW,
-                  icon: <FileSearchOutlined />,
-                  label: t('nav.smartReview'),
-                  children: [
-                    {
-                      key: 'smart-review-text-proofreading',
-                      icon: <FileTextOutlined />,
-                      label: t('nav.smartReviewTextProofreading'),
-                      onClick: () => void nav('/app/smart-review/text-proofreading'),
-                    },
-                    {
-                      key: 'smart-review-text-to-text',
-                      icon: <AuditOutlined />,
-                      label: t('nav.smartReviewTextToText'),
-                      onClick: () => void nav('/app/smart-review/review-by-text'),
-                    },
-                    {
-                      key: 'smart-review-drawing-review',
-                      icon: <PictureOutlined />,
-                      label: t('nav.smartReviewDrawingReview'),
-                      onClick: () => void nav('/app/smart-review/drawing-review'),
-                    },
-                  ],
-                },
-                {
-                  key: SUB_RULES,
-                  icon: <BookOutlined />,
-                  label: t('nav.rules'),
-                  children: [
-                    {
-                      key: 'rules-overview',
-                      icon: <DashboardOutlined />,
-                      label: t('nav.rulesOverview'),
-                      onClick: () => void nav('/app/rules/overview'),
-                    },
-                    {
-                      key: 'rules-mgmt-list',
-                      icon: <UnorderedListOutlined />,
-                      label: t('nav.rulesManagementList'),
-                      onClick: () => void nav('/app/rules/management'),
-                    },
-                    {
-                      key: SUB_RULES_CONFIG,
-                      icon: <SlidersOutlined />,
-                      label: t('nav.rulesConfig'),
-                      children: [
-                        {
-                          key: 'rules-config-config-prompts',
-                          icon: <ApiOutlined />,
-                          label: t('nav.rulesPromptManagement'),
-                          onClick: () => void nav('/app/rules/config/config-prompts'),
-                        },
-                      ],
-                    },
-                  ],
-                },
-                {
-                  key: SUB_FILE_OCR,
-                  icon: <ScanOutlined />,
-                  label: t('nav.rulesFileOcr'),
-                  children: [
-                    {
-                      key: 'file-ocr-overview',
-                      icon: <DashboardOutlined />,
-                      label: t('nav.rulesFileOcrOverview'),
-                      onClick: () => void nav('/app/file-ocr/overview'),
-                    },
-                    {
-                      key: 'file-ocr-tasks',
-                      icon: <UnorderedListOutlined />,
-                      label: t('nav.rulesFileOcrTaskList'),
-                      onClick: () => void nav('/app/file-ocr/tasks'),
-                    },
-                  ],
-                },
-                {
-                  key: SUB_SETTINGS,
-                  icon: <SettingOutlined />,
-                  label: t('nav.settings'),
-                  children: [
-                    {
-                      key: 'settings-models',
-                      icon: <ApiOutlined />,
-                      label: t('settings.models'),
-                      onClick: () => void nav('/app/settings/models'),
-                    },
-                    {
-                      key: 'settings-ocr',
-                      icon: <FileTextOutlined />,
-                      label: t('settings.ocr'),
-                      onClick: () => void nav('/app/settings/ocr'),
-                    },
-                    {
-                      key: 'settings-file-storage',
-                      icon: <FolderOpenOutlined />,
-                      label: t('settings.fileStorage'),
-                      onClick: () => void nav('/app/settings/file-storage'),
-                    },
-                    {
-                      key: 'settings-celery',
-                      icon: <ClockCircleOutlined />,
-                      label: t('settings.celery'),
-                      onClick: () => void nav('/app/settings/celery'),
-                    },
-                    {
-                      key: 'settings-data-sources',
-                      icon: <DatabaseOutlined />,
-                      label: t('settings.dataSources'),
-                      onClick: () => void nav('/app/settings/data-sources'),
-                    },
-                    {
-                      key: 'settings-menus',
-                      icon: <MenuOutlined />,
-                      label: t('settings.menuConfig'),
-                      onClick: () => void nav('/app/settings/menus'),
-                    },
-                    {
-                      key: 'settings-users',
-                      icon: <UserOutlined />,
-                      label: t('settings.users'),
-                      onClick: () => void nav('/app/settings/users'),
-                    },
-                    {
-                      key: 'settings-roles',
-                      icon: <IdcardOutlined />,
-                      label: t('settings.roles'),
-                      onClick: () => void nav('/app/settings/roles'),
-                    },
-                    {
-                      key: 'settings-dictionary',
-                      icon: <TagsOutlined />,
-                      label: t('settings.dictionary'),
-                      onClick: () => void nav('/app/settings/dictionary'),
-                    },
-                  ],
-                },
-              ]}
+              items={siderItems}
             />
           </div>
           <div className="minerva-app-sider-footer">

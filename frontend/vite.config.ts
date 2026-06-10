@@ -48,6 +48,7 @@ export default defineConfig({
     proxy: {
       '^/auth': authApiProxy,
       '^/(healthz|workspaces|docs|openapi\\.json|redoc)': devApiProxy,
+      '^/sys': devApiProxy,
       '^/(ratelimit-probe|validation-probe)': devApiProxy,
     },
   },
