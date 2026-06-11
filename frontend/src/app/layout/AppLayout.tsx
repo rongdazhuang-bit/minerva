@@ -201,7 +201,7 @@ export function AppLayout() {
     return () => {
       cancelled = true
     }
-  }, [isAuthenticated, navMenusRev])
+  }, [isAuthenticated, workspaceId, navMenusRev])
 
   const siderItems = useMemo(
     () => buildSiderMenuItems(navMenus, { t, nav, hideMenuKeys }),

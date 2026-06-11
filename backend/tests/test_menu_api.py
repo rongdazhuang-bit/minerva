@@ -9,13 +9,14 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.core.api.deps import get_current_user
+from app.core.api.deps import get_current_user, get_current_workspace_id
 from app.core.domain.identity.models import User
 from app.errors import register_exception_handlers
 from app.sys.menu.api.deps import require_any_tenant_owner_or_admin
 from app.sys.menu.api.router import router as menus_router
 
 TEST_USER_ID = uuid.UUID("00000000-0000-4000-8000-000000000099")
+TEST_WORKSPACE_ID = uuid.UUID("00000000-0000-4000-8000-0000000000c1")
 
 
 def _fake_user() -> User:
@@ -23,6 +24,7 @@ def _fake_user() -> User:
         id=TEST_USER_ID,
         email="menu-test@example.com",
         password_hash="x",
+        nickname="Menu Test",
     )
 
 
@@ -36,11 +38,16 @@ async def _deny_admin() -> User:
     raise AppError("auth.forbidden", "Only tenant owner/admin can manage menus", 403)
 
 
+async def _fake_workspace_id() -> uuid.UUID:
+    return TEST_WORKSPACE_ID
+
+
 def _make_menu_app(*, admin: bool) -> FastAPI:
     app = FastAPI()
     register_exception_handlers(app)
     app.include_router(menus_router)
     app.dependency_overrides[get_current_user] = _allow_admin
+    app.dependency_overrides[get_current_workspace_id] = _fake_workspace_id
     app.dependency_overrides[require_any_tenant_owner_or_admin] = (
         _allow_admin if admin else _deny_admin
     )
@@ -70,6 +77,48 @@ def test_nav_requires_auth() -> None:
     client = TestClient(app)
     response = client.get("/sys/menus/nav")
     assert response.status_code == 401
+
+
+def test_nav_uses_role_filtered_tree(member_menu_client: TestClient, monkeypatch) -> None:
+    """Sidebar nav is filtered by the current user's workspace roles."""
+
+    from app.sys.menu.api.schemas import SysMenuNodeOut
+
+    allowed_menu_id = uuid.uuid4()
+    calls: list[tuple[uuid.UUID, uuid.UUID]] = []
+
+    async def fake_list_nav_for_user(
+        _session: object,
+        *,
+        user_id: uuid.UUID,
+        workspace_id: uuid.UUID,
+    ) -> list[SysMenuNodeOut]:
+        calls.append((user_id, workspace_id))
+        return [
+            SysMenuNodeOut(
+                id=allowed_menu_id,
+                parent_id=None,
+                menu_name="Allowed",
+                menu_key="allowed",
+                order_num=1,
+                menu_type="C",
+                path="/app/allowed",
+                visible=True,
+                status=True,
+                is_external=False,
+            )
+        ]
+
+    monkeypatch.setattr(
+        "app.sys.menu.api.router.svc.list_nav_tree_for_user",
+        fake_list_nav_for_user,
+    )
+    response = member_menu_client.get("/sys/menus/nav")
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["menu_name"] == "Allowed"
+    assert calls == [(TEST_USER_ID, TEST_WORKSPACE_ID)]
 
 
 def test_admin_list_ok(admin_menu_client: TestClient, monkeypatch) -> None:

@@ -164,7 +164,7 @@ export function WorkspaceDrawer({ open, tenant, onClose }: Props) {
 
   const columns: ColumnsType<SysWorkspaceListItem> = useMemo(
     () => [
-      { title: t('tenants.workspaceName'), dataIndex: 'name', width: 160 },
+      { title: t('tenants.name'), dataIndex: 'name', width: 160 },
       { title: t('tenants.slug'), dataIndex: 'slug', width: 140 },
       {
         title: t('tenants.status'),
@@ -230,73 +230,81 @@ export function WorkspaceDrawer({ open, tenant, onClose }: Props) {
         open={open}
         onClose={onClose}
         destroyOnClose
+        classNames={{ body: 'minerva-scrollbar-styled' }}
+        styles={{ body: { display: 'flex', flexDirection: 'column', minHeight: 0 } }}
       >
-        <div className="minerva-scrollbar-thin minerva-tenants-workspace-drawer__body">
-          <Form
-            form={filterForm}
-            layout="inline"
-            onFinish={(values) => {
-              setFilters({
-                name: values.name?.trim() || undefined,
-                status:
-                  values.status == null ? undefined : values.status === 'true',
-              })
-              setPage(1)
-            }}
-          >
-            <Form.Item name="name" label={t('tenants.workspaceName')}>
-              <Input allowClear placeholder={t('tenants.workspaceNamePlaceholder')} style={{ width: 160 }} />
-            </Form.Item>
-            <Form.Item name="status" label={t('tenants.status')}>
-              <Select
-                allowClear
-                placeholder={t('tenants.statusAll')}
-                style={{ width: 120 }}
-                options={[
-                  { value: 'true', label: t('tenants.statusNormal') },
-                  { value: 'false', label: t('tenants.statusDisabled') },
-                ]}
-              />
-            </Form.Item>
-            <Form.Item>
-              <Space>
-                <Button type="primary" htmlType="submit">
-                  {t('tenants.search')}
-                </Button>
-                <Button
-                  onClick={() => {
-                    filterForm.resetFields()
-                    setFilters({})
-                    setPage(1)
-                  }}
-                >
-                  {t('tenants.reset')}
-                </Button>
-                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-                  {t('tenants.addWorkspace')}
-                </Button>
-              </Space>
-            </Form.Item>
-          </Form>
-          <Table<SysWorkspaceListItem>
-            className="minerva-card-table-scroll-ocr"
-            style={{ marginTop: 12 }}
-            rowKey="id"
-            loading={loading}
-            columns={columns}
-            dataSource={items}
-            scroll={{ x: 720 }}
-            pagination={{
-              current: page,
-              pageSize,
-              total,
-              showSizeChanger: true,
-              onChange: (p, ps) => {
-                setPage(p)
-                setPageSize(ps)
-              },
-            }}
-          />
+        <div className="minerva-tenants-workspace-drawer__body">
+          <div className="minerva-tenants-workspace-drawer__toolbar">
+            <Form
+              className="minerva-tenants-workspace-drawer__filter"
+              form={filterForm}
+              layout="inline"
+              onFinish={(values) => {
+                setFilters({
+                  name: values.name?.trim() || undefined,
+                  status:
+                    values.status == null ? undefined : values.status === 'true',
+                })
+                setPage(1)
+              }}
+            >
+              <Form.Item name="name">
+                <Input allowClear placeholder={t('tenants.workspaceNamePlaceholder')} style={{ width: 160 }} />
+              </Form.Item>
+              <Form.Item name="status">
+                <Select
+                  allowClear
+                  placeholder={t('tenants.statusAll')}
+                  style={{ width: 120 }}
+                  options={[
+                    { value: 'true', label: t('tenants.statusNormal') },
+                    { value: 'false', label: t('tenants.statusDisabled') },
+                  ]}
+                />
+              </Form.Item>
+              <Form.Item>
+                <Space>
+                  <Button type="primary" htmlType="submit">
+                    {t('tenants.search')}
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      filterForm.resetFields()
+                      setFilters({})
+                      setPage(1)
+                    }}
+                  >
+                    {t('tenants.reset')}
+                  </Button>
+                </Space>
+              </Form.Item>
+            </Form>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+              {t('tenants.addWorkspace')}
+            </Button>
+          </div>
+          <div className="minerva-tenants-workspace-drawer__table-wrap">
+            <Table<SysWorkspaceListItem>
+              className="minerva-card-table-scroll-ocr"
+              rowKey="id"
+              loading={loading}
+              columns={columns}
+              dataSource={items}
+              size="small"
+              scroll={{ x: 720, y: 'calc(100dvh - 280px)' }}
+              sticky
+              pagination={{
+                current: page,
+                pageSize,
+                total,
+                showSizeChanger: true,
+                onChange: (p, ps) => {
+                  setPage(p)
+                  setPageSize(ps)
+                },
+              }}
+            />
+          </div>
         </div>
       </Drawer>
       <Drawer
@@ -305,22 +313,20 @@ export function WorkspaceDrawer({ open, tenant, onClose }: Props) {
         open={formOpen}
         onClose={() => setFormOpen(false)}
         destroyOnClose
-        footer={
+        footer={null}
+        classNames={{ body: 'minerva-scrollbar-styled' }}
+        extra={
           <Space>
-            <Button onClick={() => setFormOpen(false)}>{t('tenants.cancel')}</Button>
-            <Button
-              type="primary"
-              loading={submitting}
-              onClick={() => {
-                void form.validateFields().then((values) => handleSubmit(values))
-              }}
-            >
+            <Button onClick={() => setFormOpen(false)} disabled={submitting}>
+              {t('tenants.cancel')}
+            </Button>
+            <Button type="primary" loading={submitting} onClick={() => void form.submit()}>
               {t('tenants.save')}
             </Button>
           </Space>
         }
       >
-        <Form form={form} layout="vertical">
+        <Form form={form} layout="vertical" onFinish={handleSubmit}>
           <Form.Item
             name="name"
             label={t('tenants.workspaceName')}

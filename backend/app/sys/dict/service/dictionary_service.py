@@ -75,10 +75,18 @@ async def list_dicts_page(
     page: int,
     page_size: int,
     dict_code: str | None = None,
+    dict_code_filter: str | None = None,
+    dict_name_filter: str | None = None,
 ) -> tuple[list[SysDict], int]:
-    code = dict_code.strip() if dict_code else None
+    code_exact = dict_code.strip() if dict_code else None
+    code_contains = dict_code_filter.strip() if dict_code_filter else None
+    name_contains = dict_name_filter.strip() if dict_name_filter else None
     total = await repo.count_dicts_for_workspace(
-        session, workspace_id=workspace_id, dict_code=code
+        session,
+        workspace_id=workspace_id,
+        dict_code_exact=code_exact,
+        dict_code_contains=code_contains,
+        dict_name_contains=name_contains,
     )
     offset = (page - 1) * page_size
     rows = await repo.list_dicts_for_workspace_page(
@@ -86,7 +94,9 @@ async def list_dicts_page(
         workspace_id=workspace_id,
         limit=page_size,
         offset=offset,
-        dict_code=code,
+        dict_code_exact=code_exact,
+        dict_code_contains=code_contains,
+        dict_name_contains=name_contains,
     )
     return list(rows), total
 

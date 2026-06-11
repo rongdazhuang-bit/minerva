@@ -205,6 +205,8 @@ async def refresh(body: RefreshIn, session: AsyncSession = Depends(get_db)) -> T
     u = await session.get(User, uid)
     if u is None:
         raise AppError("auth.invalid_token", "User not found", 401)
+    if not u.status:
+        raise AppError("user.disabled", "User account is disabled", 401)
     wsm = await session.execute(
         select(Workspace, Tenant)
         .select_from(Workspace)

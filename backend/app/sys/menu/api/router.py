@@ -8,7 +8,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api.deps import get_current_user
+from app.core.api.deps import get_current_user, get_current_workspace_id
 from app.core.domain.identity.models import User
 from app.dependencies import get_db
 from app.sys.menu.api.deps import require_any_tenant_owner_or_admin
@@ -52,11 +52,16 @@ async def list_menus(
 @router.get("/nav", response_model=list[SysMenuNodeOut])
 async def list_nav(
     session: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
+    workspace_id: uuid.UUID = Depends(get_current_workspace_id),
 ) -> list[SysMenuNodeOut]:
     """Return sidebar navigation tree for the current user."""
 
-    return await svc.list_nav_tree(session)
+    return await svc.list_nav_tree_for_user(
+        session,
+        user_id=user.id,
+        workspace_id=workspace_id,
+    )
 
 
 @router.post("", response_model=SysMenuOut, status_code=201)

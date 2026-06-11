@@ -73,6 +73,8 @@ def _import_models() -> None:
     import app.core.domain.identity.models  # noqa: F401
     import app.sys.dict.domain.db.models  # noqa: F401
     import app.sys.menu.domain.db.models  # noqa: F401
+    import app.sys.role.domain.db.models  # noqa: F401
+    import app.sys.user.domain.db.models  # noqa: F401
     import app.sys.file_storage.domain.db.models  # noqa: F401
     import app.sys.model_provider.domain.db.models  # noqa: F401
     import app.rule.domain.db.models  # noqa: F401

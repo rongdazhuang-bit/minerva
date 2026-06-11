@@ -264,10 +264,10 @@ export function TenantsPage() {
               setPage(1)
             }}
           >
-            <Form.Item name="name" label={t('tenants.tenantName')}>
+            <Form.Item name="name">
               <Input allowClear placeholder={t('tenants.tenantNamePlaceholder')} style={{ width: 160 }} />
             </Form.Item>
-            <Form.Item name="status" label={t('tenants.status')}>
+            <Form.Item name="status">
               <Select
                 allowClear
                 placeholder={t('tenants.statusAll')}

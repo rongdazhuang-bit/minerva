@@ -6,6 +6,9 @@ from app.core.api.routers import auth, health, probe
 from app.s3.api.router import router as s3_files_router
 from app.sys.dict.api.router import router as dicts_router
 from app.sys.menu.api.router import router as menus_router
+from app.sys.role.api.router import router as roles_router
+from app.sys.user.api.router import router as users_router
+from app.sys.tenant.api.router import router as tenants_router
 from app.sys.file_storage.api.router import router as file_storages_router
 from app.rule.api.router import router as rule_base_router
 from app.rule.api.rule_config_prompt_router import router as rule_config_prompt_router
@@ -32,6 +35,9 @@ api.include_router(file_storages_router)
 api.include_router(s3_files_router)
 api.include_router(dicts_router)
 api.include_router(menus_router)
+api.include_router(roles_router)
+api.include_router(users_router)
+api.include_router(tenants_router)
 api.include_router(rule_base_router)
 api.include_router(rule_config_prompt_router)
 api.include_router(celery_jobs_router)

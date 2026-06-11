@@ -63,6 +63,19 @@ def test_validate_hierarchy_c_parent_must_be_m_or_c() -> None:
     assert exc.value.code == "menu.invalid_hierarchy"
 
 
+def test_expand_allowed_nav_menu_ids_includes_ancestors() -> None:
+    """Granted leaf menus include parent directory nodes for the sidebar tree."""
+
+    root_id = uuid.uuid4()
+    child_id = uuid.uuid4()
+    rows = [
+        _menu_row(id=root_id, menu_type="M", path=None, menu_name="Root"),
+        _menu_row(id=child_id, parent_id=root_id, menu_type="C", menu_name="Child"),
+    ]
+    allowed = svc.expand_allowed_nav_menu_ids(rows, {child_id})
+    assert allowed == {root_id, child_id}
+
+
 def test_filter_nav_rows_excludes_f_hidden_and_disabled() -> None:
     rows = [
         _menu_row(id=uuid.uuid4(), menu_type="M", path=None),
@@ -161,3 +174,143 @@ async def test_list_nav_tree_builds_filtered_tree(monkeypatch) -> None:
     assert tree[0].menu_name == "Root"
     assert len(tree[0].children) == 1
     assert tree[0].children[0].menu_name == "Child"
+
+
+@pytest.mark.asyncio
+async def test_list_nav_tree_for_user_super_admin_sees_all(monkeypatch) -> None:
+    """Platform super admins bypass role-based nav filtering."""
+
+    root_id = uuid.uuid4()
+    rows = [
+        _menu_row(id=root_id, menu_type="M", path=None, menu_name="Root"),
+        _menu_row(id=uuid.uuid4(), parent_id=root_id, menu_type="C", menu_name="Child"),
+    ]
+    session = MagicMock()
+
+    async def fake_list_all(_session: object) -> list[SysMenu]:
+        return rows
+
+    async def fake_is_super(_session: object, *, user_id: uuid.UUID) -> bool:
+        return True
+
+    monkeypatch.setattr(svc.repo, "list_all", fake_list_all)
+    monkeypatch.setattr(svc, "is_super_admin_user", fake_is_super)
+
+    tree = await svc.list_nav_tree_for_user(
+        session,
+        user_id=uuid.uuid4(),
+        workspace_id=uuid.uuid4(),
+    )
+    assert len(tree) == 1
+    assert len(tree[0].children) == 1
+
+
+@pytest.mark.asyncio
+async def test_list_nav_tree_for_user_filters_by_role_menus(monkeypatch) -> None:
+    """Users only see nav nodes granted by enabled roles in the workspace."""
+
+    root_id = uuid.uuid4()
+    allowed_child_id = uuid.uuid4()
+    denied_child_id = uuid.uuid4()
+    rows = [
+        _menu_row(id=root_id, menu_type="M", path=None, menu_name="Root"),
+        _menu_row(
+            id=allowed_child_id,
+            parent_id=root_id,
+            menu_type="C",
+            menu_name="Allowed",
+            path="/app/allowed",
+        ),
+        _menu_row(
+            id=denied_child_id,
+            parent_id=root_id,
+            menu_type="C",
+            menu_name="Denied",
+            path="/app/denied",
+        ),
+    ]
+    session = MagicMock()
+    role_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+
+    async def fake_list_all(_session: object) -> list[SysMenu]:
+        return rows
+
+    async def fake_is_super(_session: object, *, user_id: uuid.UUID) -> bool:
+        return False
+
+    async def fake_role_ids(
+        _session: object,
+        *,
+        workspace_id: uuid.UUID,
+        user_id: uuid.UUID,
+        enabled_only: bool = False,
+    ) -> list[uuid.UUID]:
+        assert enabled_only is True
+        return [role_id]
+
+    async def fake_menu_ids_for_roles(
+        _session: object, role_ids: list[uuid.UUID]
+    ) -> list[uuid.UUID]:
+        assert role_ids == [role_id]
+        return [allowed_child_id]
+
+    monkeypatch.setattr(svc.repo, "list_all", fake_list_all)
+    monkeypatch.setattr(svc, "is_super_admin_user", fake_is_super)
+    monkeypatch.setattr(
+        svc.user_repo,
+        "list_role_ids_for_user_in_workspace",
+        fake_role_ids,
+    )
+    monkeypatch.setattr(
+        svc.role_repo,
+        "list_menu_ids_for_roles",
+        fake_menu_ids_for_roles,
+    )
+
+    tree = await svc.list_nav_tree_for_user(
+        session,
+        user_id=user_id,
+        workspace_id=workspace_id,
+    )
+    assert len(tree) == 1
+    assert len(tree[0].children) == 1
+    assert tree[0].children[0].menu_name == "Allowed"
+
+
+@pytest.mark.asyncio
+async def test_list_nav_tree_for_user_without_roles_returns_empty(monkeypatch) -> None:
+    """Users without enabled roles see an empty sidebar tree."""
+
+    session = MagicMock()
+
+    async def fake_list_all(_session: object) -> list[SysMenu]:
+        return [_menu_row(id=uuid.uuid4(), menu_type="C")]
+
+    async def fake_is_super(_session: object, *, user_id: uuid.UUID) -> bool:
+        return False
+
+    async def fake_role_ids(
+        _session: object,
+        *,
+        workspace_id: uuid.UUID,
+        user_id: uuid.UUID,
+        enabled_only: bool = False,
+    ) -> list[uuid.UUID]:
+        return []
+
+    monkeypatch.setattr(svc.repo, "list_all", fake_list_all)
+    monkeypatch.setattr(svc, "is_super_admin_user", fake_is_super)
+    monkeypatch.setattr(
+        svc.user_repo,
+        "list_role_ids_for_user_in_workspace",
+        fake_role_ids,
+    )
+
+    tree = await svc.list_nav_tree_for_user(
+        session,
+        user_id=uuid.uuid4(),
+        workspace_id=uuid.uuid4(),
+    )
+    assert tree == []

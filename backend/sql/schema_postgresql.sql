@@ -17,23 +17,54 @@ EXCEPTION
   WHEN duplicate_object THEN NULL;
 END $$;
 
-CREATE TABLE IF NOT EXISTS tenants (
-  id    UUID         NOT NULL,
-  name  VARCHAR(200) NOT NULL,
-  slug  VARCHAR(64)  NOT NULL,
+CREATE TABLE IF NOT EXISTS sys_tenants (
+  id        UUID         NOT NULL,
+  name      VARCHAR(200) NOT NULL,
+  slug      VARCHAR(64)  NOT NULL,
+  status    BOOLEAN      NOT NULL DEFAULT true,
+  remark    VARCHAR(500) NULL,
+  create_at TIMESTAMPTZ  NULL DEFAULT now(),
+  update_at TIMESTAMPTZ  NULL,
   PRIMARY KEY (id)
 );
-CREATE UNIQUE INDEX IF NOT EXISTS ix_tenants_slug ON tenants (slug);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_sys_tenants_slug ON sys_tenants (slug);
+COMMENT ON COLUMN public.sys_tenants.status IS 'true=正常 false=停用';
+COMMENT ON COLUMN public.sys_tenants.remark IS '备注';
+COMMENT ON COLUMN public.sys_tenants.create_at IS '创建时间';
+COMMENT ON COLUMN public.sys_tenants.update_at IS '修改时间';
 
-CREATE TABLE IF NOT EXISTS users (
-  id              UUID         NOT NULL,
-  email           VARCHAR(320) NOT NULL,
-  password_hash   VARCHAR(255) NOT NULL,
-  is_super_admin  BOOLEAN      NOT NULL DEFAULT false,
-  created_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
+CREATE TABLE IF NOT EXISTS sys_users (
+  id                  UUID         NOT NULL,
+  email               VARCHAR(320) NOT NULL,
+  password_hash       VARCHAR(255) NOT NULL,
+  is_super_admin      BOOLEAN      NOT NULL DEFAULT false,
+  nickname            VARCHAR(64)  NOT NULL,
+  phone               VARCHAR(20)  NULL,
+  status              BOOLEAN      NOT NULL DEFAULT true,
+  remark              VARCHAR(500) NULL,
+  department_item_id  UUID         NULL,
+  created_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  update_at           TIMESTAMPTZ  NULL,
   PRIMARY KEY (id)
 );
-CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (email);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_sys_users_email ON sys_users (email);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_users_phone ON sys_users (phone) WHERE phone IS NOT NULL;
+COMMENT ON COLUMN public.sys_users.nickname IS 'Display name';
+COMMENT ON COLUMN public.sys_users.phone IS 'Optional; globally unique when set';
+COMMENT ON COLUMN public.sys_users.status IS 'true=active false=cannot login';
+COMMENT ON COLUMN public.sys_users.department_item_id IS 'Logical ref sys_dict_item.id (SYS_DEPARTMENT)';
+
+CREATE TABLE IF NOT EXISTS public.sys_user_role (
+  id       UUID NOT NULL,
+  user_id  UUID NOT NULL,
+  role_id  UUID NOT NULL,
+  CONSTRAINT sys_user_role_pk PRIMARY KEY (id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_user_role_user_role
+  ON public.sys_user_role (user_id, role_id);
+CREATE INDEX IF NOT EXISTS ix_sys_user_role_user_id ON public.sys_user_role (user_id);
+CREATE INDEX IF NOT EXISTS ix_sys_user_role_role_id ON public.sys_user_role (role_id);
+COMMENT ON TABLE public.sys_user_role IS 'User to workspace sys_role mapping (app-enforced)';
 
 CREATE TABLE IF NOT EXISTS refresh_tokens (
   id         UUID         NOT NULL,
@@ -47,37 +78,45 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 CREATE UNIQUE INDEX IF NOT EXISTS ix_refresh_tokens_jti ON refresh_tokens (jti);
 CREATE INDEX IF NOT EXISTS ix_refresh_tokens_user_id ON refresh_tokens (user_id);
 
-CREATE TABLE IF NOT EXISTS tenant_memberships (
+CREATE TABLE IF NOT EXISTS sys_tenant_memberships (
   id        UUID         NOT NULL,
   user_id   UUID         NOT NULL,
   tenant_id UUID         NOT NULL,
   role      tenant_role  NOT NULL,
   PRIMARY KEY (id),
-  CONSTRAINT uq_tenant_membership UNIQUE (user_id, tenant_id)
+  CONSTRAINT uq_sys_tenant_membership UNIQUE (user_id, tenant_id)
 );
-CREATE INDEX IF NOT EXISTS ix_tenant_memberships_tenant_id ON tenant_memberships (tenant_id);
-CREATE INDEX IF NOT EXISTS ix_tenant_memberships_user_id ON tenant_memberships (user_id);
+CREATE INDEX IF NOT EXISTS ix_sys_tenant_memberships_tenant_id ON sys_tenant_memberships (tenant_id);
+CREATE INDEX IF NOT EXISTS ix_sys_tenant_memberships_user_id ON sys_tenant_memberships (user_id);
 
-CREATE TABLE IF NOT EXISTS workspaces (
+CREATE TABLE IF NOT EXISTS sys_workspaces (
   id        UUID         NOT NULL,
   tenant_id UUID         NOT NULL,
   name      VARCHAR(200) NOT NULL,
   slug      VARCHAR(64)  NOT NULL,
+  status    BOOLEAN      NOT NULL DEFAULT true,
+  remark    VARCHAR(500) NULL,
+  create_at TIMESTAMPTZ  NULL DEFAULT now(),
+  update_at TIMESTAMPTZ  NULL,
   PRIMARY KEY (id),
-  CONSTRAINT uq_workspaces_tenant_slug UNIQUE (tenant_id, slug)
+  CONSTRAINT uq_sys_workspaces_tenant_slug UNIQUE (tenant_id, slug)
 );
-CREATE INDEX IF NOT EXISTS ix_workspaces_tenant_id ON workspaces (tenant_id);
+CREATE INDEX IF NOT EXISTS ix_sys_workspaces_tenant_id ON sys_workspaces (tenant_id);
+COMMENT ON COLUMN public.sys_workspaces.status IS 'true=正常 false=停用';
+COMMENT ON COLUMN public.sys_workspaces.remark IS '备注';
+COMMENT ON COLUMN public.sys_workspaces.create_at IS '创建时间';
+COMMENT ON COLUMN public.sys_workspaces.update_at IS '修改时间';
 
-CREATE TABLE IF NOT EXISTS workspace_memberships (
+CREATE TABLE IF NOT EXISTS sys_workspace_memberships (
   id           UUID            NOT NULL,
   user_id      UUID            NOT NULL,
   workspace_id UUID            NOT NULL,
   role         workspace_role  NOT NULL,
   PRIMARY KEY (id),
-  CONSTRAINT uq_workspace_membership UNIQUE (user_id, workspace_id)
+  CONSTRAINT uq_sys_workspace_membership UNIQUE (user_id, workspace_id)
 );
-CREATE INDEX IF NOT EXISTS ix_workspace_memberships_user_id ON workspace_memberships (user_id);
-CREATE INDEX IF NOT EXISTS ix_workspace_memberships_workspace_id ON workspace_memberships (workspace_id);
+CREATE INDEX IF NOT EXISTS ix_sys_workspace_memberships_user_id ON sys_workspace_memberships (user_id);
+CREATE INDEX IF NOT EXISTS ix_sys_workspace_memberships_workspace_id ON sys_workspace_memberships (workspace_id);
 
 
 CREATE TABLE IF NOT EXISTS public.sys_ocr_tool (
@@ -180,6 +219,38 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_menu_menu_key
 COMMENT ON TABLE public.sys_menu IS '系统菜单（全局）';
 COMMENT ON COLUMN public.sys_menu.parent_id IS '父菜单 id；NULL 为根';
 COMMENT ON COLUMN public.sys_menu.menu_type IS 'M目录 C菜单 F按钮';
+
+CREATE TABLE IF NOT EXISTS public.sys_role (
+  id            UUID         NOT NULL,
+  workspace_id  UUID         NOT NULL,
+  role_name     VARCHAR(64)  NOT NULL,
+  role_key      VARCHAR(64)  NOT NULL,
+  role_sort     INT          NOT NULL DEFAULT 0,
+  status        BOOLEAN      NOT NULL DEFAULT true,
+  remark        VARCHAR(500) NULL,
+  create_at     TIMESTAMPTZ  NULL DEFAULT now(),
+  update_at     TIMESTAMPTZ  NULL,
+  CONSTRAINT sys_role_pk PRIMARY KEY (id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_role_workspace_role_key
+  ON public.sys_role (workspace_id, role_key);
+CREATE INDEX IF NOT EXISTS ix_sys_role_workspace_id ON public.sys_role (workspace_id);
+CREATE INDEX IF NOT EXISTS ix_sys_role_role_sort ON public.sys_role (role_sort);
+COMMENT ON TABLE public.sys_role IS '工作空间角色';
+COMMENT ON COLUMN public.sys_role.workspace_id IS '所属 workspace';
+COMMENT ON COLUMN public.sys_role.role_key IS '权限字符；workspace 内唯一';
+
+CREATE TABLE IF NOT EXISTS public.sys_role_menu (
+  id       UUID NOT NULL,
+  role_id  UUID NOT NULL,
+  menu_id  UUID NOT NULL,
+  CONSTRAINT sys_role_menu_pk PRIMARY KEY (id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_role_menu_role_menu
+  ON public.sys_role_menu (role_id, menu_id);
+CREATE INDEX IF NOT EXISTS ix_sys_role_menu_role_id ON public.sys_role_menu (role_id);
+CREATE INDEX IF NOT EXISTS ix_sys_role_menu_menu_id ON public.sys_role_menu (menu_id);
+COMMENT ON TABLE public.sys_role_menu IS '角色菜单权限关联';
 
 CREATE TABLE public.sys_models (
 	id uuid NOT NULL,

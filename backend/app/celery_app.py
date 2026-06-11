@@ -154,7 +154,7 @@ celery_app = _build_celery_app()
 
 if celery_app is not None:
     # Workers never run FastAPI lifespan ``create_missing_tables``; without importing the
-    # same ORM modules, ``Base.metadata`` lacks FK targets such as ``workspaces``, and
+    # same ORM modules, ``Base.metadata`` lacks FK targets such as ``sys_workspaces``, and
     # flush raises ``NoReferencedTableError`` for models like ``OcrFile``.
     from app.core.infrastructure.db.bootstrap import _import_models
 

@@ -31,6 +31,7 @@ import { MenuConfigPage } from '@/features/settings/menu-config'
 import { ModelProvidersPage } from '@/features/settings/model-providers'
 import { OcrSettingsPage } from '@/features/settings/ocr'
 import { RolesPage } from '@/features/settings/roles'
+import { TenantsPage } from '@/features/settings/tenants'
 import { UsersPage } from '@/features/settings/users'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { RegisterPage } from '@/features/auth/RegisterPage'
@@ -125,6 +126,7 @@ const router = createBrowserRouter([
               { path: 'menus', element: <MenuConfigPage /> },
               { path: 'users', element: <UsersPage /> },
               { path: 'roles', element: <RolesPage /> },
+              { path: 'tenants', element: <TenantsPage /> },
               { path: 'dictionary', element: <DictionaryPage /> },
               { path: 'celery', element: <CeleryPage /> },
             ],

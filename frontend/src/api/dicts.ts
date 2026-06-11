@@ -70,8 +70,12 @@ export type SysDictListPage = {
 export type ListDictsParams = {
   page?: number
   page_size?: number
-  /** 按 `dict_code` 过滤；有值时同页返回 `item_tree`。 */
+  /** 按 `dict_code` 精确过滤；有值时同页返回 `item_tree`。 */
   code?: string
+  /** 列表筛选：字典编码模糊匹配。 */
+  dict_code?: string
+  /** 列表筛选：字典名称模糊匹配。 */
+  dict_name?: string
 }
 
 export function listDicts(workspaceId: string, params?: ListDictsParams) {
@@ -79,6 +83,8 @@ export function listDicts(workspaceId: string, params?: ListDictsParams) {
   if (params?.page != null) sp.set('page', String(params.page))
   if (params?.page_size != null) sp.set('page_size', String(params.page_size))
   if (params?.code != null && params.code !== '') sp.set('code', params.code)
+  if (params?.dict_code != null && params.dict_code !== '') sp.set('dict_code', params.dict_code)
+  if (params?.dict_name != null && params.dict_name !== '') sp.set('dict_name', params.dict_name)
   const q = sp.toString()
   return apiJson<SysDictListPage>(
     `/workspaces/${workspaceId}/dicts${q ? `?${q}` : ''}`,

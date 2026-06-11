@@ -33,18 +33,25 @@ async def count_dicts_for_workspace(
     session: AsyncSession,
     *,
     workspace_id: uuid.UUID,
-    dict_code: str | None = None,
+    dict_code_exact: str | None = None,
+    dict_code_contains: str | None = None,
+    dict_name_contains: str | None = None,
 ) -> int:
-    if dict_code is not None:
+    if dict_code_exact is not None:
         row = await get_dict_by_code_for_workspace(
-            session, workspace_id=workspace_id, dict_code=dict_code
+            session, workspace_id=workspace_id, dict_code=dict_code_exact
         )
         return 1 if row is not None else 0
-    result = await session.execute(
-        select(func.count()).select_from(SysDict).where(
-            SysDict.workspace_id == workspace_id
-        )
+    stmt = select(func.count()).select_from(SysDict).where(
+        SysDict.workspace_id == workspace_id
     )
+    code_q = dict_code_contains.strip() if dict_code_contains else None
+    name_q = dict_name_contains.strip() if dict_name_contains else None
+    if code_q:
+        stmt = stmt.where(SysDict.dict_code.ilike(f"%{code_q}%"))
+    if name_q:
+        stmt = stmt.where(SysDict.dict_name.ilike(f"%{name_q}%"))
+    result = await session.execute(stmt)
     return int(result.scalar_one() or 0)
 
 
@@ -54,23 +61,28 @@ async def list_dicts_for_workspace_page(
     workspace_id: uuid.UUID,
     limit: int,
     offset: int,
-    dict_code: str | None = None,
+    dict_code_exact: str | None = None,
+    dict_code_contains: str | None = None,
+    dict_name_contains: str | None = None,
 ) -> Sequence[SysDict]:
-    if dict_code is not None:
+    if dict_code_exact is not None:
         d = await get_dict_by_code_for_workspace(
-            session, workspace_id=workspace_id, dict_code=dict_code
+            session, workspace_id=workspace_id, dict_code=dict_code_exact
         )
         if d is None:
             return []
         if offset > 0 or limit <= 0:
             return []
         return (d,)
+    stmt = select(SysDict).where(SysDict.workspace_id == workspace_id)
+    code_q = dict_code_contains.strip() if dict_code_contains else None
+    name_q = dict_name_contains.strip() if dict_name_contains else None
+    if code_q:
+        stmt = stmt.where(SysDict.dict_code.ilike(f"%{code_q}%"))
+    if name_q:
+        stmt = stmt.where(SysDict.dict_name.ilike(f"%{name_q}%"))
     result = await session.execute(
-        select(SysDict)
-        .where(SysDict.workspace_id == workspace_id)
-        .order_by(*_dict_list_order())
-        .limit(limit)
-        .offset(offset)
+        stmt.order_by(*_dict_list_order()).limit(limit).offset(offset)
     )
     return result.scalars().all()
 

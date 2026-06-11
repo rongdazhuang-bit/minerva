@@ -180,6 +180,7 @@ async def get_workspace(
 ) -> Workspace:
     """Return one workspace scoped to tenant or raise workspace.not_found."""
 
+    await _require_tenant(session, tenant_id=tenant_id)
     row = await repo.get_workspace_for_tenant(
         session, tenant_id=tenant_id, workspace_id=workspace_id
     )
@@ -220,6 +221,7 @@ async def patch_workspace(
 ) -> Workspace:
     """Partially update workspace scoped to tenant."""
 
+    await _require_tenant(session, tenant_id=tenant_id)
     row = await repo.get_workspace_for_tenant(
         session, tenant_id=tenant_id, workspace_id=workspace_id
     )
@@ -247,6 +249,7 @@ async def delete_workspace(
 ) -> None:
     """Delete only the workspace row."""
 
+    await _require_tenant(session, tenant_id=tenant_id)
     affected = await repo.delete_workspace_row(
         session, tenant_id=tenant_id, workspace_id=workspace_id
     )

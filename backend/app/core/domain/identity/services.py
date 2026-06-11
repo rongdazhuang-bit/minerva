@@ -39,7 +39,12 @@ async def register_user(
         raise AppError("auth.email_taken", "Email is already registered", 400)
     if len(password) < 8:
         raise AppError("auth.weak_password", "Password must be at least 8 characters", 400)
-    user = User(email=email, password_hash=hash_password(password))
+    nickname = email.split("@", 1)[0] or email
+    user = User(
+        email=email,
+        password_hash=hash_password(password),
+        nickname=nickname,
+    )
     short = uuid.uuid4().hex[:12]
     tenant = Tenant(name=f"组织-{short}", slug=f"t-{short}")
     session.add_all([user, tenant])
@@ -80,6 +85,8 @@ async def authenticate_user(
     result = await session.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     if user is None or not verify_password(password, user.password_hash):
+        return None
+    if not user.status:
         return None
     ws_row = await session.execute(
         select(Workspace, Tenant)

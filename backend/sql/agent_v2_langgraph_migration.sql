@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS public.agent_long_term_memory (
   created_at timestamptz NOT NULL DEFAULT now(),
   expires_at timestamptz NULL,
   PRIMARY KEY (id),
-  CONSTRAINT agent_ltm_workspace_id_fk FOREIGN KEY (workspace_id) REFERENCES public.workspaces (id) ON DELETE CASCADE,
+  CONSTRAINT agent_ltm_workspace_id_fk FOREIGN KEY (workspace_id) REFERENCES public.sys_workspaces (id) ON DELETE CASCADE,
   CONSTRAINT agent_ltm_session_id_fk FOREIGN KEY (session_id) REFERENCES public.agent_session (id) ON DELETE CASCADE,
   CONSTRAINT agent_ltm_source_run_id_fk FOREIGN KEY (source_run_id) REFERENCES public.agent_run (id) ON DELETE SET NULL
 );

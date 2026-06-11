@@ -18,6 +18,7 @@ def main() -> int:
     )
     root = Path(__file__).resolve().parents[1]
     files = [
+        root / "sql" / "patches" / "2026-06-11-rename-sys-identity-tables.sql",
         root / "sql" / "patches" / "2026-06-10-sys-menu.sql",
         root / "sql" / "patches" / "2026-06-10-users-super-admin.sql",
         root / "sql" / "seeds" / "sys_menu_seed.sql",
@@ -34,7 +35,7 @@ def main() -> int:
             menu_count = cur.fetchone()[0]
             print(f"OK: sys_menu rows={menu_count}")
             cur.execute(
-                "SELECT email, is_super_admin FROM users WHERE lower(email)=lower(%s)",
+                "SELECT email, is_super_admin FROM sys_users WHERE lower(email)=lower(%s)",
                 (EMAIL,),
             )
             user = cur.fetchone()

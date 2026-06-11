@@ -2,7 +2,7 @@
 
 **日期**：2026-06-11  
 **状态**：已实现（2026-06-11）  
-**范围**：按 **workspace** 隔离的角色表 `sys_role`、角色-菜单关联 `sys_role_menu`、设置页「角色管理」列表 + 右侧 Drawer（菜单权限树 M/C/F）；`SYS_ROLES` 字典用于 `role_key` 列展示映射。  
+**范围**：按 **workspace** 隔离的角色表 `sys_role`、角色-菜单关联 `sys_role_menu`、设置页「角色管理」列表 + 右侧 Drawer（菜单权限树 M/C/F）。  
 **依赖**：全局菜单表 `sys_menu`（菜单定义仍为系统全局；角色勾选的是全局菜单节点 id），见 [2026-06-10-menu-management-design.md](./2026-06-10-menu-management-design.md)。
 
 **包路径说明**：Python 包名为 `app.sys`；业务代码使用 `from app.sys.role...` 等完整限定导入。
@@ -17,8 +17,7 @@
 - **鉴权**（对齐 Celery / 模型供应商等 workspace 模块）：
   - **读**（列表、详情、菜单权限树）：当前 workspace **成员**（`require_workspace_member`）
   - **写**（创建、更新、删除）：当前 workspace **owner/admin**（`require_workspace_owner_or_admin`）
-- **权限字符 `role_key`**：表单**自由输入**，在**同一 workspace 内唯一**，**不校验**数据字典；冲突返回 `409 role.conflict`。
-- **`SYS_ROLES` 字典**：与角色同属 workspace；用于列表「权限字符」列展示映射（`code` → `name`），**不用于顶栏筛选**。
+- **权限字符 `role_key`**：表单**自由输入**，在**同一 workspace 内唯一**，**不校验**数据字典；冲突返回 `409 role.conflict`；列表直接展示 `role_key` 原始值。
 - **前端管理页**：`/app/settings/roles`（`RolesPage`）通过 `useAuth().workspaceId` 调用 API；RuoYi 风格分页列表 + 右侧 Drawer；菜单权限树含 **M + C + F** 全类型，支持展开/折叠、全选/全不选、父子联动（默认开启）。
 - **成功标准**：workspace owner/admin 可完成本 workspace 角色 CRUD 与菜单权限配置；`role_key` 在 workspace 内唯一；跨 workspace 访问角色 id 返回 **404**；删除角色时关联 `sys_role_menu` 一并清除；workspace member 只读、非成员 403。
 
@@ -174,7 +173,7 @@ app/sys/role/
 - 角色名称（Input，`allowClear`）
 - 状态（Select：全部 / 正常 / 停用）
 
-（列表顶栏**不提供**权限字符筛选；`SYS_ROLES` 字典仅用于表格「权限字符」列展示映射。）
+（列表顶栏**不提供**权限字符筛选；表格「权限字符」列直接展示 `role_key`。）
 
 **表格列**：
 
@@ -197,7 +196,6 @@ app/sys/role/
 - 顶栏 **新增** 按钮（仅 owner/admin 可见或可点）
 - 非成员：`Result 403`
 - workspace member 无写权限：列表可读，新增/编辑/删除不可用（或按钮 disabled + tooltip）
-- 当前 workspace 无 `SYS_ROLES` 字典：列表仍显示原始 `role_key`；`message.warning` 提示一次
 
 ### 4.2 表单（右侧 Drawer，对齐 RuoYi）
 
@@ -235,25 +233,17 @@ Tree 节点 label：`menu_name`；`menu_type=F` 时在 label 后附 `(perms)`。
 
 i18n：在 `zh-CN.json` / `en.json` 补充 `roles.*` 键。
 
-### 4.4 `SYS_ROLES` 字典约定
-
-- 字典编码：`SYS_ROLES`
-- 与角色同属当前 **workspace**（`sys_dict.workspace_id`）
-- 字典项 `code`：与 `sys_role.role_key` 对应（用于列展示，**非强制**）
-- 字典项 `name`：列表「权限字符」列友好名称
-- 读取路径：`listAllDicts(workspaceId)` → `SYS_ROLES` → `listDictItems`
-
 ---
 
 ## 5. 范围外（本期不做）
 
 | 项 | 后续占位 |
 |------|----------|
-| `sys_user_role` 用户-角色绑定 | spec 范围外；`UsersPage` 占位文案改为「用户角色分配功能开发中」 |
-| 侧栏 `GET /sys/menus/nav` 按角色过滤 | **不改 nav API**；后续在用户绑定完成后于 nav 层按 workspace 用户角色过滤 |
+| `sys_user_role` 用户-角色绑定 | **已实现**；见 [2026-06-11-user-management-design.md](./2026-06-11-user-management-design.md) |
+| 侧栏 `GET /sys/menus/nav` 按角色过滤 | **已实现**；`menu_service.list_nav_tree_for_user` 按 `sys_user_role` + `sys_role_menu` 过滤 |
 | 前端按钮权限指令（F 类型 perms） | 菜单关联已入库，指令后续实现 |
 | **tenant 级**角色隔离 | 不在本期（本期仅 workspace 级） |
-| 后端校验 `role_key` 必须存在于 `SYS_ROLES` | 明确不做 |
+| `SYS_ROLES` 字典与 `role_key` 展示映射 | 明确不做 |
 | workspace 级自定义菜单（非全局 `sys_menu`） | 不在本期 |
 
 ---
@@ -273,7 +263,7 @@ i18n：在 `zh-CN.json` / `en.json` 补充 `roles.*` 键。
 
 1. workspace owner/admin 完成角色新增、编辑、删除
 2. Drawer 菜单树 M/C/F 勾选保存后再次编辑回显一致
-3. `SYS_ROLES` 字典与权限字符列展示映射正确
+3. 列表「权限字符」列直接展示 `role_key`
 4. 同 workspace 内 `role_key` 重复时报错
 5. 切换 workspace 后列表数据隔离
 6. member 只读、非成员 403

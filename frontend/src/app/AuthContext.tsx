@@ -19,7 +19,20 @@ import {
   subscribeTokensUpdated,
 } from '@/api/tokenSession'
 
-type JwtPayload = { wid?: string; wrole?: string; trole?: string }
+type JwtPayload = { sub?: string; wid?: string; wrole?: string; trole?: string }
+
+function readUserIdFromToken(access: string | null): string | null {
+  if (!access) return null
+  try {
+    const p = jwtDecode(access) as JwtPayload
+    const sub = p.sub
+    if (sub == null) return null
+    const s = String(sub).trim()
+    return s === '' ? null : s
+  } catch {
+    return null
+  }
+}
 
 function readWidFromToken(access: string | null): string | null {
   if (!access) return null
@@ -60,6 +73,8 @@ function readTenantRoleFromToken(access: string | null): string | null {
 type AuthValue = {
   accessToken: string | null
   refreshToken: string | null
+  /** Authenticated user id from JWT ``sub`` claim. */
+  userId: string | null
   workspaceId: string | null
   workspaceRole: string | null
   /** Tenant role from JWT ``trole`` claim (null when absent or legacy token). */
@@ -110,6 +125,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [syncFromStorage])
 
+  const userId = useMemo(
+    () => readUserIdFromToken(accessToken),
+    [accessToken],
+  )
   const workspaceId = useMemo(
     () => readWidFromToken(accessToken),
     [accessToken],
@@ -149,6 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       accessToken,
       refreshToken,
+      userId,
       workspaceId,
       workspaceRole,
       tenantRole,
@@ -161,6 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [
       accessToken,
       refreshToken,
+      userId,
       workspaceId,
       workspaceRole,
       tenantRole,

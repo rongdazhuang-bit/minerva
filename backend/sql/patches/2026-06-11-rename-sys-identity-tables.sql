@@ -10,16 +10,34 @@ ALTER INDEX IF EXISTS public.ix_users_email RENAME TO ix_sys_users_email;
 ALTER TABLE IF EXISTS public.tenant_memberships RENAME TO sys_tenant_memberships;
 ALTER INDEX IF EXISTS public.ix_tenant_memberships_tenant_id RENAME TO ix_sys_tenant_memberships_tenant_id;
 ALTER INDEX IF EXISTS public.ix_tenant_memberships_user_id RENAME TO ix_sys_tenant_memberships_user_id;
-ALTER TABLE IF EXISTS public.sys_tenant_memberships
-  RENAME CONSTRAINT uq_tenant_membership TO uq_sys_tenant_membership;
 
 ALTER TABLE IF EXISTS public.workspaces RENAME TO sys_workspaces;
 ALTER INDEX IF EXISTS public.ix_workspaces_tenant_id RENAME TO ix_sys_workspaces_tenant_id;
-ALTER TABLE IF EXISTS public.sys_workspaces
-  RENAME CONSTRAINT uq_workspaces_tenant_slug TO uq_sys_workspaces_tenant_slug;
 
 ALTER TABLE IF EXISTS public.workspace_memberships RENAME TO sys_workspace_memberships;
 ALTER INDEX IF EXISTS public.ix_workspace_memberships_user_id RENAME TO ix_sys_workspace_memberships_user_id;
 ALTER INDEX IF EXISTS public.ix_workspace_memberships_workspace_id RENAME TO ix_sys_workspace_memberships_workspace_id;
-ALTER TABLE IF EXISTS public.sys_workspace_memberships
-  RENAME CONSTRAINT uq_workspace_membership TO uq_sys_workspace_membership;
+
+DO $$ BEGIN
+  ALTER TABLE public.sys_tenant_memberships
+    RENAME CONSTRAINT uq_tenant_membership TO uq_sys_tenant_membership;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE public.sys_workspaces
+    RENAME CONSTRAINT uq_workspaces_tenant_slug TO uq_sys_workspaces_tenant_slug;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE public.sys_workspace_memberships
+    RENAME CONSTRAINT uq_workspace_membership TO uq_sys_workspace_membership;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+  WHEN duplicate_object THEN NULL;
+END $$;

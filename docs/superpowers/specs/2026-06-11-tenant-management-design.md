@@ -1,7 +1,7 @@
 # 租户管理（sys_tenants + sys_workspaces + 管理端 UI）设计说明
 
 **日期**：2026-06-11  
-**状态**：待实现  
+**状态**：已实现（2026-06-11）  
 **范围**：扩展身份域表 `sys_tenants`、`sys_workspaces`（status / remark / create_at / update_at）；平台超管专用 CRUD API；设置页「租户管理」列表 + 租户表单 Drawer + 工作空间 Drawer（内嵌 CRUD）。  
 **依赖**：全局菜单 `sys_menu`（新增侧栏入口，排在「角色管理」之后），见 [2026-06-10-menu-management-design.md](./2026-06-10-menu-management-design.md)。
 

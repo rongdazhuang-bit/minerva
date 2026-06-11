@@ -194,7 +194,7 @@ export function DocumentListPage() {
           }}
           style={{ marginBottom: 16 }}
         >
-          <Form.Item name="keyword" label={t('dataset.documents.filter.name')}>
+          <Form.Item name="keyword">
             <Input allowClear placeholder={t('dataset.documents.filter.namePh')} />
           </Form.Item>
           <Form.Item>

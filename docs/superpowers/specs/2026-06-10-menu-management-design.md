@@ -13,8 +13,8 @@
 - **数据作用域**：**系统全局**单套菜单树，不按 `workspace_id` / `tenant_id` 隔离。
 - **后端**：对 `sys_menu` 提供列表（树）、侧栏导航树、创建、更新、**级联删除**；删除时在应用层递归删除所有子孙节点并返回 `deleted_count`。
 - **鉴权**：
-  - 写操作及管理页读接口：`users.is_super_admin=true`（平台超级管理员），或在**任意租户**的 `tenant_memberships` 中为 `owner` / `admin`。
-  - 侧栏导航读接口：任意已登录用户（本期不按角色过滤菜单树）。
+  - 写操作及管理页读接口：`sys_users.is_super_admin=true`（平台超级管理员），或在**任意租户**的 `sys_tenant_memberships` 中为 `owner` / `admin`。
+  - 侧栏导航读接口：已登录用户；按 JWT `wid` 对应 workspace 下用户**已启用** `sys_role` 的 `sys_role_menu` 过滤（平台超管见全量菜单）。
 - **前端管理页**：`/app/settings/menus`（`MenuConfigPage`）实现 RuoYi 风格树形表格 + 右侧 Drawer 表单，替换占位 `Empty`。
 - **动态侧边栏**：`AppLayout` 通过 `GET /sys/menus/nav` 构建 Ant Design `Menu` items；`router.tsx` **保持静态**（仅控制展示与跳转，不动态注册路由）。
 - **种子数据**：`backend/sql/seeds/sys_menu_seed.sql` 导入当前 `AppLayout` 侧栏结构（约 30+ 节点），含 `i18n_key`、`menu_key`、`path`、`icon`。
@@ -116,7 +116,7 @@ app/sys/menu/
 
 新增 `require_any_tenant_owner_or_admin`（`app/sys/menu/api/deps.py` 或 `app/core/api/deps.py`）：
 
-- 查询 `tenant_memberships`，存在 `role IN ('owner', 'admin')` 则放行
+- 查询 `sys_tenant_memberships`，存在 `role IN ('owner', 'admin')` 则放行
 - 否则 `403` / `auth.forbidden`
 
 ### 3.2 API
@@ -124,7 +124,7 @@ app/sys/menu/
 | 方法 | 路径 | 权限 | 说明 |
 |------|------|------|------|
 | GET | `/sys/menus` | 租户 owner/admin | 管理页树；Query：`menu_name`（模糊）、`status`（bool） |
-| GET | `/sys/menus/nav` | 已登录 | 侧栏树：仅 `M`+`C`，`visible=true` 且 `status=true`，按 `parent_id`、`order_num` 排序 |
+| GET | `/sys/menus/nav` | 已登录 | 侧栏树：仅 `M`+`C`，`visible=true` 且 `status=true`；非超管按当前 workspace 用户已启用角色的 `menu_ids` 并补全祖先目录；超管不过滤 |
 | POST | `/sys/menus` | 租户 owner/admin | 创建 |
 | PATCH | `/sys/menus/{id}` | 租户 owner/admin | 部分更新 |
 | DELETE | `/sys/menus/{id}` | 租户 owner/admin | 级联删除；响应含 `deleted_count` |
@@ -293,8 +293,7 @@ i18n：在 `zh-CN.json` / `en.json` 补充菜单管理相关键。
 
 ## 8. 范围外（本期不做）
 
-- `sys_role`、`sys_role_menu`、用户-角色绑定与按角色过滤菜单
-- 按钮 `F` 的前端权限指令（仅入库）
+- 按钮 `F` 的前端权限指令（角色侧已可勾选 F 节点入库，前端指令仍不做）
 - 动态注册 `router.tsx` 路由
 - 图标上传/可视化图标选择器（本期 Input 填 Ant Design 图标名）
 - workspace 级菜单隔离
@@ -307,14 +306,17 @@ i18n：在 `zh-CN.json` / `en.json` 补充菜单管理相关键。
 |-----------|--------------|------|
 | `SysMenu` ORM | `backend/app/sys/menu/domain/db/models.py` | — |
 | 级联删除 | `backend/app/sys/menu/service/menu_service.py` → `delete_menu_cascade` | 应用层，无 FK |
-| 租户 admin / 超管鉴权 | `deps.py` + `identity/services.is_any_tenant_owner_or_admin`（含 `is_super_admin`） | 种子 `sql/seeds/super_admin_rongda.sql` |
+| 租户 admin / 超管鉴权 | `deps.py` + `identity/services.is_any_tenant_owner_or_admin`（含 `is_super_admin`） | 表 `sys_users` / `sys_tenant_memberships`；种子 `sql/seeds/super_admin_rongda.sql` |
+| 身份域表名 | `backend/app/core/domain/identity/models.py` | 2026-06-11 重命名为 `sys_*`；已有库执行 `sql/patches/2026-06-11-rename-sys-identity-tables.sql` |
 | API 路由 | `backend/app/sys/menu/api/router.py` | 前缀 `/sys/menus` |
 | 建表/种子 SQL | `backend/sql/tables/sys_menu.sql`、`backend/sql/seeds/sys_menu_seed.sql` | 31 条种子 |
 | 管理页 | `frontend/src/features/settings/menu-config/MenuConfigPage.tsx` | Popconfirm 级联删除 |
 | 动态侧栏 | `frontend/src/app/layout/AppLayout.tsx` + `buildSiderMenuItems.tsx` | `agents-memory` 客户端过滤 |
+| 侧栏按角色过滤 | `menu_service.list_nav_tree_for_user` + `GET /sys/menus/nav` | JWT `wid` + `sys_user_role` + `sys_role_menu`；超管不过滤 |
 | 侧栏刷新 | `frontend/src/app/menuNavRefresh.ts` | CRUD 后 `notifyMenuNavRefresh()` |
 | SQL patch | `backend/sql/patches/2026-06-10-sys-menu.sql` | 已有库增量建表 |
 | `menu_key` 冲突 | `menu_service._commit_or_conflict` | 409 `menu.conflict` |
 | 后端测试 | `test_menu_tree.py`、`test_menu_service.py`、`test_menu_api.py`、`test_menu_tenant_auth.py` | nav 过滤、级联删、鉴权 |
 | 开发代理 | `frontend/vite.config.ts` → `^/sys` 须代理到 FastAPI | 未配置时 `/sys/menus/nav` 不会到后端，侧栏恒空 |
 | 空表种子 | `menu_seed.bootstrap_sys_menu_seed`（dev 启动）+ `sql/seeds/sys_menu_seed.sql` | 亦可用 `scripts/apply_menu_bootstrap.py` |
+| 角色与菜单授权 | [2026-06-11-role-management-design.md](./2026-06-11-role-management-design.md) | workspace 级 `sys_role` + `sys_role_menu`；全局 `sys_menu` 定义不变 |

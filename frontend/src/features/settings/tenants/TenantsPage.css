@@ -32,7 +32,29 @@
 }
 
 .minerva-tenants-workspace-drawer__body {
-  max-height: calc(100vh - 180px);
-  overflow-y: auto;
-  padding-right: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  flex: 1;
+}
+
+.minerva-tenants-workspace-drawer__toolbar {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.minerva-tenants-workspace-drawer__filter {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.minerva-tenants-workspace-drawer__table-wrap {
+  flex: 1 1 auto;
+  min-height: 280px;
+  overflow: hidden;
 }

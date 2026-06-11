@@ -1,7 +1,7 @@
 # 用户管理（sys_users 扩展 + sys_user_role + 管理端 UI）设计说明
 
 **日期**：2026-06-11  
-**状态**：待实现  
+**状态**：已实现（2026-06-11）  
 **范围**：按 **workspace** 隔离的用户成员管理；扩展 `sys_users` 档案字段；新建 `sys_user_role` 多角色绑定；设置页「用户管理」列表 + 右侧 Drawer（部门树选、多角色、成员资格）。  
 **依赖**：
 - workspace 级角色 `sys_role`，见 [2026-06-11-role-management-design.md](./2026-06-11-role-management-design.md)
@@ -92,13 +92,15 @@
 
 **移出工作空间**（`DELETE /workspaces/{workspace_id}/users/{user_id}/membership`）同一事务内：
 
-1. 校验用户为当前 workspace 成员，否则 **404**
+1. 操作者不得为目标用户本人，否则 **403** `user.cannot_delete_self`
+2. 校验用户为当前 workspace 成员，否则 **404**
 2. `DELETE FROM sys_user_role WHERE user_id = ? AND role_id IN (SELECT id FROM sys_role WHERE workspace_id = ?)`
 3. `DELETE FROM sys_workspace_memberships WHERE user_id = ? AND workspace_id = ?`
 
 **删除账号**（`DELETE /workspaces/{workspace_id}/users/{user_id}`）同一事务内：
 
-1. 校验权限（§3.1）；否则 **403** `user.delete_forbidden`
+1. 操作者不得为目标用户本人，否则 **403** `user.cannot_delete_self`
+2. 校验权限（§3.1）；否则 **403** `user.delete_forbidden`
 2. `DELETE FROM sys_user_role WHERE user_id = ?`
 3. `DELETE FROM sys_workspace_memberships WHERE user_id = ?`
 4. `DELETE FROM refresh_tokens WHERE user_id = ?`
@@ -232,6 +234,7 @@ app/sys/user/
 | 用户非当前 workspace 成员 | 404 | `user.not_found` |
 | 邮箱已注册 | 409 | `user.email_taken` |
 | 手机号已占用 | 409 | `user.phone_taken` |
+| 删除/移出本人 | 403 | `user.cannot_delete_self` |
 | 无硬删除权限 | 403 | `user.delete_forbidden` |
 | 部门字典项无效 | 400 | `user.department_invalid` |
 | 角色 id 无效 | 400 | `user.role_invalid` |
@@ -244,6 +247,8 @@ app/sys/user/
 **路由**：`/app/settings/users`（已注册，替换占位 `Empty`）
 
 **上下文**：所有 API 使用 `useAuth().workspaceId`；切换 workspace 后重新加载。
+
+**UI 基准（硬性）**：列表、Drawer、滚动条、二次确认、分页、表单控件**必须**对齐现项目设置模块标准，以 **`RolesPage` / `RoleFormDrawer`** 为首选范本，**`TenantsPage` / `TenantFormDrawer`** 为辅助参照；不得自创新布局或滚动条尺寸。细则见 §4.4。
 
 ### 4.1 列表
 
@@ -290,7 +295,6 @@ app/sys/user/
 
 - 打开 Drawer 时拉取 `meta/departments`、`meta/roles`
 - 无 `SYS_DEPARTMENT` 时 `Alert` 提示
-- Drawer 内容区滚动：`minerva-scrollbar-thin`
 
 ### 4.3 新增前端文件
 
@@ -303,6 +307,69 @@ app/sys/user/
 
 i18n：补充 `users.*`（`zh-CN.json` / `en.json`）；移除或保留 `placeholders.userMgmt` 不再使用。
 
+### 4.4 UI 与交互规范（对齐现项目标准）
+
+实现时须遵守 `code-comments` Skill 与 `minerva-conventions` Skill 中的前端约定；本节汇总用户管理模块必须落地的要点。
+
+#### 4.4.1 分页列表（`UsersPage`）
+
+对齐 `RolesPage` / `TenantsPage`：
+
+| 项 | 约定 |
+|----|------|
+| 布局 | 根容器 `minerva-users-page`：flex 列、`height:100%`、`min-height:0`、`overflow:hidden`；`Card` + `__card` / `__header` / `__table-wrap` 分层（见 `RolesPage.css`） |
+| 筛选区 | 顶栏 `Form layout="inline"`；搜索 + 重置 + 新增（owner/admin）；文本/下拉 **`allowClear`** |
+| 表格 | `className="minerva-card-table-scroll-ocr"`；`rowKey="id"`；`scroll={{ x: … }}` 按列宽设置；**页面不纵向滚动**，仅表体滚动 + 表头 `sticky`（见 `code-comments`「表格滚动规则」） |
+| 分页 | 初始 `pageSize` 与请求 `page_size` 均用 `DEFAULT_PAGE_SIZE`（**10**），来自 `frontend/src/constants/pagination.ts`；`showSizeChanger: true` |
+| 状态展示 | `Tag` 展示状态/成员资格/角色；时间列 `toLocaleString` 格式化 |
+| 权限 | 非成员 `Result 403`；`listQuery` 捕获 `auth.forbidden`；member 隐藏写操作 |
+| 错误 | 列表失败 `Alert` 展示 `ApiError.message` |
+
+#### 4.4.2 表单抽屉（`UserFormDrawer`）
+
+对齐 `RoleFormDrawer` / `TenantFormDrawer`；**使用 Ant Design `Drawer`，禁止 `Modal` 承载主表单**：
+
+| 项 | 约定 |
+|----|------|
+| 尺寸 | `width={520}`（与角色/租户表单一致） |
+| 生命周期 | `destroyOnClose` |
+| 滚动 | `classNames={{ body: 'minerva-scrollbar-styled' }}`（**5px** 标准滚动条） |
+| 页脚 | 右对齐 `Space`：取消 + 保存（`loading={submitting}`） |
+| 表单 | `layout="vertical"`；可清空字段 **`allowClear`**（`Input` / `Select` / `TreeSelect` / `TextArea`）；**不给 `InputNumber` 加 `allowClear`** |
+| 多行文本 | `TextArea` 使用 `classNames={{ textarea: 'minerva-scrollbar-styled' }}` |
+| 部门树 | 若内嵌可滚动树面板，容器加 `minerva-scrollbar-styled` + `maxHeight` + `overflow:auto`（同 `RoleFormDrawer` 菜单树） |
+
+#### 4.4.3 二次确认
+
+对齐 `minerva-conventions` §4：
+
+- **移出工作空间**、**删除账号** 均用 **`Popconfirm`** 包裹按钮
+- **禁止** `Modal.confirm` / `window.confirm`
+- 删除账号使用更强警告标题与描述文案
+
+#### 4.4.4 滚动条档位（`appLayoutScroll.css`）
+
+| 场景 | class |
+|------|-------|
+| Drawer 正文、长表单、可滚动树面板 | `minerva-scrollbar-styled`（5px） |
+| 表格体 | `minerva-card-table-scroll-ocr`（5px，透明轨道） |
+| 嵌套小面板若需更细滚动 | `minerva-scrollbar-thin`（4px）；用户管理默认不另开第三档 |
+
+**禁止**：业务 CSS 自定义滚动条宽度；可滚动区未挂上述 class 导致系统粗滚动条。
+
+#### 4.4.5 后端列表分页
+
+列表 API 默认 `page_size` 使用 `app.pagination.DEFAULT_PAGE_SIZE`（**10**），与前端一致。
+
+#### 4.4.6 实现参照文件
+
+| 能力 | 参照 |
+|------|------|
+| 列表页结构 | `frontend/src/features/settings/roles/RolesPage.tsx` + `RolesPage.css` |
+| 表单抽屉 | `frontend/src/features/settings/roles/RoleFormDrawer.tsx` |
+| 嵌套 Drawer 内表格 | `frontend/src/features/settings/tenants/WorkspaceDrawer.tsx` |
+| 字典 TreeSelect | `frontend/src/features/settings/dictionary/DictionaryPage.tsx` |
+
 ---
 
 ## 5. 范围外（本期不做）
@@ -310,7 +377,7 @@ i18n：补充 `users.*`（`zh-CN.json` / `en.json`）；移除或保留 `placeho
 | 项 | 说明 |
 |----|------|
 | 邀请已有邮箱用户加入 workspace | 邮箱已存在则 409 拒绝 |
-| `GET /sys/menus/nav` 按用户角色过滤 | 见角色管理 spec §5 |
+| `GET /sys/menus/nav` 按用户角色过滤 | **已实现**；见菜单 spec §3、`menu_service.list_nav_tree_for_user` |
 | 前端按钮权限指令（F perms） | 后续 |
 | 邮件/短信发送初始密码 | 后续 |
 | 用户管理 UI 编辑 `is_super_admin` | 禁止 |
@@ -336,7 +403,7 @@ i18n：补充 `users.*`（`zh-CN.json` / `en.json`）；移除或保留 `placeho
 1. owner/admin 完成用户新增、编辑、移出、条件硬删
 2. 部门 TreeSelect、角色多选保存后回显一致
 3. 邮箱/手机冲突报错
-4. `can_hard_delete` 控制「删除账号」按钮显示
+4. `can_hard_delete` 控制「删除账号」按钮显示；当前登录用户行不显示「移出工作空间」「删除账号」
 5. member 只读、切换 workspace 数据隔离
 6. Popconfirm 文案与行为正确
 
@@ -353,3 +420,21 @@ i18n：补充 `users.*`（`zh-CN.json` / `en.json`）；移除或保留 `placeho
 | 日期 | 变更 |
 |------|------|
 | 2026-06-11 | 初稿：workspace 级用户管理；方案 1；`department_item_id` 在 `sys_users`；全局 status/phone；双删除策略；A+B 硬删权限 |
+| 2026-06-11 | 增补 §4.4：列表/Drawer/滚动条/Popconfirm/分页对齐 RolesPage、RoleFormDrawer 等项目标准 |
+| 2026-06-11 | 实现完成 |
+
+---
+
+## 9. 实现对照（以代码为准，2026-06-11）
+
+| spec 条目 | 当前代码位置 | 备注 |
+|-----------|--------------|------|
+| `sys_users` 扩展 | `backend/app/core/domain/identity/models.py` | nickname/phone/status/remark/department_item_id/update_at |
+| `sys_user_role` ORM | `backend/app/sys/user/domain/db/models.py` | |
+| 建表 SQL | `backend/sql/tables/sys_user_role.sql`、patch `2026-06-11-sys-user-mgmt.sql` | |
+| user service | `backend/app/sys/user/service/user_service.py` | 校验、硬删权限、meta |
+| API 路由 | `backend/app/sys/user/api/router.py` | 前缀 `/workspaces/{workspace_id}/users` |
+| 登录 status | `backend/app/core/domain/identity/services.py` | `authenticate_user` |
+| 前端列表/抽屉 | `frontend/src/features/settings/users/UsersPage.tsx`、`UserFormDrawer.tsx` | §4.4 UI 规范 |
+| API 客户端 | `frontend/src/api/users.ts` | |
+| i18n | `frontend/src/i18n/locales/zh-CN.json`、`en.json` | `users.*` |

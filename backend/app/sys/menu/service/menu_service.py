@@ -10,11 +10,14 @@ from typing import Any
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.domain.identity.services import is_super_admin_user
 from app.exceptions import AppError
 from app.sys.menu.api.schemas import SysMenuNodeOut
 from app.sys.menu.domain.db.models import SysMenu
 from app.sys.menu.infrastructure import repository as repo
 from app.sys.menu.utils.menu_tree import build_menu_tree
+from app.sys.role.infrastructure import repository as role_repo
+from app.sys.user.infrastructure import repository as user_repo
 
 
 def _utc_now() -> datetime:
@@ -103,6 +106,36 @@ def filter_nav_rows(rows: list[SysMenu]) -> list[SysMenu]:
     ]
 
 
+def expand_allowed_nav_menu_ids(
+    all_rows: list[SysMenu],
+    granted_menu_ids: set[uuid.UUID],
+) -> set[uuid.UUID]:
+    """Expand role-granted menu ids to sidebar M/C nodes and ancestor directories."""
+
+    by_id = {r.id: r for r in all_rows}
+    keep: set[uuid.UUID] = set()
+    for menu_id in granted_menu_ids:
+        cur = by_id.get(menu_id)
+        while cur is not None:
+            if cur.menu_type in ("M", "C"):
+                keep.add(cur.id)
+            if cur.parent_id is None:
+                break
+            cur = by_id.get(cur.parent_id)
+    return keep
+
+
+def filter_rows_by_menu_ids(
+    rows: list[SysMenu],
+    allowed_ids: set[uuid.UUID],
+) -> list[SysMenu]:
+    """Keep rows whose id is in the allowed set."""
+
+    if not allowed_ids:
+        return []
+    return [r for r in rows if r.id in allowed_ids]
+
+
 def _assert_no_cycle(
     *,
     menu_id: uuid.UUID,
@@ -170,6 +203,35 @@ async def list_nav_tree(session: AsyncSession) -> list[SysMenuNodeOut]:
 
     rows = await repo.list_all(session)
     return build_menu_tree(filter_nav_rows(rows))
+
+
+async def list_nav_tree_for_user(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    workspace_id: uuid.UUID,
+) -> list[SysMenuNodeOut]:
+    """Return sidebar tree filtered by the user's enabled roles in the workspace."""
+
+    rows = await repo.list_all(session)
+    nav_rows = filter_nav_rows(rows)
+    if await is_super_admin_user(session, user_id=user_id):
+        return build_menu_tree(nav_rows)
+
+    role_ids = await user_repo.list_role_ids_for_user_in_workspace(
+        session,
+        workspace_id=workspace_id,
+        user_id=user_id,
+        enabled_only=True,
+    )
+    if not role_ids:
+        return []
+
+    granted_menu_ids = set(
+        await role_repo.list_menu_ids_for_roles(session, role_ids)
+    )
+    allowed_ids = expand_allowed_nav_menu_ids(rows, granted_menu_ids)
+    return build_menu_tree(filter_rows_by_menu_ids(nav_rows, allowed_ids))
 
 
 async def create_menu(session: AsyncSession, data: dict[str, Any]) -> SysMenu:

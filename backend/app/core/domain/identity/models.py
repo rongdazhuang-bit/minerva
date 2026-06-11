@@ -24,9 +24,9 @@ class MembershipRole(str, enum.Enum):
 
 
 class User(Base):
-    """Authenticated principal with unique email and bcrypt hash."""
+    """Authenticated principal with unique email, profile fields, and bcrypt hash."""
 
-    __tablename__ = "users"
+    __tablename__ = "sys_users"
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
@@ -35,26 +35,48 @@ class User(Base):
     is_super_admin: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=sa.false()
     )
+    nickname: Mapped[str] = mapped_column(String(64), nullable=False)
+    phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    status: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=sa.true()
+    )
+    remark: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    department_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), nullable=False
+    )
+    update_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
 
 
 class Tenant(Base):
     """Top-level org boundary identified by stable slug."""
 
-    __tablename__ = "tenants"
+    __tablename__ = "sys_tenants"
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     slug: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    status: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=sa.true()
+    )
+    remark: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    create_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), nullable=True
+    )
+    update_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
 
 class Workspace(Base):
     """Collaboration scope under one tenant (slug unique per tenant)."""
 
-    __tablename__ = "workspaces"
+    __tablename__ = "sys_workspaces"
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
@@ -63,15 +85,25 @@ class Workspace(Base):
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     slug: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=sa.true()
+    )
+    remark: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    create_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), nullable=True
+    )
+    update_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     __table_args__ = (
-        UniqueConstraint("tenant_id", "slug", name="uq_workspaces_tenant_slug"),
+        UniqueConstraint("tenant_id", "slug", name="uq_sys_workspaces_tenant_slug"),
     )
 
 
 class TenantMembership(Base):
     """Join row tying a user to a tenant with ``MembershipRole``."""
 
-    __tablename__ = "tenant_memberships"
+    __tablename__ = "sys_tenant_memberships"
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
@@ -85,14 +117,14 @@ class TenantMembership(Base):
         Enum(MembershipRole, name="tenant_role"), nullable=False
     )
     __table_args__ = (
-        UniqueConstraint("user_id", "tenant_id", name="uq_tenant_membership"),
+        UniqueConstraint("user_id", "tenant_id", name="uq_sys_tenant_membership"),
     )
 
 
 class WorkspaceMembership(Base):
     """Join row tying a user to a workspace with ``MembershipRole``."""
 
-    __tablename__ = "workspace_memberships"
+    __tablename__ = "sys_workspace_memberships"
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
@@ -106,7 +138,7 @@ class WorkspaceMembership(Base):
         Enum(MembershipRole, name="workspace_role"), nullable=False
     )
     __table_args__ = (
-        UniqueConstraint("user_id", "workspace_id", name="uq_workspace_membership"),
+        UniqueConstraint("user_id", "workspace_id", name="uq_sys_workspace_membership"),
     )
 
 

@@ -90,6 +90,8 @@ async def list_dicts(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
     code: str | None = Query(default=None, max_length=64),
+    dict_code: str | None = Query(default=None, max_length=64),
+    dict_name: str | None = Query(default=None, max_length=128),
     _user: User = Depends(get_current_user),
     _workspace: uuid.UUID = Depends(require_workspace_member),
     session: AsyncSession = Depends(get_db),
@@ -101,6 +103,8 @@ async def list_dicts(
         page=page,
         page_size=page_size,
         dict_code=raw_code,
+        dict_code_filter=dict_code,
+        dict_name_filter=dict_name,
     )
     item_tree_payload: list[SysDictItemNodeOut] | None = None
     if raw_code is not None and rows:

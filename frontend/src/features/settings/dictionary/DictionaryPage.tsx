@@ -48,6 +48,16 @@ type DictFormValues = {
   dict_sort?: number | null
 }
 
+type DictListFilterValues = {
+  dict_code?: string
+  dict_name?: string
+}
+
+type DictListFilters = {
+  dict_code?: string
+  dict_name?: string
+}
+
 type ItemFormValues = {
   code: string
   name: string
@@ -158,12 +168,14 @@ export function DictionaryPage() {
     void queryClient.invalidateQueries({ queryKey: dictQueryKeys.all(workspaceId) })
   }, [queryClient, workspaceId])
   const [dictForm] = Form.useForm<DictFormValues>()
+  const [filterForm] = Form.useForm<DictListFilterValues>()
   const [itemForm] = Form.useForm<ItemFormValues>()
 
   const [loading, setLoading] = useState(false)
   const [dictListRev, setDictListRev] = useState(0)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
+  const [filters, setFilters] = useState<DictListFilters>({})
   const [total, setTotal] = useState(0)
   const [dicts, setDicts] = useState<SysDictListItem[]>([])
   const [dictModalOpen, setDictModalOpen] = useState(false)
@@ -184,7 +196,12 @@ export function DictionaryPage() {
     setLoading(true)
     void (async () => {
       try {
-        const data = await listDicts(workspaceId, { page, page_size: pageSize })
+        const data = await listDicts(workspaceId, {
+          page,
+          page_size: pageSize,
+          dict_code: filters.dict_code,
+          dict_name: filters.dict_name,
+        })
         if (cancelled) return
         const maxPage = Math.max(1, Math.ceil(data.total / pageSize) || 1)
         if (page > maxPage) {
@@ -202,7 +219,7 @@ export function DictionaryPage() {
     return () => {
       cancelled = true
     }
-  }, [workspaceId, page, pageSize, dictListRev, t])
+  }, [workspaceId, page, pageSize, filters, dictListRev, messageApi, t])
 
   const loadItems = useCallback(async () => {
     if (!workspaceId || !activeDict) return
@@ -492,11 +509,53 @@ export function DictionaryPage() {
   return (
     <div className="minerva-dict-settings">
       <Card size="small" variant="borderless" className="minerva-dict-settings__card">
-        <Space className="minerva-dict-settings__toolbar">
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreateDict}>
-            {t('settings.dictAdd')}
-          </Button>
-        </Space>
+        <div className="minerva-dict-settings__toolbar">
+          <Form
+            form={filterForm}
+            layout="inline"
+            onFinish={(values) => {
+              setFilters({
+                dict_code: values.dict_code?.trim() || undefined,
+                dict_name: values.dict_name?.trim() || undefined,
+              })
+              setPage(1)
+            }}
+          >
+            <Form.Item name="dict_code">
+              <Input
+                allowClear
+                placeholder={t('settings.dictCodeFilterPlaceholder')}
+                style={{ width: 160 }}
+              />
+            </Form.Item>
+            <Form.Item name="dict_name">
+              <Input
+                allowClear
+                placeholder={t('settings.dictNameFilterPlaceholder')}
+                style={{ width: 160 }}
+              />
+            </Form.Item>
+            <Form.Item>
+              <Space>
+                <Button type="primary" htmlType="submit">
+                  {t('rules.search')}
+                </Button>
+                <Button
+                  onClick={() => {
+                    filterForm.resetFields()
+                    setFilters({})
+                    setPage(1)
+                  }}
+                >
+                  {t('rules.resetFilter')}
+                </Button>
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreateDict}>
+                  {t('settings.dictAdd')}
+                </Button>
+              </Space>
+            </Form.Item>
+          </Form>
+        </div>
 
         <div className="minerva-dict-settings__table-wrap">
           <Table<SysDictListItem>

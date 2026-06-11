@@ -7,14 +7,24 @@ export function useAppMessage(): MessageInstance {
   return App.useApp().message
 }
 
+/** Resolve API error code to a localized message when an i18n key exists. */
+export function resolveApiErrorMessage(
+  t: (key: string, options?: { defaultValue?: string }) => string,
+  e: ApiError,
+): string {
+  const key = `apiErrors.${e.code}`
+  const translated = t(key, { defaultValue: '' })
+  return translated.trim() ? translated : e.message
+}
+
 /** 将接口/未知错误展示为 message 提示。 */
 export function showAppError(
   messageApi: MessageInstance,
-  t: (key: string) => string,
+  t: (key: string, options?: { defaultValue?: string }) => string,
   e: unknown,
 ) {
   if (e instanceof ApiError) {
-    void messageApi.error(e.message)
+    void messageApi.error(resolveApiErrorMessage(t, e))
     return
   }
   if (e instanceof DOMException && e.name === 'TimeoutError') {

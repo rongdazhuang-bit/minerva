@@ -41,7 +41,37 @@ async def get_current_user(
     user = await session.get(User, uid)
     if user is None:
         raise AppError("auth.invalid_token", "User not found", 401)
+    if not user.status:
+        raise AppError("user.disabled", "User account is disabled", 401)
     return user
+
+
+def _decode_access_payload(cred: HTTPAuthorizationCredentials) -> dict:
+    """Decode a Bearer access token or raise ``AppError``."""
+
+    if cred.scheme.lower() != "bearer":
+        raise AppError("auth.missing_token", "Authorization Bearer token required", 401)
+    try:
+        payload = decode_token(cred.credentials)
+    except jwt.PyJWTError:
+        raise AppError("auth.invalid_token", "Invalid or expired token", 401) from None
+    if payload.get("type") != "access":
+        raise AppError("auth.invalid_token", "Not an access token", 401)
+    return payload
+
+
+async def get_current_workspace_id(
+    cred: HTTPAuthorizationCredentials | None = Depends(bearer),
+) -> uuid.UUID:
+    """Resolve active workspace id from the access JWT ``wid`` claim."""
+
+    if cred is None:
+        raise AppError("auth.missing_token", "Authorization Bearer token required", 401)
+    payload = _decode_access_payload(cred)
+    wid = payload.get("wid")
+    if wid is None:
+        raise AppError("auth.invalid_token", "Missing workspace context in token", 401)
+    return uuid.UUID(str(wid))
 
 
 async def require_workspace_member(

@@ -122,6 +122,21 @@ async def list_menu_ids_for_role(
     return list(result.scalars().all())
 
 
+async def list_menu_ids_for_roles(
+    session: AsyncSession, role_ids: list[uuid.UUID]
+) -> list[uuid.UUID]:
+    """Return distinct menu ids linked to any of the given roles."""
+
+    if not role_ids:
+        return []
+    result = await session.execute(
+        select(SysRoleMenu.menu_id)
+        .where(SysRoleMenu.role_id.in_(role_ids))
+        .distinct()
+    )
+    return list(result.scalars().all())
+
+
 async def delete_role_menus(session: AsyncSession, role_id: uuid.UUID) -> None:
     """Remove all menu links for a role."""
 

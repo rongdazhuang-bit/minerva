@@ -1,5 +1,5 @@
 import { Button, Drawer, Form, Input, Radio, Space } from 'antd'
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { SysTenantCreateBody } from '@/api/tenants'
 
@@ -42,6 +42,13 @@ export function TenantFormDrawer({
     })
   }, [open, initial, form])
 
+  const handleFinish = useCallback(
+    async (values: TenantFormValues) => {
+      await onSubmit(values)
+    },
+    [onSubmit],
+  )
+
   return (
     <Drawer
       title={title}
@@ -49,22 +56,20 @@ export function TenantFormDrawer({
       open={open}
       onClose={onClose}
       destroyOnClose
-      footer={
+      footer={null}
+      classNames={{ body: 'minerva-scrollbar-styled' }}
+      extra={
         <Space>
-          <Button onClick={onClose}>{t('tenants.cancel')}</Button>
-          <Button
-            type="primary"
-            loading={submitting}
-            onClick={() => {
-              void form.validateFields().then((values) => onSubmit(values))
-            }}
-          >
+          <Button onClick={onClose} disabled={submitting}>
+            {t('tenants.cancel')}
+          </Button>
+          <Button type="primary" loading={submitting} onClick={() => void form.submit()}>
             {t('tenants.save')}
           </Button>
         </Space>
       }
     >
-      <Form form={form} layout="vertical">
+      <Form form={form} layout="vertical" onFinish={handleFinish}>
         <Form.Item
           name="name"
           label={t('tenants.tenantName')}

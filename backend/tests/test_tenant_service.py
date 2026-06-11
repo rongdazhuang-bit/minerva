@@ -12,11 +12,11 @@ def test_validate_slug_accepts_valid_slug() -> None:
     assert svc.validate_slug("acme-corp") == "acme-corp"
 
 
-def test_validate_slug_rejects_uppercase() -> None:
-    """Uppercase slug is invalid."""
+def test_validate_slug_rejects_invalid_chars() -> None:
+    """Slug with spaces is invalid even after lowercasing."""
 
     with pytest.raises(AppError) as exc:
-        svc.validate_slug("My-Tenant")
+        svc.validate_slug("My Tenant")
     assert exc.value.code == "tenant.invalid_slug"
 
 

@@ -1,6 +1,7 @@
 import {
   ApiOutlined,
   AuditOutlined,
+  BankOutlined,
   BarChartOutlined,
   BookOutlined,
   ClockCircleOutlined,
@@ -30,6 +31,7 @@ import type { ReactNode } from 'react'
 export const menuIconMap = {
   ApiOutlined: <ApiOutlined />,
   AuditOutlined: <AuditOutlined />,
+  BankOutlined: <BankOutlined />,
   BarChartOutlined: <BarChartOutlined />,
   BookOutlined: <BookOutlined />,
   ClockCircleOutlined: <ClockCircleOutlined />,

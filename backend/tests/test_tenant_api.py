@@ -32,6 +32,7 @@ async def _allow_super_admin() -> User:
         id=uuid.uuid4(),
         email="sa@example.com",
         password_hash="x",
+        nickname="Super Admin",
         is_super_admin=True,
     )
 

@@ -24,6 +24,7 @@ async def test_is_any_tenant_owner_or_admin_true_for_admin() -> None:
             id=uid,
             email="admin@example.com",
             password_hash="x",
+            nickname="Admin",
             is_super_admin=False,
         )
     )
@@ -44,6 +45,7 @@ async def test_is_any_tenant_owner_or_admin_false_for_member_only() -> None:
             id=uid,
             email="member@example.com",
             password_hash="x",
+            nickname="Member",
             is_super_admin=False,
         )
     )
@@ -69,6 +71,7 @@ async def test_is_super_admin_user_true() -> None:
             id=uid,
             email="rongda@yeah.net",
             password_hash="x",
+            nickname="Rongda",
             is_super_admin=True,
         )
     )
@@ -84,6 +87,7 @@ async def test_is_any_tenant_owner_or_admin_true_for_super_admin() -> None:
             id=uid,
             email="rongda@yeah.net",
             password_hash="x",
+            nickname="Rongda",
             is_super_admin=True,
         )
     )

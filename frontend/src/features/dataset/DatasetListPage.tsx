@@ -155,11 +155,17 @@ export function DatasetListPage() {
           onFinish={onSearch}
           style={{ marginBottom: 16, flexWrap: 'wrap', gap: 8 }}
         >
-          <Form.Item name="name" label={t('dataset.list.filter.knowledgeBase')}>
+          <Form.Item name="name">
             <Input allowClear placeholder={t('dataset.list.filter.knowledgeBasePh')} style={{ minWidth: 160 }} />
           </Form.Item>
-          <Form.Item name="create_range" label={t('dataset.list.filter.createRange')}>
-            <DatePicker.RangePicker allowClear />
+          <Form.Item name="create_range">
+            <DatePicker.RangePicker
+              allowClear
+              placeholder={[
+                t('dataset.list.filter.createRangeStart'),
+                t('dataset.list.filter.createRangeEnd'),
+              ]}
+            />
           </Form.Item>
           <Form.Item>
             <Space wrap>

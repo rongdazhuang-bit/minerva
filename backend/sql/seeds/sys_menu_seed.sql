@@ -34,5 +34,6 @@ INSERT INTO public.sys_menu (
   ('c9a908a4-fc2c-5c07-ada4-56760bb9ef43', '2f899ad8-d7d2-5be5-bf63-feeb426c0bb9', '菜单配置', 'settings.menuConfig', 'settings-menus', 6, '/app/settings/menus', 'C', 'MenuOutlined', true, true),
   ('b137ea34-f040-53f4-bf4e-f3c009e191a3', '2f899ad8-d7d2-5be5-bf63-feeb426c0bb9', '用户管理', 'settings.users', 'settings-users', 7, '/app/settings/users', 'C', 'UserOutlined', true, true),
   ('978c6b53-797a-5455-8728-3d97d2ea0619', '2f899ad8-d7d2-5be5-bf63-feeb426c0bb9', '角色管理', 'settings.roles', 'settings-roles', 8, '/app/settings/roles', 'C', 'IdcardOutlined', true, true),
-  ('5a769206-f9bf-5ddd-b4f4-956d40dbc3c9', '2f899ad8-d7d2-5be5-bf63-feeb426c0bb9', '数据字典', 'settings.dictionary', 'settings-dictionary', 9, '/app/settings/dictionary', 'C', 'TagsOutlined', true, true)
+  ('f3e8a912-4c1d-5b6a-9e7f-2d8c4a1b0e59', '2f899ad8-d7d2-5be5-bf63-feeb426c0bb9', '租户管理', 'settings.tenants', 'settings-tenants', 9, '/app/settings/tenants', 'C', 'BankOutlined', true, true),
+  ('5a769206-f9bf-5ddd-b4f4-956d40dbc3c9', '2f899ad8-d7d2-5be5-bf63-feeb426c0bb9', '数据字典', 'settings.dictionary', 'settings-dictionary', 10, '/app/settings/dictionary', 'C', 'TagsOutlined', true, true)
 ON CONFLICT (id) DO NOTHING;
