@@ -12,7 +12,10 @@ from fastapi.testclient import TestClient
 from app.core.api.deps import (
     get_current_user,
     require_workspace_member,
-    require_workspace_owner_or_admin,
+)
+from app.sys.user.api.deps import (
+    require_create_workspace_scope,
+    require_workspace_manager_or_super_admin,
 )
 from app.core.domain.identity.models import User
 from app.errors import register_exception_handlers
@@ -70,7 +73,10 @@ def _make_user_app(*, member: bool, admin: bool) -> FastAPI:
     app.dependency_overrides[require_workspace_member] = (
         _allow_member if member else _deny_member
     )
-    app.dependency_overrides[require_workspace_owner_or_admin] = (
+    app.dependency_overrides[require_workspace_manager_or_super_admin] = (
+        _allow_admin if admin else _deny_admin
+    )
+    app.dependency_overrides[require_create_workspace_scope] = (
         _allow_admin if admin else _deny_admin
     )
     return app
@@ -137,3 +143,64 @@ def test_member_list_ok(member_users_client: TestClient, monkeypatch) -> None:
     body = response.json()
     assert body["items"] == []
     assert body["total"] == 0
+
+
+def test_capabilities_ok_for_member(member_users_client: TestClient, monkeypatch) -> None:
+    """Members can read capabilities meta."""
+
+    async def _fake_caps(*_a, **_k):
+        return {
+            "is_super_admin": False,
+            "actor_workspace_role": "member",
+            "can_edit_membership_role": False,
+            "assignable_membership_roles": [],
+            "can_pick_tenant_workspace": False,
+            "default_tenant_id": None,
+        }
+
+    monkeypatch.setattr(
+        "app.sys.user.api.router.svc.get_actor_capabilities",
+        _fake_caps,
+    )
+    response = member_users_client.get(
+        f"/workspaces/{WS_ID}/users/meta/capabilities"
+    )
+    assert response.status_code == 200
+    assert response.json()["can_edit_membership_role"] is False
+
+
+def test_tenant_meta_forbidden_for_non_super(
+    member_users_client: TestClient, monkeypatch
+) -> None:
+    """Non-super-admin cannot list tenant meta for user form."""
+
+    async def _fake_list(*_a, **_k):
+        from app.exceptions import AppError
+
+        raise AppError("auth.forbidden", "Super admin required", 403)
+
+    monkeypatch.setattr(
+        "app.sys.user.api.router.svc.list_tenant_meta_for_user_form",
+        _fake_list,
+    )
+    response = member_users_client.get(f"/workspaces/{WS_ID}/users/meta/tenants")
+    assert response.status_code == 403
+
+
+def test_tenant_meta_ok(admin_users_client: TestClient, monkeypatch) -> None:
+    """Super admin tenant meta returns sys_tenant options."""
+
+    tid = uuid.uuid4()
+
+    async def _fake_list(*_a, **_k):
+        return [{"id": tid, "name": "Acme", "slug": "acme"}]
+
+    monkeypatch.setattr(
+        "app.sys.user.api.router.svc.list_tenant_meta_for_user_form",
+        _fake_list,
+    )
+    response = admin_users_client.get(f"/workspaces/{WS_ID}/users/meta/tenants")
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["name"] == "Acme"

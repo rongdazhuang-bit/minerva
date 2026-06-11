@@ -392,7 +392,7 @@ i18n：补充 `users.*`（`zh-CN.json` / `en.json`）；移除或保留 `placeho
 | 邮件/短信发送初始密码 | 后续 |
 | 用户管理 UI 编辑 `is_super_admin` | 禁止 |
 | 修改 `email` | 禁止 |
-| tenant 级用户管理 | 不在本期 |
+| tenant 级用户管理（全量） | 不在本期；超管跨租户/空间**新建**用户见 [2026-06-12-user-form-membership-tenant-design.md](./2026-06-12-user-form-membership-tenant-design.md) |
 
 ---
 

@@ -1,6 +1,6 @@
 import { apiJson } from '@/api/client'
 
-/** 嵌套子项，与 `GET .../dicts?code=` 中 `item_tree` 一致。 */
+/** 嵌套子项，与 `GET /sys/dicts?code=` 中 `item_tree` 一致。 */
 export type SysDictItemNode = {
   id: string
   dict_uuid: string
@@ -15,7 +15,6 @@ export type SysDictItemNode = {
 
 export type SysDictListItem = {
   id: string
-  workspace_id: string
   dict_code: string
   dict_name: string | null
   dict_sort: number | null
@@ -78,7 +77,7 @@ export type ListDictsParams = {
   dict_name?: string
 }
 
-export function listDicts(workspaceId: string, params?: ListDictsParams) {
+export function listDicts(params?: ListDictsParams) {
   const sp = new URLSearchParams()
   if (params?.page != null) sp.set('page', String(params.page))
   if (params?.page_size != null) sp.set('page_size', String(params.page_size))
@@ -86,9 +85,7 @@ export function listDicts(workspaceId: string, params?: ListDictsParams) {
   if (params?.dict_code != null && params.dict_code !== '') sp.set('dict_code', params.dict_code)
   if (params?.dict_name != null && params.dict_name !== '') sp.set('dict_name', params.dict_name)
   const q = sp.toString()
-  return apiJson<SysDictListPage>(
-    `/workspaces/${workspaceId}/dicts${q ? `?${q}` : ''}`,
-  )
+  return apiJson<SysDictListPage>(`/sys/dicts${q ? `?${q}` : ''}`)
 }
 
 const DICT_BY_CODE_PAGE_SIZE = 100
@@ -115,11 +112,8 @@ export function flattenDictItemTree(
 }
 
 /** 单次请求：按 `dict_code` 取主表行 + 树形子项。 */
-export async function fetchDictByCode(
-  workspaceId: string,
-  dictCode: string,
-): Promise<FetchDictByCodeResult> {
-  const { items, total } = await listDicts(workspaceId, {
+export async function fetchDictByCode(dictCode: string): Promise<FetchDictByCodeResult> {
+  const { items, total } = await listDicts({
     page: 1,
     page_size: DICT_BY_CODE_PAGE_SIZE,
     code: dictCode,
@@ -136,13 +130,13 @@ export async function fetchDictByCode(
   }
 }
 
-/** Load all dictionaries for the workspace (follows pagination until complete). */
-export async function listAllDicts(workspaceId: string): Promise<SysDictListItem[]> {
+/** Load all platform dictionaries (follows pagination until complete). */
+export async function listAllDicts(): Promise<SysDictListItem[]> {
   const pageSize = 100
   const out: SysDictListItem[] = []
   let page = 1
   while (true) {
-    const { items, total } = await listDicts(workspaceId, { page, page_size: pageSize })
+    const { items, total } = await listDicts({ page, page_size: pageSize })
     out.push(...items)
     if (out.length >= total || items.length === 0) break
     page += 1
@@ -150,58 +144,46 @@ export async function listAllDicts(workspaceId: string): Promise<SysDictListItem
   return out
 }
 
-export function createDict(workspaceId: string, body: SysDictCreateBody) {
-  return apiJson<SysDictListItem>(`/workspaces/${workspaceId}/dicts`, {
+export function createDict(body: SysDictCreateBody) {
+  return apiJson<SysDictListItem>('/sys/dicts', {
     method: 'POST',
     body: JSON.stringify(body),
   })
 }
 
-export function patchDict(workspaceId: string, dictId: string, body: SysDictPatchBody) {
-  return apiJson<SysDictListItem>(`/workspaces/${workspaceId}/dicts/${dictId}`, {
+export function patchDict(dictId: string, body: SysDictPatchBody) {
+  return apiJson<SysDictListItem>(`/sys/dicts/${dictId}`, {
     method: 'PATCH',
     body: JSON.stringify(body),
   })
 }
 
-export function deleteDict(workspaceId: string, dictId: string) {
-  return apiJson<null>(`/workspaces/${workspaceId}/dicts/${dictId}`, {
+export function deleteDict(dictId: string) {
+  return apiJson<null>(`/sys/dicts/${dictId}`, {
     method: 'DELETE',
   })
 }
 
-export function listDictItems(workspaceId: string, dictId: string) {
-  return apiJson<SysDictItem[]>(`/workspaces/${workspaceId}/dicts/${dictId}/items`)
+export function listDictItems(dictId: string) {
+  return apiJson<SysDictItem[]>(`/sys/dicts/${dictId}/items`)
 }
 
-export function createDictItem(
-  workspaceId: string,
-  dictId: string,
-  body: SysDictItemCreateBody,
-) {
-  return apiJson<SysDictItem>(`/workspaces/${workspaceId}/dicts/${dictId}/items`, {
+export function createDictItem(dictId: string, body: SysDictItemCreateBody) {
+  return apiJson<SysDictItem>(`/sys/dicts/${dictId}/items`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
 }
 
-export function patchDictItem(
-  workspaceId: string,
-  dictId: string,
-  itemId: string,
-  body: SysDictItemPatchBody,
-) {
-  return apiJson<SysDictItem>(
-    `/workspaces/${workspaceId}/dicts/${dictId}/items/${itemId}`,
-    {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    },
-  )
+export function patchDictItem(dictId: string, itemId: string, body: SysDictItemPatchBody) {
+  return apiJson<SysDictItem>(`/sys/dicts/${dictId}/items/${itemId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
 }
 
-export function deleteDictItem(workspaceId: string, dictId: string, itemId: string) {
-  return apiJson<null>(`/workspaces/${workspaceId}/dicts/${dictId}/items/${itemId}`, {
+export function deleteDictItem(dictId: string, itemId: string) {
+  return apiJson<null>(`/sys/dicts/${dictId}/items/${itemId}`, {
     method: 'DELETE',
   })
 }

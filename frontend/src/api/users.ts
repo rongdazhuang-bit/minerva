@@ -13,6 +13,31 @@ export type SysUserDepartmentNode = {
   children: SysUserDepartmentNode[]
 }
 
+/** Tenant option from sys_tenant for user create form. */
+export type SysUserTenantOption = {
+  id: string
+  name: string
+  slug: string
+}
+
+/** Workspace option from sys_workspaces for user create form. */
+export type SysUserWorkspaceOption = {
+  id: string
+  tenant_id: string
+  name: string
+  slug: string
+}
+
+/** Actor form capabilities for a target workspace. */
+export type SysUserCapabilities = {
+  is_super_admin: boolean
+  actor_workspace_role: string | null
+  can_edit_membership_role: boolean
+  assignable_membership_roles: string[]
+  can_pick_tenant_workspace: boolean
+  default_tenant_id: string | null
+}
+
 /** Assignable role option. */
 export type SysUserRoleOption = {
   id: string
@@ -34,6 +59,8 @@ export type SysUserListItem = {
   membership_role: string
   role_ids: string[]
   role_names: string[]
+  tenant_id?: string | null
+  workspace_id?: string | null
   created_at: string
   update_at: string | null
   can_hard_delete: boolean
@@ -154,5 +181,26 @@ export function listUserDepartmentTree(workspaceId: string) {
 export function listUserAssignableRoles(workspaceId: string) {
   return apiJson<SysUserRoleOption[]>(
     `/workspaces/${workspaceId}/users/meta/roles`,
+  )
+}
+
+/** Load form capability flags for the current actor. */
+export function getUserCapabilities(workspaceId: string) {
+  return apiJson<SysUserCapabilities>(
+    `/workspaces/${workspaceId}/users/meta/capabilities`,
+  )
+}
+
+/** List active tenants from sys_tenant (super admin only). */
+export function listUserFormTenants(workspaceId: string) {
+  return apiJson<SysUserTenantOption[]>(
+    `/workspaces/${workspaceId}/users/meta/tenants`,
+  )
+}
+
+/** List active workspaces in sys_workspaces for one tenant (super admin only). */
+export function listUserFormWorkspaces(workspaceId: string, tenantId: string) {
+  return apiJson<SysUserWorkspaceOption[]>(
+    `/workspaces/${workspaceId}/users/meta/tenants/${tenantId}/workspaces`,
   )
 }

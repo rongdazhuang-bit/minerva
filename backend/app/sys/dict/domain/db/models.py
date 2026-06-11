@@ -13,24 +13,15 @@ from app.core.infrastructure.db.base import Base
 
 
 class SysDict(Base):
-    """Workspace dictionary category identified by ``dict_code``."""
+    """Platform-global dictionary category identified by ``dict_code``."""
 
     __tablename__ = "sys_dict"
     __table_args__ = (
-        UniqueConstraint(
-            "workspace_id",
-            "dict_code",
-            name="uq_sys_dict_workspace_dict_code",
-        ),
+        UniqueConstraint("dict_code", name="uq_sys_dict_dict_code"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    workspace_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        index=True,
-        nullable=False,
     )
     dict_code: Mapped[str] = mapped_column(String(64), nullable=False)
     dict_name: Mapped[str | None] = mapped_column(String(128), nullable=True)

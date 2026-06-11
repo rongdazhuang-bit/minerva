@@ -18,33 +18,24 @@ def _dict_list_order():
     )
 
 
-async def list_dicts_for_workspace(
-    session: AsyncSession, *, workspace_id: uuid.UUID
-) -> Sequence[SysDict]:
+async def list_dicts(session: AsyncSession) -> Sequence[SysDict]:
     result = await session.execute(
-        select(SysDict)
-        .where(SysDict.workspace_id == workspace_id)
-        .order_by(*_dict_list_order())
+        select(SysDict).order_by(*_dict_list_order())
     )
     return result.scalars().all()
 
 
-async def count_dicts_for_workspace(
+async def count_dicts(
     session: AsyncSession,
     *,
-    workspace_id: uuid.UUID,
     dict_code_exact: str | None = None,
     dict_code_contains: str | None = None,
     dict_name_contains: str | None = None,
 ) -> int:
     if dict_code_exact is not None:
-        row = await get_dict_by_code_for_workspace(
-            session, workspace_id=workspace_id, dict_code=dict_code_exact
-        )
+        row = await get_dict_by_code(session, dict_code=dict_code_exact)
         return 1 if row is not None else 0
-    stmt = select(func.count()).select_from(SysDict).where(
-        SysDict.workspace_id == workspace_id
-    )
+    stmt = select(func.count()).select_from(SysDict)
     code_q = dict_code_contains.strip() if dict_code_contains else None
     name_q = dict_name_contains.strip() if dict_name_contains else None
     if code_q:
@@ -55,10 +46,9 @@ async def count_dicts_for_workspace(
     return int(result.scalar_one() or 0)
 
 
-async def list_dicts_for_workspace_page(
+async def list_dicts_page(
     session: AsyncSession,
     *,
-    workspace_id: uuid.UUID,
     limit: int,
     offset: int,
     dict_code_exact: str | None = None,
@@ -66,15 +56,13 @@ async def list_dicts_for_workspace_page(
     dict_name_contains: str | None = None,
 ) -> Sequence[SysDict]:
     if dict_code_exact is not None:
-        d = await get_dict_by_code_for_workspace(
-            session, workspace_id=workspace_id, dict_code=dict_code_exact
-        )
+        d = await get_dict_by_code(session, dict_code=dict_code_exact)
         if d is None:
             return []
         if offset > 0 or limit <= 0:
             return []
         return (d,)
-    stmt = select(SysDict).where(SysDict.workspace_id == workspace_id)
+    stmt = select(SysDict)
     code_q = dict_code_contains.strip() if dict_code_contains else None
     name_q = dict_name_contains.strip() if dict_name_contains else None
     if code_q:
@@ -87,32 +75,24 @@ async def list_dicts_for_workspace_page(
     return result.scalars().all()
 
 
-async def get_dict_for_workspace(
+async def get_dict_by_id(
     session: AsyncSession,
     *,
-    workspace_id: uuid.UUID,
     dict_id: uuid.UUID,
 ) -> SysDict | None:
     result = await session.execute(
-        select(SysDict).where(
-            SysDict.id == dict_id,
-            SysDict.workspace_id == workspace_id,
-        )
+        select(SysDict).where(SysDict.id == dict_id)
     )
     return result.scalar_one_or_none()
 
 
-async def get_dict_by_code_for_workspace(
+async def get_dict_by_code(
     session: AsyncSession,
     *,
-    workspace_id: uuid.UUID,
     dict_code: str,
 ) -> SysDict | None:
     result = await session.execute(
-        select(SysDict).where(
-            SysDict.workspace_id == workspace_id,
-            SysDict.dict_code == dict_code.strip(),
-        )
+        select(SysDict).where(SysDict.dict_code == dict_code.strip())
     )
     return result.scalar_one_or_none()
 

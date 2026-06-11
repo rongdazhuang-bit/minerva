@@ -212,6 +212,23 @@ async def get_tenant_id_for_workspace(
     return result.scalar_one_or_none()
 
 
+async def get_tenant_membership(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    tenant_id: uuid.UUID,
+) -> TenantMembership | None:
+    """Return one tenant membership row for a user, if present."""
+
+    result = await session.execute(
+        select(TenantMembership).where(
+            TenantMembership.user_id == user_id,
+            TenantMembership.tenant_id == tenant_id,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
 async def add_tenant_membership(
     session: AsyncSession, row: TenantMembership
 ) -> TenantMembership:

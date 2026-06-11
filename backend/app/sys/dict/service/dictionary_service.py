@@ -58,20 +58,19 @@ async def _commit_or_conflict(session: AsyncSession) -> None:
         if _is_unique_violation(e):
             raise AppError(
                 "dict.conflict",
-                "Duplicate code in this workspace or dictionary",
+                "Duplicate code in this dictionary",
                 409,
             ) from e
         raise
 
 
-async def list_dicts(session: AsyncSession, *, workspace_id: uuid.UUID) -> list[SysDict]:
-    return list(await repo.list_dicts_for_workspace(session, workspace_id=workspace_id))
+async def list_dicts(session: AsyncSession) -> list[SysDict]:
+    return list(await repo.list_dicts(session))
 
 
 async def list_dicts_page(
     session: AsyncSession,
     *,
-    workspace_id: uuid.UUID,
     page: int,
     page_size: int,
     dict_code: str | None = None,
@@ -81,17 +80,15 @@ async def list_dicts_page(
     code_exact = dict_code.strip() if dict_code else None
     code_contains = dict_code_filter.strip() if dict_code_filter else None
     name_contains = dict_name_filter.strip() if dict_name_filter else None
-    total = await repo.count_dicts_for_workspace(
+    total = await repo.count_dicts(
         session,
-        workspace_id=workspace_id,
         dict_code_exact=code_exact,
         dict_code_contains=code_contains,
         dict_name_contains=name_contains,
     )
     offset = (page - 1) * page_size
-    rows = await repo.list_dicts_for_workspace_page(
+    rows = await repo.list_dicts_page(
         session,
-        workspace_id=workspace_id,
         limit=page_size,
         offset=offset,
         dict_code_exact=code_exact,
@@ -104,12 +101,9 @@ async def list_dicts_page(
 async def get_dict(
     session: AsyncSession,
     *,
-    workspace_id: uuid.UUID,
     dict_id: uuid.UUID,
 ) -> SysDict:
-    row = await repo.get_dict_for_workspace(
-        session, workspace_id=workspace_id, dict_id=dict_id
-    )
+    row = await repo.get_dict_by_id(session, dict_id=dict_id)
     if row is None:
         raise AppError("dict.not_found", "Dictionary not found", 404)
     return row
@@ -118,14 +112,12 @@ async def get_dict(
 async def create_dict(
     session: AsyncSession,
     *,
-    workspace_id: uuid.UUID,
     dict_code: str,
     dict_name: str | None,
     dict_sort: int | None,
 ) -> SysDict:
     now = _utc_now()
     row = SysDict(
-        workspace_id=workspace_id,
         dict_code=dict_code.strip(),
         dict_name=dict_name.strip() if dict_name else None,
         dict_sort=dict_sort if dict_sort is not None else 0,
@@ -141,11 +133,10 @@ async def create_dict(
 async def update_dict(
     session: AsyncSession,
     *,
-    workspace_id: uuid.UUID,
     dict_id: uuid.UUID,
     patch: dict[str, Any],
 ) -> SysDict:
-    row = await get_dict(session, workspace_id=workspace_id, dict_id=dict_id)
+    row = await get_dict(session, dict_id=dict_id)
     for key, value in patch.items():
         setattr(row, key, value)
     row.update_at = _utc_now()
@@ -157,10 +148,9 @@ async def update_dict(
 async def delete_dict(
     session: AsyncSession,
     *,
-    workspace_id: uuid.UUID,
     dict_id: uuid.UUID,
 ) -> None:
-    row = await get_dict(session, workspace_id=workspace_id, dict_id=dict_id)
+    row = await get_dict(session, dict_id=dict_id)
     await session.execute(delete(SysDictItem).where(SysDictItem.dict_uuid == dict_id))
     await session.delete(row)
     try:
@@ -173,23 +163,19 @@ async def delete_dict(
 async def list_items(
     session: AsyncSession,
     *,
-    workspace_id: uuid.UUID,
     dict_id: uuid.UUID,
 ) -> list[SysDictItem]:
-    await get_dict(session, workspace_id=workspace_id, dict_id=dict_id)
+    await get_dict(session, dict_id=dict_id)
     return list(await repo.list_items_for_dict(session, dict_uuid=dict_id))
 
 
 async def list_items_by_dict_code(
     session: AsyncSession,
     *,
-    workspace_id: uuid.UUID,
     dict_code: str,
 ) -> list[SysDictItem]:
-    """All items for the dictionary with the given `dict_code` in this workspace; empty if missing."""
-    d = await repo.get_dict_by_code_for_workspace(
-        session, workspace_id=workspace_id, dict_code=dict_code
-    )
+    """All items for the dictionary with the given ``dict_code``; empty if missing."""
+    d = await repo.get_dict_by_code(session, dict_code=dict_code)
     if d is None:
         return []
     return list(await repo.list_items_for_dict(session, dict_uuid=d.id))
@@ -198,11 +184,10 @@ async def list_items_by_dict_code(
 async def get_item(
     session: AsyncSession,
     *,
-    workspace_id: uuid.UUID,
     dict_id: uuid.UUID,
     item_id: uuid.UUID,
 ) -> SysDictItem:
-    await get_dict(session, workspace_id=workspace_id, dict_id=dict_id)
+    await get_dict(session, dict_id=dict_id)
     row = await repo.get_item_in_dict(session, dict_uuid=dict_id, item_id=item_id)
     if row is None:
         raise AppError("dict.item_not_found", "Dictionary item not found", 404)
@@ -212,14 +197,13 @@ async def get_item(
 async def create_item(
     session: AsyncSession,
     *,
-    workspace_id: uuid.UUID,
     dict_id: uuid.UUID,
     code: str,
     name: str,
     item_sort: int | None,
     parent_uuid: uuid.UUID | None,
 ) -> SysDictItem:
-    await get_dict(session, workspace_id=workspace_id, dict_id=dict_id)
+    await get_dict(session, dict_id=dict_id)
     if parent_uuid is not None:
         parent = await repo.get_item_in_dict(
             session, dict_uuid=dict_id, item_id=parent_uuid
@@ -246,12 +230,11 @@ async def create_item(
 async def update_item(
     session: AsyncSession,
     *,
-    workspace_id: uuid.UUID,
     dict_id: uuid.UUID,
     item_id: uuid.UUID,
     patch: dict[str, Any],
 ) -> SysDictItem:
-    await get_dict(session, workspace_id=workspace_id, dict_id=dict_id)
+    await get_dict(session, dict_id=dict_id)
     row = await repo.get_item_in_dict(session, dict_uuid=dict_id, item_id=item_id)
     if row is None:
         raise AppError("dict.item_not_found", "Dictionary item not found", 404)
@@ -285,11 +268,10 @@ async def update_item(
 async def delete_item(
     session: AsyncSession,
     *,
-    workspace_id: uuid.UUID,
     dict_id: uuid.UUID,
     item_id: uuid.UUID,
 ) -> None:
-    await get_dict(session, workspace_id=workspace_id, dict_id=dict_id)
+    await get_dict(session, dict_id=dict_id)
     row = await repo.get_item_in_dict(session, dict_uuid=dict_id, item_id=item_id)
     if row is None:
         raise AppError("dict.item_not_found", "Dictionary item not found", 404)

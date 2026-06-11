@@ -17,11 +17,11 @@ from app.sys.model_provider.infrastructure import repository as model_repo
 TRANSLATE_MODEL_TAGS = frozenset({MODEL_TAG_TRANSLATE})
 
 
-async def _assert_translate_dict(session: AsyncSession, *, workspace_id: uuid.UUID) -> None:
-    """Ensure workspace MODEL_TAG dictionary includes TRANSLATE."""
+async def _assert_translate_dict(session: AsyncSession) -> None:
+    """Ensure global MODEL_TAG dictionary includes TRANSLATE."""
 
     allowed = await dict_service.list_items_by_dict_code(
-        session, workspace_id=workspace_id, dict_code=MODEL_TAG_DICT_CODE
+        session, dict_code=MODEL_TAG_DICT_CODE
     )
     codes = {i.code.strip() for i in allowed if (i.code or "").strip()}
     if MODEL_TAG_TRANSLATE not in codes:
@@ -40,7 +40,7 @@ async def _assert_translate_model(
 ) -> None:
     """Ensure MODEL_TAG dict and workspace model are valid for translate jobs."""
 
-    await _assert_translate_dict(session, workspace_id=workspace_id)
+    await _assert_translate_dict(session)
     await resolve_model(
         session,
         workspace_id=workspace_id,
@@ -60,7 +60,7 @@ async def translate_segment(
 ) -> str:
     """Translate one paragraph; returns target-language text only."""
 
-    await _assert_translate_dict(session, workspace_id=workspace_id)
+    await _assert_translate_dict(session)
     row = await model_repo.get_for_workspace(
         session, workspace_id=workspace_id, model_id=model_id
     )

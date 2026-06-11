@@ -200,3 +200,18 @@ async def is_any_tenant_owner_or_admin(
         .limit(1)
     )
     return r.scalar_one_or_none() is not None
+
+
+async def is_any_workspace_member(
+    session: AsyncSession, *, user_id: uuid.UUID
+) -> bool:
+    """True when super-admin, or member of at least one workspace."""
+
+    if await is_super_admin_user(session, user_id=user_id):
+        return True
+    r = await session.execute(
+        select(WorkspaceMembership.id)
+        .where(WorkspaceMembership.user_id == user_id)
+        .limit(1)
+    )
+    return r.scalar_one_or_none() is not None

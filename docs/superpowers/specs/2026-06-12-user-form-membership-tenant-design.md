@@ -1,7 +1,7 @@
 # 用户表单：空间角色权限与超管租户/空间选择 — 设计说明
 
 **日期**：2026-06-12  
-**状态**：待实现  
+**状态**：已实现（2026-06-12）  
 **范围**：用户管理新建/编辑表单中「空间角色」按操作者权限显隐与可分配值约束；平台超管新建用户时可级联选择租户与工作空间。  
 **依赖**：
 - [2026-06-11-user-management-design.md](./2026-06-11-user-management-design.md)（已实现的用户管理基线）
@@ -21,13 +21,13 @@
    - 后端对创建/更新做权威校验，防止 API 绕过。
 
 2. **超管指定租户与工作空间（仅新建）**
-   - 平台超管（`sys_user.is_super_admin`）新建用户时可见「租户 → 工作空间」级联选择。
+   - 平台超管（`sys_user.is_super_admin`）**新建**用户时可见「租户 → 工作空间」级联选择。
    - 默认预选：当前 JWT 上下文下的租户与工作空间。
    - 用户写入**所选工作空间**；`sys_tenant_user` 的 `tenant_id` 取自该 workspace 所属租户（与 workspace 一致）。
    - 非超管：不展示租户/空间字段，行为与现网一致（仅当前页 workspace）。
 
 3. **编辑模式**
-   - 不展示租户/工作空间迁移。
+   - 不展示租户/工作空间选择，不可迁移成员关系。
    - 空间角色规则仍按 §2.2 生效；特殊只读场景见 §2.3。
 
 ### 1.2 不在本期
@@ -53,20 +53,21 @@
 | `member` | 否 | `member`（不传或由后端默认） | — |
 | `admin` | 是 | `member` | `admin`, `member` |
 | `owner` | 是 | `member` | `owner`, `member` |
-| 超管（对目标 workspace **无**成员身份） | 是 | `member` | `owner`, `admin`, `member` |
-| 超管（对目标 workspace **有**成员身份） | 是 | `member` | 按其在目标 workspace 的实际角色适用上表 |
+| **平台超管** | 是 | `member` | **`owner`, `admin`, `member`（始终三档，与是否在目标 workspace 有成员身份无关）** |
 
 说明：
 
-- **`owner` 不可分配 `admin`**；**`admin` 不可分配 `owner`**。
+- **非超管**：`owner` 不可分配 `admin`；`admin` 不可分配 `owner`。
+- **超管**：不受上述限制，可分配并修改任意空间角色。
 - 列表/筛选区成员资格筛选项不变（仍可按 owner/admin/member 筛选）。
 
 ### 2.2 编辑特殊场景
 
 | 目标用户当前角色 | 操作者 | 行为 |
 |------------------|--------|------|
-| `admin` | `owner` | 空间角色字段**只读**展示当前值 `admin`；PATCH **不传** `membership_role`；附说明文案 |
-| `owner` | `admin` | 不允许 PATCH `membership_role` → **403** `user.membership_role_forbidden` |
+| `admin` | `owner`（非超管） | 空间角色字段**只读**展示当前值 `admin`；PATCH **不传** `membership_role`；附说明文案 |
+| `owner` | `admin`（非超管） | 不允许 PATCH `membership_role` → **403** `user.membership_role_forbidden` |
+| 任意 | **平台超管** | 可编辑三档空间角色（含将 `admin`/`owner` 互调） |
 | 其他 | 符合 §2.1 矩阵 | 正常可编辑 |
 
 ---
@@ -126,19 +127,25 @@
 
 ### 3.4 更新 `PATCH /workspaces/{workspace_id}/users/{user_id}`
 
-- 不接收 `tenant_id` / `workspace_id`。
+- 不接收 `tenant_id` / `workspace_id` / 成员迁移字段。
 - `membership_role` 在 body 中出现时：
   - 操作者 `can_edit_membership_role=false` → **403**。
   - 不在 `assignable_membership_roles` → **400** `user.membership_role_forbidden`。
   - 目标为 `owner` 且操作者为 `admin` → **403** `user.membership_role_forbidden`。
   - 目标为 `admin` 且操作者为 `owner`（当前值不在 owner 可分配列表）→ 前端不传；若 API 仍收到变更请求 → **400**。
 
-### 3.5 租户 / 工作空间列表
+### 3.5 租户 / 工作空间 meta（超管新建）
 
-复用现有超管 API，不新增：
+复用 `app/sys/tenant/infrastructure/repository.py` 查询 **`sys_tenant`**、**`sys_workspaces`**（仅 `status=true`），挂载在用户管理 meta 下：
 
-- `GET /sys/tenants`
-- `GET /sys/tenants/{tenant_id}/workspaces`
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/workspaces/{workspace_id}/users/meta/tenants` | `sys_tenant` 下拉选项 |
+| GET | `/workspaces/{workspace_id}/users/meta/tenants/{tenant_id}/workspaces` | 该租户下 `sys_workspaces` 下拉选项 |
+
+鉴权：`require_workspace_member` + service 层 `is_super_admin_user`（非超管 **403**）。
+
+`capabilities.default_tenant_id`：当前 workspace 所属租户（来自 `sys_workspaces.tenant_id`），用于表单默认预选。
 
 ### 3.6 错误码补充
 
@@ -180,7 +187,7 @@
 
 ### 4.2 `UserFormDrawer` 字段
 
-**超管新建 · 租户 / 工作空间**（`can_pick_tenant_workspace`）：
+**超管新建 · 租户 / 工作空间**（`can_pick_tenant_workspace`，仅 `mode === 'create'`）：
 
 1. 租户 `Select` — `listTenants`（建议 `status=true`）
 2. 工作空间 `Select` — `listWorkspaces(tenantId)`，依赖租户
@@ -261,3 +268,21 @@ export function getUserCapabilities(workspaceId: string): Promise<SysUserCapabil
 | 日期 | 变更 |
 |------|------|
 | 2026-06-12 | 初稿：空间角色按操作者权限矩阵；超管新建租户/空间级联；capabilities meta；超管写旁路 |
+| 2026-06-12 | 实现完成 |
+
+---
+
+## 10. 实现对照（以代码为准，2026-06-12）
+
+| spec 条目 | 当前代码位置 | 备注 |
+|-----------|--------------|------|
+| membership 矩阵纯函数 | `backend/app/sys/user/service/user_service.py` | `resolve_assignable_membership_roles` 等 |
+| `get_actor_capabilities` | 同上 | |
+| create/update 校验 | 同上 `create_user` / `update_user` | |
+| `meta/capabilities` | `backend/app/sys/user/api/router.py` | |
+| 超管写旁路 / create scope | `backend/app/sys/user/api/deps.py` | |
+| 前端 capabilities API | `frontend/src/api/users.ts` | `getUserCapabilities` |
+| 表单 Drawer | `frontend/src/features/settings/users/UserFormDrawer.tsx` | 租户级联、空间角色条件渲染 |
+| 列表页提交 | `frontend/src/features/settings/users/UsersPage.tsx` | `targetWorkspaceId` |
+| i18n | `frontend/src/i18n/locales/zh-CN.json`、`en.json` | |
+| 测试 | `backend/tests/test_user_service.py`、`test_user_api.py` | 21 passed |

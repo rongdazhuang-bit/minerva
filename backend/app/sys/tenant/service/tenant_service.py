@@ -15,6 +15,8 @@ from app.exceptions import AppError
 from app.sys.tenant.infrastructure import repository as repo
 
 _SLUG_RE = re.compile(r"^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$")
+_DEFAULT_WORKSPACE_NAME = "默认工作空间"
+_DEFAULT_WORKSPACE_SLUG = "default"
 
 
 def _utc_now() -> datetime:
@@ -99,16 +101,29 @@ async def get_tenant(session: AsyncSession, *, tenant_id: uuid.UUID) -> Tenant:
 
 
 async def create_tenant(session: AsyncSession, payload: dict[str, Any]) -> Tenant:
-    """Create a tenant row."""
+    """Create a tenant row and a default workspace under it in one transaction."""
 
     slug = validate_slug(str(payload["slug"]), code_prefix="tenant")
+    status = bool(payload.get("status", True))
     row = Tenant(
         name=str(payload["name"]).strip(),
         slug=slug,
-        status=bool(payload.get("status", True)),
+        status=status,
         remark=payload.get("remark"),
     )
     session.add(row)
+    await session.flush()
+    session.add(
+        Workspace(
+            tenant_id=row.id,
+            name=_DEFAULT_WORKSPACE_NAME,
+            slug=validate_slug(
+                _DEFAULT_WORKSPACE_SLUG, code_prefix="workspace"
+            ),
+            status=status,
+            remark=None,
+        )
+    )
     await _commit_or_conflict(session, code="tenant.conflict")
     await session.refresh(row)
     return row

@@ -12,6 +12,7 @@ import {
   Input,
   InputNumber,
   Popconfirm,
+  Result,
   Space,
   Table,
   TreeSelect,
@@ -34,13 +35,13 @@ import {
   type SysDictItem,
   type SysDictListItem,
 } from '@/api/dicts'
-import { useAuth } from '@/app/AuthContext'
+import { ApiError } from '@/api/client'
 import { showAppError, useAppMessage } from '@/app/useAppMessage'
 import { dictQueryKeys } from '@/constants/dictQueryKeys'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
 import './DictionaryPage.css'
 
-const { Paragraph, Text } = Typography
+const { Text } = Typography
 
 type DictFormValues = {
   dict_code: string
@@ -161,12 +162,11 @@ function renderCodeCopyable(code: string, onCopied: () => void) {
 export function DictionaryPage() {
   const { t } = useTranslation()
   const messageApi = useAppMessage()
-  const { workspaceId } = useAuth()
   const queryClient = useQueryClient()
-  const invalidateWorkspaceDictCache = useCallback(() => {
-    if (!workspaceId) return
-    void queryClient.invalidateQueries({ queryKey: dictQueryKeys.all(workspaceId) })
-  }, [queryClient, workspaceId])
+  const [forbidden, setForbidden] = useState(false)
+  const invalidateDictCache = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: dictQueryKeys.all() })
+  }, [queryClient])
   const [dictForm] = Form.useForm<DictFormValues>()
   const [filterForm] = Form.useForm<DictListFilterValues>()
   const [itemForm] = Form.useForm<ItemFormValues>()
@@ -191,12 +191,11 @@ export function DictionaryPage() {
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!workspaceId) return
     let cancelled = false
     setLoading(true)
     void (async () => {
       try {
-        const data = await listDicts(workspaceId, {
+        const data = await listDicts({
           page,
           page_size: pageSize,
           dict_code: filters.dict_code,
@@ -211,7 +210,13 @@ export function DictionaryPage() {
         setDicts(data.items)
         setTotal(data.total)
       } catch (e) {
-        if (!cancelled) showAppError(messageApi, t, e)
+        if (!cancelled) {
+          if (e instanceof ApiError && e.code === 'auth.forbidden') {
+            setForbidden(true)
+            return
+          }
+          showAppError(messageApi, t, e)
+        }
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -219,20 +224,20 @@ export function DictionaryPage() {
     return () => {
       cancelled = true
     }
-  }, [workspaceId, page, pageSize, filters, dictListRev, messageApi, t])
+  }, [page, pageSize, filters, dictListRev, messageApi, t])
 
   const loadItems = useCallback(async () => {
-    if (!workspaceId || !activeDict) return
+    if (!activeDict) return
     setItemsLoading(true)
     try {
-      const rows = await listDictItems(workspaceId, activeDict.id)
+      const rows = await listDictItems(activeDict.id)
       setItemsFlat(rows)
     } catch (e) {
       showAppError(messageApi, t, e)
     } finally {
       setItemsLoading(false)
     }
-  }, [activeDict, t, workspaceId])
+  }, [activeDict, messageApi, t])
 
   useEffect(() => {
     if (drawerOpen && activeDict) void loadItems()
@@ -265,7 +270,6 @@ export function DictionaryPage() {
   }
 
   const onDictSubmit = async (values: DictFormValues) => {
-    if (!workspaceId) return
     setDictSubmitting(true)
     try {
       const payload = {
@@ -275,10 +279,10 @@ export function DictionaryPage() {
       }
       let saved: SysDictListItem
       if (editingDictId) {
-        saved = await patchDict(workspaceId, editingDictId, payload)
+        saved = await patchDict(editingDictId, payload)
         void messageApi.success(t('settings.dictUpdated'))
       } else {
-        saved = await createDict(workspaceId, payload)
+        saved = await createDict(payload)
         void messageApi.success(t('settings.dictCreated'))
       }
       setDictModalOpen(false)
@@ -289,7 +293,7 @@ export function DictionaryPage() {
         setPage(1)
       }
       setDictListRev((n) => n + 1)
-      invalidateWorkspaceDictCache()
+      invalidateDictCache()
     } catch (e) {
       showAppError(messageApi, t, e)
     } finally {
@@ -298,16 +302,15 @@ export function DictionaryPage() {
   }
 
   const handleDeleteDict = async (id: string) => {
-    if (!workspaceId) return
     try {
-      await deleteDict(workspaceId, id)
+      await deleteDict(id)
       void messageApi.success(t('settings.dictDeleted'))
       if (activeDict?.id === id) {
         setDrawerOpen(false)
         setActiveDict(null)
       }
       setDictListRev((n) => n + 1)
-      invalidateWorkspaceDictCache()
+      invalidateDictCache()
     } catch (e) {
       showAppError(messageApi, t, e)
     }
@@ -337,7 +340,7 @@ export function DictionaryPage() {
   }
 
   const onItemSubmit = async (values: ItemFormValues) => {
-    if (!workspaceId || !activeDict) return
+    if (!activeDict) return
     setItemSubmitting(true)
     try {
       const parent = values.parent_uuid != null ? values.parent_uuid : null
@@ -348,15 +351,15 @@ export function DictionaryPage() {
         parent_uuid: parent,
       }
       if (editingItemId) {
-        await patchDictItem(workspaceId, activeDict.id, editingItemId, payload)
+        await patchDictItem(activeDict.id, editingItemId, payload)
         void messageApi.success(t('settings.dictItemUpdated'))
       } else {
-        await createDictItem(workspaceId, activeDict.id, payload)
+        await createDictItem(activeDict.id, payload)
         void messageApi.success(t('settings.dictItemCreated'))
       }
       setItemModalOpen(false)
       await loadItems()
-      invalidateWorkspaceDictCache()
+      invalidateDictCache()
     } catch (e) {
       showAppError(messageApi, t, e)
     } finally {
@@ -365,12 +368,12 @@ export function DictionaryPage() {
   }
 
   const handleDeleteItem = async (itemId: string) => {
-    if (!workspaceId || !activeDict) return
+    if (!activeDict) return
     try {
-      await deleteDictItem(workspaceId, activeDict.id, itemId)
+      await deleteDictItem(activeDict.id, itemId)
       void messageApi.success(t('settings.dictItemDeleted'))
       await loadItems()
-      invalidateWorkspaceDictCache()
+      invalidateDictCache()
     } catch (e) {
       showAppError(messageApi, t, e)
     }
@@ -498,11 +501,13 @@ export function DictionaryPage() {
     },
   ]
 
-  if (!workspaceId) {
+  if (forbidden) {
     return (
-      <div className="minerva-dict-settings">
-        <Paragraph>{t('settings.ocrNoWorkspace')}</Paragraph>
-      </div>
+      <Result
+        status="403"
+        title={t('tenants.forbiddenTitle')}
+        subTitle={t('tenants.forbiddenDesc')}
+      />
     )
   }
 

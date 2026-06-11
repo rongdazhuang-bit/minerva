@@ -176,13 +176,21 @@ export function UsersPage() {
   )
 
   const handleSubmit = useCallback(
-    async (values: SysUserCreateBody | Record<string, unknown>) => {
+    async (
+      values: SysUserCreateBody | Record<string, unknown>,
+      context: { targetWorkspaceId: string },
+    ) => {
       if (!workspaceId) return
+      const { targetWorkspaceId } = context
       setSubmitting(true)
       try {
         if (drawerMode === 'create') {
-          await createUser(workspaceId, values as SysUserCreateBody)
-          messageApi.success(t('users.createSuccess'))
+          await createUser(targetWorkspaceId, values as SysUserCreateBody)
+          if (targetWorkspaceId !== workspaceId) {
+            messageApi.success(t('users.createSuccessOtherWorkspace'))
+          } else {
+            messageApi.success(t('users.createSuccess'))
+          }
         } else if (editingId) {
           await patchUser(workspaceId, editingId, values as SysUserPatchBody)
           messageApi.success(t('users.updateSuccess'))
@@ -480,7 +488,7 @@ export function UsersPage() {
         title={drawerTitle}
         submitting={submitting}
         mode={drawerMode}
-        workspaceId={workspaceId}
+        pageWorkspaceId={workspaceId}
         initial={initialForm}
         onClose={() => setDrawerOpen(false)}
         onSubmit={handleSubmit}

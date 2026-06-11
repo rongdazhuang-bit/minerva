@@ -151,19 +151,17 @@ COMMENT ON COLUMN public.sys_ocr_tool.update_at IS '更新日期';
 
 CREATE TABLE public.sys_dict (
      id uuid NOT NULL,
-     workspace_id uuid NOT NULL,
      dict_code varchar(64) NOT NULL,
      dict_name varchar(128) NULL,
      dict_sort int2 DEFAULT 0 NULL,
      create_at timestamptz NULL,
      update_at timestamptz NULL,
      CONSTRAINT sys_dict_pk PRIMARY KEY (id),
-     CONSTRAINT uq_sys_dict_workspace_dict_code UNIQUE (workspace_id, dict_code)
+     CONSTRAINT uq_sys_dict_dict_code UNIQUE (dict_code)
 );
 COMMENT ON TABLE public.sys_dict IS '字典编码';
 
 COMMENT ON COLUMN public.sys_dict.id IS 'uuid';
-COMMENT ON COLUMN public.sys_dict.workspace_id IS '工作空间id';
 COMMENT ON COLUMN public.sys_dict.dict_code IS '字典编码';
 COMMENT ON COLUMN public.sys_dict.dict_name IS '字典名称';
 COMMENT ON COLUMN public.sys_dict.dict_sort IS '排序';

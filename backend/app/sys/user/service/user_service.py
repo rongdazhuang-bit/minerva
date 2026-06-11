@@ -16,7 +16,10 @@ from app.core.domain.identity.models import (
     User,
     WorkspaceMembership,
 )
-from app.core.domain.identity.services import is_super_admin_user
+from app.core.domain.identity.services import (
+    find_workspace_role_for_user,
+    is_super_admin_user,
+)
 from app.core.infrastructure.security.password import hash_password
 from app.exceptions import AppError
 from app.sys.dict.api.schemas import SysDictItemNodeOut
@@ -24,9 +27,76 @@ from app.sys.dict.infrastructure import repository as dict_repo
 from app.sys.dict.utils.item_tree import build_item_tree
 from app.sys.role.domain.db.models import SysRole
 from app.sys.role.infrastructure import repository as role_repo
+from app.sys.tenant.infrastructure import repository as tenant_repo
 from app.sys.user.infrastructure import repository as repo
 
 DEPARTMENT_DICT_CODE = "SYS_DEPARTMENT"
+_USER_FORM_META_LIMIT = 500
+
+
+_ALL_MEMBERSHIP_ROLES = [
+    MembershipRole.owner.value,
+    MembershipRole.admin.value,
+    MembershipRole.member.value,
+]
+
+
+def resolve_assignable_membership_roles(
+    *,
+    actor_workspace_role: MembershipRole | None,
+    actor_is_super_admin: bool,
+    actor_has_workspace_membership: bool,
+) -> list[str]:
+    """Return membership_role values the actor may assign in a workspace."""
+
+    if actor_is_super_admin:
+        return list(_ALL_MEMBERSHIP_ROLES)
+    if actor_workspace_role == MembershipRole.owner:
+        return [MembershipRole.owner.value, MembershipRole.member.value]
+    if actor_workspace_role == MembershipRole.admin:
+        return [MembershipRole.admin.value, MembershipRole.member.value]
+    return []
+
+
+def can_edit_membership_role(
+    *,
+    actor_workspace_role: MembershipRole | None,
+    actor_is_super_admin: bool,
+    actor_has_workspace_membership: bool,
+) -> bool:
+    """True when the actor may change membership_role on create or patch."""
+
+    if actor_is_super_admin:
+        return True
+    return actor_workspace_role in (MembershipRole.owner, MembershipRole.admin)
+
+
+def assert_membership_role_assignable(
+    *,
+    membership_role: MembershipRole,
+    assignable_roles: list[str],
+    target_current_role: MembershipRole | None,
+    actor_workspace_role: MembershipRole | None,
+    actor_is_super_admin: bool = False,
+) -> None:
+    """Raise AppError when membership_role assignment is not allowed."""
+
+    if (
+        not actor_is_super_admin
+        and target_current_role == MembershipRole.owner
+        and actor_workspace_role == MembershipRole.admin
+    ):
+        raise AppError(
+            "user.membership_role_forbidden",
+            "Cannot change workspace owner membership role",
+            403,
+        )
+    if membership_role.value not in assignable_roles:
+        raise AppError(
+            "user.membership_role_forbidden",
+            "Membership role is not assignable by current actor",
+            400,
+        )
 
 
 @dataclass
@@ -100,13 +170,11 @@ async def _resolve_department_name(
     workspace_id: uuid.UUID,
     department_item_id: uuid.UUID | None,
 ) -> str | None:
-    """Resolve department display name from workspace SYS_DEPARTMENT dict."""
+    """Resolve department display name from global SYS_DEPARTMENT dict."""
 
     if department_item_id is None:
         return None
-    d = await dict_repo.get_dict_by_code_for_workspace(
-        session, workspace_id=workspace_id, dict_code=DEPARTMENT_DICT_CODE
-    )
+    d = await dict_repo.get_dict_by_code(session, dict_code=DEPARTMENT_DICT_CODE)
     if d is None:
         return None
     item = await dict_repo.get_item_in_dict(
@@ -121,13 +189,11 @@ async def _validate_department_item(
     workspace_id: uuid.UUID,
     department_item_id: uuid.UUID | None,
 ) -> None:
-    """Ensure department item belongs to workspace SYS_DEPARTMENT dict."""
+    """Ensure department item belongs to global SYS_DEPARTMENT dict."""
 
     if department_item_id is None:
         return
-    d = await dict_repo.get_dict_by_code_for_workspace(
-        session, workspace_id=workspace_id, dict_code=DEPARTMENT_DICT_CODE
-    )
+    d = await dict_repo.get_dict_by_code(session, dict_code=DEPARTMENT_DICT_CODE)
     if d is None:
         raise AppError(
             "user.department_invalid",
@@ -237,7 +303,12 @@ async def _build_list_row(
     )
 
 
-def row_to_dict(row: UserListRow) -> dict[str, Any]:
+def row_to_dict(
+    row: UserListRow,
+    *,
+    workspace_id: uuid.UUID,
+    tenant_id: uuid.UUID | None,
+) -> dict[str, Any]:
     """Serialize a UserListRow for API responses."""
 
     u = row.user
@@ -253,10 +324,26 @@ def row_to_dict(row: UserListRow) -> dict[str, Any]:
         "membership_role": row.membership_role.value,
         "role_ids": row.role_ids,
         "role_names": row.role_names,
+        "tenant_id": tenant_id,
+        "workspace_id": workspace_id,
         "created_at": u.created_at,
         "update_at": u.update_at,
         "can_hard_delete": row.can_hard_delete,
     }
+
+
+async def _row_to_response_dict(
+    session: AsyncSession,
+    row: UserListRow,
+    *,
+    workspace_id: uuid.UUID,
+) -> dict[str, Any]:
+    """Build API dict including tenant_id resolved from sys_workspaces."""
+
+    tenant_id = await repo.get_tenant_id_for_workspace(
+        session, workspace_id=workspace_id
+    )
+    return row_to_dict(row, workspace_id=workspace_id, tenant_id=tenant_id)
 
 
 async def list_users_page(
@@ -307,7 +394,11 @@ async def list_users_page(
             membership=membership,
             actor_is_super_admin=actor_is_super_admin,
         )
-        items.append(row_to_dict(list_row))
+        items.append(
+            await _row_to_response_dict(
+                session, list_row, workspace_id=workspace_id
+            )
+        )
     return items, total
 
 
@@ -330,13 +421,118 @@ async def get_user_detail(
         membership=membership,
         actor_is_super_admin=actor_is_super_admin,
     )
-    return row_to_dict(list_row)
+    return await _row_to_response_dict(
+        session, list_row, workspace_id=workspace_id
+    )
+
+
+async def _require_super_admin_actor(
+    session: AsyncSession, *, actor_user_id: uuid.UUID
+) -> None:
+    """Raise when the actor is not a platform super administrator."""
+
+    if not await is_super_admin_user(session, user_id=actor_user_id):
+        raise AppError("auth.forbidden", "Super admin required", 403)
+
+
+async def list_tenant_meta_for_user_form(
+    session: AsyncSession, *, actor_user_id: uuid.UUID
+) -> list[dict[str, object]]:
+    """List active tenants from sys_tenant for the super-admin user form."""
+
+    await _require_super_admin_actor(session, actor_user_id=actor_user_id)
+    total = await tenant_repo.count_tenants_page(
+        session, name=None, status=True
+    )
+    if total == 0:
+        return []
+    rows = await tenant_repo.list_tenants_page(
+        session,
+        name=None,
+        status=True,
+        offset=0,
+        limit=min(total, _USER_FORM_META_LIMIT),
+    )
+    return [{"id": row.id, "name": row.name, "slug": row.slug} for row in rows]
+
+
+async def list_workspace_meta_for_user_form(
+    session: AsyncSession,
+    *,
+    actor_user_id: uuid.UUID,
+    tenant_id: uuid.UUID,
+) -> list[dict[str, object]]:
+    """List active workspaces in sys_workspaces for one tenant."""
+
+    await _require_super_admin_actor(session, actor_user_id=actor_user_id)
+    if await tenant_repo.get_tenant(session, tenant_id=tenant_id) is None:
+        raise AppError("user.tenant_invalid", "Tenant not found", 404)
+    total = await tenant_repo.count_workspaces_page(
+        session, tenant_id=tenant_id, name=None, status=True
+    )
+    if total == 0:
+        return []
+    rows = await tenant_repo.list_workspaces_page(
+        session,
+        tenant_id=tenant_id,
+        name=None,
+        status=True,
+        offset=0,
+        limit=min(total, _USER_FORM_META_LIMIT),
+    )
+    return [
+        {
+            "id": row.id,
+            "tenant_id": row.tenant_id,
+            "name": row.name,
+            "slug": row.slug,
+        }
+        for row in rows
+    ]
+
+
+async def get_actor_capabilities(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    actor_user_id: uuid.UUID,
+) -> dict[str, object]:
+    """Build form capability flags for the actor in a target workspace."""
+
+    actor_is_super = await is_super_admin_user(session, user_id=actor_user_id)
+    actor_role = await find_workspace_role_for_user(
+        session, user_id=actor_user_id, workspace_id=workspace_id
+    )
+    has_membership = actor_role is not None
+    assignable = resolve_assignable_membership_roles(
+        actor_workspace_role=actor_role,
+        actor_is_super_admin=actor_is_super,
+        actor_has_workspace_membership=has_membership,
+    )
+    default_tenant_id = None
+    if actor_is_super:
+        default_tenant_id = await repo.get_tenant_id_for_workspace(
+            session, workspace_id=workspace_id
+        )
+    return {
+        "is_super_admin": actor_is_super,
+        "actor_workspace_role": actor_role.value if actor_role else None,
+        "can_edit_membership_role": can_edit_membership_role(
+            actor_workspace_role=actor_role,
+            actor_is_super_admin=actor_is_super,
+            actor_has_workspace_membership=has_membership,
+        ),
+        "assignable_membership_roles": assignable,
+        "can_pick_tenant_workspace": actor_is_super,
+        "default_tenant_id": default_tenant_id,
+    }
 
 
 async def create_user(
     session: AsyncSession,
     *,
     workspace_id: uuid.UUID,
+    actor_user_id: uuid.UUID,
     email: str,
     password: str,
     nickname: str,
@@ -348,6 +544,30 @@ async def create_user(
     role_ids: list[uuid.UUID],
 ) -> dict[str, Any]:
     """Create a global user and add them to the workspace."""
+
+    caps = await get_actor_capabilities(
+        session, workspace_id=workspace_id, actor_user_id=actor_user_id
+    )
+    if not caps["can_edit_membership_role"] and membership_role != MembershipRole.member:
+        raise AppError(
+            "user.membership_role_forbidden",
+            "Membership role is not assignable by current actor",
+            400,
+        )
+    assignable = list(caps["assignable_membership_roles"])
+    if caps["can_edit_membership_role"]:
+        actor_role_value = caps["actor_workspace_role"]
+        assert_membership_role_assignable(
+            membership_role=membership_role,
+            assignable_roles=assignable,
+            target_current_role=None,
+            actor_workspace_role=(
+                MembershipRole(actor_role_value)
+                if actor_role_value is not None
+                else None
+            ),
+            actor_is_super_admin=bool(caps["is_super_admin"]),
+        )
 
     normalized_email = email.strip().lower()
     if len(password) < 8:
@@ -424,7 +644,9 @@ async def create_user(
         membership=membership,
         actor_is_super_admin=False,
     )
-    return row_to_dict(list_row)
+    return await _row_to_response_dict(
+        session, list_row, workspace_id=workspace_id
+    )
 
 
 async def update_user(
@@ -432,6 +654,7 @@ async def update_user(
     *,
     workspace_id: uuid.UUID,
     user_id: uuid.UUID,
+    actor_user_id: uuid.UUID,
     actor_is_super_admin: bool,
     nickname: str | None = None,
     status: bool | None = None,
@@ -476,6 +699,27 @@ async def update_user(
             )
         user.password_hash = hash_password(password)
     if membership_role is not None:
+        caps = await get_actor_capabilities(
+            session, workspace_id=workspace_id, actor_user_id=actor_user_id
+        )
+        if not caps["can_edit_membership_role"]:
+            raise AppError(
+                "user.membership_role_forbidden",
+                "Membership role is not assignable by current actor",
+                403,
+            )
+        actor_role_value = caps["actor_workspace_role"]
+        assert_membership_role_assignable(
+            membership_role=membership_role,
+            assignable_roles=list(caps["assignable_membership_roles"]),
+            target_current_role=membership.role,
+            actor_workspace_role=(
+                MembershipRole(actor_role_value)
+                if actor_role_value is not None
+                else None
+            ),
+            actor_is_super_admin=bool(caps["is_super_admin"]),
+        )
         membership.role = membership_role
     if update_department:
         if department_item_id is not None:
@@ -505,7 +749,9 @@ async def update_user(
         membership=membership,
         actor_is_super_admin=actor_is_super_admin,
     )
-    return row_to_dict(list_row)
+    return await _row_to_response_dict(
+        session, list_row, workspace_id=workspace_id
+    )
 
 
 async def remove_membership(
@@ -572,13 +818,11 @@ async def delete_user_account(
 
 
 async def list_department_tree(
-    session: AsyncSession, *, workspace_id: uuid.UUID
+    session: AsyncSession,
 ) -> list[SysDictItemNodeOut]:
-    """Return SYS_DEPARTMENT dict items as a tree for the workspace."""
+    """Return global SYS_DEPARTMENT dict items as a tree."""
 
-    d = await dict_repo.get_dict_by_code_for_workspace(
-        session, workspace_id=workspace_id, dict_code=DEPARTMENT_DICT_CODE
-    )
+    d = await dict_repo.get_dict_by_code(session, dict_code=DEPARTMENT_DICT_CODE)
     if d is None:
         return []
     items = await dict_repo.list_items_for_dict(session, dict_uuid=d.id)

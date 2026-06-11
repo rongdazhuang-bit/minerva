@@ -149,7 +149,7 @@ app/sys/tenant/
 - `slug` 格式：`^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$`（小写字母、数字、连字符）；非法 → `400 tenant.invalid_slug`
 - 租户不存在 → `404 tenant.not_found`
 
-**创建租户**：仅写入 `sys_tenant` 行；**不**自动创建默认工作空间（超管在 Drawer 内手动添加）。
+**创建租户**：同一事务内写入 `sys_tenant`，并创建默认工作空间（`sys_workspaces`：`name=默认工作空间`，`slug=default`，`status` 与租户一致）。
 
 ### 3.3 工作空间 API
 
@@ -308,3 +308,4 @@ frontend/src/api/tenants.ts
 | 日期 | 说明 |
 |------|------|
 | 2026-06-11 | 初稿：brainstorming 确认（超管专用、Drawer 工作空间 CRUD、对称表扩展、租户级联删、工作空间仅删行、remark 字段） |
+| 2026-06-12 | 创建租户时同事务创建默认工作空间（name=默认工作空间，slug=default） |

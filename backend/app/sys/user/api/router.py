@@ -10,19 +10,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.api.deps import (
     get_current_user,
     require_workspace_member,
-    require_workspace_owner_or_admin,
 )
 from app.core.domain.identity.models import MembershipRole, User
 from app.core.domain.identity.services import is_super_admin_user
 from app.dependencies import get_db
 from app.pagination import DEFAULT_PAGE_SIZE
 from app.sys.dict.api.schemas import SysDictItemNodeOut
+from app.sys.user.api.deps import (
+    require_create_workspace_scope,
+    require_workspace_manager_or_super_admin,
+)
 from app.sys.user.api.schemas import (
     SysRoleMetaOut,
+    SysTenantMetaOut,
+    SysUserCapabilitiesOut,
     SysUserCreateIn,
     SysUserListItemOut,
     SysUserListPageOut,
     SysUserPatchIn,
+    SysWorkspaceMetaOut,
 )
 from app.sys.user.service import user_service as svc
 
@@ -84,7 +90,7 @@ async def list_department_meta(
 ) -> list[SysDictItemNodeOut]:
     """Return SYS_DEPARTMENT tree for user form."""
 
-    return await svc.list_department_tree(session, workspace_id=workspace_id)
+    return await svc.list_department_tree(session)
 
 
 @router.get("/meta/roles", response_model=list[SysRoleMetaOut])
@@ -97,6 +103,55 @@ async def list_roles_meta(
 
     rows = await svc.list_assignable_roles(session, workspace_id=workspace_id)
     return [SysRoleMetaOut.model_validate(r) for r in rows]
+
+
+@router.get("/meta/capabilities", response_model=SysUserCapabilitiesOut)
+async def get_user_capabilities(
+    workspace_id: uuid.UUID,
+    actor: User = Depends(get_current_user),
+    _ws: uuid.UUID = Depends(require_workspace_member),
+    session: AsyncSession = Depends(get_db),
+) -> SysUserCapabilitiesOut:
+    """Return form capability flags for the current actor."""
+
+    data = await svc.get_actor_capabilities(
+        session, workspace_id=workspace_id, actor_user_id=actor.id
+    )
+    return SysUserCapabilitiesOut.model_validate(data)
+
+
+@router.get("/meta/tenants", response_model=list[SysTenantMetaOut])
+async def list_tenant_meta_for_user_form(
+    workspace_id: uuid.UUID,
+    actor: User = Depends(get_current_user),
+    _ws: uuid.UUID = Depends(require_workspace_member),
+    session: AsyncSession = Depends(get_db),
+) -> list[SysTenantMetaOut]:
+    """Return active sys_tenant rows for super-admin user create form."""
+
+    rows = await svc.list_tenant_meta_for_user_form(
+        session, actor_user_id=actor.id
+    )
+    return [SysTenantMetaOut.model_validate(row) for row in rows]
+
+
+@router.get(
+    "/meta/tenants/{tenant_id}/workspaces",
+    response_model=list[SysWorkspaceMetaOut],
+)
+async def list_workspace_meta_for_user_form(
+    workspace_id: uuid.UUID,
+    tenant_id: uuid.UUID,
+    actor: User = Depends(get_current_user),
+    _ws: uuid.UUID = Depends(require_workspace_member),
+    session: AsyncSession = Depends(get_db),
+) -> list[SysWorkspaceMetaOut]:
+    """Return active sys_workspaces rows under one tenant."""
+
+    rows = await svc.list_workspace_meta_for_user_form(
+        session, actor_user_id=actor.id, tenant_id=tenant_id
+    )
+    return [SysWorkspaceMetaOut.model_validate(row) for row in rows]
 
 
 @router.get("/{user_id}", response_model=SysUserListItemOut)
@@ -123,7 +178,8 @@ async def get_user(
 async def create_user(
     workspace_id: uuid.UUID,
     body: SysUserCreateIn,
-    _ws: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    actor: User = Depends(get_current_user),
+    _ws: uuid.UUID = Depends(require_create_workspace_scope),
     session: AsyncSession = Depends(get_db),
 ) -> SysUserListItemOut:
     """Create a user and add them to the workspace."""
@@ -131,6 +187,7 @@ async def create_user(
     data = await svc.create_user(
         session,
         workspace_id=workspace_id,
+        actor_user_id=actor.id,
         email=str(body.email),
         password=body.password,
         nickname=body.nickname,
@@ -150,7 +207,7 @@ async def patch_user(
     user_id: uuid.UUID,
     body: SysUserPatchIn,
     actor: User = Depends(get_current_user),
-    _ws: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _ws: uuid.UUID = Depends(require_workspace_manager_or_super_admin),
     session: AsyncSession = Depends(get_db),
 ) -> SysUserListItemOut:
     """Update workspace member profile and roles."""
@@ -169,6 +226,7 @@ async def patch_user(
         session,
         workspace_id=workspace_id,
         user_id=user_id,
+        actor_user_id=actor.id,
         actor_is_super_admin=actor_is_super,
         nickname=patch.get("nickname"),
         status=patch.get("status"),
@@ -190,7 +248,7 @@ async def remove_user_membership(
     workspace_id: uuid.UUID,
     user_id: uuid.UUID,
     actor: User = Depends(get_current_user),
-    _ws: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _ws: uuid.UUID = Depends(require_workspace_manager_or_super_admin),
     session: AsyncSession = Depends(get_db),
 ) -> Response:
     """Remove a user from the workspace."""
@@ -209,7 +267,7 @@ async def delete_user_account(
     workspace_id: uuid.UUID,
     user_id: uuid.UUID,
     actor: User = Depends(get_current_user),
-    _ws: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _ws: uuid.UUID = Depends(require_workspace_manager_or_super_admin),
     session: AsyncSession = Depends(get_db),
 ) -> Response:
     """Hard-delete a user account when permitted."""

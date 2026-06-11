@@ -1,7 +1,7 @@
 # 按 `dict_code` 拉取数据字典（含树形子项）与前端 Query 统一方案
 
 **日期**：2026-04-27  
-**状态**：已实现（2026-05-18 按代码回填；`DictSelect` 未做）  
+**状态**：已实现（2026-05-18 按代码回填；`DictSelect` 未做）；**2026-06-12 修订**：API 路径、Query Key（去 `workspaceId`）、读鉴权见 [2026-06-12-dict-global-design.md](./2026-06-12-dict-global-design.md)。  
 **范围**：后端在现有 `GET /workspaces/{workspace_id}/dicts` 上增加可选 `code` 查询，并在有值时**在单响应内**返回多级 `item_tree`；`frontend` 增加 `@tanstack/react-query`，以 **Query 为全站数据缓存与去重基座**，并提供可在表单、表格中复用的字典能力（`useQuery` + 小组件/Hook）。
 
 **设计依据（对话）**：`code` 过滤 + 响应 B（同包 `item_tree`）+ 多级树；全站采用 **方案 2（TanStack Query）**。

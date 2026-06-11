@@ -52,6 +52,8 @@ class SysUserListItemOut(BaseModel):
     membership_role: str
     role_ids: list[uuid.UUID]
     role_names: list[str]
+    tenant_id: uuid.UUID | None = None
+    workspace_id: uuid.UUID | None = None
     created_at: datetime
     update_at: datetime | None
     can_hard_delete: bool
@@ -75,3 +77,31 @@ class SysRoleMetaOut(BaseModel):
     role_name: str
     role_key: str
     status: bool
+
+
+class SysTenantMetaOut(BaseModel):
+    """Tenant option for super-admin user create form (sys_tenant)."""
+
+    id: uuid.UUID
+    name: str
+    slug: str
+
+
+class SysWorkspaceMetaOut(BaseModel):
+    """Workspace option under a tenant (sys_workspaces)."""
+
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    name: str
+    slug: str
+
+
+class SysUserCapabilitiesOut(BaseModel):
+    """Actor permissions for the user form in a target workspace."""
+
+    is_super_admin: bool
+    actor_workspace_role: str | None
+    can_edit_membership_role: bool
+    assignable_membership_roles: list[str]
+    can_pick_tenant_workspace: bool
+    default_tenant_id: uuid.UUID | None = None

@@ -1,7 +1,7 @@
 # 数据字典管理（sys_dict + sys_dict_item + 管理端 UI）设计说明
 
 **日期**：2026-04-25  
-**状态**：已实现（2026-05-18 按代码回填）  
+**状态**：已实现（2026-05-18 按代码回填）；**2026-06-12 修订**：workspace 作用域、URL `/workspaces/{id}/dicts`、鉴权与 `workspace_id` 字段已由 [2026-06-12-dict-global-design.md](./2026-06-12-dict-global-design.md) supersede。  
 **范围**：后端 CRUD（代码根目录 **`app/sys/dict`**，**子目录与 `app/tool/ocr` 同构**）+ 设置页「数据字典」菜单；持久化使用现有表 `sys_dict`、`sys_dict_item`。
 
 **包路径说明**：Python 包名为 `app.sys`（与标准库 `sys` 不同）；业务代码中应使用 **`from app.sys.dict...`** 等完整限定导入，避免与 `import sys` 混淆。

@@ -57,7 +57,7 @@ async def create_job_from_upload(
         raise AppError("translate.lang_required", "请选择源语言与目标语言。", 422)
 
     await _assert_translate_model(session, workspace_id=workspace_id, model_id=model_id)
-    await ensure_translate_status_dicts(session, workspace_id=workspace_id)
+    await ensure_translate_status_dicts(session)
 
     s3 = S3FileService(session=session)
     upload = await s3.upload_file(

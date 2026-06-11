@@ -149,17 +149,16 @@ export function ModelProvidersPage() {
   const watchedAuthType = Form.useWatch('auth_type', form)
 
   const loadDicts = useCallback(async () => {
-    if (!workspaceId) return
     setDictLoading(true)
     try {
-      const dicts = await listAllDicts(workspaceId)
+      const dicts = await listAllDicts()
       const p = dicts.find((d) => d.dict_code === DICT_CODE_PROVIDER)
       const a = dicts.find((d) => d.dict_code === DICT_CODE_AUTH)
       const tg = dicts.find((d) => d.dict_code === DICT_CODE_MODEL_TAG)
       const [pRows, aRows, tgRows] = await Promise.all([
-        p ? listDictItems(workspaceId, p.id) : Promise.resolve([] as SysDictItem[]),
-        a ? listDictItems(workspaceId, a.id) : Promise.resolve([] as SysDictItem[]),
-        tg ? listDictItems(workspaceId, tg.id) : Promise.resolve([] as SysDictItem[]),
+        p ? listDictItems(p.id) : Promise.resolve([] as SysDictItem[]),
+        a ? listDictItems(a.id) : Promise.resolve([] as SysDictItem[]),
+        tg ? listDictItems(tg.id) : Promise.resolve([] as SysDictItem[]),
       ])
       setProviderItems(pRows)
       setAuthItems(aRows)
@@ -171,7 +170,7 @@ export function ModelProvidersPage() {
     } finally {
       setDictLoading(false)
     }
-  }, [workspaceId])
+  }, [])
 
   useEffect(() => {
     void loadDicts()

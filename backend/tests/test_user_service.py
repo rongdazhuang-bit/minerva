@@ -135,9 +135,22 @@ async def test_create_user_adds_tenant_membership(monkeypatch) -> None:
     )
     session.refresh = AsyncMock()
 
+    async def fake_caps(*_args, **_kwargs) -> dict[str, object]:
+        return {
+            "can_edit_membership_role": False,
+            "assignable_membership_roles": [],
+            "actor_workspace_role": None,
+        }
+
+    monkeypatch.setattr(
+        "app.sys.user.service.user_service.get_actor_capabilities",
+        fake_caps,
+    )
+
     await svc.create_user(
         session,
         workspace_id=ws,
+        actor_user_id=uuid.uuid4(),
         email="new@example.com",
         password="password1",
         nickname="New",
@@ -248,10 +261,23 @@ async def test_create_user_rejects_existing_email(monkeypatch) -> None:
         fake_get_by_email,
     )
 
+    async def fake_caps(*_args, **_kwargs) -> dict[str, object]:
+        return {
+            "can_edit_membership_role": False,
+            "assignable_membership_roles": [],
+            "actor_workspace_role": None,
+        }
+
+    monkeypatch.setattr(
+        "app.sys.user.service.user_service.get_actor_capabilities",
+        fake_caps,
+    )
+
     with pytest.raises(AppError) as exc:
         await svc.create_user(
             session,
             workspace_id=uuid.uuid4(),
+            actor_user_id=uuid.uuid4(),
             email="taken@example.com",
             password="password1",
             nickname="New",
@@ -287,10 +313,23 @@ async def test_create_user_rejects_duplicate_phone(monkeypatch) -> None:
         fake_get_by_phone,
     )
 
+    async def fake_caps(*_args, **_kwargs) -> dict[str, object]:
+        return {
+            "can_edit_membership_role": False,
+            "assignable_membership_roles": [],
+            "actor_workspace_role": None,
+        }
+
+    monkeypatch.setattr(
+        "app.sys.user.service.user_service.get_actor_capabilities",
+        fake_caps,
+    )
+
     with pytest.raises(AppError) as exc:
         await svc.create_user(
             session,
             workspace_id=uuid.uuid4(),
+            actor_user_id=uuid.uuid4(),
             email="new@example.com",
             password="password1",
             nickname="New",
@@ -350,6 +389,7 @@ async def test_update_user_clears_phone_when_explicit_null(monkeypatch) -> None:
         session,
         workspace_id=ws,
         user_id=user.id,
+        actor_user_id=uuid.uuid4(),
         actor_is_super_admin=False,
         phone=None,
         update_phone=True,
@@ -534,3 +574,134 @@ async def test_remove_membership_rejects_self() -> None:
         )
     assert exc.value.code == "user.cannot_delete_self"
     assert exc.value.status_code == 403
+
+
+@pytest.mark.parametrize(
+    ("actor_role", "is_super", "has_membership", "expected"),
+    [
+        (MembershipRole.owner, False, True, ["owner", "member"]),
+        (MembershipRole.admin, False, True, ["admin", "member"]),
+        (MembershipRole.member, False, True, []),
+        (None, True, False, ["owner", "admin", "member"]),
+        (MembershipRole.admin, True, True, ["owner", "admin", "member"]),
+        (MembershipRole.member, True, True, ["owner", "admin", "member"]),
+    ],
+)
+def test_resolve_assignable_membership_roles(
+    actor_role: MembershipRole | None,
+    is_super: bool,
+    has_membership: bool,
+    expected: list[str],
+) -> None:
+    """Assignable membership roles follow actor matrix."""
+
+    roles = svc.resolve_assignable_membership_roles(
+        actor_workspace_role=actor_role,
+        actor_is_super_admin=is_super,
+        actor_has_workspace_membership=has_membership,
+    )
+    assert roles == expected
+
+
+def test_assert_membership_role_owner_cannot_assign_admin() -> None:
+    """Workspace owner cannot assign admin membership."""
+
+    with pytest.raises(AppError) as exc:
+        svc.assert_membership_role_assignable(
+            membership_role=MembershipRole.admin,
+            assignable_roles=["owner", "member"],
+            target_current_role=None,
+            actor_workspace_role=MembershipRole.owner,
+        )
+    assert exc.value.code == "user.membership_role_forbidden"
+
+
+def test_assert_membership_role_admin_cannot_patch_owner() -> None:
+    """Workspace admin cannot change an owner's membership_role."""
+
+    with pytest.raises(AppError) as exc:
+        svc.assert_membership_role_assignable(
+            membership_role=MembershipRole.member,
+            assignable_roles=["admin", "member"],
+            target_current_role=MembershipRole.owner,
+            actor_workspace_role=MembershipRole.admin,
+        )
+    assert exc.value.code == "user.membership_role_forbidden"
+
+
+def test_assert_membership_role_super_admin_can_patch_owner() -> None:
+    """Platform super admin may change an owner's membership_role."""
+
+    svc.assert_membership_role_assignable(
+        membership_role=MembershipRole.member,
+        assignable_roles=["owner", "admin", "member"],
+        target_current_role=MembershipRole.owner,
+        actor_workspace_role=MembershipRole.admin,
+        actor_is_super_admin=True,
+    )
+
+
+@pytest.mark.asyncio
+async def test_get_actor_capabilities_super_admin(monkeypatch) -> None:
+    """Super admin always receives all assignable membership roles."""
+
+    session = AsyncMock()
+    actor_id = uuid.uuid4()
+    ws_id = uuid.uuid4()
+
+    async def fake_is_super(_session: object, *, user_id: uuid.UUID) -> bool:
+        return True
+
+    async def fake_find_role(
+        _session: object, *, user_id: uuid.UUID, workspace_id: uuid.UUID
+    ) -> MembershipRole | None:
+        return MembershipRole.admin
+
+    monkeypatch.setattr(
+        "app.sys.user.service.user_service.is_super_admin_user",
+        fake_is_super,
+    )
+    monkeypatch.setattr(
+        "app.sys.user.service.user_service.find_workspace_role_for_user",
+        fake_find_role,
+    )
+
+    caps = await svc.get_actor_capabilities(
+        session, workspace_id=ws_id, actor_user_id=actor_id
+    )
+    assert caps["can_edit_membership_role"] is True
+    assert caps["assignable_membership_roles"] == ["owner", "admin", "member"]
+    assert caps["can_pick_tenant_workspace"] is True
+
+
+@pytest.mark.asyncio
+async def test_get_actor_capabilities_admin(monkeypatch) -> None:
+    """Admin actor receives admin/member assignable roles."""
+
+    session = AsyncMock()
+    actor_id = uuid.uuid4()
+    ws_id = uuid.uuid4()
+
+    async def fake_is_super(_session: object, *, user_id: uuid.UUID) -> bool:
+        return False
+
+    async def fake_find_role(
+        _session: object, *, user_id: uuid.UUID, workspace_id: uuid.UUID
+    ) -> MembershipRole | None:
+        return MembershipRole.admin
+
+    monkeypatch.setattr(
+        "app.sys.user.service.user_service.is_super_admin_user",
+        fake_is_super,
+    )
+    monkeypatch.setattr(
+        "app.sys.user.service.user_service.find_workspace_role_for_user",
+        fake_find_role,
+    )
+
+    caps = await svc.get_actor_capabilities(
+        session, workspace_id=ws_id, actor_user_id=actor_id
+    )
+    assert caps["can_edit_membership_role"] is True
+    assert caps["assignable_membership_roles"] == ["admin", "member"]
+    assert caps["can_pick_tenant_workspace"] is False

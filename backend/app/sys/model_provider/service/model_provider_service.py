@@ -67,11 +67,11 @@ def _assert_auth_fields(
 
 
 async def _load_dict_code_set(
-    session: AsyncSession, *, workspace_id: uuid.UUID, dict_code: str
+    session: AsyncSession, *, dict_code: str
 ) -> set[str]:
     """字典项 code（key）集合，用于 provider_name、tags 等按编码落库的字段。"""
     items = await dict_service.list_items_by_dict_code(
-        session, workspace_id=workspace_id, dict_code=dict_code
+        session, dict_code=dict_code
     )
     if not items:
         raise AppError(
@@ -103,7 +103,7 @@ async def normalize_tags(
     if not cleaned:
         raise AppError("model_provider.tags_required", "tags is required", 422)
     allowed = await _load_dict_code_set(
-        session, workspace_id=workspace_id, dict_code=MODEL_TAG_DICT_CODE
+        session, dict_code=MODEL_TAG_DICT_CODE
     )
     invalid = [c for c in cleaned if c not in allowed]
     if invalid:
@@ -127,7 +127,7 @@ async def _validate_model_fields(
     strict_auth: bool,
 ) -> None:
     allowed_providers = await _load_dict_code_set(
-        session, workspace_id=workspace_id, dict_code="MODEL_PROVIDER"
+        session, dict_code="MODEL_PROVIDER"
     )
     if provider_name.strip() not in allowed_providers:
         raise AppError("model_provider.provider_name_invalid", "Invalid provider_name", 422)

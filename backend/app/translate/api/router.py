@@ -102,7 +102,7 @@ async def list_translate_jobs(
 ) -> DocTranslateJobListOut:
     """List translation jobs with offset pagination and optional filters."""
 
-    await ensure_translate_status_dicts(session, workspace_id=workspace_id)
+    await ensure_translate_status_dicts(session)
     rows, total = await translate_repo.list_doc_translate_jobs_filtered(
         session,
         workspace_id=workspace_id,

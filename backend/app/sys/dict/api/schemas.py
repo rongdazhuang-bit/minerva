@@ -36,7 +36,6 @@ class SysDictPatchIn(BaseModel):
 
 class SysDictListItemOut(BaseModel):
     id: uuid.UUID
-    workspace_id: uuid.UUID
     dict_code: str
     dict_name: str | None
     dict_sort: int | None
