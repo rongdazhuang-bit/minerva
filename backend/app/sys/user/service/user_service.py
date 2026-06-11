@@ -10,7 +10,12 @@ from typing import Any
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.domain.identity.models import MembershipRole, User, WorkspaceMembership
+from app.core.domain.identity.models import (
+    MembershipRole,
+    TenantMembership,
+    User,
+    WorkspaceMembership,
+)
 from app.core.domain.identity.services import is_super_admin_user
 from app.core.infrastructure.security.password import hash_password
 from app.exceptions import AppError
@@ -384,6 +389,11 @@ async def create_user(
         department_item_id=department_item_id,
         update_at=now,
     )
+    tenant_id = await repo.get_tenant_id_for_workspace(
+        session, workspace_id=workspace_id
+    )
+    if tenant_id is None:
+        raise AppError("user.workspace_invalid", "Workspace not found", 404)
     await repo.add_user(session, user)
     membership = WorkspaceMembership(
         user_id=user.id,
@@ -391,6 +401,14 @@ async def create_user(
         role=membership_role,
     )
     await repo.add_membership(session, membership)
+    await repo.add_tenant_membership(
+        session,
+        TenantMembership(
+            user_id=user.id,
+            tenant_id=tenant_id,
+            role=membership_role,
+        ),
+    )
     await repo.replace_user_roles_in_workspace(
         session,
         workspace_id=workspace_id,
@@ -501,12 +519,23 @@ async def remove_membership(
 
     _reject_self_target(actor_user_id=actor_user_id, target_user_id=user_id)
     await _require_member(session, workspace_id=workspace_id, user_id=user_id)
+    tenant_id = await repo.get_tenant_id_for_workspace(
+        session, workspace_id=workspace_id
+    )
     await repo.delete_user_roles_in_workspace(
         session, workspace_id=workspace_id, user_id=user_id
     )
     await repo.delete_membership(
         session, workspace_id=workspace_id, user_id=user_id
     )
+    if tenant_id is not None:
+        remaining = await repo.count_user_workspaces_in_tenant(
+            session, user_id=user_id, tenant_id=tenant_id
+        )
+        if remaining == 0:
+            await repo.delete_tenant_membership(
+                session, user_id=user_id, tenant_id=tenant_id
+            )
     await session.commit()
 
 

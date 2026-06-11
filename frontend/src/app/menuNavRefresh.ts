@@ -1,20 +1,7 @@
-/** Cross-component signal to reload sidebar nav after menu CRUD. */
+import { navMenusQueryKeys } from '@/constants/navMenusQueryKeys'
+import { queryClient } from '@/lib/queryClient'
 
-type NavRefreshListener = () => void
-
-const listeners = new Set<NavRefreshListener>()
-
-/** Subscribe to menu nav refresh events; returns unsubscribe. */
-export function subscribeMenuNavRefresh(listener: NavRefreshListener): () => void {
-  listeners.add(listener)
-  return () => {
-    listeners.delete(listener)
-  }
-}
-
-/** Notify AppLayout (and others) to re-fetch `/sys/menus/nav`. */
+/** Invalidate cached sidebar nav after menu CRUD or role changes that affect nav. */
 export function notifyMenuNavRefresh(): void {
-  for (const listener of listeners) {
-    listener()
-  }
+  void queryClient.invalidateQueries({ queryKey: navMenusQueryKeys.all })
 }

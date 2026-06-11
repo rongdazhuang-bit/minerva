@@ -1,4 +1,4 @@
-"""Persistence helpers for sys_tenants and sys_workspaces."""
+"""Persistence helpers for sys_tenant and sys_workspaces."""
 
 from __future__ import annotations
 

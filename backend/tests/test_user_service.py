@@ -8,7 +8,12 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.core.domain.identity.models import MembershipRole, User, WorkspaceMembership
+from app.core.domain.identity.models import (
+    MembershipRole,
+    TenantMembership,
+    User,
+    WorkspaceMembership,
+)
 from app.exceptions import AppError
 from app.sys.user.service import user_service as svc
 
@@ -40,6 +45,192 @@ def _membership_row(
         workspace_id=workspace_id,
         role=role,
     )
+
+
+@pytest.mark.asyncio
+async def test_create_user_adds_tenant_membership(monkeypatch) -> None:
+    """Creating a user also inserts sys_tenant_user for the workspace tenant."""
+
+    session = AsyncMock()
+    ws = uuid.uuid4()
+    tenant_id = uuid.uuid4()
+    calls: list[str] = []
+    created_user = _user_row()
+
+    async def fake_get_by_email(_session: object, *, email: str) -> User | None:
+        return None
+
+    async def fake_get_tenant_id(
+        _session: object, *, workspace_id: uuid.UUID
+    ) -> uuid.UUID:
+        return tenant_id
+
+    async def fake_add_user(_session: object, row: User) -> User:
+        calls.append("user")
+        row.id = created_user.id
+        return row
+
+    async def fake_add_membership(
+        _session: object, row: WorkspaceMembership
+    ) -> WorkspaceMembership:
+        calls.append("workspace_membership")
+        return row
+
+    async def fake_add_tenant_membership(
+        _session: object, row: TenantMembership
+    ) -> TenantMembership:
+        calls.append("tenant_membership")
+        assert row.user_id == created_user.id
+        assert row.tenant_id == tenant_id
+        assert row.role == MembershipRole.member
+        return row
+
+    async def fake_replace_roles(*_args, **_kwargs) -> None:
+        calls.append("roles")
+
+    async def fake_commit(_session: object) -> None:
+        calls.append("commit")
+
+    async def fake_build_list_row(*_args, **_kwargs):
+        return svc.UserListRow(
+            user=created_user,
+            membership_role=MembershipRole.member,
+            role_ids=[],
+            role_names=[],
+            department_name=None,
+            can_hard_delete=False,
+        )
+
+    monkeypatch.setattr(
+        "app.sys.user.service.user_service.repo.get_user_by_email",
+        fake_get_by_email,
+    )
+    monkeypatch.setattr(
+        "app.sys.user.service.user_service.repo.get_tenant_id_for_workspace",
+        fake_get_tenant_id,
+    )
+    monkeypatch.setattr(
+        "app.sys.user.service.user_service.repo.add_user",
+        fake_add_user,
+    )
+    monkeypatch.setattr(
+        "app.sys.user.service.user_service.repo.add_membership",
+        fake_add_membership,
+    )
+    monkeypatch.setattr(
+        "app.sys.user.service.user_service.repo.add_tenant_membership",
+        fake_add_tenant_membership,
+    )
+    monkeypatch.setattr(
+        "app.sys.user.service.user_service.repo.replace_user_roles_in_workspace",
+        fake_replace_roles,
+    )
+    monkeypatch.setattr(
+        "app.sys.user.service.user_service._commit_or_conflict",
+        fake_commit,
+    )
+    monkeypatch.setattr(
+        "app.sys.user.service.user_service._build_list_row",
+        fake_build_list_row,
+    )
+    session.refresh = AsyncMock()
+
+    await svc.create_user(
+        session,
+        workspace_id=ws,
+        email="new@example.com",
+        password="password1",
+        nickname="New",
+        phone=None,
+        status=True,
+        remark=None,
+        membership_role=MembershipRole.member,
+        department_item_id=None,
+        role_ids=[],
+    )
+    assert "tenant_membership" in calls
+    assert calls.index("workspace_membership") < calls.index("tenant_membership")
+
+
+@pytest.mark.asyncio
+async def test_remove_membership_cleans_tenant_membership_when_last_workspace(
+    monkeypatch,
+) -> None:
+    """Removing the last workspace membership also deletes the tenant membership."""
+
+    session = AsyncMock()
+    ws = uuid.uuid4()
+    tenant_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+    calls: list[str] = []
+
+    async def fake_require_member(
+        _session: object, *, workspace_id: uuid.UUID, user_id: uuid.UUID
+    ):
+        return _user_row(user_id=user_id), _membership_row(
+            user_id=user_id, workspace_id=workspace_id
+        )
+
+    async def fake_get_tenant_id(
+        _session: object, *, workspace_id: uuid.UUID
+    ) -> uuid.UUID:
+        return tenant_id
+
+    async def fake_delete_roles(*_args, **_kwargs) -> None:
+        calls.append("roles")
+
+    async def fake_delete_membership(*_args, **_kwargs) -> None:
+        calls.append("workspace_membership")
+
+    async def fake_count_workspaces(
+        _session: object, *, user_id: uuid.UUID, tenant_id: uuid.UUID
+    ) -> int:
+        calls.append("count")
+        return 0
+
+    async def fake_delete_tenant_membership(
+        _session: object, *, user_id: uuid.UUID, tenant_id: uuid.UUID
+    ) -> None:
+        calls.append("tenant_membership")
+
+    monkeypatch.setattr(
+        "app.sys.user.service.user_service._require_member",
+        fake_require_member,
+    )
+    monkeypatch.setattr(
+        "app.sys.user.service.user_service.repo.get_tenant_id_for_workspace",
+        fake_get_tenant_id,
+    )
+    monkeypatch.setattr(
+        "app.sys.user.service.user_service.repo.delete_user_roles_in_workspace",
+        fake_delete_roles,
+    )
+    monkeypatch.setattr(
+        "app.sys.user.service.user_service.repo.delete_membership",
+        fake_delete_membership,
+    )
+    monkeypatch.setattr(
+        "app.sys.user.service.user_service.repo.count_user_workspaces_in_tenant",
+        fake_count_workspaces,
+    )
+    monkeypatch.setattr(
+        "app.sys.user.service.user_service.repo.delete_tenant_membership",
+        fake_delete_tenant_membership,
+    )
+
+    await svc.remove_membership(
+        session,
+        workspace_id=ws,
+        user_id=user_id,
+        actor_user_id=uuid.uuid4(),
+    )
+    assert calls == [
+        "roles",
+        "workspace_membership",
+        "count",
+        "tenant_membership",
+    ]
+    session.commit.assert_awaited_once()
 
 
 @pytest.mark.asyncio

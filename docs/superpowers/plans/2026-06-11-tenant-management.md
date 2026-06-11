@@ -1,8 +1,8 @@
-# 租户管理（sys_tenants + sys_workspaces）Implementation Plan
+# 租户管理（sys_tenant + sys_workspaces）Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 实现平台超管专用的租户 CRUD、嵌套工作空间 CRUD（Drawer），扩展 `sys_tenants` / `sys_workspaces` 字段，并在设置页新增「租户管理」菜单与完整 UI。
+**Goal:** 实现平台超管专用的租户 CRUD、嵌套工作空间 CRUD（Drawer），扩展 `sys_tenant` / `sys_workspaces` 字段，并在设置页新增「租户管理」菜单与完整 UI。
 
 **Architecture:** 后端新建 `app/sys/tenant/` 分层（对齐 `app/sys/role`）；ORM 扩展 `identity/models.py` 的 `Tenant`/`Workspace`；全局路由 `/sys/tenants` + `/sys/tenants/{tenant_id}/workspaces`；鉴权 `require_super_admin`；前端 `TenantsPage` + `TenantFormDrawer` + `WorkspaceDrawer`（内容区 `minerva-scrollbar-thin`）。
 
@@ -34,7 +34,7 @@
 
 | 文件 | 变更 |
 |------|------|
-| `backend/sql/schema_postgresql.sql` | `sys_tenants` / `sys_workspaces` 增列 |
+| `backend/sql/schema_postgresql.sql` | `sys_tenant` / `sys_workspaces` 增列 |
 | `backend/sql/seeds/sys_menu_seed.sql` | 租户管理节点 + 字典 order_num=10 |
 | `backend/app/core/domain/identity/models.py` | `Tenant`/`Workspace` 新字段 |
 | `backend/app/core/api/router.py` | `include_router(tenants_router)` |
@@ -72,8 +72,8 @@
 `backend/sql/patches/2026-06-11-sys-tenant-mgmt.sql`：
 
 ```sql
--- 已有库增量：sys_tenants / sys_workspaces 扩展字段
-ALTER TABLE public.sys_tenants
+-- 已有库增量：sys_tenant / sys_workspaces 扩展字段
+ALTER TABLE public.sys_tenant
   ADD COLUMN IF NOT EXISTS status BOOLEAN NOT NULL DEFAULT true,
   ADD COLUMN IF NOT EXISTS remark VARCHAR(500) NULL,
   ADD COLUMN IF NOT EXISTS create_at TIMESTAMPTZ NULL DEFAULT now(),
@@ -85,17 +85,17 @@ ALTER TABLE public.sys_workspaces
   ADD COLUMN IF NOT EXISTS create_at TIMESTAMPTZ NULL DEFAULT now(),
   ADD COLUMN IF NOT EXISTS update_at TIMESTAMPTZ NULL;
 
-COMMENT ON COLUMN public.sys_tenants.status IS 'true=正常 false=停用';
-COMMENT ON COLUMN public.sys_tenants.remark IS '备注';
-COMMENT ON COLUMN public.sys_tenants.create_at IS '创建时间';
-COMMENT ON COLUMN public.sys_tenants.update_at IS '修改时间';
+COMMENT ON COLUMN public.sys_tenant.status IS 'true=正常 false=停用';
+COMMENT ON COLUMN public.sys_tenant.remark IS '备注';
+COMMENT ON COLUMN public.sys_tenant.create_at IS '创建时间';
+COMMENT ON COLUMN public.sys_tenant.update_at IS '修改时间';
 COMMENT ON COLUMN public.sys_workspaces.status IS 'true=正常 false=停用';
 COMMENT ON COLUMN public.sys_workspaces.remark IS '备注';
 COMMENT ON COLUMN public.sys_workspaces.create_at IS '创建时间';
 COMMENT ON COLUMN public.sys_workspaces.update_at IS '修改时间';
 ```
 
-- [ ] **Step 2: 更新 `schema_postgresql.sql` 中 `sys_tenants` / `sys_workspaces` CREATE 块**
+- [ ] **Step 2: 更新 `schema_postgresql.sql` 中 `sys_tenant` / `sys_workspaces` CREATE 块**
 
 将两表定义改为含 `status`、`remark`、`create_at`、`update_at`（与 patch 一致）。
 
@@ -103,7 +103,7 @@ COMMENT ON COLUMN public.sys_workspaces.update_at IS '修改时间';
 
 ```bash
 git add backend/sql/patches/2026-06-11-sys-tenant-mgmt.sql backend/sql/schema_postgresql.sql
-git commit -m "feat(tenant): extend sys_tenants and sys_workspaces columns"
+git commit -m "feat(tenant): extend sys_tenant and sys_workspaces columns"
 ```
 
 ---
@@ -154,7 +154,7 @@ git commit -m "feat(tenant): add status and audit fields to Tenant and Workspace
 关键函数（完整实现，含 docstring）：
 
 ```python
-"""Persistence helpers for sys_tenants and sys_workspaces."""
+"""Persistence helpers for sys_tenant and sys_workspaces."""
 
 from __future__ import annotations
 
@@ -995,7 +995,7 @@ git commit -m "docs(tenant): mark tenant management spec as implemented"
 
 | Spec 要求 | 对应 Task |
 |-----------|-----------|
-| sys_tenants / sys_workspaces 扩展字段 | Task 1–2 |
+| sys_tenant / sys_workspaces 扩展字段 | Task 1–2 |
 | require_super_admin 鉴权 | Task 5–6 |
 | 租户 CRUD + 级联删除 | Task 3–5 |
 | 工作空间嵌套 CRUD + 仅删行 | Task 3–5 |

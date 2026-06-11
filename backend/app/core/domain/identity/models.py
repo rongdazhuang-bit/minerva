@@ -26,7 +26,7 @@ class MembershipRole(str, enum.Enum):
 class User(Base):
     """Authenticated principal with unique email, profile fields, and bcrypt hash."""
 
-    __tablename__ = "sys_users"
+    __tablename__ = "sys_user"
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
@@ -55,7 +55,7 @@ class User(Base):
 class Tenant(Base):
     """Top-level org boundary identified by stable slug."""
 
-    __tablename__ = "sys_tenants"
+    __tablename__ = "sys_tenant"
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
@@ -103,7 +103,7 @@ class Workspace(Base):
 class TenantMembership(Base):
     """Join row tying a user to a tenant with ``MembershipRole``."""
 
-    __tablename__ = "sys_tenant_memberships"
+    __tablename__ = "sys_tenant_user"
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
@@ -117,14 +117,14 @@ class TenantMembership(Base):
         Enum(MembershipRole, name="tenant_role"), nullable=False
     )
     __table_args__ = (
-        UniqueConstraint("user_id", "tenant_id", name="uq_sys_tenant_membership"),
+        UniqueConstraint("user_id", "tenant_id", name="uq_sys_tenant_user"),
     )
 
 
 class WorkspaceMembership(Base):
     """Join row tying a user to a workspace with ``MembershipRole``."""
 
-    __tablename__ = "sys_workspace_memberships"
+    __tablename__ = "sys_workspace_user"
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
@@ -138,7 +138,7 @@ class WorkspaceMembership(Base):
         Enum(MembershipRole, name="workspace_role"), nullable=False
     )
     __table_args__ = (
-        UniqueConstraint("user_id", "workspace_id", name="uq_sys_workspace_membership"),
+        UniqueConstraint("user_id", "workspace_id", name="uq_sys_workspace_user"),
     )
 
 

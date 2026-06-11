@@ -65,3 +65,33 @@
   .ant-menu-item:hover:not(.ant-menu-item-selected) {
   background: rgba(0, 0, 0, 0.04) !important;
 }
+
+/* Sidebar nav skeleton — align with dark/light sider surfaces */
+.minerva-app-sider-menu-skeleton .ant-skeleton-avatar,
+.minerva-app-sider-menu-skeleton .ant-skeleton-input {
+  border-radius: 4px;
+}
+
+.minerva-app-sider-menu-skeleton:not(.minerva-app-sider-menu-skeleton--light)
+  .ant-skeleton-avatar,
+.minerva-app-sider-menu-skeleton:not(.minerva-app-sider-menu-skeleton--light)
+  .ant-skeleton-input {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+.minerva-app-sider-menu-skeleton:not(.minerva-app-sider-menu-skeleton--light)
+  .ant-skeleton-avatar::after,
+.minerva-app-sider-menu-skeleton:not(.minerva-app-sider-menu-skeleton--light)
+  .ant-skeleton-input::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.08),
+    transparent
+  ) !important;
+}
+
+.minerva-app-sider-menu-skeleton--light .ant-skeleton-avatar,
+.minerva-app-sider-menu-skeleton--light .ant-skeleton-input {
+  background: rgba(0, 0, 0, 0.06) !important;
+}

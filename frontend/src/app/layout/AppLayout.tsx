@@ -3,15 +3,16 @@ import { Button, Layout, Menu } from 'antd'
 import { AppBreadcrumb } from '@/app/layout/AppBreadcrumb'
 import { AppHeaderToolbar } from '@/app/layout/AppHeaderToolbar'
 import type { CSSProperties } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { getAgentV2Config } from '@/api/agent'
-import { listNavMenus, type SysMenuNode } from '@/api/menus'
 import { useAuth } from '@/app/AuthContext'
 import { buildSiderMenuItems } from '@/app/layout/buildSiderMenuItems'
 import { resolveMenuNavState } from '@/app/layout/menuNavMatch'
-import { subscribeMenuNavRefresh } from '@/app/menuNavRefresh'
+import { SiderMenuSkeleton } from '@/app/layout/SiderMenuSkeleton'
+import { useNavMenus } from '@/hooks/useNavMenus'
 import { useMinervaTone } from '@/app/useMinervaTone'
 import {
   SIDER_COLLAPSED_PX,
@@ -123,10 +124,15 @@ export function AppLayout() {
   const { t } = useTranslation()
   const nav = useNavigate()
   const { pathname } = useLocation()
-  const { clear, workspaceId, isAuthenticated } = useAuth()
-  const [memoryBackend, setMemoryBackend] = useState('sql')
-  const [navMenus, setNavMenus] = useState<SysMenuNode[]>([])
-  const [navMenusRev, setNavMenusRev] = useState(0)
+  const { clear, workspaceId } = useAuth()
+  const { data: navMenus = [], isFetched: navMenusFetched } = useNavMenus()
+  const { data: agentConfig, isFetched: agentConfigFetched } = useQuery({
+    queryKey: ['agent-v2-config', workspaceId],
+    queryFn: () => getAgentV2Config(workspaceId!),
+    enabled: Boolean(workspaceId),
+    staleTime: 60_000,
+  })
+  const siderNavReady = navMenusFetched && agentConfigFetched
   const tone = useMinervaTone()
   const shellLight = tone === 'sunshine'
   const {
@@ -138,14 +144,20 @@ export function AppLayout() {
     onResizeTouchStart,
   } = useResizableSiderWidth()
 
-  const hideMenuKeys = useMemo(
-    () => (memoryBackend !== 'mem0' ? new Set(['agents-memory']) : undefined),
-    [memoryBackend],
-  )
+  /** Apply memory-menu filter only after agent config is known (paired with `siderNavReady`). */
+  const hideMenuKeys = useMemo(() => {
+    if (!agentConfigFetched) return undefined
+    return agentConfig?.memory_backend !== 'mem0'
+      ? new Set(['agents-memory'])
+      : undefined
+  }, [agentConfig, agentConfigFetched])
 
   const menuNavState = useMemo(
-    () => resolveMenuNavState(navMenus, pathname, hideMenuKeys),
-    [navMenus, pathname, hideMenuKeys],
+    () =>
+      siderNavReady
+        ? resolveMenuNavState(navMenus, pathname, hideMenuKeys)
+        : { selectedKey: null as string | null, openKeys: [] as string[] },
+    [navMenus, pathname, hideMenuKeys, siderNavReady],
   )
 
   const selectedKeys = useMemo(
@@ -176,36 +188,12 @@ export function AppLayout() {
     [collapsed, menuOpenKeys],
   )
 
-  useEffect(() => {
-    if (!workspaceId) return
-    void getAgentV2Config(workspaceId)
-      .then((c) => setMemoryBackend(c.memory_backend))
-      .catch(() => setMemoryBackend('sql'))
-  }, [workspaceId])
-
-  useEffect(() => subscribeMenuNavRefresh(() => setNavMenusRev((v) => v + 1)), [])
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setNavMenus([])
-      return
-    }
-    let cancelled = false
-    void listNavMenus()
-      .then((rows) => {
-        if (!cancelled) setNavMenus(rows)
-      })
-      .catch(() => {
-        if (!cancelled) setNavMenus([])
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [isAuthenticated, workspaceId, navMenusRev])
-
   const siderItems = useMemo(
-    () => buildSiderMenuItems(navMenus, { t, nav, hideMenuKeys }),
-    [navMenus, t, nav, hideMenuKeys],
+    () =>
+      siderNavReady
+        ? buildSiderMenuItems(navMenus, { t, nav, hideMenuKeys })
+        : [],
+    [navMenus, t, nav, hideMenuKeys, siderNavReady],
   )
 
   useEffect(() => {
@@ -267,16 +255,24 @@ export function AppLayout() {
             className="minerva-app-sider-scroll minerva-scrollbar-styled"
             style={{ flex: 1, minHeight: 0, overflow: 'auto' }}
           >
-            <Menu
-              mode="inline"
-              inlineCollapsed={collapsed}
-              className="minerva-app-sider-menu"
-              theme={shellLight ? 'light' : 'dark'}
-              style={{ background: 'transparent', border: 'none', paddingTop: 8 }}
-              selectedKeys={selectedKeys}
-              {...siderMenuModeProps}
-              items={siderItems}
-            />
+            {!siderNavReady ? (
+              <SiderMenuSkeleton
+                collapsed={collapsed}
+                light={shellLight}
+                loadingLabel={t('layout.siderNavLoading')}
+              />
+            ) : (
+              <Menu
+                mode="inline"
+                inlineCollapsed={collapsed}
+                className="minerva-app-sider-menu"
+                theme={shellLight ? 'light' : 'dark'}
+                style={{ background: 'transparent', border: 'none', paddingTop: 8 }}
+                selectedKeys={selectedKeys}
+                {...siderMenuModeProps}
+                items={siderItems}
+              />
+            )}
           </div>
           <div className="minerva-app-sider-footer">
             <Button

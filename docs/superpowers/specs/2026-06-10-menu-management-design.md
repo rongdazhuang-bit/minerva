@@ -13,7 +13,7 @@
 - **数据作用域**：**系统全局**单套菜单树，不按 `workspace_id` / `tenant_id` 隔离。
 - **后端**：对 `sys_menu` 提供列表（树）、侧栏导航树、创建、更新、**级联删除**；删除时在应用层递归删除所有子孙节点并返回 `deleted_count`。
 - **鉴权**：
-  - 写操作及管理页读接口：`sys_users.is_super_admin=true`（平台超级管理员），或在**任意租户**的 `sys_tenant_memberships` 中为 `owner` / `admin`。
+  - 写操作及管理页读接口：`sys_user.is_super_admin=true`（平台超级管理员），或在**任意租户**的 `sys_tenant_user` 中为 `owner` / `admin`。
   - 侧栏导航读接口：已登录用户；按 JWT `wid` 对应 workspace 下用户**已启用** `sys_role` 的 `sys_role_menu` 过滤（平台超管见全量菜单）。
 - **前端管理页**：`/app/settings/menus`（`MenuConfigPage`）实现 RuoYi 风格树形表格 + 右侧 Drawer 表单，替换占位 `Empty`。
 - **动态侧边栏**：`AppLayout` 通过 `GET /sys/menus/nav` 构建 Ant Design `Menu` items；`router.tsx` **保持静态**（仅控制展示与跳转，不动态注册路由）。
@@ -116,7 +116,7 @@ app/sys/menu/
 
 新增 `require_any_tenant_owner_or_admin`（`app/sys/menu/api/deps.py` 或 `app/core/api/deps.py`）：
 
-- 查询 `sys_tenant_memberships`，存在 `role IN ('owner', 'admin')` 则放行
+- 查询 `sys_tenant_user`，存在 `role IN ('owner', 'admin')` 则放行
 - 否则 `403` / `auth.forbidden`
 
 ### 3.2 API
@@ -306,7 +306,7 @@ i18n：在 `zh-CN.json` / `en.json` 补充菜单管理相关键。
 |-----------|--------------|------|
 | `SysMenu` ORM | `backend/app/sys/menu/domain/db/models.py` | — |
 | 级联删除 | `backend/app/sys/menu/service/menu_service.py` → `delete_menu_cascade` | 应用层，无 FK |
-| 租户 admin / 超管鉴权 | `deps.py` + `identity/services.is_any_tenant_owner_or_admin`（含 `is_super_admin`） | 表 `sys_users` / `sys_tenant_memberships`；种子 `sql/seeds/super_admin_rongda.sql` |
+| 租户 admin / 超管鉴权 | `deps.py` + `identity/services.is_any_tenant_owner_or_admin`（含 `is_super_admin`） | 表 `sys_user` / `sys_tenant_user`；种子 `sql/seeds/super_admin_rongda.sql` |
 | 身份域表名 | `backend/app/core/domain/identity/models.py` | 2026-06-11 重命名为 `sys_*`；已有库执行 `sql/patches/2026-06-11-rename-sys-identity-tables.sql` |
 | API 路由 | `backend/app/sys/menu/api/router.py` | 前缀 `/sys/menus` |
 | 建表/种子 SQL | `backend/sql/tables/sys_menu.sql`、`backend/sql/seeds/sys_menu_seed.sql` | 31 条种子 |

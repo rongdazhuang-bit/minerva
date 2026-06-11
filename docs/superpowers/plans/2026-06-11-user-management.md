@@ -1,10 +1,10 @@
-# 用户管理（sys_users 扩展 + sys_user_role + UsersPage）Implementation Plan
+# 用户管理（sys_user 扩展 + sys_user_role + UsersPage）Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 实现 workspace 级用户成员 CRUD、多 `sys_role` 分配、`SYS_DEPARTMENT` 部门树选、成员资格（owner/admin/member）、移出 workspace / 硬删账号，以及设置页「用户管理」完整 UI。
 
-**Architecture:** 后端新建 `app/sys/user/` 分层（对齐 `app/sys/role`）；扩展 `identity.models.User` 与 SQL `sys_users`；新建 `sys_user_role`；列表通过 `sys_workspace_memberships` 关联查询；部门校验复用 `app/sys/dict` 的 `get_dict_by_code_for_workspace` + `get_item_in_dict`；登录路径增加 `status` 校验；前端 `UsersPage` / `UserFormDrawer` 对齐 `RolesPage` / `RoleFormDrawer`（§4.4 UI 规范）。
+**Architecture:** 后端新建 `app/sys/user/` 分层（对齐 `app/sys/role`）；扩展 `identity.models.User` 与 SQL `sys_user`；新建 `sys_user_role`；列表通过 `sys_workspace_user` 关联查询；部门校验复用 `app/sys/dict` 的 `get_dict_by_code_for_workspace` + `get_item_in_dict`；登录路径增加 `status` 校验；前端 `UsersPage` / `UserFormDrawer` 对齐 `RolesPage` / `RoleFormDrawer`（§4.4 UI 规范）。
 
 **Tech Stack:** FastAPI, SQLAlchemy AsyncSession, PostgreSQL, pytest, React 18, Ant Design 6, TypeScript, react-i18next, @tanstack/react-query。
 
@@ -19,7 +19,7 @@
 | 文件 | 职责 |
 |------|------|
 | `backend/sql/tables/sys_user_role.sql` | `sys_user_role` 建表 DDL |
-| `backend/sql/patches/2026-06-11-sys-user-mgmt.sql` | ALTER `sys_users` + 建 `sys_user_role` |
+| `backend/sql/patches/2026-06-11-sys-user-mgmt.sql` | ALTER `sys_user` + 建 `sys_user_role` |
 | `backend/app/sys/user/__init__.py` | 包标记 |
 | `backend/app/sys/user/domain/__init__.py` | 域包 |
 | `backend/app/sys/user/domain/db/__init__.py` | ORM 包 |
@@ -38,7 +38,7 @@
 
 | 文件 | 变更 |
 |------|------|
-| `backend/sql/schema_postgresql.sql` | `sys_users` 新列 + `sys_user_role` 表 |
+| `backend/sql/schema_postgresql.sql` | `sys_user` 新列 + `sys_user_role` 表 |
 | `backend/app/core/domain/identity/models.py` | `User` 增加 nickname/phone/status/remark/department_item_id/update_at |
 | `backend/app/core/domain/identity/services.py` | `authenticate_user` 校验 `status`；可选辅助 `count_workspace_memberships` |
 | `backend/app/core/infrastructure/db/bootstrap.py` | 注册 `SysUserRole` ORM |
@@ -95,27 +95,27 @@ COMMENT ON TABLE public.sys_user_role IS 'User to workspace sys_role mapping (ap
 - [ ] **Step 2: 编写 `backend/sql/patches/2026-06-11-sys-user-mgmt.sql`**
 
 ```sql
--- sys_users 档案扩展
-ALTER TABLE public.sys_users ADD COLUMN IF NOT EXISTS nickname VARCHAR(64);
-ALTER TABLE public.sys_users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
-ALTER TABLE public.sys_users ADD COLUMN IF NOT EXISTS status BOOLEAN NOT NULL DEFAULT true;
-ALTER TABLE public.sys_users ADD COLUMN IF NOT EXISTS remark VARCHAR(500);
-ALTER TABLE public.sys_users ADD COLUMN IF NOT EXISTS department_item_id UUID;
-ALTER TABLE public.sys_users ADD COLUMN IF NOT EXISTS update_at TIMESTAMPTZ;
+-- sys_user 档案扩展
+ALTER TABLE public.sys_user ADD COLUMN IF NOT EXISTS nickname VARCHAR(64);
+ALTER TABLE public.sys_user ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
+ALTER TABLE public.sys_user ADD COLUMN IF NOT EXISTS status BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE public.sys_user ADD COLUMN IF NOT EXISTS remark VARCHAR(500);
+ALTER TABLE public.sys_user ADD COLUMN IF NOT EXISTS department_item_id UUID;
+ALTER TABLE public.sys_user ADD COLUMN IF NOT EXISTS update_at TIMESTAMPTZ;
 
-UPDATE public.sys_users
+UPDATE public.sys_user
 SET nickname = split_part(email, '@', 1)
 WHERE nickname IS NULL;
 
-ALTER TABLE public.sys_users ALTER COLUMN nickname SET NOT NULL;
+ALTER TABLE public.sys_user ALTER COLUMN nickname SET NOT NULL;
 
-CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_users_phone
-  ON public.sys_users (phone) WHERE phone IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_user_phone
+  ON public.sys_user (phone) WHERE phone IS NOT NULL;
 
-COMMENT ON COLUMN public.sys_users.nickname IS 'Display name';
-COMMENT ON COLUMN public.sys_users.phone IS 'Optional; globally unique when set';
-COMMENT ON COLUMN public.sys_users.status IS 'true=active false=cannot login';
-COMMENT ON COLUMN public.sys_users.department_item_id IS 'Logical ref sys_dict_item.id (SYS_DEPARTMENT)';
+COMMENT ON COLUMN public.sys_user.nickname IS 'Display name';
+COMMENT ON COLUMN public.sys_user.phone IS 'Optional; globally unique when set';
+COMMENT ON COLUMN public.sys_user.status IS 'true=active false=cannot login';
+COMMENT ON COLUMN public.sys_user.department_item_id IS 'Logical ref sys_dict_item.id (SYS_DEPARTMENT)';
 
 -- sys_user_role
 CREATE TABLE IF NOT EXISTS public.sys_user_role (
@@ -132,13 +132,13 @@ CREATE INDEX IF NOT EXISTS ix_sys_user_role_role_id ON public.sys_user_role (rol
 
 - [ ] **Step 3: 合并进 `backend/sql/schema_postgresql.sql`**
 
-在 `sys_users` CREATE 块内直接包含新列（新装库一次到位）；文件末尾追加 `\i` 等价内联的 `sys_user_role` 定义（与 `sys_role` 段落风格一致）。
+在 `sys_user` CREATE 块内直接包含新列（新装库一次到位）；文件末尾追加 `\i` 等价内联的 `sys_user_role` 定义（与 `sys_role` 段落风格一致）。
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add backend/sql/tables/sys_user_role.sql backend/sql/patches/2026-06-11-sys-user-mgmt.sql backend/sql/schema_postgresql.sql
-git commit -m "feat(user): add sys_users profile columns and sys_user_role schema"
+git commit -m "feat(user): add sys_user profile columns and sys_user_role schema"
 ```
 
 ---
@@ -224,9 +224,9 @@ async def count_workspace_members_for_workspace(
 async def list_workspace_members_page(
     session, *, workspace_id, filters..., offset, limit
 ) -> list[tuple[User, WorkspaceMembership]]
-# JOIN sys_users + sys_workspace_memberships WHERE workspace_id=?
+# JOIN sys_user + sys_workspace_user WHERE workspace_id=?
 # 可选 JOIN sys_user_role 过滤 role_id
-# ORDER BY sys_users.created_at DESC
+# ORDER BY sys_user.created_at DESC
 
 async def get_member_user(
     session, *, workspace_id, user_id
@@ -721,11 +721,11 @@ Expected: 无 TS 错误
 
 | Spec 要求 | Task |
 |-----------|------|
-| sys_users 扩展字段 | Task 1–2 |
+| sys_user 扩展字段 | Task 1–2 |
 | sys_user_role | Task 1–2 |
 | workspace 列表/CRUD API | Task 3–7 |
 | 邮箱拒绝创建 / 手机唯一 | Task 4 |
-| department 在 sys_users + workspace 校验 | Task 4 |
+| department 在 sys_user + workspace 校验 | Task 4 |
 | 双删除 + A+B 硬删权限 | Task 4, 6 |
 | status 全局 + 登录拦截 | Task 5 |
 | meta/departments、meta/roles | Task 6 |

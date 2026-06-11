@@ -35,7 +35,7 @@ def main() -> int:
             menu_count = cur.fetchone()[0]
             print(f"OK: sys_menu rows={menu_count}")
             cur.execute(
-                "SELECT email, is_super_admin FROM sys_users WHERE lower(email)=lower(%s)",
+                "SELECT email, is_super_admin FROM sys_user WHERE lower(email)=lower(%s)",
                 (EMAIL,),
             )
             user = cur.fetchone()

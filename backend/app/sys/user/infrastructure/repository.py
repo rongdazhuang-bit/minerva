@@ -13,6 +13,7 @@ from app.core.domain.identity.models import (
     RefreshToken,
     TenantMembership,
     User,
+    Workspace,
     WorkspaceMembership,
 )
 from app.sys.role.domain.db.models import SysRole
@@ -200,6 +201,64 @@ async def add_membership(
     return row
 
 
+async def get_tenant_id_for_workspace(
+    session: AsyncSession, *, workspace_id: uuid.UUID
+) -> uuid.UUID | None:
+    """Return the tenant id that owns the workspace, if the row exists."""
+
+    result = await session.execute(
+        select(Workspace.tenant_id).where(Workspace.id == workspace_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def add_tenant_membership(
+    session: AsyncSession, row: TenantMembership
+) -> TenantMembership:
+    """Insert a tenant membership row and flush."""
+
+    session.add(row)
+    await session.flush()
+    return row
+
+
+async def delete_tenant_membership(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    tenant_id: uuid.UUID,
+) -> None:
+    """Remove one user from one tenant."""
+
+    await session.execute(
+        delete(TenantMembership).where(
+            TenantMembership.user_id == user_id,
+            TenantMembership.tenant_id == tenant_id,
+        )
+    )
+    await session.flush()
+
+
+async def count_user_workspaces_in_tenant(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    tenant_id: uuid.UUID,
+) -> int:
+    """Count workspace memberships the user still has under one tenant."""
+
+    result = await session.execute(
+        select(func.count())
+        .select_from(WorkspaceMembership)
+        .join(Workspace, Workspace.id == WorkspaceMembership.workspace_id)
+        .where(
+            WorkspaceMembership.user_id == user_id,
+            Workspace.tenant_id == tenant_id,
+        )
+    )
+    return int(result.scalar_one() or 0)
+
+
 async def list_role_ids_for_user_in_workspace(
     session: AsyncSession,
     *,
@@ -343,7 +402,7 @@ async def delete_refresh_tokens(session: AsyncSession, *, user_id: uuid.UUID) ->
 
 
 async def delete_user_row(session: AsyncSession, *, user_id: uuid.UUID) -> None:
-    """Delete the sys_users row."""
+    """Delete the sys_user row."""
 
     row = await session.get(User, user_id)
     if row is not None:

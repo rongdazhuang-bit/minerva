@@ -1,12 +1,12 @@
-# 用户管理（sys_users 扩展 + sys_user_role + 管理端 UI）设计说明
+# 用户管理（sys_user 扩展 + sys_user_role + 管理端 UI）设计说明
 
 **日期**：2026-06-11  
 **状态**：已实现（2026-06-11）  
-**范围**：按 **workspace** 隔离的用户成员管理；扩展 `sys_users` 档案字段；新建 `sys_user_role` 多角色绑定；设置页「用户管理」列表 + 右侧 Drawer（部门树选、多角色、成员资格）。  
+**范围**：按 **workspace** 隔离的用户成员管理；扩展 `sys_user` 档案字段；新建 `sys_user_role` 多角色绑定；设置页「用户管理」列表 + 右侧 Drawer（部门树选、多角色、成员资格）。  
 **依赖**：
 - workspace 级角色 `sys_role`，见 [2026-06-11-role-management-design.md](./2026-06-11-role-management-design.md)
 - workspace 级字典 `SYS_DEPARTMENT`，见字典模块 `app/sys/dict`
-- 身份域 `sys_users` / `sys_workspace_memberships`，见 `app/core/domain/identity/models.py`
+- 身份域 `sys_user` / `sys_workspace_user`，见 `app/core/domain/identity/models.py`
 
 **包路径说明**：Python 包名为 `app.sys`；业务代码使用 `from app.sys.user...` 等完整限定导入。`User` ORM 仍位于 `app.core.domain.identity.models`。
 
@@ -14,16 +14,16 @@
 
 ## 1. 目标与成功标准
 
-- **数据作用域**：管理**当前 workspace 下的成员**（`sys_workspace_memberships`）；API 前缀 `/workspaces/{workspace_id}/users`。
-- **用户账号**：`sys_users` 为**全局**账号；`email` **全局唯一**；新建时邮箱已存在则**拒绝**（不邀请）。
-- **档案字段**（全局，存 `sys_users`）：`nickname`、`phone`（选填、填写则全局唯一）、`status`（全局启用/停用，false 禁止登录）、`remark`、`department_item_id`（可选，逻辑引用 `sys_dict_item.id`）、`update_at`。
-- **成员资格**：`sys_workspace_memberships.role`（`owner` / `admin` / `member`），与业务角色 `sys_role` **并存**。
+- **数据作用域**：管理**当前 workspace 下的成员**（`sys_workspace_user`）；API 前缀 `/workspaces/{workspace_id}/users`。
+- **用户账号**：`sys_user` 为**全局**账号；`email` **全局唯一**；新建时邮箱已存在则**拒绝**（不邀请）。
+- **档案字段**（全局，存 `sys_user`）：`nickname`、`phone`（选填、填写则全局唯一）、`status`（全局启用/停用，false 禁止登录）、`remark`、`department_item_id`（可选，逻辑引用 `sys_dict_item.id`）、`update_at`。
+- **成员资格**：`sys_workspace_user.role`（`owner` / `admin` / `member`），与业务角色 `sys_role` **并存**。
 - **多角色**：`sys_user_role(user_id, role_id)`，0~N 个；`role_id` 须属于当前 workspace。
-- **部门**：字典 `dict_code = 'SYS_DEPARTMENT'`（workspace 级）；表单 **TreeSelect**；存 `sys_users.department_item_id`；保存时校验字典项属于**当前 workspace** 的 `SYS_DEPARTMENT`。
+- **部门**：字典 `dict_code = 'SYS_DEPARTMENT'`（workspace 级）；表单 **TreeSelect**；存 `sys_user.department_item_id`；保存时校验字典项属于**当前 workspace** 的 `SYS_DEPARTMENT`。
 - **密码**：创建必填（≥8 位）；编辑可选，留空不修改。
 - **删除**：
-  - **移出工作空间**：删 membership + 该 workspace 下 `sys_user_role`；保留 `sys_users`。
-  - **删除账号**：硬删 `sys_users` 及全部 membership、`sys_user_role`、`refresh_tokens`；**平台超管**始终可执行；**workspace owner/admin** 仅当用户**仅有当前 workspace 一条 membership** 时可执行。
+  - **移出工作空间**：删 membership + 该 workspace 下 `sys_user_role`；保留 `sys_user`。
+  - **删除账号**：硬删 `sys_user` 及全部 membership、`sys_user_role`、`refresh_tokens`；**平台超管**始终可执行；**workspace owner/admin** 仅当用户**仅有当前 workspace 一条 membership** 时可执行。
 - **鉴权**（对齐角色模块）：
   - **读**：workspace **成员**（`require_workspace_member`）
   - **写**：workspace **owner/admin**（`require_workspace_owner_or_admin`）
@@ -32,7 +32,7 @@
 
 ### 1.1 部门字段全局化的影响
 
-`department_item_id` 存于 `sys_users`（全局一份），而 `SYS_DEPARTMENT` 字典按 workspace 隔离：
+`department_item_id` 存于 `sys_user`（全局一份），而 `SYS_DEPARTMENT` 字典按 workspace 隔离：
 
 - 在 workspace W 下编辑用户时，校验 `department_item_id` 属于 W 的 `SYS_DEPARTMENT`。
 - 用户若属于多个 workspace，在任一 workspace 修改部门会更新全局部门。
@@ -47,7 +47,7 @@
 - 主键 **UUID**；**禁止外键**；`user_id` / `role_id` / `department_item_id` 为逻辑引用，应用层维护关联与删除（见 minerva-conventions）。
 - 同步更新 `backend/sql/schema_postgresql.sql`；已有库执行 `backend/sql/patches/2026-06-11-sys-user-mgmt.sql`。
 
-### 2.2 表 `sys_users`（扩展）
+### 2.2 表 `sys_user`（扩展）
 
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
@@ -65,10 +65,10 @@
 
 **索引**：
 
-- `ix_sys_users_email` UNIQUE（已有）
-- `uq_sys_users_phone` UNIQUE ON (`phone`) WHERE `phone IS NOT NULL`（部分唯一索引，允许多个 NULL）
+- `ix_sys_user_email` UNIQUE（已有）
+- `uq_sys_user_phone` UNIQUE ON (`phone`) WHERE `phone IS NOT NULL`（部分唯一索引，允许多个 NULL）
 
-### 2.3 表 `sys_workspace_memberships`（不扩展部门）
+### 2.3 表 `sys_workspace_user`（不扩展部门）
 
 沿用已有字段：`user_id`、`workspace_id`、`role`（`MembershipRole`：`owner` / `admin` / `member`）。
 
@@ -79,7 +79,7 @@
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
 | `id` | UUID | PK | 主键 |
-| `user_id` | UUID | NOT NULL，索引 | 逻辑引用 `sys_users.id` |
+| `user_id` | UUID | NOT NULL，索引 | 逻辑引用 `sys_user.id` |
 | `role_id` | UUID | NOT NULL，索引 | 逻辑引用 `sys_role.id`（role 已含 `workspace_id`） |
 
 **索引**：
@@ -90,26 +90,36 @@
 
 ### 2.5 删除策略
 
+**新建用户**（`POST /workspaces/{workspace_id}/users`）同一事务内：
+
+1. 校验邮箱/手机号/部门/角色等业务规则
+2. `INSERT INTO sys_user`
+3. `INSERT INTO sys_workspace_user`（`role` 与请求一致）
+4. `INSERT INTO sys_tenant_user`（`tenant_id` 取自当前 workspace 所属租户，`role` 与 workspace membership 一致）
+5. 写入 `sys_user_role` 关联
+
 **移出工作空间**（`DELETE /workspaces/{workspace_id}/users/{user_id}/membership`）同一事务内：
 
 1. 操作者不得为目标用户本人，否则 **403** `user.cannot_delete_self`
 2. 校验用户为当前 workspace 成员，否则 **404**
-2. `DELETE FROM sys_user_role WHERE user_id = ? AND role_id IN (SELECT id FROM sys_role WHERE workspace_id = ?)`
-3. `DELETE FROM sys_workspace_memberships WHERE user_id = ? AND workspace_id = ?`
+3. `DELETE FROM sys_user_role WHERE user_id = ? AND role_id IN (SELECT id FROM sys_role WHERE workspace_id = ?)`
+4. `DELETE FROM sys_workspace_user WHERE user_id = ? AND workspace_id = ?`
+5. 若该用户在当前 workspace 所属 tenant 下已无其它 workspace membership，则 `DELETE FROM sys_tenant_user WHERE user_id = ? AND tenant_id = ?`
 
 **删除账号**（`DELETE /workspaces/{workspace_id}/users/{user_id}`）同一事务内：
 
 1. 操作者不得为目标用户本人，否则 **403** `user.cannot_delete_self`
 2. 校验权限（§3.1）；否则 **403** `user.delete_forbidden`
-2. `DELETE FROM sys_user_role WHERE user_id = ?`
-3. `DELETE FROM sys_workspace_memberships WHERE user_id = ?`
-4. `DELETE FROM refresh_tokens WHERE user_id = ?`
-5. `DELETE FROM sys_users WHERE id = ?`
+3. `DELETE FROM sys_user_role WHERE user_id = ?`
+4. `DELETE FROM sys_tenant_user WHERE user_id = ?`
+5. `DELETE FROM sys_workspace_user WHERE user_id = ?`
+6. `DELETE FROM refresh_tokens WHERE user_id = ?`
+7. `DELETE FROM sys_user WHERE id = ?`
 
 **硬删除权限**：
 
 - 调用方为平台超管（`is_super_admin_user`）→ 允许
-- 或调用方为当前 workspace owner/admin **且** 该用户仅有 1 条 `sys_workspace_memberships` 且 `workspace_id` 为当前 workspace → 允许
+- 或调用方为当前 workspace owner/admin **且** 该用户仅有 1 条 `sys_workspace_user` 且 `workspace_id` 为当前 workspace → 允许
 - 否则 **403**
 
 ### 2.6 ORM 与启动建表
@@ -123,7 +133,7 @@
 | 文件 | 说明 |
 |------|------|
 | `backend/sql/tables/sys_user_role.sql` | 建表、索引、COMMENT |
-| `backend/sql/patches/2026-06-11-sys-user-mgmt.sql` | ALTER `sys_users` 增列 + 建 `sys_user_role` |
+| `backend/sql/patches/2026-06-11-sys-user-mgmt.sql` | ALTER `sys_user` 增列 + 建 `sys_user_role` |
 | `backend/sql/schema_postgresql.sql` | 合并上述定义 |
 
 ### 2.8 字典 `SYS_DEPARTMENT`
@@ -165,7 +175,7 @@ app/sys/user/
 | POST / PATCH / DELETE membership | `require_workspace_owner_or_admin` |
 | DELETE 账号（硬删） | `require_workspace_owner_or_admin` + service 层硬删权限校验（超管或 sole-membership） |
 
-登录鉴权须尊重 `sys_users.status`：停用用户无法获取有效 access token（在 `authenticate_user` 或等价路径增加校验）。
+登录鉴权须尊重 `sys_user.status`：停用用户无法获取有效 access token（在 `authenticate_user` 或等价路径增加校验）。
 
 ### 3.2 用户 API
 
@@ -213,7 +223,7 @@ app/sys/user/
 ### 3.3 业务规则
 
 1. **创建**：`email` 全局已存在 → `409 user.email_taken`；`phone` 非空且已占用 → `409 user.phone_taken`；`password` 长度 < 8 → `400 user.weak_password`
-2. **创建事务**：INSERT `sys_users` → INSERT `sys_workspace_memberships` → INSERT `sys_user_role`（可为空）
+2. **创建事务**：INSERT `sys_user` → INSERT `sys_workspace_user` → INSERT `sys_user_role`（可为空）
 3. **更新**：目标用户非当前 workspace 成员 → `404 user.not_found`；`email` 不可改
 4. **`role_ids`**：须全部属于当前 workspace 且对应 `sys_role.status = true`；否则 `400 user.role_invalid`
 5. **`department_item_id`**：非 null 时须属于当前 workspace 的 `SYS_DEPARTMENT`；否则 `400 user.department_invalid`；null 表示清空部门
@@ -419,7 +429,7 @@ i18n：补充 `users.*`（`zh-CN.json` / `en.json`）；移除或保留 `placeho
 
 | 日期 | 变更 |
 |------|------|
-| 2026-06-11 | 初稿：workspace 级用户管理；方案 1；`department_item_id` 在 `sys_users`；全局 status/phone；双删除策略；A+B 硬删权限 |
+| 2026-06-11 | 初稿：workspace 级用户管理；方案 1；`department_item_id` 在 `sys_user`；全局 status/phone；双删除策略；A+B 硬删权限 |
 | 2026-06-11 | 增补 §4.4：列表/Drawer/滚动条/Popconfirm/分页对齐 RolesPage、RoleFormDrawer 等项目标准 |
 | 2026-06-11 | 实现完成 |
 
@@ -429,7 +439,7 @@ i18n：补充 `users.*`（`zh-CN.json` / `en.json`）；移除或保留 `placeho
 
 | spec 条目 | 当前代码位置 | 备注 |
 |-----------|--------------|------|
-| `sys_users` 扩展 | `backend/app/core/domain/identity/models.py` | nickname/phone/status/remark/department_item_id/update_at |
+| `sys_user` 扩展 | `backend/app/core/domain/identity/models.py` | nickname/phone/status/remark/department_item_id/update_at |
 | `sys_user_role` ORM | `backend/app/sys/user/domain/db/models.py` | |
 | 建表 SQL | `backend/sql/tables/sys_user_role.sql`、patch `2026-06-11-sys-user-mgmt.sql` | |
 | user service | `backend/app/sys/user/service/user_service.py` | 校验、硬删权限、meta |

@@ -1,8 +1,8 @@
-# 租户管理（sys_tenants + sys_workspaces + 管理端 UI）设计说明
+# 租户管理（sys_tenant + sys_workspaces + 管理端 UI）设计说明
 
 **日期**：2026-06-11  
 **状态**：已实现（2026-06-11）  
-**范围**：扩展身份域表 `sys_tenants`、`sys_workspaces`（status / remark / create_at / update_at）；平台超管专用 CRUD API；设置页「租户管理」列表 + 租户表单 Drawer + 工作空间 Drawer（内嵌 CRUD）。  
+**范围**：扩展身份域表 `sys_tenant`、`sys_workspaces`（status / remark / create_at / update_at）；平台超管专用 CRUD API；设置页「租户管理」列表 + 租户表单 Drawer + 工作空间 Drawer（内嵌 CRUD）。  
 **依赖**：全局菜单 `sys_menu`（新增侧栏入口，排在「角色管理」之后），见 [2026-06-10-menu-management-design.md](./2026-06-10-menu-management-design.md)。
 
 **包路径说明**：Python 包名为 `app.sys`；业务代码使用 `from app.sys.tenant...` 等完整限定导入。ORM 模型仍位于 `app.core.domain.identity.models`（`Tenant`、`Workspace`）。
@@ -12,9 +12,9 @@
 ## 1. 目标与成功标准
 
 - **数据作用域**：租户为**平台级**资源；工作空间归属租户。API **无** `workspace_id` 前缀，全局路径 `/sys/tenants`。
-- **鉴权**：**仅**平台超级管理员（`sys_users.is_super_admin = true`）；非超管全部接口 `403 auth.forbidden`。
+- **鉴权**：**仅**平台超级管理员（`sys_user.is_super_admin = true`）；非超管全部接口 `403 auth.forbidden`。
 - **后端**：
-  - 对 `sys_tenants` 提供分页列表、详情、创建、更新、**级联删除**。
+  - 对 `sys_tenant` 提供分页列表、详情、创建、更新、**级联删除**。
   - 对 `sys_workspaces` 提供嵌套于租户的分页列表、详情、创建、更新、删除（**仅删工作空间行**）。
 - **前端管理页**：`/app/settings/tenants`（`TenantsPage`）RuoYi 风格分页列表 + 租户右侧 Drawer；行内「工作空间」图标打开 `WorkspaceDrawer`，内嵌该租户下工作空间 CRUD；Drawer 内容区纵向滚动使用 `minerva-scrollbar-thin`。
 - **成功标准**：超管可完成租户 CRUD；可从租户行打开 Drawer 管理工作空间；`slug` 唯一性约束生效；删除租户时应用层级联清理成员与工作空间；删除单个工作空间时仅删除 `sys_workspaces` 行；非超管访问页面与 API 均 403。
@@ -29,7 +29,7 @@
 - 时间字段命名与角色模块一致：`create_at` / `update_at`（非 `created_at`）。
 - 同步更新 `backend/sql/schema_postgresql.sql`；已有库执行 `backend/sql/patches/2026-06-11-sys-tenant-mgmt.sql`。
 
-### 2.2 表 `sys_tenants`（扩展后）
+### 2.2 表 `sys_tenant`（扩展后）
 
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
@@ -43,7 +43,7 @@
 
 **索引**（已有 + 保持）：
 
-- `ix_sys_tenants_slug` UNIQUE ON (`slug`)
+- `ix_sys_tenant_slug` UNIQUE ON (`slug`)
 
 **已有行迁移默认值**：`status=true`，`create_at=COALESCE(create_at, now())`，`remark=NULL`。
 
@@ -69,15 +69,15 @@
 
 **删除租户**（`DELETE /sys/tenants/{id}`，Popconfirm 二次确认）同一事务内：
 
-1. `DELETE FROM sys_tenant_memberships WHERE tenant_id = ?`
-2. 对该租户下每个 workspace：`DELETE FROM sys_workspace_memberships WHERE workspace_id = ?`
+1. `DELETE FROM sys_tenant_user WHERE tenant_id = ?`
+2. 对该租户下每个 workspace：`DELETE FROM sys_workspace_user WHERE workspace_id = ?`
 3. `DELETE FROM sys_workspaces WHERE tenant_id = ?`
-4. `DELETE FROM sys_tenants WHERE id = ?`
+4. `DELETE FROM sys_tenant WHERE id = ?`
 
 **删除工作空间**（Drawer 内，`DELETE /sys/tenants/{tenant_id}/workspaces/{id}`，Popconfirm）：
 
 - 仅 `DELETE FROM sys_workspaces WHERE id = ? AND tenant_id = ?`
-- **不**删除 `sys_workspace_memberships` 及各业务模块中按 `workspace_id` 存储的数据（已知可能产生孤儿数据，本期按产品要求接受）
+- **不**删除 `sys_workspace_user` 及各业务模块中按 `workspace_id` 存储的数据（已知可能产生孤儿数据，本期按产品要求接受）
 
 ### 2.5 ORM
 
@@ -149,7 +149,7 @@ app/sys/tenant/
 - `slug` 格式：`^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$`（小写字母、数字、连字符）；非法 → `400 tenant.invalid_slug`
 - 租户不存在 → `404 tenant.not_found`
 
-**创建租户**：仅写入 `sys_tenants` 行；**不**自动创建默认工作空间（超管在 Drawer 内手动添加）。
+**创建租户**：仅写入 `sys_tenant` 行；**不**自动创建默认工作空间（超管在 Drawer 内手动添加）。
 
 ### 3.3 工作空间 API
 

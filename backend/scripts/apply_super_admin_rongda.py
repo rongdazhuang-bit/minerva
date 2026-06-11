@@ -19,6 +19,8 @@ def main() -> int:
     root = Path(__file__).resolve().parents[1]
     files = [
         root / "sql" / "patches" / "2026-06-11-rename-sys-identity-tables.sql",
+        root / "sql" / "patches" / "2026-06-11-rename-sys-tenant-workspace-user-tables.sql",
+        root / "sql" / "patches" / "2026-06-11-rename-sys-user-table.sql",
         root / "sql" / "patches" / "2026-06-10-users-super-admin.sql",
         root / "sql" / "seeds" / "super_admin_rongda.sql",
     ]
@@ -29,7 +31,7 @@ def main() -> int:
             for path in files:
                 cur.execute(path.read_text(encoding="utf-8"))
             cur.execute(
-                "SELECT email, is_super_admin FROM sys_users WHERE lower(email)=lower(%s)",
+                "SELECT email, is_super_admin FROM sys_user WHERE lower(email)=lower(%s)",
                 (EMAIL,),
             )
             user = cur.fetchone()
@@ -40,8 +42,8 @@ def main() -> int:
             cur.execute(
                 """
                 SELECT tm.role::text
-                FROM sys_tenant_memberships tm
-                JOIN sys_users u ON u.id = tm.user_id
+                FROM sys_tenant_user tm
+                JOIN sys_user u ON u.id = tm.user_id
                 WHERE lower(u.email)=lower(%s)
                 """,
                 (EMAIL,),

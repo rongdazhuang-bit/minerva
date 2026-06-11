@@ -17,7 +17,7 @@ EXCEPTION
   WHEN duplicate_object THEN NULL;
 END $$;
 
-CREATE TABLE IF NOT EXISTS sys_tenants (
+CREATE TABLE IF NOT EXISTS sys_tenant (
   id        UUID         NOT NULL,
   name      VARCHAR(200) NOT NULL,
   slug      VARCHAR(64)  NOT NULL,
@@ -27,13 +27,13 @@ CREATE TABLE IF NOT EXISTS sys_tenants (
   update_at TIMESTAMPTZ  NULL,
   PRIMARY KEY (id)
 );
-CREATE UNIQUE INDEX IF NOT EXISTS ix_sys_tenants_slug ON sys_tenants (slug);
-COMMENT ON COLUMN public.sys_tenants.status IS 'true=正常 false=停用';
-COMMENT ON COLUMN public.sys_tenants.remark IS '备注';
-COMMENT ON COLUMN public.sys_tenants.create_at IS '创建时间';
-COMMENT ON COLUMN public.sys_tenants.update_at IS '修改时间';
+CREATE UNIQUE INDEX IF NOT EXISTS ix_sys_tenant_slug ON sys_tenant (slug);
+COMMENT ON COLUMN public.sys_tenant.status IS 'true=正常 false=停用';
+COMMENT ON COLUMN public.sys_tenant.remark IS '备注';
+COMMENT ON COLUMN public.sys_tenant.create_at IS '创建时间';
+COMMENT ON COLUMN public.sys_tenant.update_at IS '修改时间';
 
-CREATE TABLE IF NOT EXISTS sys_users (
+CREATE TABLE IF NOT EXISTS sys_user (
   id                  UUID         NOT NULL,
   email               VARCHAR(320) NOT NULL,
   password_hash       VARCHAR(255) NOT NULL,
@@ -47,12 +47,12 @@ CREATE TABLE IF NOT EXISTS sys_users (
   update_at           TIMESTAMPTZ  NULL,
   PRIMARY KEY (id)
 );
-CREATE UNIQUE INDEX IF NOT EXISTS ix_sys_users_email ON sys_users (email);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_users_phone ON sys_users (phone) WHERE phone IS NOT NULL;
-COMMENT ON COLUMN public.sys_users.nickname IS 'Display name';
-COMMENT ON COLUMN public.sys_users.phone IS 'Optional; globally unique when set';
-COMMENT ON COLUMN public.sys_users.status IS 'true=active false=cannot login';
-COMMENT ON COLUMN public.sys_users.department_item_id IS 'Logical ref sys_dict_item.id (SYS_DEPARTMENT)';
+CREATE UNIQUE INDEX IF NOT EXISTS ix_sys_user_email ON sys_user (email);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_user_phone ON sys_user (phone) WHERE phone IS NOT NULL;
+COMMENT ON COLUMN public.sys_user.nickname IS 'Display name';
+COMMENT ON COLUMN public.sys_user.phone IS 'Optional; globally unique when set';
+COMMENT ON COLUMN public.sys_user.status IS 'true=active false=cannot login';
+COMMENT ON COLUMN public.sys_user.department_item_id IS 'Logical ref sys_dict_item.id (SYS_DEPARTMENT)';
 
 CREATE TABLE IF NOT EXISTS public.sys_user_role (
   id       UUID NOT NULL,
@@ -78,16 +78,16 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 CREATE UNIQUE INDEX IF NOT EXISTS ix_refresh_tokens_jti ON refresh_tokens (jti);
 CREATE INDEX IF NOT EXISTS ix_refresh_tokens_user_id ON refresh_tokens (user_id);
 
-CREATE TABLE IF NOT EXISTS sys_tenant_memberships (
+CREATE TABLE IF NOT EXISTS sys_tenant_user (
   id        UUID         NOT NULL,
   user_id   UUID         NOT NULL,
   tenant_id UUID         NOT NULL,
   role      tenant_role  NOT NULL,
   PRIMARY KEY (id),
-  CONSTRAINT uq_sys_tenant_membership UNIQUE (user_id, tenant_id)
+  CONSTRAINT uq_sys_tenant_user UNIQUE (user_id, tenant_id)
 );
-CREATE INDEX IF NOT EXISTS ix_sys_tenant_memberships_tenant_id ON sys_tenant_memberships (tenant_id);
-CREATE INDEX IF NOT EXISTS ix_sys_tenant_memberships_user_id ON sys_tenant_memberships (user_id);
+CREATE INDEX IF NOT EXISTS ix_sys_tenant_user_tenant_id ON sys_tenant_user (tenant_id);
+CREATE INDEX IF NOT EXISTS ix_sys_tenant_user_user_id ON sys_tenant_user (user_id);
 
 CREATE TABLE IF NOT EXISTS sys_workspaces (
   id        UUID         NOT NULL,
@@ -107,16 +107,16 @@ COMMENT ON COLUMN public.sys_workspaces.remark IS '备注';
 COMMENT ON COLUMN public.sys_workspaces.create_at IS '创建时间';
 COMMENT ON COLUMN public.sys_workspaces.update_at IS '修改时间';
 
-CREATE TABLE IF NOT EXISTS sys_workspace_memberships (
+CREATE TABLE IF NOT EXISTS sys_workspace_user (
   id           UUID            NOT NULL,
   user_id      UUID            NOT NULL,
   workspace_id UUID            NOT NULL,
   role         workspace_role  NOT NULL,
   PRIMARY KEY (id),
-  CONSTRAINT uq_sys_workspace_membership UNIQUE (user_id, workspace_id)
+  CONSTRAINT uq_sys_workspace_user UNIQUE (user_id, workspace_id)
 );
-CREATE INDEX IF NOT EXISTS ix_sys_workspace_memberships_user_id ON sys_workspace_memberships (user_id);
-CREATE INDEX IF NOT EXISTS ix_sys_workspace_memberships_workspace_id ON sys_workspace_memberships (workspace_id);
+CREATE INDEX IF NOT EXISTS ix_sys_workspace_user_user_id ON sys_workspace_user (user_id);
+CREATE INDEX IF NOT EXISTS ix_sys_workspace_user_workspace_id ON sys_workspace_user (workspace_id);
 
 
 CREATE TABLE IF NOT EXISTS public.sys_ocr_tool (
