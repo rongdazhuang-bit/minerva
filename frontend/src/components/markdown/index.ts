@@ -32,6 +32,7 @@ export {
   normalizeSelectiveDisplayMathFencesForRemarkMath,
   mapOutsideGfmTableRows,
   ensureBlankLineBeforeDisplayMathFences,
+  escapeTildesInNumericRanges,
   trimLeadingWhitespaceOnDisplayMathFenceLines,
   unindentDisplayMathFenceLines,
   unindentIndentedListContinuations,

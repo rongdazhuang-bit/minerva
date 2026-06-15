@@ -19,7 +19,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/app/AuthContext'
@@ -31,6 +31,10 @@ import {
 } from '@/features/dataset/api/datasets'
 import { deleteDataset } from '@/features/dataset/api/documents'
 import { DatasetCreateWizardModal } from '@/features/dataset/create/DatasetCreateWizardModal'
+import './DatasetListPage.css'
+
+/** Vertical space reserved below the table body for pagination and chrome (matches translate list). */
+const TABLE_SCROLL_GUTTER_PX = 48
 
 type FilterFormValues = {
   name?: string
@@ -57,6 +61,11 @@ export function DatasetListPage() {
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<DatasetListParams>({ page: 1, page_size: DEFAULT_PAGE_SIZE })
   const [createOpen, setCreateOpen] = useState(false)
+  const tableWrapRef = useRef<HTMLDivElement | null>(null)
+  /** Computed Ant Design Table body `scroll.y` from the flex table region height. */
+  const [tableBodyScrollY, setTableBodyScrollY] = useState(420)
+  /** Computed Ant Design Table body `scroll.x` from the flex table region width. */
+  const [tableScrollX, setTableScrollX] = useState(0)
 
   const listQ = useQuery({
     queryKey: ['datasets', workspaceId, filters],
@@ -83,6 +92,22 @@ export function DatasetListPage() {
     setPage(1)
     setFilters({ page: 1, page_size: DEFAULT_PAGE_SIZE })
   }, [filterForm])
+
+  useLayoutEffect(() => {
+    const wrap = tableWrapRef.current
+    if (wrap == null) return
+    const measure = () => {
+      const rect = wrap.getBoundingClientRect()
+      setTableBodyScrollY(Math.max(160, Math.floor(rect.height - TABLE_SCROLL_GUTTER_PX)))
+      setTableScrollX(Math.max(0, Math.floor(rect.width)))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(wrap)
+    return () => {
+      ro.disconnect()
+    }
+  }, [workspaceId, createOpen, listQ.data?.items?.length, page])
 
   const columns: ColumnsType<DatasetListItem> = useMemo(
     () => [
@@ -148,56 +173,63 @@ export function DatasetListPage() {
 
   return (
     <>
-      <Card size="small" variant="borderless" style={{ minHeight: 0 }}>
-        <Form
-          form={filterForm}
-          layout="inline"
-          onFinish={onSearch}
-          style={{ marginBottom: 16, flexWrap: 'wrap', gap: 8 }}
-        >
-          <Form.Item name="name">
-            <Input allowClear placeholder={t('dataset.list.filter.knowledgeBasePh')} style={{ minWidth: 160 }} />
-          </Form.Item>
-          <Form.Item name="create_range">
-            <DatePicker.RangePicker
-              allowClear
-              placeholder={[
-                t('dataset.list.filter.createRangeStart'),
-                t('dataset.list.filter.createRangeEnd'),
-              ]}
-            />
-          </Form.Item>
-          <Form.Item>
-            <Space wrap>
-              <Button type="primary" htmlType="submit">
-                {t('rules.search')}
-              </Button>
-              <Button onClick={onReset}>{t('rules.resetFilter')}</Button>
-              <Button type="dashed" icon={<FileAddOutlined />} onClick={() => setCreateOpen(true)}>
-                {t('dataset.list.create')}
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
+      <div className="minerva-dataset-list-page">
+        <Card size="small" variant="borderless" className="minerva-dataset-list-page__card">
+          <Form
+            form={filterForm}
+            layout="inline"
+            onFinish={onSearch}
+            className="minerva-dataset-list-page__filter"
+          >
+            <Form.Item name="name">
+              <Input allowClear placeholder={t('dataset.list.filter.knowledgeBasePh')} style={{ minWidth: 160 }} />
+            </Form.Item>
+            <Form.Item name="create_range">
+              <DatePicker.RangePicker
+                allowClear
+                placeholder={[
+                  t('dataset.list.filter.createRangeStart'),
+                  t('dataset.list.filter.createRangeEnd'),
+                ]}
+              />
+            </Form.Item>
+            <Form.Item>
+              <Space wrap>
+                <Button type="primary" htmlType="submit">
+                  {t('rules.search')}
+                </Button>
+                <Button onClick={onReset}>{t('rules.resetFilter')}</Button>
+                <Button type="dashed" icon={<FileAddOutlined />} onClick={() => setCreateOpen(true)}>
+                  {t('dataset.list.create')}
+                </Button>
+              </Space>
+            </Form.Item>
+          </Form>
 
-        <Table<DatasetListItem>
-          rowKey="id"
-          loading={listQ.isLoading}
-          columns={columns}
-          dataSource={listQ.data?.items ?? []}
-          locale={{ emptyText: t('dataset.list.empty') }}
-          pagination={{
-            current: page,
-            pageSize: DEFAULT_PAGE_SIZE,
-            total: listQ.data?.total ?? 0,
-            showSizeChanger: false,
-            onChange: (p) => {
-              setPage(p)
-              setFilters((prev) => ({ ...prev, page: p }))
-            },
-          }}
-        />
-      </Card>
+          <div ref={tableWrapRef} className="minerva-dataset-list-page__table-wrap">
+            <Table<DatasetListItem>
+              rowKey="id"
+              loading={listQ.isLoading}
+              columns={columns}
+              dataSource={listQ.data?.items ?? []}
+              locale={{ emptyText: t('dataset.list.empty') }}
+              className="minerva-dataset-list-page__table minerva-card-table-scroll-ocr"
+              scroll={{ x: tableScrollX > 0 ? tableScrollX : undefined, y: tableBodyScrollY }}
+              sticky
+              pagination={{
+                current: page,
+                pageSize: DEFAULT_PAGE_SIZE,
+                total: listQ.data?.total ?? 0,
+                showSizeChanger: false,
+                onChange: (p) => {
+                  setPage(p)
+                  setFilters((prev) => ({ ...prev, page: p }))
+                },
+              }}
+            />
+          </div>
+        </Card>
+      </div>
 
       <DatasetCreateWizardModal
         open={createOpen}

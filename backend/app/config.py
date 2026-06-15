@@ -726,6 +726,11 @@ class Settings(BaseSettings):
         default="",
         validation_alias=AliasChoices("DATASET_WEAVIATE_API_KEY", "dataset_weaviate_api_key"),
     )
+    amap_web_service_key: str = Field(
+        default="",
+        description="高德 Web 服务 API Key（IP 定位、行政区域、天气查询）。",
+        validation_alias=AliasChoices("AMAP_WEB_SERVICE_KEY", "amap_web_service_key"),
+    )
 
     @model_validator(mode="after")
     def validate_agent_memory_backend_config(self) -> Self:

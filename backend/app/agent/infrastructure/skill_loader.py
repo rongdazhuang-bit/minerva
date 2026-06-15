@@ -35,6 +35,11 @@ class IndexedSkill:
     description: str
 
 
+_SKILL_TOOL_DEPENDENCIES: dict[str, tuple[str, ...]] = {
+    "weather": ("ip_location", "district"),
+}
+
+
 def skills_root() -> Path:
     """Return the root directory for built-in skill packages."""
 
@@ -164,6 +169,37 @@ def extract_skill_when_to_use(skill_id: str) -> str:
 
 
 def load_tools_for_skill(skill_id: str, ctx: SkillToolContext) -> list[Any]:
+    """Import skill tool modules for ``skill_id`` and declared dependencies."""
+
+    seen_names: set[str] = set()
+    merged: list[Any] = []
+    for sid in _skill_load_order(skill_id):
+        for tool in _load_tools_for_skill_direct(sid, ctx):
+            name = getattr(tool, "name", None)
+            if isinstance(name, str) and name:
+                if name in seen_names:
+                    continue
+                seen_names.add(name)
+            merged.append(tool)
+    return merged
+
+
+def _skill_load_order(skill_id: str) -> list[str]:
+    """Return dependency skills first, then the requested skill."""
+
+    sid = _normalize_skill_id(skill_id)
+    deps = _SKILL_TOOL_DEPENDENCIES.get(sid, ())
+    ordered: list[str] = []
+    for dep in deps:
+        dep_id = _normalize_skill_id(dep)
+        if dep_id and dep_id not in ordered:
+            ordered.append(dep_id)
+    if sid and sid not in ordered:
+        ordered.append(sid)
+    return ordered
+
+
+def _load_tools_for_skill_direct(skill_id: str, ctx: SkillToolContext) -> list[Any]:
     """Import ``skills.<id>.tools`` and call ``register_tools(ctx)``."""
 
     sid = _normalize_skill_id(skill_id)

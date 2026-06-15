@@ -1099,6 +1099,23 @@ function isGfmTableRow(line: string): boolean {
   return trimmed.startsWith('|') && trimmed.indexOf('|', 1) !== -1
 }
 
+/** Decimal or integer on both sides of ``~`` (coordinate / numeric ranges, not GFM strikethrough). */
+const NUMERIC_RANGE_TILDE_RE = /(\d+(?:\.\d+)?)\s*~\s*(\d+(?:\.\d+)?)/g
+
+/**
+ * Escape ``~`` between numbers so remark-gfm does not treat spans like ``116.22~116.55，23.42~23.66`` as strikethrough.
+ */
+export function escapeTildesInNumericRanges(text: string): string {
+  return text.replace(NUMERIC_RANGE_TILDE_RE, '$1\\~$2')
+}
+
+/** Apply ``escapeTildesInNumericRanges`` outside ``$...$`` / ``$$...$$`` math fences. */
+function escapeTildesInProseOutsideMath(text: string): string {
+  return mapOutsideDisplayMathFences(text, (part) =>
+    mapOutsideInlineMathFences(part, escapeTildesInNumericRanges),
+  )
+}
+
 /**
  * Escape unescaped ``|`` inside a ``$...$`` / ``$$...$$`` fragment (GFM table column delimiter).
  */
@@ -1183,7 +1200,8 @@ export function mapOutsideGfmTableRows(text: string, transform: (chunk: string) 
  */
 export function normalizeMarkdownForAgent(markdown: string): string {
   return mapOutsideFencedCodeBlocks(prepareMarkdownFencedDiagrams(markdown), (chunk) => {
-    const withHtmlTableMath = wrapBareLatexInHtmlTableCells(chunk)
+    const withSafeNumericTildes = escapeTildesInProseOutsideMath(chunk)
+    const withHtmlTableMath = wrapBareLatexInHtmlTableCells(withSafeNumericTildes)
     const base = ensureBlankLineBeforeDisplayMathFences(
       unindentDisplayMathFenceLines(
         unindentIndentedListContinuations(
