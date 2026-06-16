@@ -1,0 +1,51 @@
+/** Document segment configuration panel inside fullscreen modal. */
+.minerva-document-segment-panel__spin,
+.minerva-document-segment-panel__spin .ant-spin-container {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.minerva-document-segment-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  padding: 44px 0 0;
+  box-sizing: border-box;
+}
+
+.minerva-document-segment-panel__title {
+  flex-shrink: 0;
+  margin: 0 0 8px !important;
+  padding: 0 24px;
+}
+
+.minerva-document-segment-panel .minerva-dataset-step-two {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.minerva-document-segment-panel__settings-hint {
+  margin-top: 12px;
+  margin-bottom: 0;
+  font-size: 12px;
+}
+
+.minerva-document-segment-panel__rule-alert {
+  margin-top: 12px;
+}
+
+.minerva-document-segment-panel__save-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-bottom: 8px;
+}
+
+.minerva-document-segment-panel__popconfirm-anchor {
+  display: none;
+}

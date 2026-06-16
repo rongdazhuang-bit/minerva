@@ -103,6 +103,8 @@ export function AgentsPage() {
   const [reasoningOpenKeys, setReasoningOpenKeys] = useState<string[]>([])
   /** 是否向服务端请求思考模式（默认关闭）。 */
   const [thinkingEnabled, setThinkingEnabled] = useState(false)
+  /** 侧栏会话删除确认：Popconfirm 须挂在 Dropdown 外，避免菜单关闭时确认框被卸载。 */
+  const [sessionDeleteConfirmId, setSessionDeleteConfirmId] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const listEndRef = useRef<HTMLDivElement | null>(null)
   /** Main session message list scroll container. */
@@ -410,6 +412,7 @@ export function AgentsPage() {
   const handleDeleteSession = useCallback(
     async (targetSessionId: string) => {
       if (!workspaceId) return
+      setSessionDeleteConfirmId(null)
       if (streaming) {
         message.warning(t('agents.deleteSessionWhileStreaming'))
         return
@@ -422,8 +425,13 @@ export function AgentsPage() {
         }
         void queryClient.invalidateQueries({ queryKey: ['agent-sessions', workspaceId] })
       } catch (e) {
-        if (e instanceof ApiError) message.error(e.message)
-        else message.error(String(e))
+        if (e instanceof ApiError) {
+          if (e.code === 'agent.session_busy') {
+            message.warning(t('agents.deleteSessionBusy'))
+          } else {
+            message.error(e.message)
+          }
+        } else message.error(String(e))
       }
     },
     [workspaceId, sessionId, streaming, handleNewChat, queryClient, t],
@@ -435,22 +443,15 @@ export function AgentsPage() {
         {
           key: 'delete',
           danger: true,
-          label: (
-            <Popconfirm
-              title={t('agents.deleteSessionConfirm')}
-              okText={t('agents.deleteSession')}
-              cancelText={t('common.cancel')}
-              okButtonProps={{ danger: true }}
-              onConfirm={() => void handleDeleteSession(targetSessionId)}
-              onCancel={(e) => e?.stopPropagation()}
-            >
-              <span onClick={(e) => e.stopPropagation()}>{t('agents.deleteSession')}</span>
-            </Popconfirm>
-          ),
+          label: t('agents.deleteSession'),
+          onClick: ({ domEvent }) => {
+            domEvent.stopPropagation()
+            setSessionDeleteConfirmId(targetSessionId)
+          },
         },
       ],
     }),
-    [t, handleDeleteSession],
+    [t],
   )
 
   /** 发起一轮助手流式回复（新提问或基于已有用户消息重新生成）。 */
@@ -988,15 +989,34 @@ export function AgentsPage() {
                       </span>
                     </button>
                     <Dropdown menu={buildSessionRowMenu(s.id)} trigger={['click']}>
-                      <Button
-                        type="text"
-                        size="small"
-                        className="agents-page__session-item-menu"
-                        icon={<MoreOutlined />}
-                        aria-label={t('agents.sessionMenu')}
-                        disabled={streaming}
-                        onClick={(e) => e.stopPropagation()}
-                      />
+                      <Popconfirm
+                        open={sessionDeleteConfirmId === s.id}
+                        title={t('agents.deleteSessionConfirm')}
+                        okText={t('agents.deleteSession')}
+                        cancelText={t('common.cancel')}
+                        okButtonProps={{ danger: true }}
+                        onConfirm={(e) => {
+                          e?.stopPropagation()
+                          void handleDeleteSession(s.id)
+                        }}
+                        onCancel={(e) => {
+                          e?.stopPropagation()
+                          setSessionDeleteConfirmId(null)
+                        }}
+                        onOpenChange={(open) => {
+                          if (!open) setSessionDeleteConfirmId(null)
+                        }}
+                      >
+                        <Button
+                          type="text"
+                          size="small"
+                          className="agents-page__session-item-menu"
+                          icon={<MoreOutlined />}
+                          aria-label={t('agents.sessionMenu')}
+                          disabled={streaming}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </Popconfirm>
                     </Dropdown>
                   </div>
                 )

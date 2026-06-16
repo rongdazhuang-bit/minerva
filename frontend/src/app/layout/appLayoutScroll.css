@@ -38,6 +38,7 @@
 .minerva-app-main-scroll > .minerva-agent-memory-page,
 .minerva-app-main-scroll > .minerva-menu-config-page,
 .minerva-app-main-scroll > .minerva-dataset-list-page,
+.minerva-app-main-scroll > .minerva-dataset-section-layout,
 .minerva-app-main-scroll > .translate-page--table {
   flex: 1 1 auto;
   min-height: 0;

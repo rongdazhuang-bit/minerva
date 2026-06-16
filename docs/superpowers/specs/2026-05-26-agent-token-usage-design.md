@@ -137,7 +137,7 @@ DB 列名统一为 **`usage_json`**（JSONB）；HTTP 响应字段对外命名�
 - 同步：`backend/sql/schema_postgresql.sql`
 - ORM：`AgentRunNode.usage_json`、`AgentSession.usage_json`
 
-**约定**：无库级外键；删除会话仍由 `delete_agent_session` 应用层级联清理 Run/Node（见 minerva-conventions）。
+**约定**：无库级外键；删除会话仍由 `delete_agent_session` 应用层级联清理 Run/Node/Profile（见 minerva-conventions）。删除前将 `running` run 标记为 `cancelled`，并设置 `lock_timeout`；若会话仍被进行中的 SSE run 占用则返回 **409** `agent.session_busy`。SSE run 在 graph 执行前 `commit` 以释放 `agent_session` 行锁。
 
 ---
 

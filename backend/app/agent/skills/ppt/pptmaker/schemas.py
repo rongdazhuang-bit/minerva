@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class OutlineMeta(BaseModel):
@@ -14,11 +14,26 @@ class OutlineMeta(BaseModel):
     subtitle: str = ""
 
 
+class SlideOutline(BaseModel):
+    """Single slide spec; extra keys (items, images, etc.) are preserved."""
+
+    model_config = ConfigDict(extra="allow")
+
+    pageTitle: str = ""
+    speakerNotes: str | None = Field(
+        default=None,
+        description="Optional speaker notes written to the pptx notes slide.",
+    )
+
+
 class OutlineDocument(BaseModel):
-    """Full presentation outline."""
+    """Full presentation outline.
+
+    Each slide dict may include ``speakerNotes`` for layout_fill notes output.
+    """
 
     meta: OutlineMeta | None = None
-    slides: list[dict[str, Any]] = Field(min_length=1)
+    slides: list[SlideOutline] = Field(min_length=1)
 
     @field_validator("slides")
     @classmethod

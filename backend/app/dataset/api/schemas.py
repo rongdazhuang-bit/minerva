@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class DatasetListItemOut(BaseModel):
@@ -210,12 +210,17 @@ class DatasetDocumentOut(BaseModel):
     enabled: bool
     archived: bool
     is_paused: bool
+    doc_form: str = "text_model"
     word_count: int | None = None
+    hit_count: int = 0
     error: str | None = None
     batch: str
     create_at: datetime | None = None
     update_at: datetime | None = None
     completed_at: datetime | None = None
+    file_id: str | None = None
+    process_rule_id: uuid.UUID | None = None
+    process_rule: dict[str, Any] | None = None
 
 
 class DatasetDocumentListPageOut(BaseModel):
@@ -229,6 +234,7 @@ class DatasetDocumentAppendIn(BaseModel):
     """Append documents to an existing knowledge base."""
 
     file_ids: list[uuid.UUID] = Field(min_length=1)
+    process_rule: dict[str, Any] | None = None
 
 
 class DatasetDocumentAppendOut(BaseModel):
@@ -240,9 +246,18 @@ class DatasetDocumentAppendOut(BaseModel):
 
 
 class DatasetDocumentPatchIn(BaseModel):
-    """Patch one document (rename)."""
+    """Patch one document (rename or segment settings)."""
 
-    name: str = Field(min_length=1, max_length=255)
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    process_rule: dict[str, Any] | None = None
+
+    @model_validator(mode="after")
+    def require_at_least_one_field(self) -> DatasetDocumentPatchIn:
+        """Require at least one mutable field in the request body."""
+
+        if self.name is None and self.process_rule is None:
+            raise ValueError("name or process_rule required")
+        return self
 
 
 class DatasetRetryOut(BaseModel):

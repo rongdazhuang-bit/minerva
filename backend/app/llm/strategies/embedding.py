@@ -6,7 +6,7 @@ from typing import Any
 
 from app.llm.domain.models import EmbeddingCallParams, EmbeddingResult
 from app.llm.domain.resolved_model import ResolvedModel
-from app.llm.strategies.http_common import post_json
+from app.llm.strategies.http_common import post_json, resolve_embeddings_url
 
 
 class EmbeddingStrategy:
@@ -23,7 +23,7 @@ class EmbeddingStrategy:
         if params.dimensions is not None:
             body["dimensions"] = params.dimensions
         raw = await post_json(
-            url=resolved.endpoint_url,
+            url=resolve_embeddings_url(resolved.endpoint_url),
             api_key=resolved.api_key,
             body=body,
             log_label="embeddings",

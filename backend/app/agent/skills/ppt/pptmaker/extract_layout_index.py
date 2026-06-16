@@ -9,6 +9,7 @@ from typing import Any
 from pptx import Presentation
 from pptx.enum.shapes import PP_PLACEHOLDER
 
+from app.agent.skills.ppt.shared.capacity import estimate_text_capacity
 
 EMU_PER_INCH = 914400
 _ASSETS_DIR = Path(__file__).resolve().parents[1] / "assets"
@@ -44,6 +45,52 @@ LAYOUT_TYPE_BY_NAME = {
     "章节左侧色块": "section_divider",
     "章节进度指示": "section_progress",
     "六列并列": "six_columns",
+}
+
+# 变体版式名 → 细粒度 layoutType（供规则选版与 LLM 摘要）
+LAYOUT_VARIANT_TYPES: dict[str, str] = {
+    "要点列表-纵向六条": "bullet_list_vertical",
+    "要点列表-横向四项": "bullet_list_horizontal",
+    "要点列表-双列六条": "bullet_list_two_columns",
+    "三列并列-等宽横排": "three_columns_equal",
+    "三列并列-上标题下正文": "three_columns_stacked",
+    "三列并列-错落分布": "three_columns_staggered",
+    "二列对比-左右等分": "two_columns_compare_equal",
+    "二列对比-上下排列": "two_columns_compare_vertical",
+    "二列对比-左窄右宽": "two_columns_compare_asymmetric",
+    "1_大数字展示-横向四项": "metrics_horizontal",
+    "2_大数字展示-横向四项": "metrics_horizontal",
+    "大数字展示-横向四项": "metrics_horizontal",
+    "大数字展示-田字四项": "metrics_grid",
+    "大数字展示-三项居中": "metrics_three_center",
+    "四宫格-田字分布": "four_grid_tile",
+    "四宫格-横向四项": "four_grid_horizontal",
+    "四宫格-纵向四项": "four_grid_vertical",
+    "左图右文-左右均分": "image_left_text_right_equal",
+    "左图右文-小图大文": "image_left_text_right_small_image",
+    "右图左文-左右均分": "text_left_image_right_equal",
+    "右图左文-小图大文": "text_left_image_right_small_image",
+    "上图下文-半图": "image_top_text_bottom_half",
+    "上图下文-浅图": "image_top_text_bottom_light",
+    "下图上文-半图": "text_top_image_bottom_half",
+    "小图大量文字-右上图": "small_image_large_text_corner",
+    "全图文字叠加-居中": "full_image_text_overlay_center",
+    "两图并排-带说明": "two_images_with_captions",
+    "两图并排-无说明": "two_images",
+    "三图横排-带说明": "three_images_with_captions",
+    "三图横排-无说明": "three_images",
+    "四图宫格-带说明": "four_images_grid_with_captions",
+    "四图宫格-无说明": "four_images",
+    "大图小图组合-左大右二": "hero_image_supporting_2",
+    "大图小图组合-左大右三": "hero_image_supporting_3",
+    "五图版式-主次左大": "five_images_hero",
+    "五图版式-均等上三下二": "five_images",
+    "六图宫格-3x2无说明": "six_images_grid",
+    "六图宫格-3x2带说明": "six_images_grid_with_captions",
+    "单段叙述-通栏正文": "single_paragraph_full",
+    "单段叙述-窄栏正文": "single_paragraph_narrow",
+    "引言金句-居中": "quote_center",
+    "引言金句-左对齐": "quote_left",
 }
 
 LAYOUT_DESCRIPTIONS = {
@@ -225,7 +272,41 @@ def placeholder_type_name(ph_type: PP_PLACEHOLDER) -> str:
 
 
 def inches(value: int) -> float:
+    """Convert EMU to inches rounded to three decimals."""
+
     return round(value / EMU_PER_INCH, 3)
+
+
+def points_from_emu(value: int) -> float:
+    """Convert EMU to typographic points."""
+
+    return round(value / EMU_PER_INCH * 72, 1)
+
+
+def placeholder_geometry(shape) -> dict[str, float]:
+    """Return width/height in points for capacity estimation."""
+
+    return {
+        "widthPt": points_from_emu(shape.width),
+        "heightPt": points_from_emu(shape.height),
+    }
+
+
+def placeholder_font_size_pt(shape) -> float | None:
+    """Read the first run font size in points when a text frame exists."""
+
+    if not shape.has_text_frame:
+        return None
+    text_frame = shape.text_frame
+    if not text_frame.paragraphs:
+        return None
+    paragraph = text_frame.paragraphs[0]
+    if not paragraph.runs:
+        return None
+    font = paragraph.runs[0].font
+    if font.size is None:
+        return None
+    return round(font.size.pt, 1)
 
 
 def label_index_count(labels: list[str], prefix: str, suffixes: tuple[str, ...]) -> int:
@@ -236,6 +317,61 @@ def label_index_count(labels: list[str], prefix: str, suffixes: tuple[str, ...])
         if match:
             found.add(int(match.group(1)))
     return len(found)
+
+
+def resolve_layout_type(name: str) -> str:
+    """Resolve base or variant layout name to a layoutType string."""
+
+    if name in LAYOUT_VARIANT_TYPES:
+        return LAYOUT_VARIANT_TYPES[name]
+    if name in LAYOUT_TYPE_BY_NAME:
+        return LAYOUT_TYPE_BY_NAME[name]
+    base_name = re.sub(r"^\d+_", "", name.split("-", 1)[0])
+    return LAYOUT_TYPE_BY_NAME.get(base_name, "unknown")
+
+
+def compute_capacity_hints(placeholders: list[dict[str, Any]]) -> dict[str, Any]:
+    """Aggregate per-label text capacity estimates for layout-first selection."""
+
+    by_label: dict[str, dict[str, float | int]] = {}
+    body_capacities: list[float] = []
+    title_capacities: list[float] = []
+
+    for placeholder in placeholders:
+        label = str(placeholder.get("label", ""))
+        geometry = placeholder.get("geometry") or {}
+        width_pt = geometry.get("widthPt")
+        if not width_pt:
+            continue
+        height_pt = float(geometry.get("heightPt") or 0)
+        font_size_pt = float(placeholder.get("fontSizePt") or 18.0)
+        lines = max(1, int(height_pt / (font_size_pt * 1.2))) if height_pt else 1
+        capacity = estimate_text_capacity(
+            width_pt=float(width_pt),
+            font_size_pt=font_size_pt,
+            lines=lines,
+        )
+        by_label[label] = {
+            "widthPt": round(float(width_pt), 1),
+            "heightPt": round(height_pt, 1),
+            "fontSizePt": font_size_pt,
+            "lines": lines,
+            "capacityUnits": round(capacity, 1),
+        }
+        if label == "body" or label.endswith("_body"):
+            body_capacities.append(capacity)
+        if label == "title" or label.endswith("_title"):
+            title_capacities.append(capacity)
+
+    return {
+        "byLabel": by_label,
+        "minBodyCapacity": round(min(body_capacities), 1) if body_capacities else None,
+        "maxBodyCapacity": round(max(body_capacities), 1) if body_capacities else None,
+        "avgBodyCapacity": round(sum(body_capacities) / len(body_capacities), 1)
+        if body_capacities
+        else None,
+        "minTitleCapacity": round(min(title_capacities), 1) if title_capacities else None,
+    }
 
 
 def infer_page_type(name: str, layout_type: str) -> str:
@@ -250,8 +386,7 @@ def infer_page_type(name: str, layout_type: str) -> str:
 
 def infer_content_signals(name: str, placeholders: list[dict[str, Any]]) -> dict[str, Any]:
     labels = [item["label"] for item in placeholders]
-    base_name = re.sub(r"^\d+_", "", name.split("-", 1)[0])
-    layout_type = LAYOUT_TYPE_BY_NAME.get(name, LAYOUT_TYPE_BY_NAME.get(base_name, "unknown"))
+    layout_type = resolve_layout_type(name)
     has_image = any(item["type"] == "picture" for item in placeholders)
     image_count = sum(1 for item in placeholders if item["type"] == "picture")
 
@@ -303,10 +438,21 @@ def infer_content_signals(name: str, placeholders: list[dict[str, Any]]) -> dict
         "bullet_list": 1,
     }
 
+    columns = columns_by_type.get(layout_type)
+    if columns is None:
+        for base_type in sorted(columns_by_type, key=len, reverse=True):
+            if layout_type == base_type or layout_type.startswith(f"{base_type}_"):
+                columns = columns_by_type[base_type]
+                break
+    if columns is None:
+        columns = 1
+    if layout_type.startswith("metrics") and metric_slots:
+        columns = metric_slots
+
     return {
         "pageType": infer_page_type(name, layout_type),
         "layoutType": layout_type,
-        "columns": columns_by_type.get(layout_type, 1),
+        "columns": columns,
         "hasImage": has_image,
         "imageCount": image_count,
         "maxItems": max_items,
@@ -355,7 +501,7 @@ def extract_layout_index(template_path: Path) -> list[dict[str, Any]]:
         placeholders = []
         for placeholder in layout.placeholders:
             fmt = placeholder.placeholder_format
-            placeholders.append({
+            entry: dict[str, Any] = {
                 "idx": fmt.idx,
                 "type": placeholder_type_name(fmt.type),
                 "label": placeholder.name,
@@ -363,7 +509,12 @@ def extract_layout_index(template_path: Path) -> list[dict[str, Any]]:
                 "y": inches(placeholder.top),
                 "w": inches(placeholder.width),
                 "h": inches(placeholder.height),
-            })
+                "geometry": placeholder_geometry(placeholder),
+            }
+            font_size_pt = placeholder_font_size_pt(placeholder)
+            if font_size_pt is not None:
+                entry["fontSizePt"] = font_size_pt
+            placeholders.append(entry)
 
         placeholders.sort(key=lambda item: (item["idx"], item["y"], item["x"]))
 
@@ -374,6 +525,7 @@ def extract_layout_index(template_path: Path) -> list[dict[str, Any]]:
             "sourcePart": f"ppt/slideLayouts/slideLayout{layout_no + 1}.xml",
             "placeholders": placeholders,
             "contentSignals": infer_content_signals(layout.name, placeholders),
+            "capacityHints": compute_capacity_hints(placeholders),
             "shapeSignals": shape_distribution(layout),
         })
 

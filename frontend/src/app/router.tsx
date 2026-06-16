@@ -13,7 +13,7 @@ import {
   AgentsPage,
 } from '@/features/agent'
 import { TranslatePage } from '@/features/translate'
-import { DatasetListPage, DatasetSectionLayout, DocumentDetailPage, DocumentListPage, DatasetSettingsPage, HitTestingPage } from '@/features/dataset'
+import { DatasetListPage, DatasetSectionLayout, DocumentListPage, DatasetSettingsPage, HitTestingPage } from '@/features/dataset'
 import { OverviewPage } from '@/features/workspace/OverviewPage'
 import { DrawingReviewPage, TextProofreadingPage, TextReviewByTextPage } from '@/features/smart-review'
 import {
@@ -77,7 +77,6 @@ const router = createBrowserRouter([
             children: [
               { index: true, element: <Navigate to="documents" replace /> },
               { path: 'documents', element: <DocumentListPage /> },
-              { path: 'documents/:documentId', element: <DocumentDetailPage /> },
               { path: 'hit-testing', element: <HitTestingPage /> },
               { path: 'settings', element: <DatasetSettingsPage /> },
             ],

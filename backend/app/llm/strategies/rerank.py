@@ -6,7 +6,7 @@ from typing import Any
 
 from app.llm.domain.models import RerankCallParams, RerankResult
 from app.llm.domain.resolved_model import ResolvedModel
-from app.llm.strategies.http_common import post_json
+from app.llm.strategies.http_common import post_json, resolve_rerank_url
 
 
 class RerankStrategy:
@@ -23,7 +23,7 @@ class RerankStrategy:
         if params.top_n is not None:
             body["top_n"] = params.top_n
         raw = await post_json(
-            url=resolved.endpoint_url,
+            url=resolve_rerank_url(resolved.endpoint_url),
             api_key=resolved.api_key,
             body=body,
             log_label="rerank",

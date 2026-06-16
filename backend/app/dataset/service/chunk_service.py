@@ -131,6 +131,24 @@ def deserialize_process_rule(raw: str | None) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
+async def load_document_process_rule_for_detail(
+    session: AsyncSession,
+    *,
+    document,
+) -> dict[str, Any] | None:
+    """Return persisted process rule for document detail API, or None when missing."""
+
+    from app.dataset.domain.db.models import DatasetProcessRule
+
+    if document.dataset_process_rule_id is None:
+        return None
+    row = await session.get(DatasetProcessRule, document.dataset_process_rule_id)
+    if row is None:
+        return None
+    loaded = deserialize_process_rule(row.rules)
+    return loaded if loaded else None
+
+
 async def load_document_process_rule(
     session: AsyncSession,
     *,
@@ -139,12 +157,8 @@ async def load_document_process_rule(
     """Resolve process rule JSON for one document."""
 
     from app.dataset.domain.constants import DEFAULT_PROCESS_RULE
-    from app.dataset.domain.db.models import DatasetProcessRule
 
-    if document.dataset_process_rule_id is None:
+    loaded = await load_document_process_rule_for_detail(session, document=document)
+    if loaded is None:
         return DEFAULT_PROCESS_RULE
-    row = await session.get(DatasetProcessRule, document.dataset_process_rule_id)
-    if row is None:
-        return DEFAULT_PROCESS_RULE
-    loaded = deserialize_process_rule(row.rules)
-    return loaded or DEFAULT_PROCESS_RULE
+    return loaded

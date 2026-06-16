@@ -124,6 +124,13 @@ function contentScrollStyleForPath(pathname: string): CSSProperties {
       overflowX: 'hidden',
     }
   }
+  if (/^\/app\/dataset\/[^/]+/.test(pathname)) {
+    return {
+      ...contentScrollStyle,
+      overflowY: 'hidden',
+      overflowX: 'hidden',
+    }
+  }
   if (pathname.startsWith('/app/translate')) {
     return {
       ...contentScrollStyle,

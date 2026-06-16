@@ -19,6 +19,10 @@ export type RetrievalSettingsPanelProps = {
   modelsLoading?: boolean
   /** Economy indexing disables vector-based retrieval methods. */
   vectorSearchDisabled?: boolean
+  /** Hide section title and subtitle (e.g. inside a drawer). */
+  hideHeader?: boolean
+  /** When true, retrieval method cards and controls cannot be changed. */
+  retrievalLocked?: boolean
 }
 
 type MethodCard = {
@@ -61,6 +65,8 @@ export function RetrievalSettingsPanel({
   rerankOptions,
   modelsLoading,
   vectorSearchDisabled,
+  hideHeader,
+  retrievalLocked,
 }: RetrievalSettingsPanelProps) {
   const { t } = useTranslation()
   const searchMethod = Form.useWatch('search_method', form) as SearchMethod | undefined
@@ -70,6 +76,7 @@ export function RetrievalSettingsPanel({
   const scoreThreshold = Form.useWatch('score_threshold', form) ?? 0.5
 
   const selectMethod = (method: SearchMethod) => {
+    if (retrievalLocked) return
     if (vectorSearchDisabled && (method === 'semantic_search' || method === 'hybrid_search')) return
     form.setFieldValue('search_method', method)
     if (method === 'hybrid_search' && !form.getFieldValue('reranking_enable')) {
@@ -78,16 +85,23 @@ export function RetrievalSettingsPanel({
   }
 
   const isMethodDisabled = (method: SearchMethod) =>
-    Boolean(vectorSearchDisabled && (method === 'semantic_search' || method === 'hybrid_search'))
+    Boolean(
+      retrievalLocked ||
+        (vectorSearchDisabled && (method === 'semantic_search' || method === 'hybrid_search')),
+    )
 
   return (
     <div className="minerva-retrieval-settings">
-      <Typography.Title level={5} style={{ marginTop: 0, marginBottom: 4 }}>
-        {t('dataset.create.retrieval.title')}
-      </Typography.Title>
-      <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
-        {t('dataset.create.retrieval.subtitle')}
-      </Typography.Paragraph>
+      {!hideHeader ? (
+        <>
+          <Typography.Title level={5} style={{ marginTop: 0, marginBottom: 4 }}>
+            {t('dataset.create.retrieval.title')}
+          </Typography.Title>
+          <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
+            {t('dataset.create.retrieval.subtitle')}
+          </Typography.Paragraph>
+        </>
+      ) : null}
 
       <Form.Item name="search_method" hidden>
         <Input />
@@ -95,7 +109,7 @@ export function RetrievalSettingsPanel({
 
       {METHOD_CARDS.map((card) => {
         const active = searchMethod === card.method
-        const disabled = isMethodDisabled(card.method)
+        const disabled = isMethodDisabled(card.method) || Boolean(retrievalLocked && !active)
         return (
           <div
             key={card.method}
@@ -137,7 +151,7 @@ export function RetrievalSettingsPanel({
                     </Tooltip>
                   </div>
                   <Form.Item name="reranking_enable" valuePropName="checked" style={{ marginBottom: 0 }}>
-                    <Switch />
+                    <Switch disabled={retrievalLocked} />
                   </Form.Item>
                 </div>
 
@@ -148,7 +162,12 @@ export function RetrievalSettingsPanel({
                     rules={[{ required: true, message: t('dataset.settings.rerankModelRequired') }]}
                     style={{ marginBottom: 12 }}
                   >
-                    <Select allowClear options={rerankOptions} loading={modelsLoading} />
+                    <Select
+                      allowClear
+                      options={rerankOptions}
+                      loading={modelsLoading}
+                      disabled={retrievalLocked}
+                    />
                   </Form.Item>
                 ) : null}
 
@@ -162,12 +181,13 @@ export function RetrievalSettingsPanel({
                     </div>
                     <div className="minerva-retrieval-metric__control">
                       <Form.Item name="top_k" style={{ marginBottom: 0 }}>
-                        <InputNumber min={1} max={20} style={{ width: 72 }} />
+                        <InputNumber min={1} max={20} style={{ width: 72 }} disabled={retrievalLocked} />
                       </Form.Item>
                       <Slider
                         min={1}
                         max={20}
                         value={topK}
+                        disabled={retrievalLocked}
                         onChange={(value) => form.setFieldValue('top_k', value)}
                       />
                     </div>
@@ -176,7 +196,7 @@ export function RetrievalSettingsPanel({
                   <div className="minerva-retrieval-metric">
                     <div className="minerva-retrieval-metric__label">
                       <Form.Item name="score_threshold_enabled" valuePropName="checked" style={{ marginBottom: 0 }}>
-                        <Switch size="small" />
+                        <Switch size="small" disabled={retrievalLocked} />
                       </Form.Item>
                       <Typography.Text>{t('dataset.create.retrieval.scoreThreshold')}</Typography.Text>
                       <Tooltip title={t('dataset.create.retrieval.scoreThresholdHint')}>
@@ -189,7 +209,7 @@ export function RetrievalSettingsPanel({
                           min={0}
                           max={1}
                           step={0.05}
-                          disabled={!thresholdEnabled}
+                          disabled={!thresholdEnabled || retrievalLocked}
                           style={{ width: 72 }}
                         />
                       </Form.Item>
@@ -197,7 +217,7 @@ export function RetrievalSettingsPanel({
                         min={0}
                         max={1}
                         step={0.05}
-                        disabled={!thresholdEnabled}
+                        disabled={!thresholdEnabled || retrievalLocked}
                         value={scoreThreshold}
                         onChange={(value) => form.setFieldValue('score_threshold', value)}
                       />

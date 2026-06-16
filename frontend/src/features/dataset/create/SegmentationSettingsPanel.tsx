@@ -13,6 +13,10 @@ export type SegmentationSettingsPanelProps = {
   onPreview: () => void
   onReset: () => void
   previewLoading?: boolean
+  /** When true, segmentation mode cards cannot be switched (settings page). */
+  docFormLocked?: boolean
+  /** Hide preview/reset actions (settings page). */
+  hidePreviewActions?: boolean
 }
 
 /** Shared preprocessing rule checkboxes for general and hierarchical modes. */
@@ -44,6 +48,8 @@ export function SegmentationSettingsPanel({
   onPreview,
   onReset,
   previewLoading,
+  docFormLocked,
+  hidePreviewActions,
 }: SegmentationSettingsPanelProps) {
   const { t } = useTranslation()
   const docForm = Form.useWatch('doc_form', form)
@@ -67,11 +73,13 @@ export function SegmentationSettingsPanel({
   )
 
   const selectGeneral = () => {
+    if (docFormLocked && !isGeneralActive) return
     const qa = form.getFieldValue('use_qa_segmentation') === true
     form.setFieldValue('doc_form', qa ? 'qa_model' : 'text_model')
   }
 
   const selectHierarchical = () => {
+    if (docFormLocked) return
     const current = form.getFieldsValue()
     form.setFieldsValue({
       doc_form: 'hierarchical_model',
@@ -85,23 +93,28 @@ export function SegmentationSettingsPanel({
   }
 
   const onQaToggle = (checked: boolean) => {
+    if (docFormLocked) return
     form.setFieldsValue({
       use_qa_segmentation: checked,
       doc_form: checked ? 'qa_model' : 'text_model',
     })
   }
 
+  const generalCardDisabled = Boolean(docFormLocked && !isGeneralActive)
+  const hierarchicalCardDisabled = Boolean(docFormLocked && !isHierarchicalActive)
+
   return (
     <div className="minerva-segmentation-settings">
-      <Typography.Title level={5} style={{ marginTop: 0, marginBottom: 4 }}>
+      <Typography.Title level={5} className="minerva-segmentation-settings__title">
         {t('dataset.create.segmentation.title')}
       </Typography.Title>
 
       <div
-        className={`minerva-segmentation-mode-card${isGeneralActive ? ' is-active' : ''}`}
+        className={`minerva-segmentation-mode-card${isGeneralActive ? ' is-active' : ''}${generalCardDisabled ? ' is-disabled' : ''}`}
         onClick={selectGeneral}
         role="button"
-        tabIndex={0}
+        tabIndex={generalCardDisabled ? -1 : 0}
+        aria-disabled={generalCardDisabled}
         onKeyDown={(event) => {
           if (event.key === 'Enter' || event.key === ' ') selectGeneral()
         }}
@@ -162,7 +175,7 @@ export function SegmentationSettingsPanel({
 
             <Space align="center" wrap>
               <Form.Item name="use_qa_segmentation" valuePropName="checked" style={{ marginBottom: 0 }}>
-                <Checkbox onChange={(event) => onQaToggle(event.target.checked)}>
+                <Checkbox disabled={docFormLocked} onChange={(event) => onQaToggle(event.target.checked)}>
                   <Space size={4}>
                     {t('dataset.create.segmentation.qaToggle')}
                     <Tooltip title={t('dataset.create.segmentation.qaHint')}>
@@ -180,23 +193,26 @@ export function SegmentationSettingsPanel({
               </Form.Item>
             </Space>
 
-            <div className="minerva-segmentation-actions">
-              <Button type="primary" loading={previewLoading} onClick={onPreview}>
-                {t('dataset.create.previewChunks')}
-              </Button>
-              <Button type="link" onClick={onReset}>
-                {t('dataset.create.segmentation.reset')}
-              </Button>
-            </div>
+            {!hidePreviewActions ? (
+              <div className="minerva-segmentation-actions">
+                <Button type="primary" loading={previewLoading} onClick={onPreview}>
+                  {t('dataset.create.previewChunks')}
+                </Button>
+                <Button type="link" onClick={onReset}>
+                  {t('dataset.create.segmentation.reset')}
+                </Button>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
 
       <div
-        className={`minerva-segmentation-mode-card${isHierarchicalActive ? ' is-active' : ''}`}
+        className={`minerva-segmentation-mode-card${isHierarchicalActive ? ' is-active' : ''}${hierarchicalCardDisabled ? ' is-disabled' : ''}`}
         onClick={selectHierarchical}
         role="button"
-        tabIndex={0}
+        tabIndex={hierarchicalCardDisabled ? -1 : 0}
+        aria-disabled={hierarchicalCardDisabled}
         onKeyDown={(event) => {
           if (event.key === 'Enter' || event.key === ' ') selectHierarchical()
         }}
@@ -288,14 +304,16 @@ export function SegmentationSettingsPanel({
 
             <PreprocessRulesFields />
 
-            <div className="minerva-segmentation-actions">
-              <Button type="primary" loading={previewLoading} onClick={onPreview}>
-                {t('dataset.create.previewChunks')}
-              </Button>
-              <Button type="link" onClick={onReset}>
-                {t('dataset.create.segmentation.reset')}
-              </Button>
-            </div>
+            {!hidePreviewActions ? (
+              <div className="minerva-segmentation-actions">
+                <Button type="primary" loading={previewLoading} onClick={onPreview}>
+                  {t('dataset.create.previewChunks')}
+                </Button>
+                <Button type="link" onClick={onReset}>
+                  {t('dataset.create.segmentation.reset')}
+                </Button>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>

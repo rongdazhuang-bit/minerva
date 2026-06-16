@@ -10,6 +10,89 @@ from pptx.enum.shapes import PP_PLACEHOLDER
 from pptx.presentation import Presentation
 from pptx.slide import Slide
 
+from app.agent.skills.ppt.pptmaker.constants import TEMPLATE_PLACEHOLDER_LITERALS
+from app.agent.skills.ppt.shared.capacity import check_text_overflow
+
+_FILLABLE_LABEL_PREFIXES = (
+    "item",
+    "col",
+    "grid",
+    "left_",
+    "right_",
+    "metric",
+    "toc_",
+)
+
+
+def _text_item_field(items: Any, index: int, field: str) -> str:
+    """Read title/body from an items entry that may be dict or plain string."""
+
+    if not isinstance(items, list) or index >= len(items):
+        return ""
+    item = items[index]
+    if isinstance(item, str):
+        text = item.strip()
+        if field == "body":
+            return text
+        if field == "title":
+            return text
+        return ""
+    if isinstance(item, dict):
+        return str(item.get(field, "")).strip()
+    return ""
+
+
+def _metric_field(metrics: Any, index: int, field: str) -> str:
+    """Read number/label/desc from a keyNumbers entry."""
+
+    if not isinstance(metrics, list) or index >= len(metrics):
+        return ""
+    metric = metrics[index]
+    if isinstance(metric, dict):
+        return str(metric.get(field, "")).strip()
+    if isinstance(metric, str):
+        return metric.strip() if field == "number" else ""
+    return ""
+
+
+def _image_caption(images: Any, index: int) -> str:
+    """Read caption from an images entry that may be dict or path string."""
+
+    if not isinstance(images, list) or index >= len(images):
+        return ""
+    image = images[index]
+    if isinstance(image, dict):
+        return str(image.get("caption", "")).strip()
+    return ""
+
+
+def _is_fillable_label(label: str) -> bool:
+    """Return whether a placeholder label is mapped by value_for_label."""
+
+    if label in {"title", "toc_title", "subtitle", "body"}:
+        return True
+    if label.startswith(_FILLABLE_LABEL_PREFIXES):
+        return True
+    if "caption" in label.lower() or label.endswith("_desc"):
+        return True
+    return False
+
+
+def _assign_placeholder_text(
+    shape: Any,
+    value: str,
+    label: str,
+    layout_ph_geometry: dict[str, dict[str, float]] | None,
+) -> list[str]:
+    """Write text into a placeholder and return overflow warnings."""
+
+    if not hasattr(shape, "text_frame"):
+        return []
+    shape.text = value
+    if not value:
+        return []
+    return _capacity_warnings_for_text(value, label, layout_ph_geometry)
+
 
 def value_for_label(slide_spec: dict[str, Any], label: str) -> str:
     """Map a placeholder label to text content from slide_spec."""
@@ -25,53 +108,47 @@ def value_for_label(slide_spec: dict[str, Any], label: str) -> str:
             return slide_spec.get("body", "")
         items = slide_spec.get("items", [])
         if len(items) == 1:
-            return items[0].get("body", "")
+            return _text_item_field(items, 0, "body")
         return ""
 
     if label.startswith("left_") or label.startswith("right_"):
         item_no = 0 if label.startswith("left_") else 1
         field = "title" if label.endswith("_title") else "body"
-        items = slide_spec.get("items", [])
-        return items[item_no].get(field, "") if item_no < len(items) else ""
+        return _text_item_field(slide_spec.get("items", []), item_no, field)
 
     if label.startswith("col") and ("_title" in label or "_body" in label):
         col_no = int(label[3]) - 1
         field = "title" if label.endswith("_title") else "body"
-        items = slide_spec.get("items", [])
-        return items[col_no].get(field, "") if col_no < len(items) else ""
+        return _text_item_field(slide_spec.get("items", []), col_no, field)
 
     if label.startswith("grid") and ("_title" in label or "_body" in label):
         grid_no = int(label[4]) - 1
         field = "title" if label.endswith("_title") else "body"
-        items = slide_spec.get("items", [])
-        return items[grid_no].get(field, "") if grid_no < len(items) else ""
+        return _text_item_field(slide_spec.get("items", []), grid_no, field)
 
     if label.startswith("item") and ("_title" in label or "_body" in label):
         item_no = int(label[4]) - 1
         field = "title" if label.endswith("_title") else "body"
-        items = slide_spec.get("items", [])
-        return items[item_no].get(field, "") if item_no < len(items) else ""
+        return _text_item_field(slide_spec.get("items", []), item_no, field)
 
     if label.startswith("metric"):
         metric_no = int(label[6]) - 1
         metrics = slide_spec.get("keyNumbers", [])
         if metric_no >= len(metrics):
             return ""
-        metric = metrics[metric_no]
         if label.endswith("_number"):
-            return metric.get("number", "")
+            return _metric_field(metrics, metric_no, "number")
         if label.endswith("_label"):
-            return metric.get("label", "")
+            return _metric_field(metrics, metric_no, "label")
         if label.endswith("_desc"):
-            return metric.get("desc", "")
+            return _metric_field(metrics, metric_no, "desc")
 
     if "caption" in label.lower() or label.endswith("_desc"):
         images = slide_spec.get("images", [])
         match = re.search(r"(\d+)", label)
         if match:
             idx = int(match.group(1)) - 1
-            if 0 <= idx < len(images):
-                return str(images[idx].get("caption", ""))
+            return _image_caption(images, idx)
     return ""
 
 
@@ -102,6 +179,40 @@ def enrich_labels_from_template(
     return labels_by_layout
 
 
+def _capacity_lines(geometry: dict[str, float], font_size_pt: float) -> int:
+    """Estimate line count from placeholder height and font size."""
+
+    height_pt = geometry.get("heightPt")
+    if not height_pt or font_size_pt <= 0:
+        return 1
+    return max(1, int(float(height_pt) / (font_size_pt * 1.2)))
+
+
+def _capacity_warnings_for_text(
+    value: str,
+    label: str,
+    layout_ph_geometry: dict[str, dict[str, float]] | None,
+) -> list[str]:
+    """Return overflow warnings for filled text when geometry hints exist."""
+
+    if not value or not layout_ph_geometry:
+        return []
+    geometry = layout_ph_geometry.get(label)
+    if not geometry:
+        return []
+    width_pt = geometry.get("widthPt")
+    if not width_pt:
+        return []
+    font_size_pt = float(geometry.get("fontSizePt", 18.0))
+    return check_text_overflow(
+        text=value,
+        width_pt=float(width_pt),
+        font_size_pt=font_size_pt,
+        label=label,
+        lines=_capacity_lines(geometry, font_size_pt),
+    )
+
+
 def _caption_placeholders(slide: Slide) -> list[tuple[Any, str]]:
     """Collect non-picture placeholders whose labels suggest captions."""
 
@@ -122,6 +233,7 @@ def fill_slide_content(
     labels: dict[int, str],
     *,
     image_paths: list[Path],
+    layout_ph_geometry: dict[str, dict[str, float]] | None = None,
 ) -> list[str]:
     """Fill text and picture placeholders; return warning messages."""
 
@@ -147,16 +259,26 @@ def fill_slide_content(
         if ph_format.type == PP_PLACEHOLDER.PICTURE:
             continue
         label = labels.get(ph_format.idx, shape.name)
+        if not _is_fillable_label(label):
+            continue
         value = value_for_label(slide_spec, label)
-        if value:
-            if not hasattr(shape, "text_frame"):
-                continue
-            shape.text = value
+        warnings.extend(_assign_placeholder_text(shape, value, label, layout_ph_geometry))
 
     for shape, label in _caption_placeholders(slide):
         value = value_for_label(slide_spec, label)
-        if value and hasattr(shape, "text_frame"):
-            shape.text = value
+        warnings.extend(_assign_placeholder_text(shape, value, label, layout_ph_geometry))
+
+    for shape in slide.placeholders:
+        ph_format = shape.placeholder_format
+        if ph_format.type == PP_PLACEHOLDER.PICTURE:
+            continue
+        if not hasattr(shape, "text_frame"):
+            continue
+        label = labels.get(ph_format.idx, shape.name)
+        current = (shape.text_frame.text or "").strip()
+        if current in TEMPLATE_PLACEHOLDER_LITERALS:
+            shape.text = ""
+            warnings.append(f"cleared unfilled template placeholder '{label}'")
 
     return warnings
 

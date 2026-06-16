@@ -6,20 +6,66 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import and_, delete, desc, func, or_, select, update
+from sqlalchemy import and_, delete, desc, func, or_, select, text, update
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.domain.db.models import (
     AgentLongTermMemory,
+    AgentMemoryProfile,
     AgentMessage,
     AgentPlan,
     AgentRun,
     AgentRunNode,
     AgentSession,
 )
+from app.exceptions import AppError
 from app.agent.infrastructure.openai_usage import merge_usage_document
 
 RECENT_AGENT_SESSIONS_DEFAULT_LIMIT: int = 20
+AGENT_SESSION_DELETE_LOCK_TIMEOUT_MS: int = 5000
+
+
+def _is_db_lock_timeout(exc: BaseException) -> bool:
+    """Return True when PostgreSQL aborted a statement due to lock wait timeout."""
+
+    if isinstance(exc, DBAPIError):
+        orig = getattr(exc, "orig", None)
+        if orig is not None and type(orig).__name__ in {
+            "LockNotAvailableError",
+            "QueryCanceledError",
+        }:
+            return True
+    lowered = str(exc).lower()
+    return "lock timeout" in lowered or "locknotavailable" in lowered
+
+
+async def _set_local_lock_timeout(session: AsyncSession, *, timeout_ms: int) -> None:
+    """Apply a per-transaction lock wait cap for session delete."""
+
+    await session.execute(text(f"SET LOCAL lock_timeout = '{timeout_ms}ms'"))
+
+
+async def cancel_running_agent_runs_for_session(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    session_id: uuid.UUID,
+) -> int:
+    """Mark in-flight runs as cancelled so delete does not wait on stale ``running`` rows."""
+
+    now = datetime.now(timezone.utc)
+    res = await session.execute(
+        update(AgentRun)
+        .where(
+            AgentRun.session_id == session_id,
+            AgentRun.workspace_id == workspace_id,
+            AgentRun.status == "running",
+        )
+        .values(status="cancelled", finished_at=now)
+    )
+    await session.flush()
+    return int(res.rowcount or 0)
 
 
 def encode_agent_session_cursor(updated_at: datetime, session_id: uuid.UUID) -> str:
@@ -58,7 +104,7 @@ async def delete_agent_session(
     workspace_id: uuid.UUID,
     session_id: uuid.UUID,
 ) -> bool:
-    """删除会话及其 message / run / plan / run_node / 会话级长期记忆（应用层级联）。"""
+    """删除会话及其 message / run / plan / run_node / 画像 / 会话级长期记忆（应用层级联）。"""
 
     row = await get_agent_session(
         session, workspace_id=workspace_id, session_id=session_id
@@ -66,43 +112,67 @@ async def delete_agent_session(
     if row is None:
         return False
 
-    run_ids = list(
-        (
-            await session.execute(
-                select(AgentRun.id).where(
-                    AgentRun.session_id == session_id,
-                    AgentRun.workspace_id == workspace_id,
+    try:
+        await _set_local_lock_timeout(
+            session, timeout_ms=AGENT_SESSION_DELETE_LOCK_TIMEOUT_MS
+        )
+        await cancel_running_agent_runs_for_session(
+            session, workspace_id=workspace_id, session_id=session_id
+        )
+
+        run_ids = list(
+            (
+                await session.execute(
+                    select(AgentRun.id).where(
+                        AgentRun.session_id == session_id,
+                        AgentRun.workspace_id == workspace_id,
+                    )
                 )
+            ).scalars().all()
+        )
+
+        if run_ids:
+            await session.execute(
+                delete(AgentRunNode).where(AgentRunNode.run_id.in_(run_ids))
             )
-        ).scalars().all()
-    )
+            await session.execute(delete(AgentPlan).where(AgentPlan.run_id.in_(run_ids)))
+            await session.execute(
+                update(AgentLongTermMemory)
+                .where(AgentLongTermMemory.source_run_id.in_(run_ids))
+                .values(source_run_id=None)
+            )
 
-    if run_ids:
-        await session.execute(delete(AgentRunNode).where(AgentRunNode.run_id.in_(run_ids)))
-        await session.execute(delete(AgentPlan).where(AgentPlan.run_id.in_(run_ids)))
         await session.execute(
-            update(AgentLongTermMemory)
-            .where(AgentLongTermMemory.source_run_id.in_(run_ids))
-            .values(source_run_id=None)
+            delete(AgentMessage).where(AgentMessage.session_id == session_id)
         )
-
-    await session.execute(
-        delete(AgentMessage).where(AgentMessage.session_id == session_id)
-    )
-    await session.execute(
-        delete(AgentLongTermMemory).where(
-            AgentLongTermMemory.session_id == session_id,
-            AgentLongTermMemory.workspace_id == workspace_id,
+        await session.execute(
+            delete(AgentLongTermMemory).where(
+                AgentLongTermMemory.session_id == session_id,
+                AgentLongTermMemory.workspace_id == workspace_id,
+            )
         )
-    )
-    await session.execute(
-        delete(AgentRun).where(
-            AgentRun.session_id == session_id,
-            AgentRun.workspace_id == workspace_id,
+        await session.execute(
+            delete(AgentMemoryProfile).where(
+                AgentMemoryProfile.session_id == session_id,
+                AgentMemoryProfile.workspace_id == workspace_id,
+            )
         )
-    )
-    await session.delete(row)
-    await session.flush()
+        await session.execute(
+            delete(AgentRun).where(
+                AgentRun.session_id == session_id,
+                AgentRun.workspace_id == workspace_id,
+            )
+        )
+        await session.delete(row)
+        await session.flush()
+    except DBAPIError as exc:
+        if _is_db_lock_timeout(exc):
+            raise AppError(
+                "agent.session_busy",
+                "会话正在生成回复或被占用，请稍后再试。",
+                409,
+            ) from exc
+        raise
     return True
 
 

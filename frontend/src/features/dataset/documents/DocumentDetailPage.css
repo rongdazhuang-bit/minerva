@@ -1,0 +1,207 @@
+/* Document segment detail: Dify-style header, card list, internal scroll. */
+.minerva-document-detail-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  color: var(--minerva-ink, #e8f0f8);
+}
+
+.minerva-document-detail-page__document-select {
+  width: 280px;
+  max-width: 40%;
+  flex-shrink: 0;
+}
+
+.minerva-document-detail-page__document-select .ant-select-selector {
+  padding-inline: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.minerva-document-detail-page__document-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.minerva-document-detail-page__document-icon {
+  color: #1677ff;
+  flex-shrink: 0;
+}
+
+.minerva-document-detail-page__document-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.minerva-document-detail-page__content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-document-detail-page__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-document-detail-page__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+  padding-bottom: 10px;
+}
+
+.minerva-document-detail-page__count {
+  flex-shrink: 0;
+  margin-bottom: 10px;
+  white-space: nowrap;
+}
+
+.minerva-document-detail-page__toolbar-actions {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.minerva-document-detail-page__search {
+  width: 220px;
+  flex-shrink: 0;
+}
+
+.minerva-document-detail-page__list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.minerva-document-detail-page__list--centered {
+  justify-content: center;
+  align-items: center;
+}
+
+.minerva-document-detail-page__segment {
+  border: 1px solid var(--minerva-border, #2d3f55);
+  border-radius: 10px;
+  background: var(--minerva-surface, #1b2838);
+}
+
+.minerva-document-detail-page__segment-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.minerva-document-detail-page__segment-check {
+  margin-top: 4px;
+}
+
+.minerva-document-detail-page__segment-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.minerva-document-detail-page__segment-meta {
+  margin-bottom: 6px;
+}
+
+.minerva-document-detail-page__segment-content {
+  margin-bottom: 0 !important;
+  white-space: pre-wrap;
+}
+
+.minerva-document-detail-page__segment-answer {
+  margin-top: 8px !important;
+  margin-bottom: 0 !important;
+  white-space: pre-wrap;
+}
+
+.minerva-document-detail-page__child-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--minerva-primary, #38bdf8);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.minerva-document-detail-page__child-toggle-icon--open {
+  transform: rotate(90deg);
+}
+
+.minerva-document-detail-page__child-list {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.minerva-document-detail-page__child-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.minerva-document-detail-page__segment-actions {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  min-width: 88px;
+}
+
+.minerva-document-detail-page__segment-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.minerva-document-detail-page__status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #52c41a;
+}
+
+.minerva-document-detail-page__status-dot--disabled {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.minerva-document-detail-page__segment-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.minerva-document-detail-page__footer {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 12px;
+  border-top: 1px solid var(--minerva-border, #2d3f55);
+}

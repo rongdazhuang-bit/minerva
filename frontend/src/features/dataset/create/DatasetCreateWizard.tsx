@@ -5,13 +5,14 @@ import { useQuery } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/app/AuthContext'
-import { appendDocuments } from '@/features/dataset/api/documents'
+import { appendDocuments, getDataset } from '@/features/dataset/api/documents'
 import {
   getDatasetProcessRule,
   initDataset,
   type BatchIndexingStatusOut,
 } from '@/features/dataset/api/datasets'
 import './DatasetCreateWizard.css'
+import { AppendChunkingStep } from '@/features/dataset/create/AppendChunkingStep'
 import { StepOneUpload, type UploadedDatasetFile } from '@/features/dataset/create/StepOneUpload'
 import {
   StepTwoChunking,
@@ -22,74 +23,41 @@ import { buildRetrievalModel } from '@/features/dataset/shared/retrievalForm'
 import { StepThreeProcessing } from '@/features/dataset/create/StepThreeProcessing'
 import { getFirstFormValidationMessage, isFormValidationError } from '@/utils/formValidation'
 
-
-
 export type DatasetCreateWizardProps = {
-
   /** When set, append documents to an existing knowledge base. */
-
   datasetId?: string
-
   onSuccess: (datasetId: string) => void
-
   onCancel: () => void
-
   onIndexingChange?: (active: boolean) => void
-
 }
 
-
-
 /** Renders the three-step create flow inside a fullscreen modal. */
-
 export function DatasetCreateWizard({
-
   datasetId,
-
   onSuccess,
-
   onCancel,
-
   onIndexingChange,
-
 }: DatasetCreateWizardProps) {
-
   const { t } = useTranslation()
-
   const { workspaceId } = useAuth()
-
   const [step, setStep] = useState(0)
-
   const [uploads, setUploads] = useState<UploadedDatasetFile[]>([])
-
   const [submitting, setSubmitting] = useState(false)
-
   const [initResult, setInitResult] = useState<{
     datasetId: string
     batch: string
     datasetName: string
     documents: Array<{ id: string; name: string }>
   } | null>(null)
-
   const [createSnapshot, setCreateSnapshot] = useState<StepTwoFormValues | null>(null)
-
   const [batchStatus, setBatchStatus] = useState<BatchIndexingStatusOut | null>(null)
-
   const [form] = Form.useForm<StepTwoFormValues>()
 
-
-
   const ruleQ = useQuery({
-
     queryKey: ['dataset-process-rule', workspaceId],
-
     queryFn: () => getDatasetProcessRule(workspaceId!),
-
     enabled: Boolean(workspaceId),
-
   })
-
-
 
   const isAppend = Boolean(datasetId)
 
@@ -98,25 +66,36 @@ export function DatasetCreateWizard({
     setSubmitting(true)
     onIndexingChange?.(true)
     try {
-      const result = await appendDocuments(
-        workspaceId,
-        datasetId,
-        uploads.map((item) => item.id),
-      )
+      const values = await form.validateFields()
+      setCreateSnapshot(values)
+
+      const datasetDetail = await getDataset(workspaceId, datasetId)
+      const defaultRule = datasetDetail.process_rule ?? {}
+      const processRule = buildProcessRule(values, defaultRule)
+
+      const result = await appendDocuments(workspaceId, datasetId, {
+        file_ids: uploads.map((item) => item.id),
+        process_rule: processRule,
+      })
+
       setInitResult({
         datasetId,
         batch: result.batch,
-        datasetName: '',
+        datasetName: datasetDetail.name,
         documents: result.documents.map((doc) => ({ id: doc.id, name: doc.name })),
       })
       setStep(2)
     } catch (err) {
-      message.error(err instanceof Error ? err.message : t('dataset.create.initFailed'))
+      if (isFormValidationError(err)) {
+        message.error(getFirstFormValidationMessage(err) ?? t('dataset.create.validation.formIncomplete'))
+      } else {
+        message.error(err instanceof Error ? err.message : t('dataset.create.initFailed'))
+      }
       onIndexingChange?.(false)
     } finally {
       setSubmitting(false)
     }
-  }, [datasetId, onIndexingChange, t, uploads, workspaceId])
+  }, [datasetId, form, onIndexingChange, t, uploads, workspaceId])
 
   const handleInit = useCallback(async () => {
     if (!workspaceId) return
@@ -125,6 +104,13 @@ export function DatasetCreateWizard({
     onIndexingChange?.(true)
     try {
       const values = await form.validateFields()
+      const name = String(values.name ?? '').trim()
+      if (!name) {
+        message.error(t('dataset.create.field.nameRequired'))
+        onIndexingChange?.(false)
+        setStep(0)
+        return
+      }
       setCreateSnapshot(values)
 
       const defaultRule = ruleQ.data?.process_rule ?? {}
@@ -140,7 +126,7 @@ export function DatasetCreateWizard({
       }
 
       const result = await initDataset(workspaceId, {
-        name: values.name.trim(),
+        name,
         description: values.description?.trim() || null,
         indexing_technique: values.indexing_technique,
         doc_form: values.doc_form ?? 'text_model',
@@ -170,47 +156,36 @@ export function DatasetCreateWizard({
     }
   }, [form, onIndexingChange, ruleQ.data?.process_rule, t, uploads, workspaceId])
 
-
-
   const onBatchFinished = useCallback(() => {
     onIndexingChange?.(false)
   }, [onIndexingChange])
 
-
-
   if (!workspaceId) {
-
     return null
-
   }
 
-
+  const completionStep = 2
 
   return (
-
     <div className="minerva-dataset-create-wizard">
       <div className="minerva-dataset-create-wizard__header">
         <Steps
           current={step}
           size="small"
           className="minerva-dataset-create-wizard__steps"
-          items={
-            isAppend
-              ? [{ title: t('dataset.create.step1') }, { title: t('dataset.create.step3') }]
-              : [
-                  { title: t('dataset.create.step1') },
-                  { title: t('dataset.create.step2') },
-                  { title: t('dataset.create.step3') },
-                ]
-          }
+          items={[
+            { title: t('dataset.create.step1') },
+            { title: t('dataset.create.step2') },
+            { title: t('dataset.create.step3') },
+          ]}
         />
       </div>
 
       <div
         className={
-          !isAppend && step === 1
+          step === 1
             ? 'minerva-dataset-create-wizard__body minerva-dataset-create-wizard__body--split minerva-scrollbar-thin'
-            : step === (isAppend ? 1 : 2)
+            : step === completionStep
               ? 'minerva-dataset-create-wizard__body minerva-dataset-create-wizard__body--complete minerva-scrollbar-thin'
               : 'minerva-dataset-create-wizard__body minerva-scrollbar-thin'
         }
@@ -223,10 +198,14 @@ export function DatasetCreateWizard({
             form={!isAppend ? form : undefined}
           />
         ) : null}
-        {!isAppend && step === 1 ? (
-          <StepTwoChunking workspaceId={workspaceId} uploads={uploads} form={form} />
+        {step === 1 ? (
+          isAppend ? (
+            <AppendChunkingStep datasetId={datasetId!} uploads={uploads} form={form} />
+          ) : (
+            <StepTwoChunking workspaceId={workspaceId} uploads={uploads} form={form} />
+          )
         ) : null}
-        {step === (isAppend ? 1 : 2) && initResult ? (
+        {step === completionStep && initResult ? (
           <StepThreeProcessing
             workspaceId={workspaceId}
             datasetId={initResult.datasetId}
@@ -241,35 +220,36 @@ export function DatasetCreateWizard({
             onStatusChange={setBatchStatus}
             onFinished={onBatchFinished}
             onGoToDocuments={() => onSuccess(initResult.datasetId)}
-            isAppend={isAppend}
+            completionVariant={isAppend ? 'append' : 'create'}
           />
         ) : null}
       </div>
 
-      {step !== (isAppend ? 1 : 2) ? (
+      {step !== completionStep ? (
         <div className="minerva-dataset-create-wizard__footer">
           <Button onClick={onCancel}>{t('common.cancel')}</Button>
           <Space>
-            {!isAppend && step === 1 ? (
+            {step > 0 ? (
               <Button onClick={() => setStep((s) => s - 1)}>{t('dataset.create.prev')}</Button>
             ) : null}
             {step === 0 ? (
               <Button
                 type="primary"
                 disabled={uploads.length === 0}
-                loading={isAppend && submitting}
                 onClick={() => {
-                  if (isAppend) void handleAppend()
-                  else {
-                    void form.validateFields(['name']).then(() => setStep(1))
-                  }
+                  if (isAppend) setStep(1)
+                  else void form.validateFields(['name']).then(() => setStep(1))
                 }}
               >
-                {isAppend ? t('dataset.create.startIndexing') : t('dataset.create.next')}
+                {t('dataset.create.next')}
               </Button>
             ) : null}
-            {!isAppend && step === 1 ? (
-              <Button type="primary" loading={submitting} onClick={() => void handleInit()}>
+            {step === 1 ? (
+              <Button
+                type="primary"
+                loading={submitting}
+                onClick={() => void (isAppend ? handleAppend() : handleInit())}
+              >
                 {t('dataset.create.saveAndProcess')}
               </Button>
             ) : null}
@@ -278,11 +258,6 @@ export function DatasetCreateWizard({
       ) : null}
 
       {datasetId ? <span hidden data-dataset-id={datasetId} /> : null}
-
     </div>
-
   )
-
 }
-
-

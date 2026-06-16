@@ -286,6 +286,7 @@ async def append_documents(
         user_id=user.id,
         dataset_id=dataset_id,
         file_ids=body.file_ids,
+        process_rule=body.process_rule,
     )
     return DatasetDocumentAppendOut.model_validate(result)
 
@@ -325,6 +326,7 @@ async def patch_document(
         workspace_id=workspace_id,
         dataset_id=dataset_id,
         document_id=document_id,
+        user_id=_member,
         patch=body.model_dump(exclude_unset=True),
     )
     return DatasetDocumentOut.model_validate(payload)

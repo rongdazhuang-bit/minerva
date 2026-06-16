@@ -36,7 +36,9 @@ PLANNER_SYSTEM_TEMPLATE = """你是任务规划器。根据【本轮用户请求
 ## 示例
 用户：现在几点 → steps: [{{"id":"s1","skill_id":"datetime","goal":"现在几点"}}]
 用户：你好 → steps: [{{"id":"s1","skill_id":"general","goal":"你好"}}]
-用户：列出当前目录文件 → steps: [{{"id":"s1","skill_id":"file","goal":"列出当前目录文件"}}]"""
+用户：列出当前目录文件 → steps: [{{"id":"s1","skill_id":"file","goal":"列出当前目录文件"}}]
+用户：帮我做一份产品路演的 PPT → steps: [{{"id":"s1","skill_id":"ppt","goal":"制作产品路演演示文稿 pptx"}}]
+用户：把这份 PDF 转成幻灯片 → steps: [{{"id":"s1","skill_id":"ppt","goal":"将 PDF 转为 pptx 演示文稿"}}]"""
 
 
 async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:

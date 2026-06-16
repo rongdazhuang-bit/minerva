@@ -1,8 +1,9 @@
 /** Dify-style chunk preview panel for the create wizard step 2. */
 
-import { DownOutlined, FileTextOutlined } from '@ant-design/icons'
+import { DownOutlined, FileTextOutlined, SearchOutlined } from '@ant-design/icons'
 import { Dropdown, Spin, Typography } from 'antd'
 import type { MenuProps } from 'antd'
+import type { ReactNode } from 'react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import './ChunkPreviewPanel.css'
@@ -29,6 +30,12 @@ export type ChunkPreviewPanelProps = {
   loading?: boolean
   /** Whether user has run preview at least once for the current file. */
   previewReady?: boolean
+  /** Override empty-state hint (e.g. when file is already selected). */
+  emptyHint?: string
+  /** Fallback label when previewFileId is set but not yet in uploads. */
+  previewFileName?: string
+  /** Extra controls rendered at the end of the toolbar (e.g. save action). */
+  toolbarExtra?: ReactNode
 }
 
 /** Right pane: file picker, chunk count badge, and segment cards. */
@@ -40,10 +47,14 @@ export function ChunkPreviewPanel({
   segmentCount,
   loading,
   previewReady,
+  emptyHint,
+  previewFileName,
+  toolbarExtra,
 }: ChunkPreviewPanelProps) {
   const { t } = useTranslation()
   const selectedFile = uploads.find((item) => item.id === previewFileId)
-  const selectedFileName = selectedFile?.name ?? t('dataset.create.preview.noFile')
+  const selectedFileName =
+    selectedFile?.name ?? (previewFileId && previewFileName ? previewFileName : t('dataset.create.preview.noFile'))
   const displayedCount = previewReady ? segmentCount : 0
   const truncated = previewReady && segmentCount > segments.length
 
@@ -81,6 +92,7 @@ export function ChunkPreviewPanel({
         <span className="minerva-chunk-preview__chunk-badge">
           {t('dataset.create.preview.estimatedChunks', { count: displayedCount })}
         </span>
+        {toolbarExtra ? <div className="minerva-chunk-preview__toolbar-extra">{toolbarExtra}</div> : null}
       </div>
 
       <Spin spinning={loading} wrapperClassName="minerva-chunk-preview__spin-wrap">
@@ -116,7 +128,14 @@ export function ChunkPreviewPanel({
                 ))}
               </div>
             </>
-          ) : null}
+          ) : (
+            <div className="minerva-chunk-preview__empty">
+              <SearchOutlined className="minerva-chunk-preview__empty-icon" />
+              <Typography.Text type="secondary">
+                {emptyHint ?? t('dataset.create.previewEmpty')}
+              </Typography.Text>
+            </div>
+          )}
         </div>
       </Spin>
     </div>

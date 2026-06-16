@@ -1,0 +1,13 @@
+{
+  "meta": { "title": "测试封面", "subtitle": "副标题" },
+  "slides": [
+    {
+      "pageTitle": "三大优势",
+      "items": [
+        { "title": "优势一", "body": "说明一" },
+        { "title": "优势二", "body": "说明二" },
+        { "title": "优势三", "body": "说明三" }
+      ]
+    }
+  ]
+}

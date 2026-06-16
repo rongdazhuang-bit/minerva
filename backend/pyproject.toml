@@ -37,6 +37,7 @@ dependencies = [
   "xlrd>=2.0",
   "xlwt>=1.3",
   "pymupdf>=1.24",
+  "mammoth>=1.6.0",
   "beautifulsoup4>=4.12",
   "jieba>=0.42",
   "mem0ai[nlp]>=0.1.117",
@@ -44,6 +45,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Optional raster/vector helpers for richer svg_design export (core XML export works without these).
+ppt-svg = ["svglib>=1.5.0", "reportlab>=4.0.0", "Pillow>=9.0.0"]
 vector = [
   "qdrant-client>=1.12",
   "weaviate-client>=4.9",

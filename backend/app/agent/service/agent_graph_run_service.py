@@ -88,6 +88,15 @@ async def _finalize_early_failed_run(
     await session.commit()
 
 
+async def _safe_rollback(session: AsyncSession) -> None:
+    """Best-effort rollback when the async session is in a failed transaction state."""
+
+    try:
+        await session.rollback()
+    except Exception:
+        pass
+
+
 class AgentGraphRunService:
     """Run the main LangGraph and stream SSE v2 events in real time."""
 
@@ -323,6 +332,10 @@ class AgentGraphRunService:
                     max_messages=settings.agent_chat_history_message_limit,
                 )
 
+                # Commit setup writes before the long graph run so agent_session row
+                # locks from allocate_next_message_seq are not held for minutes.
+                await session.commit()
+
                 deps = GraphDeps(
                     db=session,
                     model=model_row,
@@ -429,6 +442,7 @@ class AgentGraphRunService:
                         max_tokens=max_tokens,
                     )
             except AppError as e:
+                await _safe_rollback(session)
                 log.warn(
                     "agent v2 AppError run_id={} code={}",
                     run_id,
@@ -477,6 +491,7 @@ class AgentGraphRunService:
                     )
                 )
             except Exception as e:
+                await _safe_rollback(session)
                 log.exception(
                     "agent v2 run failed run_id={}",
                     run_id,

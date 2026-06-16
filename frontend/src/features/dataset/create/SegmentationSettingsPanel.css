@@ -4,6 +4,10 @@
   gap: 12px;
 }
 
+.minerva-segmentation-settings__title {
+  margin: 0 0 4px !important;
+}
+
 .minerva-segmentation-mode-card {
   border: 1px solid var(--minerva-border, #d9d9d9);
   border-radius: 10px;
@@ -12,13 +16,18 @@
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.minerva-segmentation-mode-card:hover {
-  border-color: var(--minerva-primary, #1677ff);
-}
-
 .minerva-segmentation-mode-card.is-active {
   border-color: var(--minerva-primary, #1677ff);
   box-shadow: 0 0 0 1px var(--minerva-primary, #1677ff);
+}
+
+.minerva-segmentation-mode-card.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.minerva-segmentation-mode-card:hover:not(.is-disabled) {
+  border-color: var(--minerva-primary, #1677ff);
 }
 
 .minerva-segmentation-mode-card__header {

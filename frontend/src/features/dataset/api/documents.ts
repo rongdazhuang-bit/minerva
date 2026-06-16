@@ -9,12 +9,17 @@ export type DatasetDocument = {
   enabled: boolean
   archived: boolean
   is_paused: boolean
+  doc_form: string
   word_count: number | null
+  hit_count: number
   error: string | null
   batch: string
   create_at: string | null
   update_at: string | null
   completed_at: string | null
+  file_id?: string | null
+  process_rule_id?: string | null
+  process_rule?: Record<string, unknown> | null
 }
 
 export type DatasetDocumentListOut = {
@@ -83,13 +88,17 @@ export function deleteDataset(workspaceId: string, datasetId: string) {
 }
 
 /** Append uploaded files to an existing knowledge base. */
-export function appendDocuments(workspaceId: string, datasetId: string, fileIds: string[]) {
+export function appendDocuments(
+  workspaceId: string,
+  datasetId: string,
+  payload: { file_ids: string[]; process_rule?: Record<string, unknown> },
+) {
   return apiJson<{ batch: string; documents: DatasetDocument[]; indexing_task_id: string | null }>(
     base(workspaceId, datasetId, '/documents'),
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ file_ids: fileIds }),
+      body: JSON.stringify(payload),
     },
   )
 }
@@ -106,6 +115,11 @@ export function listDocuments(
   if (params?.page_size != null) sp.set('page_size', String(params.page_size))
   const q = sp.toString()
   return apiJson<DatasetDocumentListOut>(base(workspaceId, datasetId, `/documents${q ? `?${q}` : ''}`))
+}
+
+/** Fetch one document detail. */
+export function getDocument(workspaceId: string, datasetId: string, documentId: string) {
+  return apiJson<DatasetDocument>(base(workspaceId, datasetId, `/documents/${documentId}`))
 }
 
 /** Delete one document. */
@@ -143,12 +157,12 @@ export function retryFailedDocuments(workspaceId: string, datasetId: string) {
   )
 }
 
-/** Rename one document. */
+/** Update one document (rename or segment settings). */
 export function patchDocument(
   workspaceId: string,
   datasetId: string,
   documentId: string,
-  body: { name: string },
+  body: { name?: string; process_rule?: Record<string, unknown> },
 ) {
   return apiJson<DatasetDocument>(base(workspaceId, datasetId, `/documents/${documentId}`), {
     method: 'PATCH',
@@ -183,5 +197,20 @@ export function listChildChunks(
 ) {
   return apiJson<{ items: DatasetChildChunk[] }>(
     base(workspaceId, datasetId, `/documents/${documentId}/segments/${segmentId}/child_chunks`),
+  )
+}
+
+/** Enable or disable one segment. */
+export function setSegmentEnabled(
+  workspaceId: string,
+  datasetId: string,
+  documentId: string,
+  segmentId: string,
+  enabled: boolean,
+) {
+  const action = enabled ? 'enable' : 'disable'
+  return apiJson<DatasetSegment>(
+    base(workspaceId, datasetId, `/documents/${documentId}/segments/${segmentId}/${action}`),
+    { method: 'POST' },
   )
 }

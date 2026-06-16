@@ -1,0 +1,34 @@
+/** Settings page layout aligned with create-wizard step 2 form pane. */
+.minerva-dataset-settings-page {
+  max-width: 960px;
+  padding: 8px 0 24px;
+}
+
+.minerva-dataset-settings-page__section-title {
+  margin-top: 0 !important;
+  margin-bottom: 12px !important;
+}
+
+.minerva-dataset-settings-page__section-divider {
+  display: block;
+  width: 100%;
+  height: 0;
+  margin: 24px 0;
+  border: 0;
+  border-top: 1px solid var(--minerva-border, rgba(255, 255, 255, 0.12));
+}
+
+html.minerva-tone-sunshine .minerva-dataset-settings-page__section-divider {
+  border-top-color: var(--minerva-border, rgba(0, 0, 0, 0.08));
+}
+
+.minerva-dataset-settings-page__hint {
+  margin-top: -4px;
+  margin-bottom: 0;
+}
+
+.minerva-dataset-settings-page__actions {
+  margin-top: 24px;
+  display: flex;
+  justify-content: flex-end;
+}

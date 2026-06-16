@@ -1,6 +1,7 @@
-/** Knowledge base settings page. */
+/** Knowledge base settings page — reuses create-wizard configuration panels (Dify-aligned). */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button, Card, Form, Input, InputNumber, Select, Switch, Typography, message } from 'antd'
+import { Button, Form, Input, Spin, Typography, message } from 'antd'
+import type { FormInstance } from 'antd'
 import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router-dom'
@@ -9,47 +10,40 @@ import { useAuth } from '@/app/AuthContext'
 import { getDataset } from '@/features/dataset/api/documents'
 import { getDatasetProcessRule } from '@/features/dataset/api/datasets'
 import { patchDataset } from '@/features/dataset/api/hitTesting'
+import { IndexingMethodPanel, type IndexingFormValues } from '@/features/dataset/create/IndexingMethodPanel'
+import { RetrievalSettingsPanel } from '@/features/dataset/create/RetrievalSettingsPanel'
+import { SegmentationSettingsPanel } from '@/features/dataset/create/SegmentationSettingsPanel'
 import {
   buildProcessRule,
   parseProcessRuleToForm,
   type ChunkingFormValues,
 } from '@/features/dataset/shared/chunkingForm'
+import {
+  buildRetrievalModel,
+  parseRetrievalModelToForm,
+  type RetrievalFormValues,
+} from '@/features/dataset/shared/retrievalForm'
+import './DatasetSettingsPage.css'
 
-type SettingsFormValues = ChunkingFormValues & {
-  name: string
-  description?: string
-  search_method: 'semantic_search' | 'full_text_search' | 'hybrid_search'
-  top_k: number
-  score_threshold_enabled: boolean
-  score_threshold: number
-  reranking_enable: boolean
-  reranking_model_key?: string
-}
+type SettingsFormValues = ChunkingFormValues &
+  IndexingFormValues &
+  RetrievalFormValues & {
+    name: string
+    description?: string
+    indexing_technique: 'high_quality' | 'economy'
+    embedding_model_key?: string
+  }
 
-const DOC_FORM_LABEL: Record<string, string> = {
-  text_model: 'dataset.create.docForm.text',
-  hierarchical_model: 'dataset.create.docForm.hierarchical',
-  qa_model: 'dataset.create.docForm.qa',
-}
-
-/** Split ``provider::model`` key into retrieval payload fields. */
-function parseRerankKey(key?: string) {
+/** Split ``provider::model`` composite key into patch payload fields. */
+function parseEmbeddingKey(key?: string) {
   if (!key?.includes('::')) {
-    return { reranking_provider_name: '', reranking_model_name: '' }
+    return { embedding_model_provider: undefined, embedding_model: undefined }
   }
   const [provider, model] = key.split('::', 2)
-  return { reranking_provider_name: provider, reranking_model_name: model }
+  return { embedding_model_provider: provider, embedding_model: model }
 }
 
-/** Build rerank model select value from retrieval payload. */
-function toRerankKey(retrieval: Record<string, unknown> | undefined) {
-  const cfg = (retrieval?.reranking_model ?? {}) as Record<string, unknown>
-  const provider = String(cfg.reranking_provider_name ?? '').trim()
-  const model = String(cfg.reranking_model_name ?? '').trim()
-  return provider && model ? `${provider}::${model}` : undefined
-}
-
-/** Settings tab for retrieval and chunking configuration. */
+/** Settings tab: full chunking/indexing/retrieval UI with conditional field locks. */
 export function DatasetSettingsPage() {
   const { t } = useTranslation()
   const { workspaceId } = useAuth()
@@ -75,64 +69,88 @@ export function DatasetSettingsPage() {
     enabled: Boolean(workspaceId),
   })
 
-  const chunkStructure = detailQ.data?.chunk_structure ?? 'text_model'
+  const row = detailQ.data
+  const chunkStructure = row?.chunk_structure ?? 'text_model'
   const isHierarchical = chunkStructure === 'hierarchical_model'
+  const indexingTechnique = row?.indexing_technique ?? 'high_quality'
+  const hasDocuments = (row?.document_count ?? 0) > 0
+  const isHighQuality = indexingTechnique === 'high_quality'
+  const economyDisabled = isHierarchical || (isHighQuality && hasDocuments)
+  const indexingLocked = isHighQuality && hasDocuments
 
-  const rerankOptions = useMemo(() => {
+  const embeddingOptions = useMemo(() => {
     return (modelsQ.data ?? [])
-      .filter((row) => row.enabled && row.tags.includes('RERANKING'))
-      .map((row) => ({
-        value: `${row.provider_name}::${row.model_name}`,
-        label: `${row.provider_name} / ${row.model_name}`,
+      .filter((item) => item.enabled && item.tags.includes('EMBEDDINGS'))
+      .map((item) => ({
+        value: `${item.provider_name}::${item.model_name}`,
+        label: `${item.provider_name} / ${item.model_name}`,
       }))
   }, [modelsQ.data])
 
-  const rerankingEnabled = Form.useWatch('reranking_enable', form)
+  const rerankOptions = useMemo(() => {
+    return (modelsQ.data ?? [])
+      .filter((item) => item.enabled && item.tags.includes('RERANKING'))
+      .map((item) => ({
+        value: `${item.provider_name}::${item.model_name}`,
+        label: `${item.provider_name} / ${item.model_name}`,
+      }))
+  }, [modelsQ.data])
+
+  const watchedIndexing = Form.useWatch('indexing_technique', form)
+  const searchMethod = Form.useWatch('search_method', form)
+  const economyMode = watchedIndexing === 'economy'
 
   useEffect(() => {
-    const row = detailQ.data
     if (!row) return
-    const retrieval = (row.retrieval_model ?? {}) as Record<string, unknown>
     const savedRule = (row.process_rule ?? ruleQ.data?.process_rule ?? {}) as Record<string, unknown>
+    const retrieval = (row.retrieval_model ?? {}) as Record<string, unknown>
+    const provider = row.embedding_model_provider
+    const model = row.embedding_model
     form.setFieldsValue({
       name: row.name,
       description: row.description ?? undefined,
       doc_form: (row.chunk_structure as SettingsFormValues['doc_form']) ?? 'text_model',
+      indexing_technique: (row.indexing_technique as SettingsFormValues['indexing_technique']) ?? 'high_quality',
+      embedding_model_key: provider && model ? `${provider}::${model}` : undefined,
       ...parseProcessRuleToForm(savedRule),
-      search_method: (retrieval.search_method as SettingsFormValues['search_method']) ?? 'semantic_search',
-      top_k: Number(retrieval.top_k ?? 3),
-      score_threshold_enabled: Boolean(retrieval.score_threshold_enabled),
-      score_threshold: Number(retrieval.score_threshold ?? 0.5),
-      reranking_enable: Boolean(retrieval.reranking_enable),
-      reranking_model_key: toRerankKey(retrieval),
+      ...parseRetrievalModelToForm(retrieval),
     })
-  }, [detailQ.data, form, ruleQ.data?.process_rule])
+  }, [form, row, ruleQ.data?.process_rule])
+
+  useEffect(() => {
+    if (isHierarchical && watchedIndexing === 'economy') {
+      form.setFieldValue('indexing_technique', 'high_quality')
+    }
+  }, [form, isHierarchical, watchedIndexing])
+
+  useEffect(() => {
+    if (economyMode && (searchMethod === 'semantic_search' || searchMethod === 'hybrid_search')) {
+      form.setFieldValue('search_method', 'full_text_search')
+    }
+  }, [economyMode, form, searchMethod])
 
   const saveM = useMutation({
     mutationFn: (values: SettingsFormValues) => {
-      const defaultRule = (detailQ.data?.process_rule ?? ruleQ.data?.process_rule ?? {}) as Record<
-        string,
-        unknown
-      >
+      const defaultRule = (row?.process_rule ?? ruleQ.data?.process_rule ?? {}) as Record<string, unknown>
       const processRule = buildProcessRule(
         { ...values, doc_form: (chunkStructure as ChunkingFormValues['doc_form']) ?? 'text_model' },
         defaultRule,
       )
-      const rerank = parseRerankKey(values.reranking_model_key)
-      return patchDataset(workspaceId!, datasetId, {
+      const embedding = parseEmbeddingKey(values.embedding_model_key)
+      const body: Parameters<typeof patchDataset>[2] = {
         name: values.name.trim(),
         description: values.description?.trim() || null,
         process_rule: processRule,
-        retrieval_model: {
-          search_method: values.search_method,
-          top_k: values.top_k,
-          score_threshold_enabled: values.score_threshold_enabled,
-          score_threshold: values.score_threshold,
-          reranking_enable: values.reranking_enable,
-          reranking_mode: 'reranking_model',
-          reranking_model: rerank,
-        },
-      })
+        retrieval_model: buildRetrievalModel(values, (row?.retrieval_model ?? {}) as Record<string, unknown>),
+      }
+      if (!indexingLocked && values.indexing_technique !== indexingTechnique) {
+        body.indexing_technique = values.indexing_technique
+      }
+      if (values.indexing_technique === 'high_quality') {
+        body.embedding_model = embedding.embedding_model ?? null
+        body.embedding_model_provider = embedding.embedding_model_provider ?? null
+      }
+      return patchDataset(workspaceId!, datasetId, body)
     },
     onSuccess: () => {
       message.success(t('dataset.settings.saved'))
@@ -141,104 +159,66 @@ export function DatasetSettingsPage() {
     onError: (err: Error) => message.error(err.message),
   })
 
+  const loading = detailQ.isLoading || ruleQ.isLoading
+
   return (
-    <Card title={t('dataset.tabs.settings')}>
-      <Form form={form} layout="vertical" onFinish={(values) => saveM.mutate(values)}>
-        <Form.Item
-          name="name"
-          label={t('dataset.create.field.name')}
-          rules={[{ required: true, message: t('dataset.create.field.nameRequired') }]}
-        >
-          <Input allowClear />
-        </Form.Item>
-        <Form.Item name="description" label={t('dataset.create.field.description')}>
-          <Input.TextArea allowClear rows={2} />
-        </Form.Item>
-        <Form.Item label={t('dataset.create.field.docForm')}>
-          <Typography.Text>
-            {t(DOC_FORM_LABEL[chunkStructure] ?? 'dataset.create.docForm.text')}
-          </Typography.Text>
-          <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-            {t('dataset.settings.docFormHint')}
-          </Typography.Paragraph>
-        </Form.Item>
-        <Form.Item name="search_method" label={t('dataset.settings.searchMethod')}>
-          <Select
-            allowClear={false}
-            options={[
-              { value: 'semantic_search', label: t('dataset.settings.semantic') },
-              { value: 'full_text_search', label: t('dataset.settings.fullText') },
-              { value: 'hybrid_search', label: t('dataset.settings.hybrid') },
-            ]}
-          />
-        </Form.Item>
-        <Form.Item name="top_k" label={t('dataset.settings.topK')}>
-          <InputNumber min={1} max={20} style={{ width: '100%' }} />
-        </Form.Item>
-        <Form.Item name="score_threshold_enabled" label={t('dataset.settings.thresholdEnabled')} valuePropName="checked">
-          <Switch />
-        </Form.Item>
-        <Form.Item name="score_threshold" label={t('dataset.settings.threshold')}>
-          <InputNumber min={0} max={1} step={0.05} style={{ width: '100%' }} />
-        </Form.Item>
-        <Form.Item name="reranking_enable" label={t('dataset.settings.rerankEnabled')} valuePropName="checked">
-          <Switch />
-        </Form.Item>
-        {rerankingEnabled ? (
+    <Spin spinning={loading}>
+      <div className="minerva-dataset-settings-page minerva-scrollbar-thin">
+        <Form form={form} layout="vertical" onFinish={(values) => saveM.mutate(values)}>
+          <Typography.Title level={5} className="minerva-dataset-settings-page__section-title">
+            {t('dataset.settings.basicSection')}
+          </Typography.Title>
           <Form.Item
-            name="reranking_model_key"
-            label={t('dataset.settings.rerankModel')}
-            rules={[{ required: true, message: t('dataset.settings.rerankModelRequired') }]}
+            name="name"
+            label={t('dataset.create.field.name')}
+            rules={[{ required: true, message: t('dataset.create.field.nameRequired') }]}
           >
-            <Select allowClear options={rerankOptions} loading={modelsQ.isLoading} />
+            <Input allowClear placeholder={t('dataset.create.field.namePh')} />
           </Form.Item>
-        ) : null}
-        <Typography.Title level={5} style={{ marginTop: 8 }}>
-          {t('dataset.settings.chunkingSection')}
-        </Typography.Title>
-        <Form.Item name="delimiter" label={t('dataset.create.field.delimiter')}>
-          <Input allowClear placeholder="\\n\\n" />
-        </Form.Item>
-        <Form.Item name="max_length" label={t('dataset.create.field.maxLength')}>
-          <InputNumber min={100} max={8192} style={{ width: '100%' }} />
-        </Form.Item>
-        <Form.Item name="chunk_overlap" label={t('dataset.create.field.overlap')}>
-          <InputNumber min={0} max={500} style={{ width: '100%' }} />
-        </Form.Item>
-        {isHierarchical ? (
-          <>
-            <Typography.Text strong>{t('dataset.settings.parentChunk')}</Typography.Text>
-            <Form.Item name="parent_delimiter" label={t('dataset.create.field.delimiter')}>
-              <Input allowClear placeholder="\\n\\n" />
-            </Form.Item>
-            <Form.Item name="parent_max_length" label={t('dataset.create.field.maxLength')}>
-              <InputNumber min={200} max={8192} style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item name="parent_chunk_overlap" label={t('dataset.create.field.overlap')}>
-              <InputNumber min={0} max={500} style={{ width: '100%' }} />
-            </Form.Item>
-            <Typography.Text strong>{t('dataset.settings.subChunk')}</Typography.Text>
-            <Form.Item name="sub_delimiter" label={t('dataset.create.field.delimiter')}>
-              <Input allowClear placeholder="\\n" />
-            </Form.Item>
-            <Form.Item name="sub_max_length" label={t('dataset.create.field.maxLength')}>
-              <InputNumber min={100} max={4096} style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item name="sub_chunk_overlap" label={t('dataset.create.field.overlap')}>
-              <InputNumber min={0} max={500} style={{ width: '100%' }} />
-            </Form.Item>
-          </>
-        ) : null}
-        <Form.Item name="remove_extra_spaces" label={t('dataset.create.field.removeSpaces')} valuePropName="checked">
-          <Switch />
-        </Form.Item>
-        <Form.Item name="remove_urls_emails" label={t('dataset.create.field.removeUrls')} valuePropName="checked">
-          <Switch />
-        </Form.Item>
-        <Button type="primary" htmlType="submit" loading={saveM.isPending}>
-          {t('common.save')}
-        </Button>
-      </Form>
-    </Card>
+          <Form.Item name="description" label={t('dataset.create.field.description')}>
+            <Input.TextArea allowClear rows={2} />
+          </Form.Item>
+
+          <div className="minerva-dataset-settings-page__section-divider" role="separator" />
+
+          <Form.Item name="doc_form" hidden>
+            <Input />
+          </Form.Item>
+
+          <SegmentationSettingsPanel
+            form={form as unknown as FormInstance<ChunkingFormValues>}
+            docFormLocked
+            hidePreviewActions
+            onPreview={() => undefined}
+            onReset={() => undefined}
+          />
+          <div className="minerva-dataset-settings-page__section-divider" role="separator" />
+
+          <IndexingMethodPanel
+            form={form as unknown as FormInstance<IndexingFormValues>}
+            embeddingOptions={embeddingOptions}
+            modelsLoading={modelsQ.isLoading}
+            economyDisabled={economyDisabled}
+            indexingLocked={indexingLocked}
+            hideEconomyDisabledHint
+          />
+
+          <div className="minerva-dataset-settings-page__section-divider" role="separator" />
+
+          <RetrievalSettingsPanel
+            form={form as unknown as FormInstance<RetrievalFormValues>}
+            rerankOptions={rerankOptions}
+            modelsLoading={modelsQ.isLoading}
+            vectorSearchDisabled={economyMode}
+          />
+
+          <div className="minerva-dataset-settings-page__actions">
+            <Button type="primary" htmlType="submit" loading={saveM.isPending}>
+              {t('common.save')}
+            </Button>
+          </div>
+        </Form>
+      </div>
+    </Spin>
   )
 }

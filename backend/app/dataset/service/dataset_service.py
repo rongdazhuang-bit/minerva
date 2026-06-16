@@ -107,35 +107,6 @@ async def get_dataset_detail(
     }
 
 
-async def _assert_embedding_change_allowed(
-    session: AsyncSession,
-    *,
-    row: Dataset,
-    patch: dict[str, Any],
-) -> None:
-    """Block embedding model changes when completed documents already exist."""
-
-    if row.indexing_technique != INDEXING_TECHNIQUE_HIGH_QUALITY:
-        return
-    if "embedding_model" not in patch and "embedding_model_provider" not in patch:
-        return
-    completed = await repo.count_documents_by_status(
-        session,
-        dataset_id=row.id,
-        indexing_status=INDEXING_STATUS_COMPLETED,
-    )
-    if completed <= 0:
-        return
-    next_model = patch.get("embedding_model", row.embedding_model)
-    next_provider = patch.get("embedding_model_provider", row.embedding_model_provider)
-    if next_model != row.embedding_model or next_provider != row.embedding_model_provider:
-        raise AppError(
-            "dataset.embedding_change_forbidden",
-            "已有索引完成的文档，不能更换 Embedding 模型；请新建知识库或删除文档后重试。",
-            422,
-        )
-
-
 async def update_dataset(
     session: AsyncSession,
     *,
@@ -147,7 +118,6 @@ async def update_dataset(
     """Patch dataset metadata and settings."""
 
     row = await require_dataset(session, workspace_id=workspace_id, dataset_id=dataset_id)
-    await _assert_embedding_change_allowed(session, row=row, patch=patch)
     if "name" in patch and patch["name"] is not None:
         row.name = str(patch["name"]).strip()
     if "description" in patch:

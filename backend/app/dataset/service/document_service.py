@@ -15,17 +15,21 @@ from app.dataset.domain.constants import (
     INDEXING_STATUS_ERROR,
     INDEXING_STATUS_WAITING,
 )
-from app.dataset.domain.db.models import Dataset, DatasetDocument, DatasetUploadFile
+from app.dataset.domain.db.models import Dataset, DatasetDocument, DatasetProcessRule, DatasetUploadFile
 from app.dataset.domain.display_status import compute_display_status
 from app.dataset.infrastructure import repository as repo
 from app.dataset.service.dataset_service import require_dataset
 from app.dataset.service.deletion_service import delete_document_cascade, delete_segments_for_document
 from app.dataset.service.deletion_service import delete_vector_nodes_for_document
 from app.dataset.service.init_service import _enqueue_indexing
+from app.dataset.service.chunk_service import (
+    load_document_process_rule_for_detail,
+    serialize_process_rule,
+)
 from app.exceptions import AppError
 
 
-def _document_to_dict(document: DatasetDocument) -> dict[str, Any]:
+def _document_to_dict(document: DatasetDocument, *, hit_count: int = 0) -> dict[str, Any]:
     """Serialize one document row for API responses."""
 
     return {
@@ -37,7 +41,9 @@ def _document_to_dict(document: DatasetDocument) -> dict[str, Any]:
         "enabled": document.enabled,
         "archived": document.archived,
         "is_paused": bool(document.is_paused),
+        "doc_form": document.doc_form or "text_model",
         "word_count": document.word_count,
+        "hit_count": hit_count,
         "error": document.error,
         "batch": document.batch,
         "create_at": document.create_at,
@@ -66,7 +72,13 @@ async def list_document_page(
         page_size=page_size,
         keyword=keyword,
     )
-    return [_document_to_dict(row) for row in rows], total
+    hit_counts = await repo.sum_segment_hit_counts_by_document_ids(
+        session,
+        document_ids=[row.id for row in rows],
+    )
+    return [
+        _document_to_dict(row, hit_count=hit_counts.get(row.id, 0)) for row in rows
+    ], total
 
 
 async def get_document_detail(
@@ -86,7 +98,17 @@ async def get_document_detail(
     )
     if document is None:
         raise AppError("dataset.document_not_found", "文档不存在。", 404)
-    return _document_to_dict(document)
+    hit_counts = await repo.sum_segment_hit_counts_by_document_ids(
+        session,
+        document_ids=[document.id],
+    )
+    process_rule = await load_document_process_rule_for_detail(session, document=document)
+    return {
+        **_document_to_dict(document, hit_count=hit_counts.get(document.id, 0)),
+        "file_id": document.file_id,
+        "process_rule_id": document.dataset_process_rule_id,
+        "process_rule": process_rule,
+    }
 
 
 async def get_document_indexing_status(
@@ -136,6 +158,7 @@ async def append_documents(
     user_id: uuid.UUID,
     dataset_id: uuid.UUID,
     file_ids: list[uuid.UUID],
+    process_rule: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Append uploaded files to an existing dataset and enqueue indexing."""
 
@@ -146,9 +169,11 @@ async def append_documents(
     if existing_count + len(file_ids) > settings.dataset_max_files_per_dataset:
         raise AppError("dataset.too_many_files", "文件数量超过知识库上限。", 422)
 
-    process_rule = await repo.get_latest_process_rule(session, dataset_id=dataset.id)
+    shared_rule: DatasetProcessRule | None = None
     if process_rule is None:
-        raise AppError("dataset.process_rule_missing", "知识库缺少分段规则。", 422)
+        shared_rule = await repo.get_latest_process_rule(session, dataset_id=dataset.id)
+        if shared_rule is None:
+            raise AppError("dataset.process_rule_missing", "知识库缺少分段规则。", 422)
 
     max_position = await repo.max_document_position(session, dataset_id=dataset.id)
     batch = uuid.uuid4().hex
@@ -157,6 +182,21 @@ async def append_documents(
         upload = await session.get(DatasetUploadFile, upload_id)
         if upload is None or upload.workspace_id != workspace_id:
             raise AppError("dataset.upload_not_found", "上传文件不存在。", 404)
+
+        if process_rule is not None:
+            rule_row = DatasetProcessRule(
+                id=uuid.uuid4(),
+                dataset_id=dataset.id,
+                mode=str(process_rule.get("mode") or "custom"),
+                rules=serialize_process_rule(process_rule),
+                created_by=user_id,
+            )
+            session.add(rule_row)
+            await session.flush()
+            rule_id = rule_row.id
+        else:
+            rule_id = shared_rule.id  # type: ignore[union-attr]
+
         doc = DatasetDocument(
             id=uuid.uuid4(),
             workspace_id=workspace_id,
@@ -164,7 +204,7 @@ async def append_documents(
             position=max_position + offset,
             data_source_type=DATA_SOURCE_UPLOAD_FILE,
             data_source_info=json.dumps({"upload_file_id": str(upload_id)}),
-            dataset_process_rule_id=process_rule.id,
+            dataset_process_rule_id=rule_id,
             batch=batch,
             name=upload.name,
             created_from="web",
@@ -291,9 +331,10 @@ async def update_document(
     workspace_id: uuid.UUID,
     dataset_id: uuid.UUID,
     document_id: uuid.UUID,
+    user_id: uuid.UUID,
     patch: dict[str, Any],
 ) -> dict[str, Any]:
-    """Update mutable document fields such as name."""
+    """Update mutable document fields such as name or per-document process_rule."""
 
     document = await repo.get_document_for_dataset(
         session,
@@ -303,24 +344,44 @@ async def update_document(
     )
     if document is None:
         raise AppError("dataset.document_not_found", "文档不存在。", 404)
+    if "process_rule" in patch and patch["process_rule"] is not None and document.archived:
+        raise AppError("dataset.document_archived", "已归档文档不可修改。", 422)
     if "name" in patch and patch["name"] is not None:
         name = str(patch["name"]).strip()
         if not name:
             raise AppError("dataset.document_name_required", "文档名称不能为空。", 422)
         document.name = name
+    should_enqueue = False
+    if "process_rule" in patch and patch["process_rule"] is not None:
+        rule_payload = patch["process_rule"]
+        process_row = DatasetProcessRule(
+            id=uuid.uuid4(),
+            dataset_id=document.dataset_id,
+            mode=str(rule_payload.get("mode") or "custom"),
+            rules=serialize_process_rule(rule_payload),
+            created_by=user_id,
+        )
+        session.add(process_row)
+        await session.flush()
+        document.dataset_process_rule_id = process_row.id
+        dataset = await require_dataset(session, workspace_id=workspace_id, dataset_id=dataset_id)
+        await reprocess_document(session, dataset=dataset, document=document)
+        should_enqueue = True
     document.update_at = datetime.now(tz=UTC)
     await session.commit()
     await session.refresh(document)
+    if should_enqueue:
+        _enqueue_indexing(dataset_id, [document.id])
     return _document_to_dict(document)
 
 
-async def _reset_document_for_retry(
+async def reprocess_document(
     session: AsyncSession,
     *,
     dataset: Dataset,
     document: DatasetDocument,
 ) -> None:
-    """Clear failed document state and re-enqueue indexing."""
+    """Clear segments/vectors and reset document state before re-indexing."""
 
     await delete_vector_nodes_for_document(dataset, document.id)
     await delete_segments_for_document(session, document_id=document.id)
@@ -333,6 +394,17 @@ async def _reset_document_for_retry(
     document.splitting_completed_at = None
     document.completed_at = None
     document.update_at = datetime.now(tz=UTC)
+
+
+async def _reset_document_for_retry(
+    session: AsyncSession,
+    *,
+    dataset: Dataset,
+    document: DatasetDocument,
+) -> None:
+    """Clear failed document state and re-enqueue indexing."""
+
+    await reprocess_document(session, dataset=dataset, document=document)
 
 
 async def retry_failed_documents(

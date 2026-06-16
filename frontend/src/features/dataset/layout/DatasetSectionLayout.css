@@ -1,0 +1,33 @@
+/** Knowledge base detail shell: tabs fixed, tab body scrolls. */
+.minerva-dataset-section-layout {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.minerva-dataset-section-layout__tabs {
+  flex-shrink: 0;
+}
+
+.minerva-dataset-section-layout__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-dataset-section-layout__body:has(.minerva-dataset-hit-testing),
+.minerva-dataset-section-layout__body:has(.minerva-document-list-page) {
+  overflow: hidden;
+}
+
+.minerva-dataset-section-layout__body:has(.minerva-document-list-page) > * {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}

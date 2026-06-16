@@ -1,0 +1,120 @@
+/* Document list: fill detail tab body; table scrolls inside the card. */
+.minerva-document-list-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  color: var(--minerva-ink, #e8f0f8);
+}
+
+.minerva-document-list-page__card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-document-list-page__card .ant-card-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-document-list-page__filter {
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.minerva-document-list-page__filter .ant-form-item {
+  margin-inline-end: 8px;
+}
+
+.minerva-document-list-page__table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.minerva-document-list-page__table {
+  width: 100%;
+}
+
+.minerva-document-list-page__table .ant-table {
+  width: 100% !important;
+}
+
+.minerva-document-list-page__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.minerva-document-list-page__table .ant-table-thead > tr > th {
+  white-space: nowrap;
+}
+
+.minerva-document-list-page__table .ant-table-cell {
+  vertical-align: middle;
+}
+
+.minerva-document-list-page__table .ant-table-cell-fix-right {
+  white-space: nowrap;
+}
+
+.minerva-document-list-page__status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.minerva-document-list-page__status-dot--available {
+  background: #52c41a;
+}
+
+.minerva-document-list-page__status-dot--indexing {
+  background: #1677ff;
+}
+
+.minerva-document-list-page__status-dot--error {
+  background: #ff4d4f;
+}
+
+.minerva-document-list-page__status-dot--disabled,
+.minerva-document-list-page__status-dot--archived {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.minerva-document-list-page__status-dot--paused {
+  background: #faad14;
+}
+
+.minerva-document-list-page__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.minerva-document-list-page__name-icon {
+  color: #1677ff;
+  flex-shrink: 0;
+}
+
+.minerva-document-list-page__segment-tag {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.minerva-document-list-page__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

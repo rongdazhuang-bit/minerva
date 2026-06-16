@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from urllib.parse import urlparse
+
 from app.core.log import get_logger
 from typing import Any
 
@@ -23,6 +25,53 @@ def normalize_endpoint_url(url: str) -> str:
 
 
 normalize_openai_base_url = normalize_endpoint_url
+
+_OPENAI_CAPABILITY_SUFFIXES = (
+    "/chat/completions",
+    "/completions",
+    "/embeddings",
+    "/rerank",
+)
+
+
+def resolve_openai_capability_url(url: str, capability: str) -> str:
+    """Derive an OpenAI-compatible capability URL from a configured endpoint.
+
+    Rewrites common misconfigurations (e.g. chat URL on an embedding model) while
+    leaving vendor-specific full URLs unchanged.
+    """
+
+    base = normalize_endpoint_url(url)
+    capability = capability.strip("/")
+    target_suffix = f"/{capability}"
+
+    if base.endswith(target_suffix):
+        return base
+
+    for suffix in _OPENAI_CAPABILITY_SUFFIXES:
+        if base.endswith(suffix):
+            return base[: -len(suffix)] + target_suffix
+
+    if base.endswith("/v1"):
+        return f"{base}{target_suffix}"
+
+    path = urlparse(base).path
+    if not path or path == "/":
+        return f"{base}/v1{target_suffix}"
+
+    return base
+
+
+def resolve_embeddings_url(url: str) -> str:
+    """Resolve OpenAI-compatible ``/embeddings`` URL from configured endpoint."""
+
+    return resolve_openai_capability_url(url, "embeddings")
+
+
+def resolve_rerank_url(url: str) -> str:
+    """Resolve OpenAI-compatible ``/rerank`` URL from configured endpoint."""
+
+    return resolve_openai_capability_url(url, "rerank")
 
 
 def json_for_log(data: Any) -> str:

@@ -17,6 +17,12 @@ export type IndexingMethodPanelProps = {
   modelsLoading?: boolean
   /** Parent-child segmentation requires high-quality indexing (Dify parity). */
   economyDisabled?: boolean
+  /** When true, indexing technique cards cannot be switched (settings page). */
+  indexingLocked?: boolean
+  /** Disable embedding model selector (settings page after indexed docs). */
+  embeddingReadOnly?: boolean
+  /** Hide parent-child / economy lock hint (settings page). */
+  hideEconomyDisabledHint?: boolean
 }
 
 /** Indexing method selector with high-quality and economy cards. */
@@ -25,6 +31,9 @@ export function IndexingMethodPanel({
   embeddingOptions,
   modelsLoading,
   economyDisabled,
+  indexingLocked,
+  embeddingReadOnly,
+  hideEconomyDisabledHint,
 }: IndexingMethodPanelProps) {
   const { t } = useTranslation()
   const indexingTechnique = Form.useWatch('indexing_technique', form)
@@ -32,16 +41,21 @@ export function IndexingMethodPanel({
   const isEconomyActive = indexingTechnique === 'economy'
 
   const selectHighQuality = () => {
+    if (indexingLocked && !isHighQuality) return
     form.setFieldValue('indexing_technique', 'high_quality')
   }
 
   const selectEconomy = () => {
+    if (indexingLocked && isHighQuality) return
     if (economyDisabled) return
     form.setFieldsValue({
       indexing_technique: 'economy',
       embedding_model_key: undefined,
     })
   }
+
+  const highQualityCardDisabled = Boolean(indexingLocked && !isHighQuality)
+  const economyCardDisabled = Boolean(economyDisabled || (indexingLocked && isHighQuality))
 
   return (
     <div className="minerva-indexing-settings">
@@ -55,10 +69,11 @@ export function IndexingMethodPanel({
 
       <div className="minerva-indexing-mode-grid">
         <div
-          className={`minerva-indexing-mode-card${isHighQuality ? ' is-active' : ''}`}
+          className={`minerva-indexing-mode-card${isHighQuality ? ' is-active' : ''}${highQualityCardDisabled ? ' is-disabled' : ''}`}
           onClick={selectHighQuality}
           role="button"
-          tabIndex={0}
+          tabIndex={highQualityCardDisabled ? -1 : 0}
+          aria-disabled={highQualityCardDisabled}
           onKeyDown={(event) => {
             if (event.key === 'Enter' || event.key === ' ') selectHighQuality()
           }}
@@ -80,11 +95,11 @@ export function IndexingMethodPanel({
         </div>
 
         <div
-          className={`minerva-indexing-mode-card${isEconomyActive ? ' is-active' : ''}${economyDisabled ? ' is-disabled' : ''}`}
+          className={`minerva-indexing-mode-card${isEconomyActive ? ' is-active' : ''}${economyCardDisabled ? ' is-disabled' : ''}`}
           onClick={selectEconomy}
           role="button"
-          tabIndex={economyDisabled ? -1 : 0}
-          aria-disabled={economyDisabled}
+          tabIndex={economyCardDisabled ? -1 : 0}
+          aria-disabled={economyCardDisabled}
           onKeyDown={(event) => {
             if (event.key === 'Enter' || event.key === ' ') selectEconomy()
           }}
@@ -107,7 +122,7 @@ export function IndexingMethodPanel({
         <Alert type="warning" showIcon message={t('dataset.create.indexing.highQualityWarning')} />
       ) : null}
 
-      {economyDisabled && isHighQuality ? (
+      {economyDisabled && isHighQuality && !hideEconomyDisabledHint ? (
         <Typography.Text type="secondary">{t('dataset.create.segmentation.hierarchicalHighQualityOnly')}</Typography.Text>
       ) : null}
 
@@ -118,7 +133,12 @@ export function IndexingMethodPanel({
           rules={[{ required: true, message: t('dataset.create.field.embeddingRequired') }]}
           style={{ marginBottom: 0 }}
         >
-          <Select allowClear options={embeddingOptions} loading={modelsLoading} />
+          <Select
+            allowClear
+            disabled={embeddingReadOnly}
+            options={embeddingOptions}
+            loading={modelsLoading}
+          />
         </Form.Item>
       ) : null}
     </div>

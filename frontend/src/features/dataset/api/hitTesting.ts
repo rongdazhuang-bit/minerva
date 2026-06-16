@@ -39,6 +39,9 @@ export type DatasetQueryListOut = {
 export type DatasetPatchBody = {
   name?: string
   description?: string | null
+  indexing_technique?: string
+  embedding_model?: string | null
+  embedding_model_provider?: string | null
   retrieval_model?: Record<string, unknown>
   process_rule?: Record<string, unknown>
 }

@@ -197,6 +197,27 @@ async def list_documents_page(
     return rows, total
 
 
+async def sum_segment_hit_counts_by_document_ids(
+    session: AsyncSession,
+    *,
+    document_ids: list[uuid.UUID],
+) -> dict[uuid.UUID, int]:
+    """Return total segment hit counts keyed by document id."""
+
+    if not document_ids:
+        return {}
+    stmt = (
+        select(
+            DatasetDocumentSegment.document_id,
+            func.coalesce(func.sum(DatasetDocumentSegment.hit_count), 0),
+        )
+        .where(DatasetDocumentSegment.document_id.in_(document_ids))
+        .group_by(DatasetDocumentSegment.document_id)
+    )
+    rows = await session.execute(stmt)
+    return {document_id: int(total or 0) for document_id, total in rows.all()}
+
+
 async def get_document_for_dataset(
     session: AsyncSession,
     *,

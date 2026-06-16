@@ -158,12 +158,13 @@ export function StepOneUpload({ workspaceId, value, onChange, form }: StepOneUpl
           <Form form={form} layout="vertical">
             <Form.Item
               name="name"
+              preserve
               label={t('dataset.create.field.name')}
               rules={[{ required: true, message: t('dataset.create.field.nameRequired') }]}
             >
               <Input allowClear placeholder={t('dataset.create.field.namePh')} />
             </Form.Item>
-            <Form.Item name="description" label={t('dataset.create.field.description')}>
+            <Form.Item name="description" preserve label={t('dataset.create.field.description')}>
               <Input.TextArea allowClear rows={2} />
             </Form.Item>
             {uploadBlock}
