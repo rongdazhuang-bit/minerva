@@ -36,3 +36,4 @@ __pycache__/
 /backend/.env.local
 /backend/data/
 /backend/logs/
+/backend/tests/

@@ -31,7 +31,7 @@ import {
   type RetrievalFormValues,
 } from '@/features/dataset/shared/retrievalForm'
 import { getFirstFormValidationMessage } from '@/utils/formValidation'
-import './DocumentSegmentPanel.css'
+import './DocumentSegmentConfigPanel.css'
 
 type DocumentSegmentFormValues = ChunkingFormValues & IndexingFormValues & RetrievalFormValues
 

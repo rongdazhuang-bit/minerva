@@ -35,7 +35,7 @@ import {
   type DatasetChildChunk,
   type DatasetSegment,
 } from '@/features/dataset/api/documents'
-import './DocumentDetailPage.css'
+import './DocumentSegmentsViewPanel.css'
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50]
 
