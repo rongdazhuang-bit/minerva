@@ -96,6 +96,8 @@ dataset.retrieval_model
 4. 成功：toast、刷新 query、`savedSnapshot` 更新、`isDirty = false`
 5. 文档列表已有 `indexing` 状态轮询自动反映处理进度
 
+**两阶段实现（2026-06-16 修订）：** 后端先 commit 保存 `process_rule`，再 `reprocess` + 入队；阶段 2 失败时配置仍保留。详见 `2026-06-16-segment-save-then-reprocess-upload-cleanup-design.md`。
+
 ## 后端实现
 
 ### API 变更

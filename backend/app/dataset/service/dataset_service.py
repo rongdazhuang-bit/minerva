@@ -6,18 +6,27 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.celery_app import celery_app
+from app.core.log import get_logger
 from app.dataset.domain.constants import (
+    DATASET_CLEANUP_TASK_NAME,
     INDEXING_STATUS_COMPLETED,
     INDEXING_TECHNIQUE_ECONOMY,
     INDEXING_TECHNIQUE_HIGH_QUALITY,
 )
-from app.dataset.domain.db.models import Dataset, DatasetProcessRule
+from app.dataset.domain.db.models import Dataset, DatasetDocument, DatasetProcessRule
 from app.dataset.infrastructure import repository as repo
 from app.dataset.service.chunk_service import deserialize_process_rule, serialize_process_rule
-from app.dataset.service.deletion_service import delete_dataset_cascade
+from app.dataset.service.deletion_service import (
+    build_dataset_cleanup_manifest,
+    delete_dataset_cascade,
+)
 from app.exceptions import AppError
+
+log = get_logger(__name__)
 
 
 async def require_dataset(
@@ -163,17 +172,56 @@ async def update_dataset(
     return row
 
 
+def _enqueue_dataset_cleanup(manifest: dict[str, Any]) -> str | None:
+    """Send async cleanup task for uploads, S3, and vector collection."""
+
+    if celery_app is None:
+        log.warning(
+            "dataset.cleanup skipped: celery unavailable dataset_id={}",
+            manifest.get("dataset_id"),
+        )
+        return None
+    try:
+        result = celery_app.send_task(
+            DATASET_CLEANUP_TASK_NAME,
+            args=[manifest],
+            queue="dataset",
+        )
+        return str(result.id)
+    except Exception:
+        log.exception(
+            "dataset.cleanup enqueue_failed dataset_id={}",
+            manifest.get("dataset_id"),
+        )
+        return None
+
+
 async def delete_dataset(
     session: AsyncSession,
     *,
     workspace_id: uuid.UUID,
     dataset_id: uuid.UUID,
 ) -> None:
-    """Delete one knowledge base and all dependent data."""
+    """Delete one knowledge base, enqueue async external cleanup."""
 
     row = await require_dataset(session, workspace_id=workspace_id, dataset_id=dataset_id)
+    documents = list(
+        (
+            await session.scalars(
+                select(DatasetDocument).where(DatasetDocument.dataset_id == dataset_id)
+            )
+        ).all()
+    )
+    manifest = await build_dataset_cleanup_manifest(
+        session,
+        workspace_id=row.workspace_id,
+        dataset_id=row.id,
+        documents=documents,
+        indexing_technique=row.indexing_technique,
+    )
     await delete_dataset_cascade(session, dataset=row)
     await session.commit()
+    _enqueue_dataset_cleanup(manifest)
 
 
 async def create_empty_dataset(

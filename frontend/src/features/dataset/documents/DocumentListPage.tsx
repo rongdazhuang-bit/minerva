@@ -21,6 +21,7 @@ import {
   Switch,
   Table,
   Tag,
+  Tooltip,
   message,
 } from 'antd'
 import type { MenuProps } from 'antd'
@@ -302,22 +303,44 @@ export function DocumentListPage() {
         fixed: 'right',
         render: (_, row) => (
           <span className="minerva-document-list-page__actions">
-            <Switch
-              size="small"
-              checked={row.enabled}
-              loading={togglingId === row.id}
-              onChange={(checked) => toggleEnabled(row, checked)}
-            />
-            <Button
-              type="text"
-              size="small"
-              icon={<UnorderedListOutlined />}
-              aria-label={t('dataset.documents.action.segments')}
-              onClick={() => openSegmentConfig(row.id)}
-            />
-            <Dropdown menu={{ items: buildMoreMenu(row) }} trigger={['click']}>
-              <Button type="text" size="small" icon={<MoreOutlined />} />
-            </Dropdown>
+            <Tooltip
+              title={
+                row.enabled
+                  ? t('dataset.documents.action.disable')
+                  : t('dataset.documents.action.enable')
+              }
+            >
+              <Switch
+                size="small"
+                checked={row.enabled}
+                loading={togglingId === row.id}
+                onChange={(checked) => toggleEnabled(row, checked)}
+                aria-label={
+                  row.enabled
+                    ? t('dataset.documents.action.disable')
+                    : t('dataset.documents.action.enable')
+                }
+              />
+            </Tooltip>
+            <Tooltip title={t('dataset.documents.action.segmentList')}>
+              <Button
+                type="text"
+                size="small"
+                icon={<UnorderedListOutlined />}
+                aria-label={t('dataset.documents.action.segmentList')}
+                onClick={() => openSegmentConfig(row.id)}
+              />
+            </Tooltip>
+            <Tooltip title={t('dataset.documents.action.more')}>
+              <Dropdown menu={{ items: buildMoreMenu(row) }} trigger={['click']}>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<MoreOutlined />}
+                  aria-label={t('dataset.documents.action.more')}
+                />
+              </Dropdown>
+            </Tooltip>
           </span>
         ),
       },

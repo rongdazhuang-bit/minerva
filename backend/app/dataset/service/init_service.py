@@ -20,8 +20,8 @@ from app.dataset.domain.constants import (
     INDEXING_TECHNIQUE_ECONOMY,
     INDEXING_TECHNIQUE_HIGH_QUALITY,
 )
-from app.dataset.domain.db.models import Dataset, DatasetDocument, DatasetProcessRule, DatasetUploadFile
-from app.dataset.service.chunk_service import serialize_process_rule
+from app.dataset.domain.db.models import Dataset, DatasetDocument, DatasetUploadFile
+from app.dataset.service.process_rule_service import create_process_rule_row
 from app.exceptions import AppError
 
 
@@ -112,21 +112,18 @@ async def init_dataset_with_documents(
     )
     session.add(dataset)
 
-    process_row = DatasetProcessRule(
-        id=uuid.uuid4(),
-        dataset_id=dataset.id,
-        mode=str(rule_payload.get("mode") or "custom"),
-        rules=serialize_process_rule(rule_payload),
-        created_by=user_id,
-    )
-    session.add(process_row)
-
     batch = uuid.uuid4().hex
     documents: list[DatasetDocument] = []
     for position, upload_id in enumerate(file_ids, start=1):
         upload = await session.get(DatasetUploadFile, upload_id)
         if upload is None or upload.workspace_id != workspace_id:
             raise AppError("dataset.upload_not_found", "上传文件不存在或不属于当前工作区。", 404)
+        rule_id = await create_process_rule_row(
+            session,
+            dataset_id=dataset.id,
+            user_id=user_id,
+            rule_payload=rule_payload,
+        )
         doc = DatasetDocument(
             id=uuid.uuid4(),
             workspace_id=workspace_id,
@@ -134,7 +131,7 @@ async def init_dataset_with_documents(
             position=position,
             data_source_type=DATA_SOURCE_UPLOAD_FILE,
             data_source_info=json.dumps({"upload_file_id": str(upload_id)}),
-            dataset_process_rule_id=process_row.id,
+            dataset_process_rule_id=rule_id,
             batch=batch,
             name=upload.name,
             created_from="web",

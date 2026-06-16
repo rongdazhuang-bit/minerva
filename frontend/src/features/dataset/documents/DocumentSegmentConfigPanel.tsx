@@ -13,6 +13,7 @@ import {
   listDocuments,
   patchDocument,
 } from '@/features/dataset/api/documents'
+import { ApiError } from '@/api/client'
 import { ChunkPreviewPanel, type PreviewSegment } from '@/features/dataset/create/ChunkPreviewPanel'
 import { IndexingMethodPanel, type IndexingFormValues } from '@/features/dataset/create/IndexingMethodPanel'
 import { RetrievalSettingsPanel } from '@/features/dataset/create/RetrievalSettingsPanel'
@@ -277,14 +278,28 @@ export function DocumentSegmentConfigPanel({
       const processRule = buildProcessRule(values, defaultRule)
       return patchDocument(workspaceId!, datasetId, documentId, { process_rule: processRule })
     },
-    onSuccess: () => {
-      message.success(t('dataset.documents.segmentConfig.saveOk'))
+    onSuccess: (data) => {
+      if (data.reprocess_triggered === false) {
+        message.warning(t('dataset.documents.segmentConfig.savePartialOk'))
+      } else {
+        message.success(t('dataset.documents.segmentConfig.saveOk'))
+      }
       setSavedSnapshot(serializeChunkingFields(form.getFieldsValue(true)))
       setPreviewState(null)
       void queryClient.invalidateQueries({ queryKey: ['dataset-document', workspaceId, datasetId, documentId] })
       void queryClient.invalidateQueries({ queryKey: ['dataset-documents', workspaceId, datasetId] })
     },
-    onError: (err: Error) => message.error(err.message),
+    onError: (err: Error) => {
+      if (err instanceof ApiError && err.code === 'dataset.reprocess_failed_after_save') {
+        message.warning(t('dataset.documents.segmentConfig.savePartialOk'))
+        setSavedSnapshot(serializeChunkingFields(form.getFieldsValue(true)))
+        setPreviewState(null)
+        void queryClient.invalidateQueries({ queryKey: ['dataset-document', workspaceId, datasetId, documentId] })
+        void queryClient.invalidateQueries({ queryKey: ['dataset-documents', workspaceId, datasetId] })
+        return
+      }
+      message.error(err.message)
+    },
   })
 
   const previewReady = previewState?.fileId === previewFileId

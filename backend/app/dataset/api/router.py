@@ -431,6 +431,28 @@ async def retry_document(
     return DatasetDocumentOut.model_validate(payload)
 
 
+@router.post(
+    "/{dataset_id}/documents/{document_id}/reprocess",
+    response_model=DatasetDocumentOut,
+)
+async def reprocess_document_indexing(
+    workspace_id: uuid.UUID,
+    dataset_id: uuid.UUID,
+    document_id: uuid.UUID,
+    _member: uuid.UUID = Depends(require_workspace_member),
+    session: AsyncSession = Depends(get_db),
+) -> DatasetDocumentOut:
+    """Reprocess one document with its current process_rule and enqueue indexing."""
+
+    payload = await document_svc.reprocess_document_indexing(
+        session,
+        workspace_id=workspace_id,
+        dataset_id=dataset_id,
+        document_id=document_id,
+    )
+    return DatasetDocumentOut.model_validate(payload)
+
+
 @router.post("/{dataset_id}/retry", response_model=DatasetRetryOut)
 async def retry_dataset(
     workspace_id: uuid.UUID,

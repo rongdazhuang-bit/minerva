@@ -1,7 +1,7 @@
 /**
  * Knowledge base list: inline filters, table, and fullscreen create modal.
  */
-import { FileAddOutlined } from '@ant-design/icons'
+import { DeleteOutlined, FileAddOutlined } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Button,
@@ -14,6 +14,7 @@ import {
   Space,
   Table,
   Tag,
+  Tooltip,
   message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -151,16 +152,25 @@ export function DatasetListPage() {
       {
         title: t('dataset.documents.column.actions'),
         key: 'actions',
-        width: 100,
+        width: 72,
         render: (_: unknown, row) => (
-          <Popconfirm
-            title={t('dataset.list.deleteConfirm')}
-            onConfirm={() => deleteM.mutate(row.id)}
-          >
-            <Button type="link" danger loading={deleteM.isPending && deleteM.variables === row.id}>
-              {t('dataset.list.delete')}
-            </Button>
-          </Popconfirm>
+          <Tooltip title={t('dataset.list.delete')}>
+            <span>
+              <Popconfirm
+                title={t('dataset.list.deleteConfirm')}
+                onConfirm={() => deleteM.mutate(row.id)}
+              >
+                <Button
+                  type="text"
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                  loading={deleteM.isPending && deleteM.variables === row.id}
+                  aria-label={t('dataset.list.delete')}
+                />
+              </Popconfirm>
+            </span>
+          </Tooltip>
         ),
       },
     ],

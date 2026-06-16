@@ -26,6 +26,7 @@ from app.dataset.service.chunk_service import (
     load_document_process_rule_for_detail,
     serialize_process_rule,
 )
+from app.dataset.service.process_rule_service import create_process_rule_row
 from app.exceptions import AppError
 
 
@@ -184,16 +185,12 @@ async def append_documents(
             raise AppError("dataset.upload_not_found", "上传文件不存在。", 404)
 
         if process_rule is not None:
-            rule_row = DatasetProcessRule(
-                id=uuid.uuid4(),
+            rule_id = await create_process_rule_row(
+                session,
                 dataset_id=dataset.id,
-                mode=str(process_rule.get("mode") or "custom"),
-                rules=serialize_process_rule(process_rule),
-                created_by=user_id,
+                user_id=user_id,
+                rule_payload=process_rule,
             )
-            session.add(rule_row)
-            await session.flush()
-            rule_id = rule_row.id
         else:
             rule_id = shared_rule.id  # type: ignore[union-attr]
 
@@ -325,6 +322,54 @@ async def set_document_paused(
     return _document_to_dict(document)
 
 
+async def _save_document_process_rule(
+    session: AsyncSession,
+    *,
+    document: DatasetDocument,
+    user_id: uuid.UUID,
+    rule_payload: dict[str, Any],
+) -> None:
+    """Persist a new process_rule row, bind it to the document, and commit."""
+
+    process_row = DatasetProcessRule(
+        id=uuid.uuid4(),
+        dataset_id=document.dataset_id,
+        mode=str(rule_payload.get("mode") or "custom"),
+        rules=serialize_process_rule(rule_payload),
+        created_by=user_id,
+    )
+    session.add(process_row)
+    await session.flush()
+    document.dataset_process_rule_id = process_row.id
+    document.update_at = datetime.now(tz=UTC)
+    await session.commit()
+    await session.refresh(document)
+
+
+async def _reprocess_and_enqueue_document(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    dataset_id: uuid.UUID,
+    document_id: uuid.UUID,
+) -> None:
+    """Clear segments/vectors, reset status, commit, and enqueue indexing."""
+
+    dataset = await require_dataset(session, workspace_id=workspace_id, dataset_id=dataset_id)
+    document = await repo.get_document_for_dataset(
+        session,
+        workspace_id=workspace_id,
+        dataset_id=dataset_id,
+        document_id=document_id,
+    )
+    if document is None:
+        raise AppError("dataset.document_not_found", "文档不存在。", 404)
+    await reprocess_document(session, dataset=dataset, document=document)
+    await session.commit()
+    await session.refresh(document)
+    _enqueue_indexing(dataset_id, [document.id])
+
+
 async def update_document(
     session: AsyncSession,
     *,
@@ -351,28 +396,78 @@ async def update_document(
         if not name:
             raise AppError("dataset.document_name_required", "文档名称不能为空。", 422)
         document.name = name
-    should_enqueue = False
     if "process_rule" in patch and patch["process_rule"] is not None:
         rule_payload = patch["process_rule"]
-        process_row = DatasetProcessRule(
-            id=uuid.uuid4(),
-            dataset_id=document.dataset_id,
-            mode=str(rule_payload.get("mode") or "custom"),
-            rules=serialize_process_rule(rule_payload),
-            created_by=user_id,
+        await _save_document_process_rule(
+            session,
+            document=document,
+            user_id=user_id,
+            rule_payload=rule_payload,
         )
-        session.add(process_row)
-        await session.flush()
-        document.dataset_process_rule_id = process_row.id
-        dataset = await require_dataset(session, workspace_id=workspace_id, dataset_id=dataset_id)
-        await reprocess_document(session, dataset=dataset, document=document)
-        should_enqueue = True
+        try:
+            await _reprocess_and_enqueue_document(
+                session,
+                workspace_id=workspace_id,
+                dataset_id=dataset_id,
+                document_id=document_id,
+            )
+        except AppError:
+            raise
+        except Exception as exc:
+            raise AppError(
+                "dataset.reprocess_failed_after_save",
+                "重新处理失败，配置已保存。",
+                422,
+            ) from exc
+        detail = await get_document_detail(
+            session,
+            workspace_id=workspace_id,
+            dataset_id=dataset_id,
+            document_id=document_id,
+        )
+        detail["reprocess_triggered"] = True
+        detail["reprocess_error"] = None
+        return detail
     document.update_at = datetime.now(tz=UTC)
     await session.commit()
     await session.refresh(document)
-    if should_enqueue:
-        _enqueue_indexing(dataset_id, [document.id])
     return _document_to_dict(document)
+
+
+async def reprocess_document_indexing(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    dataset_id: uuid.UUID,
+    document_id: uuid.UUID,
+) -> dict[str, Any]:
+    """Reprocess one non-archived document and enqueue indexing."""
+
+    document = await repo.get_document_for_dataset(
+        session,
+        workspace_id=workspace_id,
+        dataset_id=dataset_id,
+        document_id=document_id,
+    )
+    if document is None:
+        raise AppError("dataset.document_not_found", "文档不存在。", 404)
+    if document.archived:
+        raise AppError("dataset.document_archived", "已归档文档不可修改。", 422)
+    await _reprocess_and_enqueue_document(
+        session,
+        workspace_id=workspace_id,
+        dataset_id=dataset_id,
+        document_id=document_id,
+    )
+    detail = await get_document_detail(
+        session,
+        workspace_id=workspace_id,
+        dataset_id=dataset_id,
+        document_id=document_id,
+    )
+    detail["reprocess_triggered"] = True
+    detail["reprocess_error"] = None
+    return detail
 
 
 async def reprocess_document(

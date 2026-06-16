@@ -158,7 +158,9 @@
 
 ### 3.3 应用层删除顺序（示例）
 
-删除知识库：`dataset_child_chunk` → `dataset_document_segment` → `dataset_document` → `dataset_process_rule` → `dataset_keyword_table` → `dataset_query` → 向量库 collection → `dataset`。
+删除知识库（**同步**）：`dataset_child_chunk` → `dataset_document_segment` → `dataset_document` → `dataset_process_rule` → `dataset_keyword_table` → `dataset_query` → `dataset`。
+
+删除知识库（**异步 Celery `dataset.cleanup`**）：`dataset_upload_file` 行 + S3 `storage_key` 对象 + 向量库 collection（high_quality）。外部清理失败不阻断 DELETE API。详见 `2026-06-16-segment-save-then-reprocess-upload-cleanup-design.md`。
 
 删除文档：子块 → 分段 → 向量节点 → 文档行。
 

@@ -221,6 +221,8 @@ class DatasetDocumentOut(BaseModel):
     file_id: str | None = None
     process_rule_id: uuid.UUID | None = None
     process_rule: dict[str, Any] | None = None
+    reprocess_triggered: bool | None = None
+    reprocess_error: str | None = None
 
 
 class DatasetDocumentListPageOut(BaseModel):

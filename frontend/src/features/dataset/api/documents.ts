@@ -20,6 +20,8 @@ export type DatasetDocument = {
   file_id?: string | null
   process_rule_id?: string | null
   process_rule?: Record<string, unknown> | null
+  reprocess_triggered?: boolean | null
+  reprocess_error?: string | null
 }
 
 export type DatasetDocumentListOut = {
@@ -153,6 +155,14 @@ export function retryDocument(workspaceId: string, datasetId: string, documentId
 export function retryFailedDocuments(workspaceId: string, datasetId: string) {
   return apiJson<{ retried_count: number; document_ids: string[] }>(
     base(workspaceId, datasetId, '/retry'),
+    { method: 'POST' },
+  )
+}
+
+/** Reprocess one document with its saved process_rule and enqueue indexing. */
+export function reprocessDocument(workspaceId: string, datasetId: string, documentId: string) {
+  return apiJson<DatasetDocument>(
+    base(workspaceId, datasetId, `/documents/${documentId}/reprocess`),
     { method: 'POST' },
   )
 }
