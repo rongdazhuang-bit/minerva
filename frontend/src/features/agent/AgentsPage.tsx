@@ -14,7 +14,6 @@ import {
   Collapse,
   Dropdown,
   Flex,
-  Input,
   Popconfirm,
   Select,
   Spin,
@@ -23,7 +22,7 @@ import {
   type MenuProps,
 } from 'antd'
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import {
@@ -39,6 +38,7 @@ import {
   type AgentStreamEvent,
 } from '@/api/agent'
 import { extractTotalTokens, formatAgentV2TraceLine, formatTokenCount, formatTokenNumber, extractReasoningTokens } from '@/api/agent-stream-v2'
+import { AgentComposerInput } from '@/features/agent/AgentComposerInput'
 import { AgentSkillSlashMenu } from '@/features/agent/AgentSkillSlashMenu'
 import {
   agentMessagesToChat,
@@ -124,6 +124,9 @@ export function AgentsPage() {
   const historyScrollRef = useRef<HTMLDivElement | null>(null)
   /** Sentinel at list bottom for IntersectionObserver-based pagination. */
   const historyLoadMoreRef = useRef<HTMLDivElement | null>(null)
+  /** Composer wrap height tracker — compensate chat scroll when the composer resizes. */
+  const composerWrapRef = useRef<HTMLDivElement | null>(null)
+  const composerHeightRef = useRef(0)
   /** Composer ``Input.TextArea`` ref for refocus after a run finishes. */
   const draftInputRef = useRef<InputRef | null>(null)
   /** Tracks previous ``streaming`` to detect assistant run completion. */
@@ -345,6 +348,26 @@ export function AgentsPage() {
     [t],
   )
 
+  /** Keep the message viewport stable when the bottom composer grows or shrinks (e.g. skill chip). */
+  useLayoutEffect(() => {
+    const chat = chatScrollRef.current
+    const wrap = composerWrapRef.current
+    if (!chat || !wrap) return
+
+    const nextH = wrap.getBoundingClientRect().height
+    const prevH = composerHeightRef.current
+    composerHeightRef.current = nextH
+
+    if (prevH <= 0) return
+    const delta = nextH - prevH
+    if (delta === 0) return
+
+    const nearBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 96
+    if (nearBottom && messages.length > 0) {
+      chat.scrollTop = Math.max(0, chat.scrollTop + delta)
+    }
+  }, [draft, slashOpen, messages.length, streaming])
+
   /** Track whether the user manually scrolled away from the bottom of the message list. */
   useEffect(() => {
     const chat = chatScrollRef.current
@@ -410,7 +433,6 @@ export function AgentsPage() {
     setSlashOpen(false)
     setSlashFilter('')
     setSlashActiveIndex(0)
-    draftInputRef.current?.focus({ preventScroll: true })
   }, [])
 
   const handleNewChat = useCallback(() => {
@@ -1283,7 +1305,7 @@ export function AgentsPage() {
           ) : null}
         </div>
 
-        <div className="agents-page__composer-wrap">
+        <div ref={composerWrapRef} className="agents-page__composer-wrap">
           <div className="agents-page__composer">
             <AgentSkillSlashMenu
               open={slashOpen && !streaming}
@@ -1293,14 +1315,11 @@ export function AgentsPage() {
               onPick={pickSlashSkill}
               onHoverIndex={setSlashActiveIndex}
             />
-            <Input.TextArea
+            <AgentComposerInput
               ref={draftInputRef}
-              allowClear
-              variant="borderless"
-              classNames={{ textarea: 'agents-page__composer-input' }}
-              autoSize={{ minRows: 2, maxRows: 8 }}
               value={draft}
-              onChange={(e) => handleDraftChange(e.target.value)}
+              knownSkillIds={allSkillIds}
+              onChange={handleDraftChange}
               onKeyDown={(e) => {
                 if (!slashOpen) return
                 const filtered = filterSlashSkillOptions(slashOptions, slashFilter)

@@ -29,6 +29,26 @@ export function parseSkillPrefixFromDraft(
   return known.has(id) ? id : null
 }
 
+/** Split composer draft into a committed ``/skill_id`` chip and remaining body text. */
+export function parseCommittedSkillChip(
+  draft: string,
+  knownSkillIds: readonly string[],
+): { skillId: string; body: string } | null {
+  const skillId = parseSkillPrefixFromDraft(draft, knownSkillIds)
+  if (!skillId) return null
+  const prefix = `/${skillId}`
+  if (!draft.toLowerCase().startsWith(prefix.toLowerCase())) return null
+  const afterPrefix = draft.slice(prefix.length)
+  if (afterPrefix.length === 0) return null
+  if (!afterPrefix.startsWith(' ')) return null
+  return { skillId, body: afterPrefix.slice(1) }
+}
+
+/** Rebuild full composer draft from chip skill id and body text. */
+export function composeDraftWithSkillChip(skillId: string, body: string): string {
+  return body.length > 0 ? `/${skillId} ${body}` : `/${skillId} `
+}
+
 /** When draft starts with ``/unknown_id``, return that id if it is not registered. */
 export function parseInvalidSkillPrefixFromDraft(
   draft: string,

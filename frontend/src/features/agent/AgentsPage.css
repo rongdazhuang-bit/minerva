@@ -204,7 +204,7 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  overflow-anchor: auto;
+  overflow-anchor: none;
   overscroll-behavior: contain;
   /* 上 右 下 左：左侧收紧，对话与助手气泡向左靠 */
   padding: var(--agents-chrome-inset) 14px var(--agents-chrome-inset) 4px;
@@ -319,8 +319,46 @@
   opacity: 0.85;
 }
 
+/* 输入框：skill chip 与正文同一行，光标不换行 */
+.agents-page__composer-input-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.agents-page__composer-input-row .ant-input-affix-wrapper {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  background: transparent !important;
+}
+
+.agents-page__composer-skill-chip {
+  flex-shrink: 0;
+  margin-top: 4px;
+  padding: 2px 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5715;
+  color: var(--minerva-accent, #6eb6ff);
+  background: rgb(110 182 255 / 0.14);
+  border-radius: 6px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+html.minerva-tone-sunshine .agents-page__composer-skill-chip {
+  color: #2563eb;
+  background: rgb(37 99 235 / 0.1);
+}
+
 /* 输入框：细纵向滚动条（无箭头、透明轨道） */
 .agents-page__composer-input {
+  /* 与 autoSize minRows: 2 对齐，选择 skill 前后高度一致 */
+  min-height: calc(1.5715em * 2 + 4px);
   scrollbar-width: thin;
   scrollbar-color: rgb(148 163 184 / 0.5) transparent;
 }

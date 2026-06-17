@@ -18,6 +18,21 @@ type Props = {
   onHoverIndex: (index: number) => void
 }
 
+/** Scroll the active option into view inside the menu list only (never the page). */
+function scrollActiveSlashItemIntoView(list: HTMLUListElement, index: number) {
+  const item = list.children[index] as HTMLElement | undefined
+  if (!item) return
+  const itemTop = item.offsetTop
+  const itemBottom = itemTop + item.offsetHeight
+  const viewTop = list.scrollTop
+  const viewBottom = viewTop + list.clientHeight
+  if (itemTop < viewTop) {
+    list.scrollTop = itemTop
+  } else if (itemBottom > viewBottom) {
+    list.scrollTop = itemBottom - list.clientHeight
+  }
+}
+
 /** Filtered skill list shown above the composer when user types ``/``. */
 export function AgentSkillSlashMenu({
   open,
@@ -33,9 +48,8 @@ export function AgentSkillSlashMenu({
 
   useEffect(() => {
     if (!open || !listRef.current) return
-    const el = listRef.current.children[activeIndex] as HTMLElement | undefined
-    el?.scrollIntoView({ block: 'nearest' })
-  }, [activeIndex, open])
+    scrollActiveSlashItemIntoView(listRef.current, activeIndex)
+  }, [activeIndex, open, filtered.length])
 
   if (!open || filtered.length === 0) return null
 

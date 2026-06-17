@@ -10,7 +10,7 @@
     {
       "id": "district",
       "description": "你是行政区域查询助手。按地名或关键词查询 adcode 与区划层级，须调用 search_district_tool，禁止编造区划。",
-      "composer_description": "查询行政区域与 adcode",
+      "composer_description": "查询行政区域",
       "composer_visible": true
     },
     {
