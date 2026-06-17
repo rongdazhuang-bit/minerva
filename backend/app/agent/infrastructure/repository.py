@@ -433,6 +433,158 @@ async def list_agent_messages_ordered(
     return list(r.scalars().all())
 
 
+def _utc_now() -> datetime:
+    """Return current UTC timestamp for run node lifecycle fields."""
+
+    return datetime.now(timezone.utc)
+
+
+async def _propagate_failure_to_parent(
+    session: AsyncSession,
+    *,
+    parent_node_id: uuid.UUID,
+) -> None:
+    """Mark parent (and ancestors) failed when a child node fails."""
+
+    parent = await session.get(AgentRunNode, parent_node_id)
+    if parent is None:
+        return
+    now = _utc_now()
+    parent.status = "failed"
+    if parent.finished_at is None:
+        parent.finished_at = now
+    if parent.parent_node_id is not None:
+        await _propagate_failure_to_parent(session, parent_node_id=parent.parent_node_id)
+    await session.flush()
+
+
+async def _run_node_has_failed_child(session: AsyncSession, *, node_id: uuid.UUID) -> bool:
+    """Return True when any direct child of ``node_id`` has status failed."""
+
+    stmt = (
+        select(AgentRunNode.id)
+        .where(
+            AgentRunNode.parent_node_id == node_id,
+            AgentRunNode.status == "failed",
+        )
+        .limit(1)
+    )
+    return (await session.execute(stmt)).scalar_one_or_none() is not None
+
+
+async def begin_run_node(
+    session: AsyncSession,
+    *,
+    node_id: uuid.UUID,
+    run_id: uuid.UUID,
+    parent_node_id: uuid.UUID | None,
+    sequence_idx: int,
+    node_type: str,
+    node_name: str,
+    inputs_json: dict[str, Any] | list[Any] | None = None,
+    meta_json: dict[str, Any] | list[Any] | None = None,
+) -> AgentRunNode:
+    """Insert a run node in ``running`` state with ``started_at`` set."""
+
+    now = _utc_now()
+    row = AgentRunNode(
+        id=node_id,
+        run_id=run_id,
+        parent_node_id=parent_node_id,
+        sequence_idx=sequence_idx,
+        node_type=node_type,
+        node_name=node_name,
+        status="running",
+        inputs_json=inputs_json,
+        meta_json=meta_json,
+        started_at=now,
+    )
+    session.add(row)
+    await session.flush()
+    return row
+
+
+async def finalize_run_node(
+    session: AsyncSession,
+    *,
+    node_id: uuid.UUID,
+    status: str,
+    outputs_json: dict[str, Any] | list[Any] | None = None,
+    usage_json: dict[str, Any] | list[Any] | None = None,
+    reasoning_text: str | None = None,
+    error_code: str | None = None,
+    error_message: str | None = None,
+) -> None:
+    """Finalize a run node; propagate ``failed`` to parents; coerce success when child failed."""
+
+    row = await session.get(AgentRunNode, node_id)
+    if row is None:
+        return
+    final_status = status
+    if final_status == "success" and await _run_node_has_failed_child(session, node_id=node_id):
+        final_status = "failed"
+    now = _utc_now()
+    row.status = final_status
+    row.finished_at = now
+    if outputs_json is not None:
+        row.outputs_json = outputs_json
+    if usage_json is not None:
+        row.usage_json = usage_json
+    if reasoning_text is not None:
+        row.reasoning_text = reasoning_text
+    row.error_code = error_code
+    row.error_message = error_message
+    await session.flush()
+    if final_status == "failed" and row.parent_node_id is not None:
+        await _propagate_failure_to_parent(session, parent_node_id=row.parent_node_id)
+
+
+async def insert_terminal_run_node(
+    session: AsyncSession,
+    *,
+    node_id: uuid.UUID,
+    run_id: uuid.UUID,
+    parent_node_id: uuid.UUID | None,
+    sequence_idx: int,
+    node_type: str,
+    node_name: str,
+    status: str,
+    inputs_json: dict[str, Any] | list[Any] | None = None,
+    outputs_json: dict[str, Any] | list[Any] | None = None,
+    meta_json: dict[str, Any] | list[Any] | None = None,
+    usage_json: dict[str, Any] | list[Any] | None = None,
+    reasoning_text: str | None = None,
+    error_code: str | None = None,
+    error_message: str | None = None,
+) -> AgentRunNode:
+    """Insert a node that completes immediately (``started_at == finished_at``)."""
+
+    now = _utc_now()
+    row = AgentRunNode(
+        id=node_id,
+        run_id=run_id,
+        parent_node_id=parent_node_id,
+        sequence_idx=sequence_idx,
+        node_type=node_type,
+        node_name=node_name,
+        status=status,
+        inputs_json=inputs_json,
+        outputs_json=outputs_json,
+        meta_json=meta_json,
+        usage_json=usage_json,
+        reasoning_text=reasoning_text,
+        error_code=error_code,
+        error_message=error_message,
+        started_at=now,
+        finished_at=now,
+    )
+    session.add(row)
+    await session.flush()
+    if status == "failed" and parent_node_id is not None:
+        await _propagate_failure_to_parent(session, parent_node_id=parent_node_id)
+    return row
+
+
 async def insert_run_node(
     session: AsyncSession,
     *,
