@@ -264,6 +264,7 @@
 }
 
 .agents-page__composer {
+  position: relative;
   width: 100%;
   max-width: none;
   margin: 0;
@@ -272,6 +273,50 @@
   border-radius: 16px;
   padding: 12px 14px 10px;
   background: var(--minerva-surface, #1b2838);
+}
+
+.agents-page__skill-slash-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  margin: 0 0 6px;
+  padding: 4px 0;
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--minerva-border, #2d3f55);
+  border-radius: 10px;
+  background: var(--minerva-surface, #1b2838);
+  z-index: 20;
+}
+
+.agents-page__skill-slash-item {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.agents-page__skill-slash-item--active,
+.agents-page__skill-slash-item:hover {
+  background: rgb(255 255 255 / 0.06);
+}
+
+.agents-page__skill-slash-id {
+  flex-shrink: 0;
+  font-family: ui-monospace, monospace;
+  color: var(--minerva-accent, #6eb6ff);
+}
+
+.agents-page__skill-slash-desc {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.85;
 }
 
 /* 输入框：细纵向滚动条（无箭头、透明轨道） */

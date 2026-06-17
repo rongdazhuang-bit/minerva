@@ -93,11 +93,15 @@ async def list_agent_skills(
     workspace_id: uuid.UUID,
     _workspace: uuid.UUID = Depends(require_workspace_member),
 ) -> AgentSkillListOut:
-    """返回内置技能列表（来自 ``skills/INDEX.md``，供前端偏好选择）。"""
+    """返回内置技能列表（来自 ``skills/INDEX.json``，供前端偏好选择）。"""
 
     return AgentSkillListOut(
         skills=[
-            AgentSkillItemOut(id=s.id, description=s.description)
+            AgentSkillItemOut(
+                id=s.id,
+                description=s.description,
+                composer_visible=s.composer_visible,
+            )
             for s in list_indexed_skills()
         ]
     )

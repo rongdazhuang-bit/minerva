@@ -1,10 +1,10 @@
-"""Load skills from ``skills/INDEX.md`` and per-skill ``SKILL.md`` / ``register_tools``."""
+"""Load skills from ``skills/INDEX.json`` and per-skill ``SKILL.md`` / ``register_tools``."""
 
 from __future__ import annotations
 
 from app.core.log import get_logger
 import importlib
-import re
+import json
 import sys
 from dataclasses import dataclass
 from functools import lru_cache
@@ -20,8 +20,7 @@ from app.agent.infrastructure.skill_tool_context import SkillToolContext
 log = get_logger(__name__)
 
 _SKILLS_ROOT = Path(__file__).resolve().parents[1] / "skills"
-_INDEX_FILE = "INDEX.md"
-_INDEX_ENTRY_RE = re.compile(r"^-\s*`([^`]+)`\s*[：:]\s*(.+?)\s*$")
+_INDEX_FILE = "INDEX.json"
 
 _SECTION_WHEN_TO_USE = "## 何时使用"
 _SECTION_PLANNER_ROUTING = "## Planner 路由"
@@ -29,10 +28,11 @@ _SECTION_PLANNER_ROUTING = "## Planner 路由"
 
 @dataclass(frozen=True)
 class IndexedSkill:
-    """One row from ``skills/INDEX.md``."""
+    """One row from ``skills/INDEX.json``."""
 
     id: str
     description: str
+    composer_visible: bool = True
 
 
 _SKILL_TOOL_DEPENDENCIES: dict[str, tuple[str, ...]] = {
@@ -46,61 +46,86 @@ def skills_root() -> Path:
     return _SKILLS_ROOT
 
 
-def load_index_markdown() -> str:
-    """Read ``skills/INDEX.md`` when present."""
+def load_index_json(root: Path | None = None) -> dict[str, object] | None:
+    """Read and parse ``skills/INDEX.json``; return None on missing/invalid file."""
 
-    path = skills_root() / _INDEX_FILE
+    base = root or skills_root()
+    path = base / _INDEX_FILE
     if not path.is_file():
-        return ""
-    return path.read_text(encoding="utf-8").strip()
+        return None
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        log.warning("invalid INDEX.json at {}", path)
+        return None
+    if not isinstance(raw, dict):
+        log.warning("INDEX.json root must be object")
+        return None
+    return raw
 
 
-def parse_index_skill_entries(index_text: str | None = None) -> list[IndexedSkill]:
-    """Parse ``## 子技能列表`` bullets: ``- `id`：描述``."""
+def parse_index_skills(
+    data: dict[str, object] | None = None,
+    *,
+    root: Path | None = None,
+) -> list[IndexedSkill]:
+    """Parse ``skills`` array from INDEX.json; fallback to directory discovery."""
 
-    text = index_text if index_text is not None else load_index_markdown()
-    if not text:
-        return _discover_skills_from_directories()
+    skills_root_path = root or skills_root()
+    payload = data if data is not None else load_index_json(skills_root_path)
+    if not payload:
+        return _discover_skills_from_directories(skills_root_path)
+    raw_skills = payload.get("skills")
+    if not isinstance(raw_skills, list) or not raw_skills:
+        return _discover_skills_from_directories(skills_root_path)
     entries: list[IndexedSkill] = []
-    in_list = False
-    for line in text.splitlines():
-        stripped = line.strip()
-        if "子技能列表" in stripped:
-            in_list = True
+    for item in raw_skills:
+        if not isinstance(item, dict):
             continue
-        if in_list and stripped.startswith("## "):
-            break
-        if not in_list:
+        sid = _normalize_skill_id(str(item.get("id", "")))
+        desc = str(item.get("description", "")).strip()
+        if not sid or not desc:
             continue
-        match = _INDEX_ENTRY_RE.match(stripped)
-        if match:
-            sid = _normalize_skill_id(match.group(1))
-            entries.append(IndexedSkill(id=sid, description=match.group(2).strip()))
+        if not (skills_root_path / sid).is_dir():
+            continue
+        visible = item.get("composer_visible", True)
+        composer_visible = visible if isinstance(visible, bool) else True
+        entries.append(
+            IndexedSkill(id=sid, description=desc, composer_visible=composer_visible)
+        )
     if entries:
         return entries
-    return _discover_skills_from_directories()
+    return _discover_skills_from_directories(skills_root_path)
 
 
-def _discover_skills_from_directories() -> list[IndexedSkill]:
-    """Fallback when INDEX.md is missing: subdirs with ``SKILL.md``, sorted by name."""
+def _discover_skills_from_directories(root: Path | None = None) -> list[IndexedSkill]:
+    """Fallback when INDEX.json is missing: subdirs with ``SKILL.md``, sorted by name."""
 
-    root = skills_root()
-    if not root.is_dir():
+    base = root or skills_root()
+    if not base.is_dir():
         return []
     found: list[IndexedSkill] = []
-    for child in sorted(root.iterdir()):
+    for child in sorted(base.iterdir()):
         if not child.is_dir():
             continue
         if (child / "SKILL.md").is_file():
-            found.append(IndexedSkill(id=child.name, description=child.name))
+            found.append(
+                IndexedSkill(id=child.name, description=child.name, composer_visible=True)
+            )
     return found
 
 
 @lru_cache(maxsize=1)
 def list_indexed_skills() -> tuple[IndexedSkill, ...]:
-    """Cached skill registry from INDEX.md (order = planner routing priority)."""
+    """Cached skill registry from INDEX.json (order = planner routing priority)."""
 
-    return tuple(parse_index_skill_entries())
+    return tuple(parse_index_skills())
+
+
+def list_composer_visible_skills() -> tuple[IndexedSkill, ...]:
+    """Skills shown in the chat composer ``/`` menu."""
+
+    return tuple(s for s in list_indexed_skills() if s.composer_visible)
 
 
 def invalidate_skill_cache(skill_id: str | None = None) -> bool:
@@ -123,7 +148,7 @@ def list_indexed_skill_ids() -> list[str]:
 
 
 def get_indexed_skill(skill_id: str) -> IndexedSkill | None:
-    """Look up one skill row from ``skills/INDEX.md``."""
+    """Look up one skill row from ``skills/INDEX.json``."""
 
     sid = _normalize_skill_id(skill_id)
     for skill in list_indexed_skills():
@@ -142,11 +167,28 @@ def default_skill_id() -> str:
 
 
 def skill_id_field_description() -> str:
-    """Build ``PlanStep.skill_id`` schema description from INDEX.md."""
+    """Build ``PlanStep.skill_id`` schema description from INDEX.json."""
 
     parts = [f"{s.id}={s.description}" for s in list_indexed_skills()]
     allowed = ", ".join(list_indexed_skill_ids())
     return f"要执行的 skill（仅可为 {allowed} 之一）：" + "；".join(parts)
+
+
+def plan_from_preferred_skill(
+    preferred_skills: list[str],
+    user_text: str,
+) -> "Plan | None":
+    """When exactly one registered skill is preferred, build a single-step Plan without LLM."""
+
+    from app.agent.domain.plan import Plan, PlanStep
+
+    if len(preferred_skills) != 1:
+        return None
+    skill = get_indexed_skill(preferred_skills[0])
+    if skill is None:
+        return None
+    goal = (user_text or "").strip() or skill.description
+    return Plan(steps=[PlanStep(id="s1", skill_id=skill.id, goal=goal)])
 
 
 def load_skill_markdown(skill_id: str) -> str:
@@ -224,7 +266,7 @@ def _load_tools_for_skill_direct(skill_id: str, ctx: SkillToolContext) -> list[A
 
 
 def build_skill_system_prompt(skill_id: str) -> str:
-    """Combine INDEX.md role line with ``SKILL.md`` for one sub-agent."""
+    """Combine INDEX.json role line with ``SKILL.md`` for one sub-agent."""
 
     sid = _normalize_skill_id(skill_id)
     entry = get_indexed_skill(sid)

@@ -1,5 +1,5 @@
 /**
- * Edits the global skills INDEX.md registry via Monaco editor.
+ * Edits the global skills INDEX.json registry via Monaco editor.
  */
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons'
 import { Alert, Button, Card, Space, Spin, Typography } from 'antd'
@@ -12,11 +12,11 @@ import { showAppError, useAppMessage } from '@/app/useAppMessage'
 import { SkillFileEditor } from '@/features/agent/skills/components/SkillFileEditor'
 import './AgentSkillsPage.css'
 
-const INDEX_PATH = 'INDEX.md'
+const INDEX_PATH = 'INDEX.json'
 
 const { Text } = Typography
 
-/** INDEX.md registry editor with save and unsaved navigation guard. */
+/** INDEX.json registry editor with save and unsaved navigation guard. */
 export function AgentSkillRegistryPage() {
   const { t } = useTranslation()
   const messageApi = useAppMessage()

@@ -1,7 +1,7 @@
 # Skill 注册表 INDEX.json 与对话框 `/` 技能选择设计说明
 
 **日期**：2026-06-17  
-**状态**：已批准，待实现  
+**状态**：已实现（2026-06-17）  
 **范围**：将 Agent 内置技能注册表由 `INDEX.md` 迁移为 `INDEX.json`；在智能体对话输入框支持 `/` 触发技能提示与选择；通过 `preferred_skills` 与确定性单步 Plan 实现「选中即直接调用该 skill」。`composer_visible` 仅控制对话框菜单可见性，不影响 Agent / Planner 对全部已注册 skill 的使用。
 
 **关系**：扩展 `docs/superpowers/specs/2026-05-27-agent-skills-management-design.md`（skills-mgmt 文件编辑、`skill_loader` 缓存失效）；复用 `frontend/src/features/agent/agentSkillUi.ts` 已有前缀工具函数；与 `GET /agent/v2/skills`、`planner_node`、`preferred_skills` 协同。
@@ -168,8 +168,8 @@ if len(pref) == 1:
 
 - `user_text` 为已去前缀的 `user_message`（前端负责 strip；后端不重复解析 `/` 前缀）。
 - 若 `preferred_skills` 长度为 0 或 >1，或 id 不在 INDEX 中 → 走现有 Planner LLM 流程。
-- 确定性路径仍执行 `apply_planner_skill_match`（对单步同 skill 通常为 no-op）。
 - 确定性路径仍写入 run node 生命周期（`begin_run_node` / `finish_run_node`），SSE 事件类型与 LLM 路径一致。
+- 确定性路径**不**执行 `apply_planner_skill_match`，避免覆盖用户显式选择的 skill。
 
 ### 4.4 `skill_files_service` / `skills_mgmt_router`
 
@@ -261,7 +261,8 @@ INDEX.json
 | 场景 | 行为 |
 |------|------|
 | INDEX.json 格式错误 | log warning；fallback 目录发现；skills-mgmt 保存时可选返回 400（若做服务端校验） |
-| preferred skill id 已不存在 | 发送前校验失败 → toast，清除无效前缀，不发送 |
+| preferred skill id 已不存在 | 发送前校验失败 → toast，不发送（检测 `/unknown_id` 前缀） |
+| `user_message` 为空且单 skill preferred | API 允许空消息；Plan goal 回退为 skill `description` |
 | preferred_skills 含多个 id | 忽略确定性短路，走 Planner LLM（本期前端只传 0 或 1 个） |
 | streaming 中 | 禁用 `/` 菜单与发送（与现 composer disabled 一致） |
 

@@ -57,6 +57,7 @@ export type AgentSessionDetailOut = {
 export type AgentSkillListItem = {
   id: string
   description: string
+  composer_visible?: boolean
 }
 
 /** One calendar day in agent overview token usage chart (7 rows). */

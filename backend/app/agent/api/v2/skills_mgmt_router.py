@@ -48,7 +48,7 @@ def _invalidate_after_binary_write(rel: str) -> None:
     parts = rel.split("/")
     if not parts:
         return
-    if parts[0] == "INDEX.md" or rel == "INDEX.md":
+    if parts[0] == "INDEX.json" or rel == "INDEX.json":
         invalidate_skill_cache(None)
         return
     if len(parts) == 1:

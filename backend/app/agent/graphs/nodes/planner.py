@@ -15,12 +15,14 @@ from app.agent.infrastructure.skill_loader import (
     apply_planner_skill_match,
     build_planner_skill_index,
     build_planner_system_intro,
+    plan_from_preferred_skill,
 )
 from app.agent.infrastructure import repository as agent_repo
 from app.agent.infrastructure.reasoning_collector import (
     extract_reasoning_from_langchain_message,
     reasoning_tokens_from_raw,
 )
+from app.agent.service.planner_llm import invoke_planner_plan
 from app.config import settings
 
 
@@ -30,6 +32,20 @@ PLANNER_SYSTEM_TEMPLATE = """你是任务规划器。根据【本轮用户请求
 不要把需要「当前服务器时间/日期」的问题分给 general；不要把「列出/读取/写入沙箱文件」分给 general（应选 file）。
 
 只输出符合 schema 的计划，步数不超过 {max_steps}。能一步完成时不要拆多步。
+
+## 输出格式（必须遵守）
+- 只输出纯 JSON 对象（Plan schema），不要输出任何解释、前后说明或其它文字。
+- 禁止使用 markdown 代码块（不要 ```json、不要 ```）。
+- 禁止使用 markdown 引用符号 >（不要单独一行 >，不要在 JSON 前加 >）。
+- 禁止在 JSON 前或后加任何符号或前缀（如 -、#、引号块等）；响应第一个字符必须是 {{，最后一个字符必须是 }}。
+- 输出必须可被 JSON 解析器直接解析。
+
+错误（禁止）：
+>
+{{"steps": [...]}}
+
+正确：
+{{"steps": [{{"id":"s1","skill_id":"weather","goal":"查询天气"}}]}}
 
 {skill_index}
 
@@ -61,7 +77,12 @@ async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:
     planner_messages = [
         SystemMessage(content=sys + pref_hint),
         HumanMessage(
-            content=f"{mem_block}\n\n【本轮用户请求】：{request_text}" if mem_block else f"【本轮用户请求】：{request_text}"
+            content=(
+                f"{mem_block}\n\n【本轮用户请求】：{request_text}\n\n"
+                "请直接输出 Plan JSON 对象，不要用 >、markdown 代码块或其它前缀。"
+                if mem_block
+                else f"【本轮用户请求】：{request_text}\n\n请直接输出 Plan JSON 对象，不要用 >、markdown 代码块或其它前缀。"
+            )
         ),
     ]
 
@@ -76,59 +97,81 @@ async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:
         node_name="planner",
     )
 
-    structured = deps.model.with_structured_output(Plan, include_raw=True)
-    raw_msg = None
-    llm_node_id = await deps.begin_llm_call_to_db(
-        parent_node_id=plan_node_id,
-        phase="planner",
-    )
-    try:
-        result = await structured.ainvoke(planner_messages)
-        if isinstance(result, dict):
-            parsed = result.get("parsed")
-            raw_msg = result.get("raw")
-            plan = parsed if isinstance(parsed, Plan) else None
-        else:
-            plan = result if isinstance(result, Plan) else None
-        if plan is None:
-            raise ValueError("planner structured output missing Plan")
-    except Exception:
-        llm_status = "success" if raw_msg is not None else "failed"
-        reasoning_text = ""
-        if raw_msg is not None and deps.reasoning_collector is not None:
-            reasoning_text = extract_reasoning_from_langchain_message(raw_msg)
-        await deps.finalize_llm_call_to_db(
-            llm_node_id,
-            raw_msg or {},
+    plan: Plan | None = plan_from_preferred_skill(pref, request_text)
+    forced_plan = plan is not None
+
+    if plan is None:
+        llm_node_id = await deps.begin_llm_call_to_db(
+            parent_node_id=plan_node_id,
             phase="planner",
-            status=llm_status,
-            reasoning_text=reasoning_text or None,
-            error_message=None if llm_status == "success" else "planner structured output failed",
         )
-        fallback = plan_fallback_skill_id(request_text)
-        plan = Plan(steps=[PlanStep(id="s1", skill_id=fallback, goal=request_text)])
-    else:
-        reasoning_text = ""
-        if deps.reasoning_collector is not None:
-            reasoning_text = extract_reasoning_from_langchain_message(raw_msg)
-            if reasoning_text:
-                await deps.reasoning_collector.append_delta("planner", reasoning_text)
-            await deps.reasoning_collector.finalize_segment(
-                "planner",
-                reasoning_tokens=reasoning_tokens_from_raw(raw_msg),
-            )
-        await deps.finalize_llm_call_to_db(
-            llm_node_id,
-            raw_msg,
-            phase="planner",
-            reasoning_text=reasoning_text or None,
+        llm_finalized = False
+        try:
+            parsed_plan, raw_msg = await invoke_planner_plan(deps.model, planner_messages)
+            if parsed_plan is None:
+                await deps.finalize_llm_call_to_db(
+                    llm_node_id,
+                    {},
+                    phase="planner",
+                    status="failed",
+                    error_message="planner llm invoke failed",
+                )
+                llm_finalized = True
+                plan = Plan(
+                    steps=[
+                        PlanStep(
+                            id="s1",
+                            skill_id=plan_fallback_skill_id(request_text),
+                            goal=request_text,
+                        )
+                    ]
+                )
+            else:
+                plan = parsed_plan
+                reasoning_text = ""
+                if deps.reasoning_collector is not None:
+                    reasoning_text = extract_reasoning_from_langchain_message(raw_msg)
+                    if reasoning_text:
+                        await deps.reasoning_collector.append_delta("planner", reasoning_text)
+                    await deps.reasoning_collector.finalize_segment(
+                        "planner",
+                        reasoning_tokens=reasoning_tokens_from_raw(raw_msg),
+                    )
+                await deps.finalize_llm_call_to_db(
+                    llm_node_id,
+                    raw_msg or {},
+                    phase="planner",
+                    status="success",
+                    reasoning_text=reasoning_text or None,
+                )
+                llm_finalized = True
+        finally:
+            if not llm_finalized:
+                await deps.finalize_llm_call_to_db(
+                    llm_node_id,
+                    {},
+                    phase="planner",
+                    status="failed",
+                    error_message="planner llm call incomplete",
+                )
+
+    if plan is None:
+        plan = Plan(
+            steps=[
+                PlanStep(
+                    id="s1",
+                    skill_id=plan_fallback_skill_id(request_text),
+                    goal=request_text,
+                )
+            ]
         )
 
     if not plan.steps:
         fallback = plan_fallback_skill_id(request_text)
         plan = Plan(steps=[PlanStep(id="s1", skill_id=fallback, goal=request_text)])
 
-    plan = apply_planner_skill_match(plan, request_text)
+    if not forced_plan:
+        plan = apply_planner_skill_match(plan, request_text)
     plan.steps = plan.steps[: settings.agent_max_plan_steps]
 
     plan_id = uuid.uuid4()

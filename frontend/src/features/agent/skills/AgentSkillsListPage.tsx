@@ -191,7 +191,7 @@ export function AgentSkillsListPage() {
               icon={<LinkOutlined />}
               onClick={() => navigate('/app/agents/skills/registry')}
             >
-              {t('agents.skills.registry', { defaultValue: '技能注册表 (INDEX.md)' })}
+              {t('agents.skills.registry', { defaultValue: '技能注册表 (INDEX.json)' })}
             </Button>
           </Space>
           {canManageTenantSkills ? (

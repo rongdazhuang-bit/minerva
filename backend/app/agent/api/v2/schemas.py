@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class AgentSessionCreateIn(BaseModel):
@@ -93,6 +93,7 @@ class AgentSkillItemOut(BaseModel):
 
     id: str
     description: str
+    composer_visible: bool = True
 
 
 class AgentSkillListOut(BaseModel):
@@ -120,7 +121,7 @@ class AgentOverviewUsageDailyStatsOut(BaseModel):
 class AgentRunCreateV2(BaseModel):
     """发起一次 v2 run（服务端托管模型连接）。"""
 
-    user_message: str = Field(min_length=1)
+    user_message: str = ""
     model_id: UUID
     temperature: float | None = Field(default=None, ge=0, le=2)
     max_tokens: int | None = Field(default=None, ge=1)
@@ -137,6 +138,20 @@ class AgentRunCreateV2(BaseModel):
         default=None,
         description="是否开启思考模式；null 表示按 model_config / 全局默认。",
     )
+
+    @model_validator(mode="after")
+    def _require_message_or_single_preferred_skill(self) -> "AgentRunCreateV2":
+        """Allow empty ``user_message`` when exactly one registered skill is preferred."""
+
+        from app.agent.infrastructure.skill_loader import get_indexed_skill
+
+        if self.user_message.strip():
+            return self
+        if len(self.preferred_skills) == 1 and get_indexed_skill(self.preferred_skills[0]):
+            return self
+        raise ValueError(
+            "user_message must not be empty unless preferred_skills contains exactly one valid skill id"
+        )
 
 
 class AgentConversationModelOut(BaseModel):

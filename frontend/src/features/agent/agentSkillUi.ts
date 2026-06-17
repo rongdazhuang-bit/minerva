@@ -17,6 +17,51 @@ export function stripSkillPrefixFromDraft(draft: string, skillId: string | null)
   return draft.replace(re, '').trim()
 }
 
+/** Parse leading ``/skill_id`` when id is in ``knownSkillIds`` (case-insensitive). */
+export function parseSkillPrefixFromDraft(
+  draft: string,
+  knownSkillIds: readonly string[],
+): string | null {
+  const m = draft.match(/^\/([a-z][a-z0-9_]*)(\s|$)/i)
+  if (!m) return null
+  const id = m[1].toLowerCase()
+  const known = new Set(knownSkillIds.map((s) => s.toLowerCase()))
+  return known.has(id) ? id : null
+}
+
+/** When draft starts with ``/unknown_id``, return that id if it is not registered. */
+export function parseInvalidSkillPrefixFromDraft(
+  draft: string,
+  knownSkillIds: readonly string[],
+): string | null {
+  const m = draft.match(/^\/([a-z][a-z0-9_]*)(\s|$)/i)
+  if (!m) return null
+  const id = m[1].toLowerCase()
+  const known = new Set(knownSkillIds.map((s) => s.toLowerCase()))
+  return known.has(id) ? null : id
+}
+
+/** Skills eligible for the composer slash menu. */
+export function composerVisibleSkills(
+  skills: { id: string; description: string; composer_visible?: boolean }[],
+): { id: string; description: string }[] {
+  return skills
+    .filter((s) => s.composer_visible !== false)
+    .map((s) => ({ id: s.id, description: s.description }))
+}
+
+/** Filter slash menu options by typed prefix after ``/``. */
+export function filterSlashSkillOptions(
+  options: { id: string; description: string }[],
+  filter: string,
+): { id: string; description: string }[] {
+  const q = filter.trim().toLowerCase()
+  if (!q) return options
+  return options.filter(
+    (o) => o.id.toLowerCase().includes(q) || o.description.toLowerCase().includes(q),
+  )
+}
+
 /** Build user-visible message with ``/skill_id`` prefix for the chat bubble. */
 export function buildDisplayUserMessage(body: string, skillId: string | null): string {
   if (!skillId) return body

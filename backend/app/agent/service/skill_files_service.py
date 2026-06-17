@@ -13,7 +13,8 @@ from pathlib import Path
 from app.agent.infrastructure.skill_loader import (
     IndexedSkill,
     invalidate_skill_cache,
-    parse_index_skill_entries,
+    load_index_json,
+    parse_index_skills,
     skills_root,
 )
 from app.exceptions import AppError
@@ -82,9 +83,9 @@ class SkillFilesService:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
         skill_id = path.relative_to(self.root).parts[0] if path.relative_to(self.root).parts else None
-        if path.name == "INDEX.md":
+        if path.name == "INDEX.json":
             invalidate_skill_cache(None)
-        elif skill_id and skill_id != "INDEX.md":
+        elif skill_id and skill_id != "INDEX.json":
             invalidate_skill_cache(skill_id if path.name == "tools.py" else None)
         else:
             invalidate_skill_cache(None)
@@ -122,16 +123,21 @@ class SkillFilesService:
             if not child.is_dir() or child.name.startswith("."):
                 continue
             if (child / "SKILL.md").is_file():
-                found.append(IndexedSkill(id=child.name, description=child.name))
+                found.append(
+                    IndexedSkill(id=child.name, description=child.name, composer_visible=True)
+                )
         return found
 
     def list_registry(self) -> list[dict[str, object]]:
         """List indexed skills with id, description, and on-disk file counts."""
 
-        index_path = self.root / "INDEX.md"
-        index_text = index_path.read_text(encoding="utf-8").strip() if index_path.is_file() else ""
-        if index_text and "子技能列表" in index_text:
-            entries = [entry for entry in parse_index_skill_entries(index_text) if (self.root / entry.id).is_dir()]
+        data = load_index_json(self.root)
+        if data and isinstance(data.get("skills"), list):
+            entries = [
+                entry
+                for entry in parse_index_skills(data, root=self.root)
+                if (self.root / entry.id).is_dir()
+            ]
         else:
             entries = self._discover_local_skills()
         registry: list[dict[str, object]] = []
@@ -140,6 +146,7 @@ class SkillFilesService:
                 {
                     "id": entry.id,
                     "description": entry.description,
+                    "composer_visible": entry.composer_visible,
                     "file_count": self._count_skill_files(entry.id),
                 }
             )
@@ -190,7 +197,7 @@ class SkillFilesService:
         parts = rel.split("/")
         if not parts:
             return
-        if parts[0] == "INDEX.md" or rel == "INDEX.md":
+        if parts[0] == "INDEX.json" or rel == "INDEX.json":
             invalidate_skill_cache(None)
             return
         if len(parts) == 1:

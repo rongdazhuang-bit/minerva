@@ -37,7 +37,7 @@ class PlanStep(BaseModel):
     @field_validator("skill_id")
     @classmethod
     def _validate_skill_id_registered(cls, v: str) -> str:
-        """Ensure skill_id is listed in ``skills/INDEX.md``."""
+        """Ensure skill_id is listed in ``skills/INDEX.json``."""
 
         allowed = list_indexed_skill_ids()
         if allowed and v not in allowed:

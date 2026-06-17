@@ -33,21 +33,29 @@ import {
   AGENT_SESSIONS_PAGE_SIZE,
   listAgentConversationModels,
   listAgentSessions,
+  listAgentSkills,
   streamAgentRun,
   type AgentSessionListItem,
   type AgentStreamEvent,
 } from '@/api/agent'
 import { extractTotalTokens, formatAgentV2TraceLine, formatTokenCount, formatTokenNumber, extractReasoningTokens } from '@/api/agent-stream-v2'
+import { AgentSkillSlashMenu } from '@/features/agent/AgentSkillSlashMenu'
 import {
   agentMessagesToChat,
   appendReasoningDelta,
+  buildDisplayUserMessage,
+  composerVisibleSkills,
+  filterSlashSkillOptions,
   formatReasoningSegmentLabel,
   formatSessionListDate,
   hasVisibleReasoning,
   resolveReasoningTokenCount,
   isAgentMessageUuid,
   mergeAgentChatWithLocal,
+  parseInvalidSkillPrefixFromDraft,
+  parseSkillPrefixFromDraft,
   sessionListLabel,
+  stripSkillPrefixFromDraft,
   titleFromFirstQuestion,
   updateReasoningSegmentTokens,
   type AgentChatMsg,
@@ -96,6 +104,9 @@ export function AgentsPage() {
   const [sessionLoadingId, setSessionLoadingId] = useState<string | null>(null)
   const [messages, setMessages] = useState<AgentChatMsg[]>([])
   const [draft, setDraft] = useState('')
+  const [slashOpen, setSlashOpen] = useState(false)
+  const [slashFilter, setSlashFilter] = useState('')
+  const [slashActiveIndex, setSlashActiveIndex] = useState(0)
   const [streaming, setStreaming] = useState(false)
   /** 当前轮助手气泡内「运行过程」折叠 */
   const [traceOpenKeys, setTraceOpenKeys] = useState<string[]>([])
@@ -125,6 +136,22 @@ export function AgentsPage() {
     queryFn: () => listAgentConversationModels(workspaceId!),
     enabled: Boolean(workspaceId),
   })
+
+  const skillsQuery = useQuery({
+    queryKey: ['agent-skills', workspaceId],
+    queryFn: () => listAgentSkills(workspaceId!),
+    enabled: Boolean(workspaceId),
+  })
+
+  const slashOptions = useMemo(
+    () => composerVisibleSkills(skillsQuery.data?.skills ?? []),
+    [skillsQuery.data?.skills],
+  )
+
+  const allSkillIds = useMemo(
+    () => (skillsQuery.data?.skills ?? []).map((s) => s.id),
+    [skillsQuery.data?.skills],
+  )
 
   const sessionsQuery = useInfiniteQuery({
     queryKey: ['agent-sessions', workspaceId],
@@ -360,8 +387,31 @@ export function AgentsPage() {
   const canSend = useMemo(() => {
     if (!workspaceId || streaming) return false
     if (!prefs.selectedModelId) return false
-    return draft.trim().length > 0
-  }, [workspaceId, streaming, prefs.selectedModelId, draft])
+    const skillId = parseSkillPrefixFromDraft(draft, allSkillIds)
+    const body = stripSkillPrefixFromDraft(draft, skillId)
+    return body.length > 0 || skillId !== null
+  }, [workspaceId, streaming, prefs.selectedModelId, draft, allSkillIds])
+
+  const handleDraftChange = useCallback((value: string) => {
+    setDraft(value)
+    const m = value.match(/^\/([a-z0-9_]*)$/i)
+    if (m) {
+      setSlashOpen(true)
+      setSlashFilter(m[1] ?? '')
+      setSlashActiveIndex(0)
+    } else {
+      setSlashOpen(false)
+      setSlashFilter('')
+    }
+  }, [])
+
+  const pickSlashSkill = useCallback((skillId: string) => {
+    setDraft(`/${skillId} `)
+    setSlashOpen(false)
+    setSlashFilter('')
+    setSlashActiveIndex(0)
+    draftInputRef.current?.focus({ preventScroll: true })
+  }, [])
 
   const handleNewChat = useCallback(() => {
     abortRef.current?.abort()
@@ -370,6 +420,8 @@ export function AgentsPage() {
     setSessionLoadingId(null)
     setMessages([])
     setDraft('')
+    setSlashOpen(false)
+    setSlashFilter('')
     setTraceOpenKeys([])
     setStreaming(false)
     userScrolledUpRef.current = false
@@ -388,6 +440,8 @@ export function AgentsPage() {
       setStreaming(false)
       setTraceOpenKeys([])
       setDraft('')
+      setSlashOpen(false)
+      setSlashFilter('')
       setSessionLoadingId(id)
       setMessages([])
       try {
@@ -461,6 +515,8 @@ export function AgentsPage() {
       options?: {
         regenerateFromAssistantId?: string
         regenerateLastAssistant?: boolean
+        displayMessage?: string
+        preferredSkills?: string[]
       },
     ) => {
       if (!workspaceId) {
@@ -473,7 +529,8 @@ export function AgentsPage() {
         return
       }
       const apiBody = userMessage.trim()
-      if (!apiBody) return
+      const displayMessage = (options?.displayMessage ?? apiBody).trim()
+      if (!apiBody && !(options?.preferredSkills?.length ?? 0)) return
 
       const isRegenerate = Boolean(
         options?.regenerateFromAssistantId || options?.regenerateLastAssistant,
@@ -513,7 +570,11 @@ export function AgentsPage() {
           return
         }
       } else {
-        const userMsg: AgentChatMsg = { id: `u-${Date.now()}`, role: 'user', content: apiBody }
+        const userMsg: AgentChatMsg = {
+          id: `u-${Date.now()}`,
+          role: 'user',
+          content: displayMessage,
+        }
         setMessages((m) => [...m, userMsg, asstMsg])
       }
 
@@ -557,7 +618,7 @@ export function AgentsPage() {
             message.warning(t('agents.regenerateNoSession'))
             return
           }
-          const sessionTitle = titleFromFirstQuestion(apiBody)
+          const sessionTitle = titleFromFirstQuestion(displayMessage || apiBody)
           const s = await createAgentSession(
             workspaceId,
             sessionTitle ? { title: sessionTitle } : {},
@@ -583,7 +644,7 @@ export function AgentsPage() {
             model_id: mid,
             temperature: null,
             max_tokens: maxTok,
-            preferred_skills: [],
+            preferred_skills: options?.preferredSkills ?? [],
             regenerate_from_message_id: regenerateFromMessageId,
             regenerate_last_assistant: regenerateLastAssistant,
             enable_thinking: thinkingEnabled,
@@ -739,11 +800,23 @@ export function AgentsPage() {
   )
 
   const onSend = useCallback(async () => {
-    const apiBody = draft.trim()
-    if (!apiBody) return
+    const invalidId = parseInvalidSkillPrefixFromDraft(draft, allSkillIds)
+    if (invalidId) {
+      message.warning(t('agents.invalidSkillPrefix', { id: invalidId }))
+      return
+    }
+    const skillId = parseSkillPrefixFromDraft(draft, allSkillIds)
+    const apiBody = stripSkillPrefixFromDraft(draft, skillId)
+    if (!apiBody && !skillId) return
+    const display = buildDisplayUserMessage(apiBody, skillId)
     setDraft('')
-    await runAgentTurn(apiBody)
-  }, [draft, runAgentTurn])
+    setSlashOpen(false)
+    setSlashFilter('')
+    await runAgentTurn(apiBody, {
+      displayMessage: display,
+      preferredSkills: skillId ? [skillId] : [],
+    })
+  }, [draft, allSkillIds, runAgentTurn, message, t])
 
   /** 删除当前助手回复及其后消息，调用 runs 接口用同一条用户提问重新流式生成。 */
   const onRegenerate = useCallback(
@@ -770,18 +843,22 @@ export function AgentsPage() {
         message.warning(t('agents.regenerateNoUserMessage'))
         return
       }
+      const regenSkillId = parseSkillPrefixFromDraft(userMessage, allSkillIds)
+      const regenApiBody = stripSkillPrefixFromDraft(userMessage, regenSkillId)
       const isLastAssistant = messages[messages.length - 1]?.id === assistantMsgId
       const hasServerId = isAgentMessageUuid(assistantMsgId)
       if (!hasServerId && !isLastAssistant) {
         message.warning(t('agents.regenerateStaleMessage'))
         return
       }
-      await runAgentTurn(userMessage, {
+      await runAgentTurn(regenApiBody, {
         regenerateFromAssistantId: assistantMsgId,
         regenerateLastAssistant: !hasServerId && isLastAssistant,
+        displayMessage: userMessage,
+        preferredSkills: regenSkillId ? [regenSkillId] : [],
       })
     },
-    [streaming, messages, sessionId, runAgentTurn, t],
+    [streaming, messages, sessionId, runAgentTurn, t, allSkillIds],
   )
 
   const selectOptions = useMemo(
@@ -1204,6 +1281,14 @@ export function AgentsPage() {
 
         <div className="agents-page__composer-wrap">
           <div className="agents-page__composer">
+            <AgentSkillSlashMenu
+              open={slashOpen && !streaming}
+              options={slashOptions}
+              filter={slashFilter}
+              activeIndex={slashActiveIndex}
+              onPick={pickSlashSkill}
+              onHoverIndex={setSlashActiveIndex}
+            />
             <Input.TextArea
               ref={draftInputRef}
               allowClear
@@ -1211,8 +1296,29 @@ export function AgentsPage() {
               classNames={{ textarea: 'agents-page__composer-input' }}
               autoSize={{ minRows: 2, maxRows: 8 }}
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={(e) => handleDraftChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (!slashOpen) return
+                const filtered = filterSlashSkillOptions(slashOptions, slashFilter)
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault()
+                  setSlashActiveIndex((i) => Math.min(i + 1, Math.max(filtered.length - 1, 0)))
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault()
+                  setSlashActiveIndex((i) => Math.max(i - 1, 0))
+                } else if (
+                  (e.key === 'Enter' || e.key === 'Tab') &&
+                  !e.shiftKey &&
+                  filtered.length > 0
+                ) {
+                  e.preventDefault()
+                  pickSlashSkill(filtered[slashActiveIndex]?.id ?? filtered[0].id)
+                } else if (e.key === 'Escape') {
+                  setSlashOpen(false)
+                }
+              }}
               onPressEnter={(e) => {
+                if (slashOpen) return
                 if (!e.shiftKey) {
                   e.preventDefault()
                   if (canSend) void onSend()
