@@ -1,7 +1,7 @@
 # Agent Run Node 时间戳与终态补齐设计
 
 **日期**：2026-06-17  
-**状态**：待实现  
+**状态**：已实现（2026-06-17）  
 **范围**：在 Agent v2 Run 链路中，为 `agent_run_node.started_at` / `finished_at` 建立统一的两阶段写入语义；修复父节点长期停留在 `running` 的问题；子节点失败时向上传播父节点 `failed`  
 **关联**：[Agent 模块技术设计](../../agent-module-design.md)、[Agent SSE 持久化设计（历史）](2026-05-15-agent-sse-persistence-design.md)、[Agent LangGraph 大改设计](2026-05-16-agent-langgraph-redesign-design.md)、[Agent Token 用量设计](2026-05-26-agent-token-usage-design.md)
 
@@ -216,13 +216,13 @@
 
 | Spec 条目 | 当前代码位置 | 备注 |
 |-----------|-------------|------|
-| `started_at` / `finished_at` 落库 | 未实现 | 全为 NULL |
-| `begin_run_node` / `finalize_run_node` | 不存在 | 待新增 |
-| `llm.round` 两阶段 | `usage_tracker.record_llm_call` 事后 insert | 待改造 |
-| `plan.created` finalize | `planner.py` 仅 `plan_node.status = success` | 无时间戳 |
-| `subagent.run` finalize | `executor.py` 无 | stuck `running` |
-| `synthesizer.run` finalize | `synthesizer.py` 仅改 status | 无时间戳 |
-| `memory.persist` finalize | sql/mem0 persist 无 | stuck `running` |
-| 子 failed → 父 failed | 未实现 | 待新增 |
+| `started_at` / `finished_at` 落库 | `repository.py` → `begin_run_node` / `finalize_run_node` / `insert_terminal_run_node` | 新 Run 起写入 |
+| `begin_run_node` / `finalize_run_node` | `backend/app/agent/infrastructure/repository.py` | 已实现 |
+| `llm.round` 两阶段 | `usage_tracker.py`、`deps.py`、graph/memory call sites | 已实现 |
+| `plan.created` finalize | `graphs/nodes/planner.py` | 已实现 |
+| `subagent.run` finalize | `graphs/nodes/executor.py` | 已实现 |
+| `synthesizer.run` finalize | `graphs/nodes/synthesizer.py` | 已实现 |
+| `memory.persist` finalize | `memory/sql/persist.py`、`memory/mem0/persist.py` | 已实现 |
+| 子 failed → 父 failed | `repository.py` → `_propagate_failure_to_parent` | 已实现 |
 | 历史回填 | — | 明确不做 |
 | Run 详情 API | — | 明确不做 |

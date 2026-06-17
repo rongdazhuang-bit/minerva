@@ -39,7 +39,7 @@ class Mem0MemoryPersistStrategy:
 
         node_id = uuid.uuid4()
         try:
-            await agent_repo.insert_run_node(
+            await agent_repo.begin_run_node(
                 session,
                 node_id=node_id,
                 run_id=run_id,
@@ -47,7 +47,6 @@ class Mem0MemoryPersistStrategy:
                 sequence_idx=900,
                 node_type="memory.persist",
                 node_name="persist",
-                status="running",
             )
             messages = [
                 {"role": "user", "content": user_text},
@@ -65,7 +64,7 @@ class Mem0MemoryPersistStrategy:
                 )
 
             await asyncio.to_thread(_add_sync)
-            await agent_repo.insert_run_node(
+            await agent_repo.insert_terminal_run_node(
                 session,
                 node_id=uuid.uuid4(),
                 run_id=run_id,
@@ -76,9 +75,14 @@ class Mem0MemoryPersistStrategy:
                 status="success",
                 outputs_json={"backend": "mem0"},
             )
+            await agent_repo.finalize_run_node(
+                session,
+                node_id=node_id,
+                status="success",
+            )
         except Exception as e:
             log.exception("mem0 memory.persist failed run_id={} err={}", run_id, e)
-            await agent_repo.insert_run_node(
+            await agent_repo.insert_terminal_run_node(
                 session,
                 node_id=uuid.uuid4(),
                 run_id=run_id,
@@ -86,6 +90,12 @@ class Mem0MemoryPersistStrategy:
                 sequence_idx=1,
                 node_type="memory.persist",
                 node_name="failed",
+                status="failed",
+                error_message=str(e)[:500],
+            )
+            await agent_repo.finalize_run_node(
+                session,
+                node_id=node_id,
                 status="failed",
                 error_message=str(e)[:500],
             )

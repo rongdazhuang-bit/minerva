@@ -264,7 +264,7 @@ START → memory.retrieve → planner → executor ⇄ executor
 | `agent_run` | 单次 Run；`request_meta_json` 存 model_id、preferred_skills、`enable_thinking` 等；`usage_json` 为分层 token 累计（含 `by_phase` / `by_step`） |
 | `agent_plan` | Run 的计划快照 `steps_json` |
 | `agent_long_term_memory` | 长期记忆 fact/summary；可按 key upsert |
-| `agent_run_node` | 细粒度节点树；`usage_json` 存节点级 token（含 `llm.round` 明细）；`reasoning_text` 存单次 LLM 思考全文 |
+| `agent_run_node` | 细粒度节点树；`started_at`/`finished_at` 由 `begin_run_node`/`finalize_run_node` 维护；`usage_json` 存节点级 token（含 `llm.round` 明细）；`reasoning_text` 存单次 LLM 思考全文；子节点 `failed` 向上传播父节点 |
 
 删除会话时依赖 FK `ON DELETE CASCADE` 级联清理关联数据。
 

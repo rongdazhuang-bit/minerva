@@ -65,10 +65,8 @@ async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:
         ),
     ]
 
-    from app.agent.domain.db.models import AgentRunNode
-
     plan_node_id = uuid.uuid4()
-    await agent_repo.insert_run_node(
+    await agent_repo.begin_run_node(
         deps.db,
         node_id=plan_node_id,
         run_id=deps.run_id,
@@ -76,11 +74,14 @@ async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:
         sequence_idx=1,
         node_type="plan.created",
         node_name="planner",
-        status="running",
     )
 
     structured = deps.model.with_structured_output(Plan, include_raw=True)
     raw_msg = None
+    llm_node_id = await deps.begin_llm_call_to_db(
+        parent_node_id=plan_node_id,
+        phase="planner",
+    )
     try:
         result = await structured.ainvoke(planner_messages)
         if isinstance(result, dict):
@@ -92,8 +93,36 @@ async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:
         if plan is None:
             raise ValueError("planner structured output missing Plan")
     except Exception:
+        llm_status = "success" if raw_msg is not None else "failed"
+        reasoning_text = ""
+        if raw_msg is not None and deps.reasoning_collector is not None:
+            reasoning_text = extract_reasoning_from_langchain_message(raw_msg)
+        await deps.finalize_llm_call_to_db(
+            llm_node_id,
+            raw_msg or {},
+            phase="planner",
+            status=llm_status,
+            reasoning_text=reasoning_text or None,
+            error_message=None if llm_status == "success" else "planner structured output failed",
+        )
         fallback = plan_fallback_skill_id(request_text)
         plan = Plan(steps=[PlanStep(id="s1", skill_id=fallback, goal=request_text)])
+    else:
+        reasoning_text = ""
+        if deps.reasoning_collector is not None:
+            reasoning_text = extract_reasoning_from_langchain_message(raw_msg)
+            if reasoning_text:
+                await deps.reasoning_collector.append_delta("planner", reasoning_text)
+            await deps.reasoning_collector.finalize_segment(
+                "planner",
+                reasoning_tokens=reasoning_tokens_from_raw(raw_msg),
+            )
+        await deps.finalize_llm_call_to_db(
+            llm_node_id,
+            raw_msg,
+            phase="planner",
+            reasoning_text=reasoning_text or None,
+        )
 
     if not plan.steps:
         fallback = plan_fallback_skill_id(request_text)
@@ -127,28 +156,6 @@ async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:
             )
         )
 
-    if raw_msg is not None:
-        reasoning_text = ""
-        if deps.reasoning_collector is not None:
-            reasoning_text = extract_reasoning_from_langchain_message(raw_msg)
-            if reasoning_text:
-                await deps.reasoning_collector.append_delta("planner", reasoning_text)
-            await deps.reasoning_collector.finalize_segment(
-                "planner",
-                reasoning_tokens=reasoning_tokens_from_raw(raw_msg),
-            )
-        llm_node_id = await deps.record_llm_call_to_db(
-            raw_msg,
-            parent_node_id=plan_node_id,
-            phase="planner",
-        )
-        if llm_node_id is not None and reasoning_text:
-            await agent_repo.update_run_node_reasoning_text(
-                deps.db,
-                node_id=llm_node_id,
-                reasoning_text=reasoning_text,
-            )
-
     phase_slice = (deps.usage_tracker.document.get("by_phase") or {}).get("planner") or {}
     if phase_slice:
         await deps.usage_tracker.rollup_children(
@@ -157,9 +164,11 @@ async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:
             child_usage=phase_slice,
         )
 
-    plan_node = await deps.db.get(AgentRunNode, plan_node_id)
-    if plan_node is not None:
-        plan_node.status = "success"
-        plan_node.outputs_json = {"step_count": len(plan.steps)}
+    await agent_repo.finalize_run_node(
+        deps.db,
+        node_id=plan_node_id,
+        status="success",
+        outputs_json={"step_count": len(plan.steps)},
+    )
 
     return {"plan": plan, "plan_id": plan_id, "current_step_index": 0}

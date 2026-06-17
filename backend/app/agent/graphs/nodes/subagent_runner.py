@@ -8,7 +8,6 @@ from langgraph.graph.state import CompiledStateGraph
 
 from app.agent.domain.plan import PlanStep
 from app.agent.graphs.deps import GraphDeps
-from app.agent.infrastructure import repository as agent_repo
 from app.agent.infrastructure.chat_history import messages_with_user_input
 from app.agent.infrastructure.event_mapper import map_langchain_stream_event
 from app.agent.infrastructure.reasoning_collector import (
@@ -47,8 +46,17 @@ async def run_subagent_with_stream(
     collector = deps.reasoning_collector
     collector_active = collector is not None and collector.thinking_enabled
     subagent_reasoning_tokens = 0
+    pending_llm_nodes: dict[str, uuid.UUID] = {}
 
     async for event in subagent.astream_events(inputs, config=config_sub, version="v2"):
+        if event.get("event") == "on_chat_model_start":
+            run_id_key = str(event.get("run_id") or "")
+            pending_llm_nodes[run_id_key] = await deps.begin_llm_call_to_db(
+                parent_node_id=parent_node_id,
+                phase="subagent",
+                step_id=step.id,
+                skill_id=step.skill_id,
+            )
         if event.get("event") == "on_chat_model_stream" and collector_active:
             chunk = (event.get("data") or {}).get("chunk")
             if chunk is not None:
@@ -63,21 +71,18 @@ async def run_subagent_with_stream(
         if event.get("event") == "on_chat_model_end":
             data = event.get("data") or {}
             llm_output = data.get("output")
-            llm_node_id = await deps.record_llm_call_to_db(
+            run_id_key = str(event.get("run_id") or "")
+            llm_node_id = pending_llm_nodes.pop(run_id_key, None)
+            round_text = extract_reasoning_from_langchain_message(llm_output)
+            subagent_reasoning_tokens += reasoning_tokens_from_raw(llm_output)
+            await deps.finalize_llm_call_to_db(
+                llm_node_id,
                 llm_output,
-                parent_node_id=parent_node_id,
                 phase="subagent",
                 step_id=step.id,
                 skill_id=step.skill_id,
+                reasoning_text=round_text or None,
             )
-            round_text = extract_reasoning_from_langchain_message(llm_output)
-            subagent_reasoning_tokens += reasoning_tokens_from_raw(llm_output)
-            if llm_node_id is not None and round_text:
-                await agent_repo.update_run_node_reasoning_text(
-                    deps.db,
-                    node_id=llm_node_id,
-                    reasoning_text=round_text,
-                )
         if deps.emit_sse:
             line = map_langchain_stream_event(
                 event,
@@ -96,18 +101,19 @@ async def run_subagent_with_stream(
             if isinstance(out, dict) and out.get("messages"):
                 output = extract_last_ai_text(out["messages"])
     if not output:
+        llm_node_id = await deps.begin_llm_call_to_db(
+            parent_node_id=parent_node_id,
+            phase="subagent",
+            step_id=step.id,
+            skill_id=step.skill_id,
+        )
         result = await subagent.ainvoke(inputs, config=config_sub)
         messages = result.get("messages", [])
+        llm_output = None
         for msg in reversed(messages):
             role = getattr(msg, "type", None) or getattr(msg, "role", None)
             if role in ("ai", "assistant"):
-                llm_node_id = await deps.record_llm_call_to_db(
-                    msg,
-                    parent_node_id=parent_node_id,
-                    phase="subagent",
-                    step_id=step.id,
-                    skill_id=step.skill_id,
-                )
+                llm_output = msg
                 round_text = extract_reasoning_from_langchain_message(msg)
                 subagent_reasoning_tokens += reasoning_tokens_from_raw(msg)
                 if collector_active and round_text:
@@ -117,13 +123,19 @@ async def run_subagent_with_stream(
                         step_id=step.id,
                         skill_id=step.skill_id,
                     )
-                if llm_node_id is not None and round_text:
-                    await agent_repo.update_run_node_reasoning_text(
-                        deps.db,
-                        node_id=llm_node_id,
-                        reasoning_text=round_text,
-                    )
                 break
+        await deps.finalize_llm_call_to_db(
+            llm_node_id,
+            llm_output or {},
+            phase="subagent",
+            step_id=step.id,
+            skill_id=step.skill_id,
+            reasoning_text=(
+                extract_reasoning_from_langchain_message(llm_output) or None
+                if llm_output is not None
+                else None
+            ),
+        )
         output = extract_last_ai_text(messages)
 
     if collector_active:

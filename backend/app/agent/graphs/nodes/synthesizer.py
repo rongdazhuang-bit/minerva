@@ -7,7 +7,6 @@ import uuid
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 
-from app.agent.domain.db.models import AgentRunNode
 from app.agent.domain.sse_v2 import AgentSseEventType, build_sse_event
 from app.agent.graphs.deps import GraphDeps
 from app.agent.graphs.state import AgentGraphState, StepResult
@@ -33,49 +32,48 @@ async def _stream_model_text(
     last_usage = None
     collector = deps.reasoning_collector
     collector_active = collector is not None and collector.thinking_enabled
+    llm_node_id = await deps.begin_llm_call_to_db(
+        parent_node_id=synth_node_id,
+        phase="synthesizer",
+    )
 
-    async for chunk in deps.model.astream(messages):
-        usage_metadata = getattr(chunk, "usage_metadata", None)
-        if usage_metadata:
-            last_usage = usage_metadata
-        reasoning_piece = extract_reasoning_from_langchain_chunk(chunk)
-        if reasoning_piece:
-            reasoning_parts.append(reasoning_piece)
-            if collector_active:
-                await collector.append_delta("synthesizer", reasoning_piece)
-        piece = getattr(chunk, "content", None)
-        if not isinstance(piece, str) or not piece:
-            continue
-        parts.append(piece)
-        if deps.emit_sse:
-            await deps.emit_sse(
-                build_sse_event(
-                    event_type=AgentSseEventType.llm_delta,
-                    run_id=deps.run_id,
-                    session_id=deps.session_id,
-                    payload={"channel": "assistant", "text": piece, "phase": "synthesizer"},
+    try:
+        async for chunk in deps.model.astream(messages):
+            usage_metadata = getattr(chunk, "usage_metadata", None)
+            if usage_metadata:
+                last_usage = usage_metadata
+            reasoning_piece = extract_reasoning_from_langchain_chunk(chunk)
+            if reasoning_piece:
+                reasoning_parts.append(reasoning_piece)
+                if collector_active:
+                    await collector.append_delta("synthesizer", reasoning_piece)
+            piece = getattr(chunk, "content", None)
+            if not isinstance(piece, str) or not piece:
+                continue
+            parts.append(piece)
+            if deps.emit_sse:
+                await deps.emit_sse(
+                    build_sse_event(
+                        event_type=AgentSseEventType.llm_delta,
+                        run_id=deps.run_id,
+                        session_id=deps.session_id,
+                        payload={"channel": "assistant", "text": piece, "phase": "synthesizer"},
+                    )
                 )
+    finally:
+        reasoning_text = "".join(reasoning_parts)
+        await deps.finalize_llm_call_to_db(
+            llm_node_id,
+            last_usage or {},
+            phase="synthesizer",
+            reasoning_text=reasoning_text or None,
+        )
+        if collector_active:
+            await collector.finalize_segment(
+                "synthesizer",
+                reasoning_tokens=reasoning_tokens_from_raw(last_usage),
             )
 
-    reasoning_text = "".join(reasoning_parts)
-    llm_node_id = None
-    if last_usage is not None:
-        llm_node_id = await deps.record_llm_call_to_db(
-            last_usage,
-            parent_node_id=synth_node_id,
-            phase="synthesizer",
-        )
-    if collector_active:
-        await collector.finalize_segment(
-            "synthesizer",
-            reasoning_tokens=reasoning_tokens_from_raw(last_usage),
-        )
-    if llm_node_id is not None and reasoning_text:
-        await agent_repo.update_run_node_reasoning_text(
-            deps.db,
-            node_id=llm_node_id,
-            reasoning_text=reasoning_text,
-        )
     return "".join(parts)
 
 
@@ -87,26 +85,25 @@ async def _invoke_model_text(
 ) -> str:
     """Call the model without SSE (sub-agents already streamed assistant text)."""
 
+    llm_node_id = await deps.begin_llm_call_to_db(
+        parent_node_id=synth_node_id,
+        phase="synthesizer",
+    )
     resp = await deps.model.ainvoke(messages)
     reasoning_text = extract_reasoning_from_langchain_message(resp)
     collector = deps.reasoning_collector
     if collector is not None and collector.thinking_enabled and reasoning_text:
         await collector.append_delta("synthesizer", reasoning_text)
-    llm_node_id = await deps.record_llm_call_to_db(
+    await deps.finalize_llm_call_to_db(
+        llm_node_id,
         resp,
-        parent_node_id=synth_node_id,
         phase="synthesizer",
+        reasoning_text=reasoning_text or None,
     )
     if collector is not None and collector.thinking_enabled:
         await collector.finalize_segment(
             "synthesizer",
             reasoning_tokens=reasoning_tokens_from_raw(resp),
-        )
-    if llm_node_id is not None and reasoning_text:
-        await agent_repo.update_run_node_reasoning_text(
-            deps.db,
-            node_id=llm_node_id,
-            reasoning_text=reasoning_text,
         )
     content = getattr(resp, "content", None)
     return content.strip() if isinstance(content, str) else ""
@@ -122,9 +119,11 @@ async def _finalize_synthesizer_node(deps: GraphDeps, synth_node_id: uuid.UUID) 
             node_id=synth_node_id,
             child_usage=phase_slice,
         )
-    synth_node = await deps.db.get(AgentRunNode, synth_node_id)
-    if synth_node is not None:
-        synth_node.status = "success"
+    await agent_repo.finalize_run_node(
+        deps.db,
+        node_id=synth_node_id,
+        status="success",
+    )
 
 
 def _format_subagent_blob(results: list[StepResult]) -> str:
@@ -165,7 +164,7 @@ async def synthesizer_node(state: AgentGraphState, config: RunnableConfig) -> di
         return {"final_answer": direct}
 
     synth_node_id = uuid.uuid4()
-    await agent_repo.insert_run_node(
+    await agent_repo.begin_run_node(
         deps.db,
         node_id=synth_node_id,
         run_id=deps.run_id,
@@ -173,7 +172,6 @@ async def synthesizer_node(state: AgentGraphState, config: RunnableConfig) -> di
         sequence_idx=800,
         node_type="synthesizer.run",
         node_name="synthesizer",
-        status="running",
     )
 
     if not results:

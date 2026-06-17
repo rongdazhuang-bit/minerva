@@ -51,39 +51,26 @@ class RunUsageTracker:
         self.document = merge_usage_document(self.document, delta)
         return usage_doc
 
-    async def record_llm_call(
+    async def begin_llm_round(
         self,
         session: AsyncSession,
         *,
+        node_id: uuid.UUID,
         run_id: uuid.UUID,
         parent_node_id: uuid.UUID | None,
         sequence_idx: int,
-        raw_usage: Any,
         phase: str,
         step_id: str | None = None,
         skill_id: str | None = None,
-        reasoning_text: str | None = None,
-    ) -> uuid.UUID | None:
-        """Insert an ``llm.round`` row and merge the same usage into memory.
+    ) -> uuid.UUID:
+        """Insert ``llm.round`` in running state before the upstream LLM call."""
 
-        Optionally stores ``reasoning_text`` on that node when the provider exposes thinking output.
-        """
-
-        usage_doc = self.record_call(
-            raw_usage,
-            phase=phase,
-            step_id=step_id,
-            skill_id=skill_id,
-        )
-        if not usage_doc:
-            return None
-        node_id = uuid.uuid4()
         meta: dict[str, Any] = {"phase": phase}
         if step_id is not None:
             meta["step_id"] = step_id
         if skill_id is not None:
             meta["skill_id"] = skill_id
-        await agent_repo.insert_run_node(
+        await agent_repo.begin_run_node(
             session,
             node_id=node_id,
             run_id=run_id,
@@ -91,12 +78,42 @@ class RunUsageTracker:
             sequence_idx=sequence_idx,
             node_type="llm.round",
             node_name=phase,
-            status="success",
-            usage_json=usage_document_for_node(usage_doc),
             meta_json=meta,
-            reasoning_text=reasoning_text,
         )
         return node_id
+
+    async def finalize_llm_round(
+        self,
+        session: AsyncSession,
+        *,
+        node_id: uuid.UUID,
+        raw_usage: Any,
+        phase: str,
+        status: str = "success",
+        step_id: str | None = None,
+        skill_id: str | None = None,
+        reasoning_text: str | None = None,
+        error_message: str | None = None,
+    ) -> None:
+        """Finalize ``llm.round`` after the upstream LLM call returns or raises."""
+
+        usage_doc = None
+        if status == "success":
+            usage_doc = self.record_call(
+                raw_usage,
+                phase=phase,
+                step_id=step_id,
+                skill_id=skill_id,
+            )
+        usage_payload = usage_document_for_node(usage_doc) if usage_doc else None
+        await agent_repo.finalize_run_node(
+            session,
+            node_id=node_id,
+            status=status,
+            usage_json=usage_payload,
+            reasoning_text=reasoning_text,
+            error_message=error_message,
+        )
 
     async def rollup_children(
         self,

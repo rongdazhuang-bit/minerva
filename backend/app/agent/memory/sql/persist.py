@@ -50,7 +50,7 @@ class SqlMemoryPersistStrategy:
 
         node_id = uuid.uuid4()
         try:
-            await agent_repo.insert_run_node(
+            await agent_repo.begin_run_node(
                 session,
                 node_id=node_id,
                 run_id=run_id,
@@ -58,28 +58,41 @@ class SqlMemoryPersistStrategy:
                 sequence_idx=900,
                 node_type="memory.persist",
                 node_name="persist",
-                status="running",
             )
 
-            extract, raw_llm = await invoke_memory_extract(
-                model,
-                user_message=user_text,
-                final_answer=final,
+            llm_node_id = uuid.uuid4()
+            await agent_repo.begin_run_node(
+                session,
+                node_id=llm_node_id,
+                run_id=run_id,
+                parent_node_id=node_id,
+                sequence_idx=0,
+                node_type="llm.round",
+                node_name="memory.persist",
+                meta_json={"phase": "memory.persist"},
             )
-            usage_doc = extract_usage_document(raw_llm)
-            if usage_doc:
-                await agent_repo.insert_run_node(
-                    session,
-                    node_id=uuid.uuid4(),
-                    run_id=run_id,
-                    parent_node_id=node_id,
-                    sequence_idx=0,
-                    node_type="llm.round",
-                    node_name="memory.persist",
-                    status="success",
-                    usage_json=usage_document_for_node(usage_doc),
-                    meta_json={"phase": "memory.persist"},
+            try:
+                extract, raw_llm = await invoke_memory_extract(
+                    model,
+                    user_message=user_text,
+                    final_answer=final,
                 )
+                usage_doc = extract_usage_document(raw_llm)
+                await agent_repo.finalize_run_node(
+                    session,
+                    node_id=llm_node_id,
+                    status="success",
+                    usage_json=usage_document_for_node(usage_doc) if usage_doc else None,
+                )
+            except Exception as exc:
+                await agent_repo.finalize_run_node(
+                    session,
+                    node_id=llm_node_id,
+                    status="failed",
+                    error_message=str(exc)[:500],
+                )
+                raise
+            if usage_doc:
                 delta = build_phase_delta("memory.persist", usage_doc)
                 await agent_repo.merge_run_usage_json(
                     session, run_id=run_id, delta=delta
@@ -129,12 +142,12 @@ class SqlMemoryPersistStrategy:
             await self._store.touch_session_summary(
                 session, session_id=session_id, summary_text=summary[:8000]
             )
-            await agent_repo.insert_run_node(
+            await agent_repo.insert_terminal_run_node(
                 session,
                 node_id=uuid.uuid4(),
                 run_id=run_id,
                 parent_node_id=node_id,
-                sequence_idx=0,
+                sequence_idx=1,
                 node_type="memory.persist",
                 node_name="done",
                 status="success",
@@ -143,5 +156,16 @@ class SqlMemoryPersistStrategy:
                     "fact_count": len(extract.facts),
                 },
             )
+            await agent_repo.finalize_run_node(
+                session,
+                node_id=node_id,
+                status="success",
+            )
         except Exception as e:
             log.exception("memory.persist failed run_id={} err={}", run_id, e)
+            await agent_repo.finalize_run_node(
+                session,
+                node_id=node_id,
+                status="failed",
+                error_message=str(e)[:500],
+            )

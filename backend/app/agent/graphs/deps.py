@@ -122,33 +122,62 @@ class GraphDeps:
             )
         )
 
-    async def record_llm_call_to_db(
+    async def begin_llm_call_to_db(
         self,
-        raw_usage: Any,
         *,
         parent_node_id: uuid.UUID,
         phase: str,
         step_id: str | None = None,
         skill_id: str | None = None,
-    ) -> uuid.UUID | None:
-        """Persist one ``llm.round`` row and emit matching ``llm.usage`` SSE."""
+    ) -> uuid.UUID:
+        """Insert ``llm.round`` (running) before an upstream LLM call."""
 
         seq = self.next_llm_round_seq(parent_node_id)
-        node_id = await self.usage_tracker.record_llm_call(
+        node_id = uuid.uuid4()
+        await self.usage_tracker.begin_llm_round(
             self.db,
+            node_id=node_id,
             run_id=self.run_id,
             parent_node_id=parent_node_id,
             sequence_idx=seq,
-            raw_usage=raw_usage,
             phase=phase,
             step_id=step_id,
             skill_id=skill_id,
-        )
-        await self.emit_llm_usage(
-            raw_usage,
-            step_id=step_id,
-            skill_id=skill_id,
-            phase=phase,
-            node_id=str(node_id) if node_id else None,
         )
         return node_id
+
+    async def finalize_llm_call_to_db(
+        self,
+        node_id: uuid.UUID | None,
+        raw_usage: Any,
+        *,
+        phase: str,
+        step_id: str | None = None,
+        skill_id: str | None = None,
+        status: str = "success",
+        reasoning_text: str | None = None,
+        error_message: str | None = None,
+    ) -> None:
+        """Finalize ``llm.round`` and emit matching ``llm.usage`` SSE when applicable."""
+
+        if node_id is None:
+            return
+        await self.usage_tracker.finalize_llm_round(
+            self.db,
+            node_id=node_id,
+            raw_usage=raw_usage,
+            phase=phase,
+            status=status,
+            step_id=step_id,
+            skill_id=skill_id,
+            reasoning_text=reasoning_text,
+            error_message=error_message,
+        )
+        if status == "success":
+            await self.emit_llm_usage(
+                raw_usage,
+                step_id=step_id,
+                skill_id=skill_id,
+                phase=phase,
+                node_id=str(node_id),
+            )

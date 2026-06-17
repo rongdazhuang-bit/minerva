@@ -52,7 +52,7 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
         )
 
     node_id = uuid.uuid4()
-    await agent_repo.insert_run_node(
+    await agent_repo.begin_run_node(
         deps.db,
         node_id=node_id,
         run_id=deps.run_id,
@@ -60,7 +60,6 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
         sequence_idx=10 + idx,
         node_type="subagent.run",
         node_name=step.skill_id,
-        status="running",
     )
 
     ctx = SkillToolContext(workspace_id=deps.workspace_id, chat_model=deps.model)
@@ -101,7 +100,13 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
             child_usage=step_usage,
         )
 
-    await agent_repo.insert_run_node(
+    finish_status = "success" if step.status == "success" else "failed"
+    await agent_repo.finalize_run_node(
+        deps.db,
+        node_id=node_id,
+        status=finish_status,
+    )
+    await agent_repo.insert_terminal_run_node(
         deps.db,
         node_id=uuid.uuid4(),
         run_id=deps.run_id,
@@ -109,7 +114,7 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
         sequence_idx=0,
         node_type="subagent.finish",
         node_name=step.skill_id,
-        status=step.status,
+        status=finish_status,
         outputs_json={"chars": len(output)},
     )
 
