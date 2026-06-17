@@ -43,7 +43,7 @@ import { AgentSkillSlashMenu } from '@/features/agent/AgentSkillSlashMenu'
 import {
   agentMessagesToChat,
   appendReasoningDelta,
-  buildDisplayUserMessage,
+  formatUserMessageForDisplay,
   composerVisibleSkills,
   filterSlashSkillOptions,
   formatReasoningSegmentLabel,
@@ -515,7 +515,6 @@ export function AgentsPage() {
       options?: {
         regenerateFromAssistantId?: string
         regenerateLastAssistant?: boolean
-        displayMessage?: string
         preferredSkills?: string[]
       },
     ) => {
@@ -529,7 +528,6 @@ export function AgentsPage() {
         return
       }
       const apiBody = userMessage.trim()
-      const displayMessage = (options?.displayMessage ?? apiBody).trim()
       if (!apiBody && !(options?.preferredSkills?.length ?? 0)) return
 
       const isRegenerate = Boolean(
@@ -573,7 +571,7 @@ export function AgentsPage() {
         const userMsg: AgentChatMsg = {
           id: `u-${Date.now()}`,
           role: 'user',
-          content: displayMessage,
+          content: apiBody,
         }
         setMessages((m) => [...m, userMsg, asstMsg])
       }
@@ -618,7 +616,7 @@ export function AgentsPage() {
             message.warning(t('agents.regenerateNoSession'))
             return
           }
-          const sessionTitle = titleFromFirstQuestion(displayMessage || apiBody)
+          const sessionTitle = titleFromFirstQuestion(apiBody)
           const s = await createAgentSession(
             workspaceId,
             sessionTitle ? { title: sessionTitle } : {},
@@ -799,6 +797,12 @@ export function AgentsPage() {
     [workspaceId, sessionId, prefs.selectedModelId, usableModels, queryClient, t, i18n.language, thinkingEnabled],
   )
 
+  const resolveMessageBody = useCallback(
+    (m: AgentChatMsg) =>
+      m.role === 'user' ? formatUserMessageForDisplay(m.content, allSkillIds) : m.content,
+    [allSkillIds],
+  )
+
   const onSend = useCallback(async () => {
     const invalidId = parseInvalidSkillPrefixFromDraft(draft, allSkillIds)
     if (invalidId) {
@@ -808,12 +812,10 @@ export function AgentsPage() {
     const skillId = parseSkillPrefixFromDraft(draft, allSkillIds)
     const apiBody = stripSkillPrefixFromDraft(draft, skillId)
     if (!apiBody && !skillId) return
-    const display = buildDisplayUserMessage(apiBody, skillId)
     setDraft('')
     setSlashOpen(false)
     setSlashFilter('')
     await runAgentTurn(apiBody, {
-      displayMessage: display,
       preferredSkills: skillId ? [skillId] : [],
     })
   }, [draft, allSkillIds, runAgentTurn, message, t])
@@ -835,7 +837,7 @@ export function AgentsPage() {
       for (let i = idx - 1; i >= 0; i--) {
         const row = messages[i]
         if (row?.role === 'user' && row.content.trim()) {
-          userMessage = row.content.trim()
+          userMessage = formatUserMessageForDisplay(row.content.trim(), allSkillIds)
           break
         }
       }
@@ -854,7 +856,6 @@ export function AgentsPage() {
       await runAgentTurn(regenApiBody, {
         regenerateFromAssistantId: assistantMsgId,
         regenerateLastAssistant: !hasServerId && isLastAssistant,
-        displayMessage: userMessage,
         preferredSkills: regenSkillId ? [regenSkillId] : [],
       })
     },
@@ -1163,7 +1164,9 @@ export function AgentsPage() {
               </div>
             </div>
           ) : (
-            messages.map((m) => (
+            messages.map((m) => {
+              const messageBody = resolveMessageBody(m)
+              return (
               <div
                 key={m.id}
                 style={{
@@ -1208,18 +1211,18 @@ export function AgentsPage() {
                         className="agents-page__msg-body"
                         style={{ flex: 1, minWidth: 0, textAlign: 'left' }}
                       >
-                        <AgentAssistantMarkdown markdown={m.content} />
+                        <AgentAssistantMarkdown markdown={messageBody} />
                       </div>
                     ) : (
                       <div
                         className="agents-page__md-user-wrap agents-page__msg-body"
                         style={{ flex: 1, minWidth: 0 }}
                       >
-                        <AgentAssistantMarkdown markdown={m.content} />
+                        <AgentAssistantMarkdown markdown={messageBody} />
                       </div>
                     )}
                   </Flex>
-                  {(m.content ?? '').trim().length > 0 ? (
+                  {messageBody.trim().length > 0 ? (
                     <div
                       className="agents-page__msg-actions"
                       style={{
@@ -1247,7 +1250,7 @@ export function AgentsPage() {
                         icon={<CopyOutlined />}
                         aria-label={t('agents.copyMessage')}
                         title={t('agents.copyMessage')}
-                        onClick={() => void copyMessageBody(m.content)}
+                        onClick={() => void copyMessageBody(messageBody)}
                       />
                       {m.role === 'assistant' &&
                       m.totalTokens != null &&
@@ -1272,7 +1275,8 @@ export function AgentsPage() {
                   ) : null}
                 </div>
               </div>
-            ))
+              )
+            })
           )}
           {messages.length > 0 ? (
             <div ref={listEndRef} className="agents-page__scroll-anchor" aria-hidden />

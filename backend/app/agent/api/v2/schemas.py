@@ -93,6 +93,7 @@ class AgentSkillItemOut(BaseModel):
 
     id: str
     description: str
+    composer_description: str
     composer_visible: bool = True
 
 

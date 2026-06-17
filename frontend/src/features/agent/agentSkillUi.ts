@@ -43,11 +43,19 @@ export function parseInvalidSkillPrefixFromDraft(
 
 /** Skills eligible for the composer slash menu. */
 export function composerVisibleSkills(
-  skills: { id: string; description: string; composer_visible?: boolean }[],
+  skills: {
+    id: string
+    description: string
+    composer_description?: string
+    composer_visible?: boolean
+  }[],
 ): { id: string; description: string }[] {
   return skills
     .filter((s) => s.composer_visible !== false)
-    .map((s) => ({ id: s.id, description: s.description }))
+    .map((s) => ({
+      id: s.id,
+      description: (s.composer_description ?? s.id).trim() || s.id,
+    }))
 }
 
 /** Filter slash menu options by typed prefix after ``/``. */
@@ -60,6 +68,16 @@ export function filterSlashSkillOptions(
   return options.filter(
     (o) => o.id.toLowerCase().includes(q) || o.description.toLowerCase().includes(q),
   )
+}
+
+/** User-visible chat bubble text without leading ``/skill_id`` prefix. */
+export function formatUserMessageForDisplay(
+  content: string,
+  knownSkillIds: readonly string[],
+): string {
+  const skillId = parseSkillPrefixFromDraft(content, knownSkillIds)
+  if (!skillId) return content
+  return stripSkillPrefixFromDraft(content, skillId)
 }
 
 /** Build user-visible message with ``/skill_id`` prefix for the chat bubble. */

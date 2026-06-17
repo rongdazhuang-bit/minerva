@@ -100,6 +100,7 @@ async def list_agent_skills(
             AgentSkillItemOut(
                 id=s.id,
                 description=s.description,
+                composer_description=s.composer_description,
                 composer_visible=s.composer_visible,
             )
             for s in list_indexed_skills()

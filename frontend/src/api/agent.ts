@@ -57,6 +57,7 @@ export type AgentSessionDetailOut = {
 export type AgentSkillListItem = {
   id: string
   description: string
+  composer_description?: string
   composer_visible?: boolean
 }
 

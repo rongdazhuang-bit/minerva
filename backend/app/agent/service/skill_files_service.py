@@ -124,7 +124,12 @@ class SkillFilesService:
                 continue
             if (child / "SKILL.md").is_file():
                 found.append(
-                    IndexedSkill(id=child.name, description=child.name, composer_visible=True)
+                    IndexedSkill(
+                        id=child.name,
+                        description=child.name,
+                        composer_description=child.name,
+                        composer_visible=True,
+                    )
                 )
         return found
 
@@ -146,6 +151,7 @@ class SkillFilesService:
                 {
                     "id": entry.id,
                     "description": entry.description,
+                    "composer_description": entry.composer_description,
                     "composer_visible": entry.composer_visible,
                     "file_count": self._count_skill_files(entry.id),
                 }

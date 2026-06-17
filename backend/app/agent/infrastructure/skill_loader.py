@@ -32,6 +32,7 @@ class IndexedSkill:
 
     id: str
     description: str
+    composer_description: str
     composer_visible: bool = True
 
 
@@ -90,8 +91,14 @@ def parse_index_skills(
             continue
         visible = item.get("composer_visible", True)
         composer_visible = visible if isinstance(visible, bool) else True
+        composer_desc = str(item.get("composer_description", "")).strip() or sid
         entries.append(
-            IndexedSkill(id=sid, description=desc, composer_visible=composer_visible)
+            IndexedSkill(
+                id=sid,
+                description=desc,
+                composer_description=composer_desc,
+                composer_visible=composer_visible,
+            )
         )
     if entries:
         return entries
@@ -110,7 +117,12 @@ def _discover_skills_from_directories(root: Path | None = None) -> list[IndexedS
             continue
         if (child / "SKILL.md").is_file():
             found.append(
-                IndexedSkill(id=child.name, description=child.name, composer_visible=True)
+                IndexedSkill(
+                    id=child.name,
+                    description=child.name,
+                    composer_description=child.name,
+                    composer_visible=True,
+                )
             )
     return found
 

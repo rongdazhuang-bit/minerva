@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import uuid
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable
+from typing import Any, AsyncIterator, Awaitable, Callable
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage
@@ -181,3 +182,34 @@ class GraphDeps:
                 phase=phase,
                 node_id=str(node_id),
             )
+
+    @asynccontextmanager
+    async def llm_call_scope(
+        self,
+        *,
+        parent_node_id: uuid.UUID,
+        phase: str,
+        step_id: str | None = None,
+        skill_id: str | None = None,
+    ) -> AsyncIterator[uuid.UUID]:
+        """Begin ``llm.round``; finalize as ``failed`` if the wrapped block raises."""
+
+        node_id = await self.begin_llm_call_to_db(
+            parent_node_id=parent_node_id,
+            phase=phase,
+            step_id=step_id,
+            skill_id=skill_id,
+        )
+        try:
+            yield node_id
+        except Exception as exc:
+            await self.finalize_llm_call_to_db(
+                node_id,
+                {},
+                phase=phase,
+                step_id=step_id,
+                skill_id=skill_id,
+                status="failed",
+                error_message=str(exc)[:500],
+            )
+            raise

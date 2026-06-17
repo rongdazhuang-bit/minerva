@@ -40,7 +40,11 @@ export function AgentSkillSlashMenu({
   if (!open || filtered.length === 0) return null
 
   return (
-    <ul ref={listRef} className="agents-page__skill-slash-menu" role="listbox">
+    <ul
+      ref={listRef}
+      className="agents-page__skill-slash-menu minerva-scrollbar-thin"
+      role="listbox"
+    >
       {filtered.map((opt, idx) => (
         <li
           key={opt.id}

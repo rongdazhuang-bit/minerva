@@ -36,6 +36,9 @@ async def _stream_model_text(
         parent_node_id=synth_node_id,
         phase="synthesizer",
     )
+    status = "success"
+    error_message: str | None = None
+    stream_error: Exception | None = None
 
     try:
         async for chunk in deps.model.astream(messages):
@@ -60,13 +63,19 @@ async def _stream_model_text(
                         payload={"channel": "assistant", "text": piece, "phase": "synthesizer"},
                     )
                 )
+    except Exception as exc:
+        status = "failed"
+        error_message = str(exc)[:500]
+        stream_error = exc
     finally:
         reasoning_text = "".join(reasoning_parts)
         await deps.finalize_llm_call_to_db(
             llm_node_id,
             last_usage or {},
             phase="synthesizer",
+            status=status,
             reasoning_text=reasoning_text or None,
+            error_message=error_message,
         )
         if collector_active:
             await collector.finalize_segment(
@@ -74,6 +83,8 @@ async def _stream_model_text(
                 reasoning_tokens=reasoning_tokens_from_raw(last_usage),
             )
 
+    if stream_error is not None:
+        raise stream_error
     return "".join(parts)
 
 
@@ -85,28 +96,28 @@ async def _invoke_model_text(
 ) -> str:
     """Call the model without SSE (sub-agents already streamed assistant text)."""
 
-    llm_node_id = await deps.begin_llm_call_to_db(
+    async with deps.llm_call_scope(
         parent_node_id=synth_node_id,
         phase="synthesizer",
-    )
-    resp = await deps.model.ainvoke(messages)
-    reasoning_text = extract_reasoning_from_langchain_message(resp)
-    collector = deps.reasoning_collector
-    if collector is not None and collector.thinking_enabled and reasoning_text:
-        await collector.append_delta("synthesizer", reasoning_text)
-    await deps.finalize_llm_call_to_db(
-        llm_node_id,
-        resp,
-        phase="synthesizer",
-        reasoning_text=reasoning_text or None,
-    )
-    if collector is not None and collector.thinking_enabled:
-        await collector.finalize_segment(
-            "synthesizer",
-            reasoning_tokens=reasoning_tokens_from_raw(resp),
+    ) as llm_node_id:
+        resp = await deps.model.ainvoke(messages)
+        reasoning_text = extract_reasoning_from_langchain_message(resp)
+        collector = deps.reasoning_collector
+        if collector is not None and collector.thinking_enabled and reasoning_text:
+            await collector.append_delta("synthesizer", reasoning_text)
+        await deps.finalize_llm_call_to_db(
+            llm_node_id,
+            resp,
+            phase="synthesizer",
+            reasoning_text=reasoning_text or None,
         )
-    content = getattr(resp, "content", None)
-    return content.strip() if isinstance(content, str) else ""
+        if collector is not None and collector.thinking_enabled:
+            await collector.finalize_segment(
+                "synthesizer",
+                reasoning_tokens=reasoning_tokens_from_raw(resp),
+            )
+        content = getattr(resp, "content", None)
+        return content.strip() if isinstance(content, str) else ""
 
 
 async def _finalize_synthesizer_node(deps: GraphDeps, synth_node_id: uuid.UUID) -> None:
@@ -174,28 +185,37 @@ async def synthesizer_node(state: AgentGraphState, config: RunnableConfig) -> di
         node_name="synthesizer",
     )
 
-    if not results:
+    try:
+        if not results:
+            history = deps.conversation_messages or []
+            if history:
+                model_messages = history
+            else:
+                model_messages = messages_with_user_input([], user_message)
+            text = await _stream_model_text(deps, model_messages, synth_node_id=synth_node_id)
+            await _finalize_synthesizer_node(deps, synth_node_id)
+            return {"final_answer": text}
+
+        blob = _format_subagent_blob(results)
+        sys = "你是助手。根据各步骤的执行结果，用简洁中文回答用户的原始问题。"
         history = deps.conversation_messages or []
-        if history:
-            model_messages = history
-        else:
-            model_messages = messages_with_user_input([], user_message)
-        text = await _stream_model_text(deps, model_messages, synth_node_id=synth_node_id)
+        prior_turns, _ = split_trailing_user_message(history)
+        text = await _invoke_model_text(
+            deps,
+            [
+                *prior_turns,
+                SystemMessage(content=sys),
+                HumanMessage(content=f"用户问题：{user_message}\n\n步骤结果：\n{blob}"),
+            ],
+            synth_node_id=synth_node_id,
+        )
         await _finalize_synthesizer_node(deps, synth_node_id)
         return {"final_answer": text}
-
-    blob = _format_subagent_blob(results)
-    sys = "你是助手。根据各步骤的执行结果，用简洁中文回答用户的原始问题。"
-    history = deps.conversation_messages or []
-    prior_turns, _ = split_trailing_user_message(history)
-    text = await _invoke_model_text(
-        deps,
-        [
-            *prior_turns,
-            SystemMessage(content=sys),
-            HumanMessage(content=f"用户问题：{user_message}\n\n步骤结果：\n{blob}"),
-        ],
-        synth_node_id=synth_node_id,
-    )
-    await _finalize_synthesizer_node(deps, synth_node_id)
-    return {"final_answer": text}
+    except Exception as exc:
+        await agent_repo.finalize_run_node(
+            deps.db,
+            node_id=synth_node_id,
+            status="failed",
+            error_message=str(exc)[:500],
+        )
+        raise

@@ -444,18 +444,18 @@ async def _propagate_failure_to_parent(
     *,
     parent_node_id: uuid.UUID,
 ) -> None:
-    """Mark parent (and ancestors) failed when a child node fails."""
+    """Mark a ``running`` parent (and running ancestors) failed when a child node fails."""
 
     parent = await session.get(AgentRunNode, parent_node_id)
-    if parent is None:
+    if parent is None or parent.status != "running":
         return
     now = _utc_now()
     parent.status = "failed"
     if parent.finished_at is None:
         parent.finished_at = now
+    await session.flush()
     if parent.parent_node_id is not None:
         await _propagate_failure_to_parent(session, parent_node_id=parent.parent_node_id)
-    await session.flush()
 
 
 async def _run_node_has_failed_child(session: AsyncSession, *, node_id: uuid.UUID) -> bool:
@@ -601,7 +601,10 @@ async def insert_run_node(
     usage_json: dict[str, Any] | list[Any] | None = None,
     reasoning_text: str | None = None,
 ) -> AgentRunNode:
-    """插入一条运行节点记录；可选持久化 ``reasoning_text``。"""
+    """插入一条运行节点记录（legacy；不写 ``started_at``/``finished_at``）。
+
+    新代码请使用 ``begin_run_node``、``finalize_run_node`` 或 ``insert_terminal_run_node``。
+    """
 
     row = AgentRunNode(
         id=node_id,

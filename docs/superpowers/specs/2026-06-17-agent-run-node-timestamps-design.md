@@ -45,7 +45,7 @@
 | API | **本期不做**，仅 repository 层落库 |
 | `llm.round` 精度 | LLM 调用**前** insert `running` + `started_at`；调用**后** update 终态 + `finished_at` |
 | 父节点 | 与 `llm.round` 统一两阶段；顺带修复 stuck `running` |
-| 失败传播 | 子节点任意 `failed` → 父节点 `failed` |
+| 失败传播 | 子节点任意 `failed` → 父节点 `failed`；Planner 仅 **`ainvoke` 异常**时 `llm.round` failed（见 §7.1） |
 | 终态枚举 | 使用现有 `success` / `failed` / `skipped`（不用 `error`） |
 | 实现路径 | **方案 1**：Repository 统一 `begin_run_node` / `finalize_run_node` |
 
@@ -97,7 +97,7 @@
 
 ### 3.4 与现有函数关系
 
-- `insert_run_node`：保留但标记为内部/legacy，新代码统一走 `begin_run_node` / `insert_terminal_run_node`
+- `insert_run_node`：**legacy**，保留兼容；不写时间戳。新代码统一走 `begin_run_node` / `insert_terminal_run_node`
 - `update_run_node_usage` / `update_run_node_reasoning_text`：保留；可在 `finalize_run_node` 时一并传入，或 finalize 前单独 patch
 
 ---
@@ -116,7 +116,7 @@
 ```
 
 - 传播仅向**直接父节点**递归一层层向上（子 failed → 父 failed → 祖父 failed）
-- 已终态的父节点若已为 `failed`，保持 `failed`；若已为 `success` 而后置子节点 failed（理论上不应发生），以 `failed` 覆盖并更新 `finished_at`
+- **仅当父节点 `status == running` 时**才传播；已终态（`success` / `failed` / `skipped`）的父节点不会被覆盖
 - `skipped` 子节点**不**触发父节点 failed
 
 ---
@@ -140,9 +140,9 @@
 
 | 文件 | 改造 |
 |------|------|
-| `graphs/nodes/planner.py` | `structured.ainvoke` 前 `begin_llm_call_to_db`；成功/异常后 finalize |
-| `graphs/nodes/synthesizer.py` | `_stream_model_text`：`astream` 前 begin，循环结束后 finalize；`_invoke_model_text`：`ainvoke` 前 begin，后 finalize |
-| `graphs/nodes/subagent_runner.py` | `on_chat_model_start` begin；`on_chat_model_end` finalize；fallback `ainvoke` 同样包裹 try/finally |
+| `graphs/nodes/planner.py` | `structured.ainvoke` 前 `begin_llm_call_to_db`；成功/异常后 finalize；`llm_finalized` + `finally` 兜底 |
+| `graphs/nodes/synthesizer.py` | `_stream_model_text`：`astream` 前 begin，异常/finally 后 finalize；`_invoke_model_text`：`llm_call_scope` |
+| `graphs/nodes/subagent_runner.py` | `on_chat_model_start` begin；`on_chat_model_end` finalize；fallback `llm_call_scope`；`pending` `finally` 清理 |
 | `memory/sql/persist.py` | `invoke_memory_extract` 前 begin `llm.round`，后 finalize |
 
 `usage_tracker.record_llm_call` 的内存累计（`record_call`）仍在 finalize 时执行，与 today 行为一致。
@@ -153,7 +153,7 @@
 
 | 节点 | begin | finalize 时机 | 终态依据 |
 |------|-------|---------------|----------|
-| `plan.created` | planner 入口 | structured 调用结束 | 无异常且无 failed 子节点 → `success`；异常 → `failed` |
+| `plan.created` | planner 入口 | structured 调用结束 | 拟写 `success`；若存在 `failed` 子节点（含 `llm.round`）则 **强制** `failed`（§4、§7.1） |
 | `subagent.run` | executor 步骤开始 | 步骤结束（写 `subagent.finish` 前/后） | step 失败或子节点 failed → `failed`；否则 `success` |
 | `synthesizer.run` | synthesizer 入口 | `_finalize_synthesizer_node` | 无 failed 子节点 → `success` |
 | `memory.persist` | persist 入口 | 全部写入成功 / except | success / failed |
@@ -170,12 +170,32 @@
 
 ## 7. 错误处理
 
+### 7.1 Planner fallback 与失败传播（已确认，优先 §4）
+
+**原则：失败传播优先于「fallback 视为成功」。** `plan.created` 是否可为 `success`，取决于其子节点 `llm.round` 的终态，而非是否使用了 fallback plan。
+
+| 场景 | `llm.round` 终态 | `plan.created` 终态 | Run 是否继续 |
+|------|------------------|---------------------|--------------|
+| `structured.ainvoke` **正常返回**（含 `parsed`/`raw` 均为 `None`、Plan 解析/校验失败） | `success` | `success` | 是，使用 fallback plan |
+| `structured.ainvoke` **抛异常**（超时、网络、API 错误等） | `failed` | **`failed`**（§4 强制降级） | 是，使用 fallback plan |
+| LLM 已开始但未正常 finalize（异常/中断） | `failed`（`llm_finalized` 兜底） | **`failed`** | 视上层是否捕获 |
+
+说明：
+
+- **`llm.round` 仅在上游调用抛异常时标 `failed`**；调用已返回但无 `raw`、无 `parsed` 或 Plan 无效时仍标 `success`，并走 fallback plan。
+- **不允许 success 的情形**：子节点 `llm.round` 为 `failed` 时，`plan.created` **不得**标为 `success`（§4）。
+- **观测含义**：仅当 planner **LLM 调用层失败**时，`plan.created`/`llm.round` 双 failed；解析失败但调用成功时两者均为 `success`。
+
+实现对照：`graphs/nodes/planner.py` — `ainvoke` 与解析分支分离；`except Exception` 仅包裹 `structured.ainvoke`。
+
+### 7.2 其他场景
+
 | 场景 | 行为 |
 |------|------|
 | LLM 调用抛异常 | `llm.round` → `failed`；父节点按 §4 传播 |
-| planner structured 输出异常 | 走 fallback plan 前仍 finalize `llm.round`（若已开始）；`plan.created` → `success`（fallback 视为完成） |
 | executor subagent 异常 | `subagent.run` → `failed`；`subagent.finish` → `failed` |
 | memory.persist 整体异常 | 父 `memory.persist` → `failed`；mem0 路径已有 failed 子节点 |
+| subagent / synthesizer stream 中断 | 未配对的 `llm.round` → `failed`（`pending` 清理或 `llm_call_scope`） |
 | Run cancel | **本期不处理** node 树；未完成 node 可能仍为 `running` |
 
 ---
@@ -223,6 +243,7 @@
 | `subagent.run` finalize | `graphs/nodes/executor.py` | 已实现 |
 | `synthesizer.run` finalize | `graphs/nodes/synthesizer.py` | 已实现 |
 | `memory.persist` finalize | `memory/sql/persist.py`、`memory/mem0/persist.py` | 已实现 |
-| 子 failed → 父 failed | `repository.py` → `_propagate_failure_to_parent` | 已实现 |
+| 子 failed → 父 failed | `repository.py` → `_propagate_failure_to_parent`、`_run_node_has_failed_child` | 已实现；Planner §7.1 |
+| LLM 异常路径 finalize | `deps.py` → `llm_call_scope`；planner/subagent/synthesizer | 已实现（P1） |
 | 历史回填 | — | 明确不做 |
 | Run 详情 API | — | 明确不做 |
