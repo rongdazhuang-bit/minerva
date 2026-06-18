@@ -497,6 +497,23 @@ class Settings(BaseSettings):
         description="Agent 默认是否向上游请求思考模式（Run 与 model_config 可覆盖）。",
         validation_alias=AliasChoices("AGENT_ENABLE_THINKING", "agent_enable_thinking"),
     )
+    mcp_client_enabled: bool = Field(
+        default=False,
+        description="为 True 时预热 MCP 客户端配置并在 Agent Run 中注册 MCP 工具。",
+        validation_alias=AliasChoices("MCP_CLIENT_ENABLED", "mcp_client_enabled"),
+    )
+    mcp_server_enabled: bool = Field(
+        default=False,
+        description="为 True 时挂载 sys_mcp_server 对外 MCP Server 路由。",
+        validation_alias=AliasChoices("MCP_SERVER_ENABLED", "mcp_server_enabled"),
+    )
+    mcp_connect_timeout: int = Field(
+        default=30,
+        ge=5,
+        le=300,
+        description="MCP 客户端连通性测试与 Run 内握手超时（秒）。",
+        validation_alias=AliasChoices("MCP_CONNECT_TIMEOUT", "mcp_connect_timeout"),
+    )
     agent_langgraph_checkpoint_enabled: bool = Field(
         default=True,
         description="为 True 时尝试启用 LangGraph PostgresSaver checkpoint。",
