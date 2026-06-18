@@ -64,6 +64,9 @@ function agentsBreadcrumb(
   if (pathname.startsWith('/app/agents/skills')) {
     return [home, agentsBase, { title: t('nav.agentsSkills') }]
   }
+  if (pathname.startsWith('/app/agents/mcp')) {
+    return [home, agentsBase, { title: t('nav.agentsMcp') }]
+  }
   if (pathname.startsWith('/app/agents/memory')) {
     return [home, agentsBase, { title: t('nav.agentsMemory') }]
   }

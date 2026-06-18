@@ -3,69 +3,29 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.mcp.domain.db.models import SysMcpClient, SysMcpServer
+from app.config import settings
 from app.mcp.infrastructure import repository as mcp_repo
+from app.mcp.runtime.client_bridge import (
+    close_mcp_client_bundles,
+    load_langchain_tools_for_snapshots,
+)
+from app.mcp.runtime.snapshots import (
+    McpClientSnapshot,
+    McpServerSnapshot,
+    client_row_to_snapshot,
+    server_row_to_snapshot,
+)
 
-
-@dataclass(frozen=True)
-class McpClientSnapshot:
-    """Immutable MCP client config used at Agent run time."""
-
-    id: uuid.UUID
-    workspace_id: uuid.UUID
-    name: str
-    transport: str
-    config: dict[str, Any]
-    secrets: dict[str, Any]
-    enabled: bool
-
-
-@dataclass(frozen=True)
-class McpServerSnapshot:
-    """Immutable MCP server exposure config used for outbound routes."""
-
-    id: uuid.UUID
-    workspace_id: uuid.UUID
-    name: str
-    slug: str
-    enabled: bool
-    exposure: dict[str, Any]
-    auth_type: str
-    auth_secret: str | None
-
-
-def client_row_to_snapshot(row: SysMcpClient) -> McpClientSnapshot:
-    """Map ORM client row to a runtime snapshot."""
-
-    return McpClientSnapshot(
-        id=row.id,
-        workspace_id=row.workspace_id,
-        name=row.name,
-        transport=row.transport,
-        config=dict(row.config or {}),
-        secrets=dict(row.secrets or {}),
-        enabled=bool(row.enabled),
-    )
-
-
-def server_row_to_snapshot(row: SysMcpServer) -> McpServerSnapshot:
-    """Map ORM server row to a runtime snapshot."""
-
-    return McpServerSnapshot(
-        id=row.id,
-        workspace_id=row.workspace_id,
-        name=row.name,
-        slug=row.slug,
-        enabled=bool(row.enabled),
-        exposure=dict(row.exposure or {}),
-        auth_type=row.auth_type,
-        auth_secret=row.auth_secret,
-    )
+__all__ = [
+    "McpClientSnapshot",
+    "McpServerSnapshot",
+    "McpRuntimeRegistry",
+    "mcp_registry",
+]
 
 
 class McpRuntimeRegistry:
@@ -105,9 +65,7 @@ class McpRuntimeRegistry:
         """Reload enabled MCP client snapshots for one workspace."""
 
         rows = await mcp_repo.list_clients_for_workspace(session, workspace_id=workspace_id)
-        snapshots = [
-            client_row_to_snapshot(row) for row in rows if row.enabled
-        ]
+        snapshots = [client_row_to_snapshot(row) for row in rows if row.enabled]
         if snapshots:
             self._clients[workspace_id] = snapshots
         else:
@@ -119,9 +77,7 @@ class McpRuntimeRegistry:
         """Reload enabled MCP server snapshots for one workspace."""
 
         rows = await mcp_repo.list_servers_for_workspace(session, workspace_id=workspace_id)
-        snapshots = [
-            server_row_to_snapshot(row) for row in rows if row.enabled
-        ]
+        snapshots = [server_row_to_snapshot(row) for row in rows if row.enabled]
         if snapshots:
             self._servers[workspace_id] = snapshots
         else:
@@ -139,6 +95,24 @@ class McpRuntimeRegistry:
         for rows in self._servers.values():
             out.extend(rows)
         return out
+
+    async def resolve_langchain_tools(
+        self, workspace_id: uuid.UUID
+    ) -> tuple[list[Any], list[Any]]:
+        """Open MCP client sessions for a workspace and return LangChain tools + bundles."""
+
+        if not settings.mcp_client_enabled:
+            return [], []
+        snapshots = self.list_client_snapshots(workspace_id)
+        if not snapshots:
+            return [], []
+        return await load_langchain_tools_for_snapshots(snapshots)
+
+    @staticmethod
+    async def close_tool_bundles(bundles: list[Any]) -> None:
+        """Close MCP sessions opened during ``resolve_langchain_tools``."""
+
+        await close_mcp_client_bundles(bundles)
 
 
 mcp_registry = McpRuntimeRegistry.get()

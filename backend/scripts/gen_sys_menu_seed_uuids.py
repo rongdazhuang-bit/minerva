@@ -12,6 +12,7 @@ ROWS: list[tuple] = [
     ("agents-chat", "sub-agents", "对话", "nav.agentsChat", 1, "/app/agents/chat", "C", "CommentOutlined"),
     ("agents-skills", "sub-agents", "技能", "nav.agentsSkills", 2, "/app/agents/skills", "C", "ThunderboltOutlined"),
     ("agents-memory", "sub-agents", "记忆", "nav.agentsMemory", 3, "/app/agents/memory", "C", "DatabaseOutlined"),
+    ("agents-mcp", "sub-agents", "MCP", "nav.agentsMcp", 4, "/app/agents/mcp", "C", "ApiOutlined"),
     ("sub-doc-translate", None, "文档翻译", "nav.docTranslate", 3, None, "M", "TranslationOutlined"),
     ("doc-translate-translate", "sub-doc-translate", "翻译", "nav.docTranslateTranslate", 1, "/app/translate", "C", "FileTextOutlined"),
     ("sub-dataset", None, "知识库", "nav.knowledgeBase", 4, None, "M", "ReadOutlined"),

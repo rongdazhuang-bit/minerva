@@ -32,6 +32,7 @@ from app.agent.memory.factory import create_memory_strategies
 from app.agent.service.memory_persist_service import schedule_persist_turn_memory_background
 from app.config import settings
 from app.exceptions import AppError
+from app.mcp.runtime.registry import mcp_registry
 from app.sys.model_provider.infrastructure import repository as model_repo
 
 log = get_logger(__name__)
@@ -351,6 +352,18 @@ class AgentGraphRunService:
                     max_tokens=max_tokens,
                     conversation_messages=conversation_messages,
                 )
+                try:
+                    mcp_tools, mcp_bundles = await mcp_registry.resolve_langchain_tools(
+                        workspace_id
+                    )
+                    deps.mcp_extra_tools = mcp_tools
+                    deps.mcp_bundles = mcp_bundles
+                except Exception:
+                    log.exception(
+                        "failed to load MCP tools for workspace",
+                        event="mcp.tools.load_failed",
+                        workspace_id=str(workspace_id),
+                    )
 
                 initial: AgentGraphState = {
                     "session_id": session_id,
@@ -538,6 +551,8 @@ class AgentGraphRunService:
                     )
                 )
             finally:
+                if deps is not None and deps.mcp_bundles:
+                    await mcp_registry.close_tool_bundles(deps.mcp_bundles)
                 await emit(SSE_DONE_LINE)
                 await queue.put(None)
 

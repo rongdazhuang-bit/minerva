@@ -6,6 +6,7 @@ from app.core.log import get_logger
 import importlib
 import json
 import sys
+import uuid
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -294,25 +295,58 @@ def build_skill_system_prompt(skill_id: str) -> str:
     return fallback.description if fallback else ""
 
 
+def _merge_tools_by_name(base: list[Any], extra: list[Any]) -> list[Any]:
+    """Append tools from ``extra`` when names do not collide with ``base``."""
+
+    seen = {getattr(t, "name", None) for t in base}
+    merged = list(base)
+    for tool in extra:
+        name = getattr(tool, "name", None)
+        if isinstance(name, str) and name in seen:
+            log.warning("skip duplicate tool name={}", name)
+            continue
+        if isinstance(name, str):
+            seen.add(name)
+        merged.append(tool)
+    return merged
+
+
+def invalidate_subagent_cache_for_workspace(workspace_id: uuid.UUID) -> None:
+    """Drop cached sub-agents for one workspace (after MCP config changes)."""
+
+    key_suffix = str(workspace_id)
+    for key in list(_GLOBAL_SUBAGENT_CACHE.keys()):
+        if key[1] == key_suffix:
+            _GLOBAL_SUBAGENT_CACHE.pop(key, None)
+
+
+_GLOBAL_SUBAGENT_CACHE: dict[tuple[str, str], CompiledStateGraph] = {}
+
+
 def build_skill_react_agent(
     model: BaseChatModel,
     skill_id: str,
     ctx: SkillToolContext,
     *,
     cache: dict[tuple[str, str], CompiledStateGraph] | None = None,
+    extra_tools: list[Any] | None = None,
 ) -> CompiledStateGraph:
     """Compile a ReAct sub-agent with tools loaded on demand for one skill."""
 
     sid = _normalize_skill_id(skill_id)
     cache_key = (sid, str(ctx.workspace_id))
-    if cache is not None and cache_key in cache:
-        return cache[cache_key]
+    effective_cache = cache if cache is not None else _GLOBAL_SUBAGENT_CACHE
+    extras = list(extra_tools or [])
+    if not extras and effective_cache is not None and cache_key in effective_cache:
+        return effective_cache[cache_key]
 
     tools = load_tools_for_skill(sid, ctx)
+    if extras:
+        tools = _merge_tools_by_name(tools, extras)
     prompt = build_skill_system_prompt(sid)
     graph = create_react_agent(model, tools=tools, prompt=prompt)
-    if cache is not None:
-        cache[cache_key] = graph
+    if not extras and effective_cache is not None:
+        effective_cache[cache_key] = graph
     return graph
 
 

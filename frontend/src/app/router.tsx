@@ -12,6 +12,7 @@ import {
   AgentSkillRegistryPage,
   AgentsPage,
 } from '@/features/agent'
+import { AgentMcpPage } from '@/features/agent/mcp/AgentMcpPage'
 import { TranslatePage } from '@/features/translate'
 import { DatasetListPage, DatasetSectionLayout, DocumentListPage, DatasetSettingsPage, HitTestingPage } from '@/features/dataset'
 import { OverviewPage } from '@/features/workspace/OverviewPage'
@@ -65,6 +66,7 @@ const router = createBrowserRouter([
           { path: 'agents', element: <Navigate to="agents/chat" replace /> },
           { path: 'agents/chat', element: <AgentsPage /> },
           { path: 'agents/memory', element: <AgentMemoryPage /> },
+          { path: 'agents/mcp', element: <AgentMcpPage /> },
           { path: 'agents/skills', element: <AgentSkillsListPage /> },
           { path: 'agents/skills/registry', element: <AgentSkillRegistryPage /> },
           { path: 'agents/skills/:skillId', element: <AgentSkillDetailPage /> },

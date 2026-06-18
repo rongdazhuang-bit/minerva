@@ -14,6 +14,7 @@ from app.rule.api.router import router as rule_base_router
 from app.rule.api.rule_config_prompt_router import router as rule_config_prompt_router
 from app.sys.model_provider.api.router import router as model_providers_router
 from app.file_ocr.api.router import file_router as ocr_files_router
+from app.mcp.api.router import router as mcp_router
 from app.sys.tool.ocr.api.router import router as ocr_tools_router
 from app.llm.api.router import router as llm_router
 from app.agent.api.v2.router import router as agent_router
@@ -26,6 +27,7 @@ api.include_router(health.router)
 api.include_router(probe.router)
 api.include_router(auth.router)
 api.include_router(ocr_tools_router)
+api.include_router(mcp_router)
 api.include_router(ocr_files_router)
 api.include_router(llm_router)
 api.include_router(agent_router)

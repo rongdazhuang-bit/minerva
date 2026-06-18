@@ -69,6 +69,7 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
             step.skill_id,
             ctx,
             cache=deps.subagent_cache,
+            extra_tools=deps.mcp_extra_tools or None,
         )
         output = await run_subagent_with_stream(
             deps,

@@ -9,6 +9,7 @@ INSERT INTO public.sys_menu (
   ('b2088a3b-256b-52e6-8a72-c409cba808ea', '32cbc24c-39cf-58de-966a-0e3befbc3f4e', '对话', 'nav.agentsChat', 'agents-chat', 1, '/app/agents/chat', 'C', 'CommentOutlined', true, true),
   ('bb8fdcd0-157f-5b7b-acee-636b594e7014', '32cbc24c-39cf-58de-966a-0e3befbc3f4e', '技能', 'nav.agentsSkills', 'agents-skills', 2, '/app/agents/skills', 'C', 'ThunderboltOutlined', true, true),
   ('f5799b75-01ae-54bb-b959-72f0d4ee51b1', '32cbc24c-39cf-58de-966a-0e3befbc3f4e', '记忆', 'nav.agentsMemory', 'agents-memory', 3, '/app/agents/memory', 'C', 'DatabaseOutlined', true, true),
+  ('9b33ab71-4f11-58e3-bf70-82bf723434ac', '32cbc24c-39cf-58de-966a-0e3befbc3f4e', 'MCP', 'nav.agentsMcp', 'agents-mcp', 4, '/app/agents/mcp', 'C', 'ApiOutlined', true, true),
   ('15a93c9c-85d7-5f2c-b87e-10a0a9c4cbbb', NULL, '文档翻译', 'nav.docTranslate', 'sub-doc-translate', 3, NULL, 'M', 'TranslationOutlined', true, true),
   ('bf81af51-cf7d-5567-b78e-506b9ff82c8a', '15a93c9c-85d7-5f2c-b87e-10a0a9c4cbbb', '翻译', 'nav.docTranslateTranslate', 'doc-translate-translate', 1, '/app/translate', 'C', 'FileTextOutlined', true, true),
   ('80cc9a4f-f39b-564e-b3ac-158afc9ab79e', NULL, '知识库', 'nav.knowledgeBase', 'sub-dataset', 4, NULL, 'M', 'ReadOutlined', true, true),
@@ -34,6 +35,5 @@ INSERT INTO public.sys_menu (
   ('c9a908a4-fc2c-5c07-ada4-56760bb9ef43', '2f899ad8-d7d2-5be5-bf63-feeb426c0bb9', '菜单配置', 'settings.menuConfig', 'settings-menus', 6, '/app/settings/menus', 'C', 'MenuOutlined', true, true),
   ('b137ea34-f040-53f4-bf4e-f3c009e191a3', '2f899ad8-d7d2-5be5-bf63-feeb426c0bb9', '用户管理', 'settings.users', 'settings-users', 7, '/app/settings/users', 'C', 'UserOutlined', true, true),
   ('978c6b53-797a-5455-8728-3d97d2ea0619', '2f899ad8-d7d2-5be5-bf63-feeb426c0bb9', '角色管理', 'settings.roles', 'settings-roles', 8, '/app/settings/roles', 'C', 'IdcardOutlined', true, true),
-  ('f3e8a912-4c1d-5b6a-9e7f-2d8c4a1b0e59', '2f899ad8-d7d2-5be5-bf63-feeb426c0bb9', '租户管理', 'settings.tenants', 'settings-tenants', 9, '/app/settings/tenants', 'C', 'BankOutlined', true, true),
-  ('5a769206-f9bf-5ddd-b4f4-956d40dbc3c9', '2f899ad8-d7d2-5be5-bf63-feeb426c0bb9', '数据字典', 'settings.dictionary', 'settings-dictionary', 10, '/app/settings/dictionary', 'C', 'TagsOutlined', true, true)
+  ('5a769206-f9bf-5ddd-b4f4-956d40dbc3c9', '2f899ad8-d7d2-5be5-bf63-feeb426c0bb9', '数据字典', 'settings.dictionary', 'settings-dictionary', 9, '/app/settings/dictionary', 'C', 'TagsOutlined', true, true)
 ON CONFLICT (id) DO NOTHING;

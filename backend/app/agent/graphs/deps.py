@@ -47,6 +47,8 @@ class GraphDeps:
     max_tokens: int | None = None
     conversation_messages: list[BaseMessage] | None = None
     subagent_cache: dict[tuple[str, str], CompiledStateGraph] = field(default_factory=dict)
+    mcp_extra_tools: list[Any] = field(default_factory=list)
+    mcp_bundles: list[Any] = field(default_factory=list)
     accumulated_usage: OpenAIUsage = field(default_factory=dict)
     usage_tracker: RunUsageTracker = field(default_factory=RunUsageTracker)
     _llm_round_seq: dict[uuid.UUID, int] = field(default_factory=dict)

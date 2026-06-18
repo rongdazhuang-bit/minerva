@@ -13,6 +13,7 @@ from app.exceptions import AppError
 from app.mcp.domain.db.models import SysMcpClient
 from app.mcp.infrastructure import repository as mcp_repo
 from app.mcp.runtime.connection_tester import McpConnectionTester, McpTestResult
+from app.agent.infrastructure.skill_loader import invalidate_subagent_cache_for_workspace
 from app.mcp.runtime.registry import mcp_registry
 
 _VALID_TRANSPORTS = frozenset({"STDIO", "SSE", "STREAMABLE_HTTP"})
@@ -170,6 +171,7 @@ async def create_client(
         ) from exc
     await session.refresh(row)
     await mcp_registry.refresh_workspace_clients(session, workspace_id)
+    invalidate_subagent_cache_for_workspace(workspace_id)
     return row
 
 
@@ -233,6 +235,7 @@ async def update_client(
         ) from exc
     await session.refresh(row)
     await mcp_registry.refresh_workspace_clients(session, workspace_id)
+    invalidate_subagent_cache_for_workspace(workspace_id)
     return row
 
 
@@ -259,3 +262,4 @@ async def delete_client(
     await session.delete(row)
     await session.commit()
     await mcp_registry.refresh_workspace_clients(session, workspace_id)
+    invalidate_subagent_cache_for_workspace(workspace_id)
