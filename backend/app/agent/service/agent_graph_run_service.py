@@ -353,16 +353,40 @@ class AgentGraphRunService:
                     conversation_messages=conversation_messages,
                 )
                 try:
-                    mcp_tools, mcp_bundles = await mcp_registry.resolve_langchain_tools(
+                    mcp_tools, mcp_bundles, mcp_unavailable = await mcp_registry.resolve_langchain_tools(
                         workspace_id
                     )
                     deps.mcp_extra_tools = mcp_tools
                     deps.mcp_bundles = mcp_bundles
+                    if mcp_unavailable:
+                        await emit(
+                            build_sse_event(
+                                event_type=AgentSseEventType.mcp_tools_unavailable,
+                                run_id=run_id,
+                                session_id=session_id,
+                                payload={
+                                    "client_names": mcp_unavailable,
+                                    "loaded_tool_count": len(mcp_tools),
+                                },
+                            )
+                        )
                 except Exception:
                     log.exception(
                         "failed to load MCP tools for workspace",
                         event="mcp.tools.load_failed",
                         workspace_id=str(workspace_id),
+                    )
+                    await emit(
+                        build_sse_event(
+                            event_type=AgentSseEventType.mcp_tools_unavailable,
+                            run_id=run_id,
+                            session_id=session_id,
+                            payload={
+                                "client_names": [],
+                                "loaded_tool_count": 0,
+                                "error": "mcp.tools.load_failed",
+                            },
+                        )
                     )
 
                 initial: AgentGraphState = {

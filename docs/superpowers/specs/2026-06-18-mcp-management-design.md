@@ -36,7 +36,7 @@
 - MCP 服务端保存时的运行时连通性探测（仅字段与引用校验）。
 - 跨 workspace 共享 MCP 配置。
 - MCP 连接池 / 全局长连接（按 Run 短连接）。
-- MCP 工具在线调试 UI。
+- MCP 工具在线调试 UI（已由 `2026-06-18-mcp-tool-explorer-design.md` 单独实现）。
 - Git 同步或导入 Cursor `mcp.json` 一键迁移（可后续迭代）。
 
 ---
@@ -372,17 +372,21 @@ if settings.mcp_client_enabled:
 
 ---
 
-## 12. 实现对照（待回填）
+## 12. 实现对照
 
 | spec 条目 | 计划代码位置 | 状态 |
 |-----------|--------------|------|
-| sys_mcp_client / sys_mcp_server 表 | `backend/sql/` + ORM | 待实现 |
-| McpRuntimeRegistry | `backend/app/mcp/runtime/registry.py` | 待实现 |
-| MCP API | `backend/app/mcp/api/router.py` | 待实现 |
-| Agent 工具合并 | `skill_loader.py` 或 Run service | 待实现 |
-| 前端 MCP 页 | `frontend/src/features/agent/mcp/` | 待实现 |
-| 菜单种子 | `sys_menu_seed.sql` + patch | 待实现 |
-| 环境变量 | `app/config.py` + `.env.example` | 待实现 |
+| sys_mcp_client / sys_mcp_server 表 | `backend/sql/patches/2026-06-18-sys-mcp-tables.sql` + ORM | 已实现 |
+| McpRuntimeRegistry | `backend/app/mcp/runtime/registry.py` | 已实现 |
+| MCP API | `backend/app/mcp/api/router.py` | 已实现 |
+| Agent 工具合并 | `agent_graph_run_service.py` + `client_bridge.py` | 已实现 |
+| 对外 Streamable HTTP + exposure 聚合 | `server_exposure.py` + `server_runtime.py` + `server_router.py` | 已实现 |
+| 前端 MCP 页（编辑回填 / exposure 多选 / 权限） | `frontend/src/features/agent/mcp/AgentMcpPage.tsx` | 已实现 |
+| 菜单种子 | `2026-06-18-agents-mcp-menu.sql` | 已实现 |
+| 环境变量 | `app/config.py` | 已实现 |
+| workspace 删除清理 MCP 表 | `tenant_service.delete_workspace` | 已实现 |
+| SSE `mcp.tools_unavailable` | `agent/domain/sse_v2.py` + Run service | 已实现 |
+| STDIO 连接超时 | `connection_tester.py` | 已实现 |
 
 ---
 

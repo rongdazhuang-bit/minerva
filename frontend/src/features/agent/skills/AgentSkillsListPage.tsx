@@ -124,6 +124,7 @@ export function AgentSkillsListPage() {
       title: t('agents.skills.colId', { defaultValue: '技能 ID' }),
       dataIndex: 'id',
       key: 'id',
+      width: 220,
       ellipsis: true,
     },
     {
@@ -214,10 +215,12 @@ export function AgentSkillsListPage() {
         ) : null}
         <div className="minerva-agent-skills-page__table-wrap minerva-scrollbar-styled">
           <Table<SkillRegistryItem>
+            className="minerva-agent-skills-page__table"
             rowKey="id"
             loading={loading}
             columns={columns}
             dataSource={pagedSkills}
+            tableLayout="fixed"
             onRow={(record) => ({
               onClick: () => openSkill(record.id),
               style: { cursor: 'pointer' },
@@ -229,7 +232,6 @@ export function AgentSkillsListPage() {
               showSizeChanger: false,
               onChange: (p) => setPage(p),
             }}
-            scroll={{ x: 'max-content' }}
           />
         </div>
       </Card>

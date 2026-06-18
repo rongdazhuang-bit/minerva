@@ -30,6 +30,7 @@ class AgentSseEventType(str, Enum):
     tool_started = "tool.started"
     tool_finished = "tool.finished"
     memory_retrieved = "memory.retrieved"
+    mcp_tools_unavailable = "mcp.tools_unavailable"
     message_final = "message.final"  # Reserved; not emitted (assistant text uses llm.delta only).
 
 

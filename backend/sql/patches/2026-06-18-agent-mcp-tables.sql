@@ -1,5 +1,5 @@
--- sys_mcp_client / sys_mcp_server（无库级外键）
-CREATE TABLE IF NOT EXISTS public.sys_mcp_client (
+-- agent_mcp_client / agent_mcp_server（无库级外键）
+CREATE TABLE IF NOT EXISTS public.agent_mcp_client (
   id            UUID         NOT NULL,
   workspace_id  UUID         NOT NULL,
   name          VARCHAR(128) NOT NULL,
@@ -12,14 +12,14 @@ CREATE TABLE IF NOT EXISTS public.sys_mcp_client (
   last_test_ok  BOOLEAN      NULL,
   create_at     TIMESTAMPTZ  NULL DEFAULT now(),
   update_at     TIMESTAMPTZ  NULL,
-  CONSTRAINT sys_mcp_client_pk PRIMARY KEY (id)
+  CONSTRAINT agent_mcp_client_pk PRIMARY KEY (id)
 );
-CREATE INDEX IF NOT EXISTS ix_sys_mcp_client_workspace_id
-  ON public.sys_mcp_client (workspace_id);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_mcp_client_workspace_name
-  ON public.sys_mcp_client (workspace_id, name);
+CREATE INDEX IF NOT EXISTS ix_agent_mcp_client_workspace_id
+  ON public.agent_mcp_client (workspace_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_mcp_client_workspace_name
+  ON public.agent_mcp_client (workspace_id, name);
 
-CREATE TABLE IF NOT EXISTS public.sys_mcp_server (
+CREATE TABLE IF NOT EXISTS public.agent_mcp_server (
   id            UUID         NOT NULL,
   workspace_id  UUID         NOT NULL,
   name          VARCHAR(128) NOT NULL,
@@ -31,9 +31,9 @@ CREATE TABLE IF NOT EXISTS public.sys_mcp_server (
   remark        VARCHAR(256) NULL,
   create_at     TIMESTAMPTZ  NULL DEFAULT now(),
   update_at     TIMESTAMPTZ  NULL,
-  CONSTRAINT sys_mcp_server_pk PRIMARY KEY (id)
+  CONSTRAINT agent_mcp_server_pk PRIMARY KEY (id)
 );
-CREATE INDEX IF NOT EXISTS ix_sys_mcp_server_workspace_id
-  ON public.sys_mcp_server (workspace_id);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_mcp_server_slug
-  ON public.sys_mcp_server (slug);
+CREATE INDEX IF NOT EXISTS ix_agent_mcp_server_workspace_id
+  ON public.agent_mcp_server (workspace_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_mcp_server_slug
+  ON public.agent_mcp_server (slug);

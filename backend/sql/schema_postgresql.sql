@@ -149,7 +149,7 @@ COMMENT ON COLUMN public.sys_ocr_tool.remark IS '备注';
 COMMENT ON COLUMN public.sys_ocr_tool.create_at IS '创建日期';
 COMMENT ON COLUMN public.sys_ocr_tool.update_at IS '更新日期';
 
-CREATE TABLE IF NOT EXISTS public.sys_mcp_client (
+CREATE TABLE IF NOT EXISTS public.agent_mcp_client (
   id UUID NOT NULL,
   workspace_id UUID NOT NULL,
   "name" VARCHAR(128) NOT NULL,
@@ -162,18 +162,18 @@ CREATE TABLE IF NOT EXISTS public.sys_mcp_client (
   last_test_ok BOOLEAN NULL,
   create_at TIMESTAMPTZ NULL DEFAULT now(),
   update_at TIMESTAMPTZ NULL,
-  CONSTRAINT sys_mcp_client_pk PRIMARY KEY (id)
+  CONSTRAINT agent_mcp_client_pk PRIMARY KEY (id)
 );
-CREATE INDEX IF NOT EXISTS ix_sys_mcp_client_workspace_id ON sys_mcp_client (workspace_id);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_mcp_client_workspace_name
-  ON sys_mcp_client (workspace_id, "name");
-COMMENT ON TABLE public.sys_mcp_client IS 'MCP 客户端连接配置（工作区隔离）';
-COMMENT ON COLUMN public.sys_mcp_client.workspace_id IS '工作空间 id';
-COMMENT ON COLUMN public.sys_mcp_client.transport IS 'STDIO | SSE | STREAMABLE_HTTP';
-COMMENT ON COLUMN public.sys_mcp_client.config IS '非敏感连接配置 JSON';
-COMMENT ON COLUMN public.sys_mcp_client.secrets IS '敏感配置 JSON（env/headers）';
+CREATE INDEX IF NOT EXISTS ix_agent_mcp_client_workspace_id ON agent_mcp_client (workspace_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_mcp_client_workspace_name
+  ON agent_mcp_client (workspace_id, "name");
+COMMENT ON TABLE public.agent_mcp_client IS 'MCP 客户端连接配置（工作区隔离）';
+COMMENT ON COLUMN public.agent_mcp_client.workspace_id IS '工作空间 id';
+COMMENT ON COLUMN public.agent_mcp_client.transport IS 'STDIO | SSE | STREAMABLE_HTTP';
+COMMENT ON COLUMN public.agent_mcp_client.config IS '非敏感连接配置 JSON';
+COMMENT ON COLUMN public.agent_mcp_client.secrets IS '敏感配置 JSON（env/headers）';
 
-CREATE TABLE IF NOT EXISTS public.sys_mcp_server (
+CREATE TABLE IF NOT EXISTS public.agent_mcp_server (
   id UUID NOT NULL,
   workspace_id UUID NOT NULL,
   "name" VARCHAR(128) NOT NULL,
@@ -185,13 +185,13 @@ CREATE TABLE IF NOT EXISTS public.sys_mcp_server (
   remark VARCHAR(256) NULL,
   create_at TIMESTAMPTZ NULL DEFAULT now(),
   update_at TIMESTAMPTZ NULL,
-  CONSTRAINT sys_mcp_server_pk PRIMARY KEY (id)
+  CONSTRAINT agent_mcp_server_pk PRIMARY KEY (id)
 );
-CREATE INDEX IF NOT EXISTS ix_sys_mcp_server_workspace_id ON sys_mcp_server (workspace_id);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_mcp_server_slug ON sys_mcp_server (slug);
-COMMENT ON TABLE public.sys_mcp_server IS 'MCP 服务端暴露配置（工作区隔离）';
-COMMENT ON COLUMN public.sys_mcp_server.slug IS '对外 URL 路径段，全局唯一';
-COMMENT ON COLUMN public.sys_mcp_server.exposure IS '暴露范围 JSON（builtin_skills/mcp_client_ids）';
+CREATE INDEX IF NOT EXISTS ix_agent_mcp_server_workspace_id ON agent_mcp_server (workspace_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_mcp_server_slug ON agent_mcp_server (slug);
+COMMENT ON TABLE public.agent_mcp_server IS 'MCP 服务端暴露配置（工作区隔离）';
+COMMENT ON COLUMN public.agent_mcp_server.slug IS '对外 URL 路径段，全局唯一';
+COMMENT ON COLUMN public.agent_mcp_server.exposure IS '暴露范围 JSON（builtin_skills/mcp_client_ids）';
 
 CREATE TABLE public.sys_dict (
      id uuid NOT NULL,

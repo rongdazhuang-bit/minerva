@@ -110,6 +110,13 @@ function contentScrollStyleForPath(pathname: string): CSSProperties {
       overflowX: 'hidden',
     }
   }
+  if (pathname.startsWith('/app/agents/mcp')) {
+    return {
+      ...contentScrollStyle,
+      overflowY: 'hidden',
+      overflowX: 'hidden',
+    }
+  }
   if (pathname.startsWith('/app/settings/menus')) {
     return {
       ...contentScrollStyle,

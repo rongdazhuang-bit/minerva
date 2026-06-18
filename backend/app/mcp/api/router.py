@@ -13,7 +13,8 @@ from app.core.api.deps import (
     require_workspace_member,
     require_workspace_owner_or_admin,
 )
-from app.core.domain.identity.models import User
+from app.core.domain.identity.models import MembershipRole, User
+from app.core.domain.identity.services import find_workspace_role_for_user
 from app.dependencies import get_db
 from app.mcp.api.schemas import (
     McpClientCreateIn,
@@ -22,6 +23,9 @@ from app.mcp.api.schemas import (
     McpClientPatchIn,
     McpClientTestIn,
     McpClientTestOut,
+    McpCallToolIn,
+    McpCallToolOut,
+    McpListToolsOut,
     McpRuntimeStatusOut,
     McpServerCreateIn,
     McpServerDetailOut,
@@ -35,11 +39,20 @@ from app.mcp.service import mcp_server_service as server_svc
 router = APIRouter(prefix="/workspaces/{workspace_id}/mcp", tags=["mcp"])
 
 
+def _client_url(row: SysMcpClient) -> str | None:
+    if row.transport == "STDIO":
+        return None
+    config = row.config if isinstance(row.config, dict) else {}
+    url = config.get("url")
+    return url.strip() if isinstance(url, str) and url.strip() else None
+
+
 def _client_list_item(row: SysMcpClient) -> McpClientListItemOut:
     secrets = row.secrets if isinstance(row.secrets, dict) else {}
     return McpClientListItemOut(
         id=row.id,
         name=row.name,
+        url=_client_url(row),
         transport=row.transport,
         enabled=row.enabled,
         remark=row.remark,
@@ -114,14 +127,18 @@ async def list_mcp_clients(
 async def get_mcp_client(
     workspace_id: uuid.UUID,
     client_id: uuid.UUID,
-    _user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     _workspace: uuid.UUID = Depends(require_workspace_member),
     session: AsyncSession = Depends(get_db),
 ) -> McpClientDetailOut:
     row = await client_svc.get_client(
         session, workspace_id=workspace_id, client_id=client_id
     )
-    return _client_detail(row, redact_secrets=True)
+    role = await find_workspace_role_for_user(
+        session, user_id=user.id, workspace_id=workspace_id
+    )
+    can_manage = role in (MembershipRole.owner, MembershipRole.admin)
+    return _client_detail(row, redact_secrets=not can_manage)
 
 
 @router.post("/clients/test", response_model=McpClientTestOut)
@@ -200,6 +217,41 @@ async def delete_mcp_client(
         session, workspace_id=workspace_id, client_id=client_id
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/clients/{client_id}/tools", response_model=McpListToolsOut)
+async def list_mcp_client_tools(
+    workspace_id: uuid.UUID,
+    client_id: uuid.UUID,
+    _user: User = Depends(get_current_user),
+    _workspace: uuid.UUID = Depends(require_workspace_member),
+    session: AsyncSession = Depends(get_db),
+) -> McpListToolsOut:
+    return await client_svc.list_client_tools(
+        session, workspace_id=workspace_id, client_id=client_id
+    )
+
+
+@router.post(
+    "/clients/{client_id}/tools/{tool_name}/call",
+    response_model=McpCallToolOut,
+)
+async def call_mcp_client_tool(
+    workspace_id: uuid.UUID,
+    client_id: uuid.UUID,
+    tool_name: str,
+    body: McpCallToolIn,
+    _user: User = Depends(get_current_user),
+    _workspace: uuid.UUID = Depends(require_workspace_member),
+    session: AsyncSession = Depends(get_db),
+) -> McpCallToolOut:
+    return await client_svc.call_client_tool(
+        session,
+        workspace_id=workspace_id,
+        client_id=client_id,
+        tool_name=tool_name,
+        arguments=body.arguments,
+    )
 
 
 @router.get("/servers", response_model=list[McpServerListItemOut])

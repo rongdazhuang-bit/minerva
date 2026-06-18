@@ -17,7 +17,7 @@ from app.core.infrastructure.db.base import Base
 class SysMcpClient(Base):
     """External MCP server connection config for one workspace (Minerva acts as MCP client)."""
 
-    __tablename__ = "sys_mcp_client"
+    __tablename__ = "agent_mcp_client"
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -56,7 +56,7 @@ class SysMcpClient(Base):
 class SysMcpServer(Base):
     """Outbound MCP server exposure config for one workspace."""
 
-    __tablename__ = "sys_mcp_server"
+    __tablename__ = "agent_mcp_server"
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4

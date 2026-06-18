@@ -12,6 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.domain.identity.models import Tenant, Workspace
 from app.exceptions import AppError
+from app.mcp.infrastructure import repository as mcp_repo
+from app.mcp.runtime.registry import mcp_registry
 from app.sys.tenant.infrastructure import repository as repo
 
 _SLUG_RE = re.compile(r"^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$")
@@ -262,12 +264,16 @@ async def delete_workspace(
     tenant_id: uuid.UUID,
     workspace_id: uuid.UUID,
 ) -> None:
-    """Delete only the workspace row."""
+    """Delete workspace and related MCP configuration rows."""
 
     await _require_tenant(session, tenant_id=tenant_id)
+    await mcp_repo.delete_clients_for_workspace(session, workspace_id=workspace_id)
+    await mcp_repo.delete_servers_for_workspace(session, workspace_id=workspace_id)
     affected = await repo.delete_workspace_row(
         session, tenant_id=tenant_id, workspace_id=workspace_id
     )
     if affected == 0:
         raise AppError("workspace.not_found", "Workspace not found", 404)
     await session.commit()
+    await mcp_registry.refresh_workspace_clients(session, workspace_id)
+    await mcp_registry.refresh_workspace_servers(session, workspace_id)

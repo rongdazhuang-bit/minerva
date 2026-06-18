@@ -504,7 +504,7 @@ class Settings(BaseSettings):
     )
     mcp_server_enabled: bool = Field(
         default=False,
-        description="为 True 时挂载 sys_mcp_server 对外 MCP Server 路由。",
+        description="为 True 时挂载 agent_mcp_server 对外 MCP Server 路由。",
         validation_alias=AliasChoices("MCP_SERVER_ENABLED", "mcp_server_enabled"),
     )
     mcp_connect_timeout: int = Field(

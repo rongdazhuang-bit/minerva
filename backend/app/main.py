@@ -25,6 +25,7 @@ from app.core.infrastructure.db.bootstrap import create_missing_tables
 from app.core.infrastructure.db.session import async_session_factory
 from app.mcp.runtime.registry import mcp_registry
 from app.mcp.runtime.server_router import mount_mcp_server_routes
+from app.mcp.runtime.server_runtime import mcp_outbound_runtime
 from app.sys.menu.service.menu_seed import bootstrap_sys_menu_seed
 from app.limits import limiter
 
@@ -40,10 +41,11 @@ async def lifespan(app: FastAPI):
     if settings.mcp_client_enabled or settings.mcp_server_enabled:
         async with async_session_factory() as session:
             await mcp_registry.warm_from_db(session)
-    if settings.mcp_server_enabled:
-        mount_mcp_server_routes(app, mcp_registry)
-    # LangGraph checkpoint 在首次 Agent 运行时懒加载，避免启动阻塞 HTTP（尤其 Windows 上池初始化较慢）。
-    yield
+    async with mcp_outbound_runtime.lifespan():
+        if settings.mcp_server_enabled:
+            mount_mcp_server_routes(app, mcp_registry)
+        # LangGraph checkpoint 在首次 Agent 运行时懒加载，避免启动阻塞 HTTP（尤其 Windows 上池初始化较慢）。
+        yield
     await close_langgraph_checkpointer()
 
 

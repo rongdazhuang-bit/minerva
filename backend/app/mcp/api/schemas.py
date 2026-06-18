@@ -30,6 +30,7 @@ class McpClientPatchIn(BaseModel):
 class McpClientListItemOut(BaseModel):
     id: uuid.UUID
     name: str
+    url: str | None = None
     transport: str
     enabled: bool
     remark: str | None
@@ -100,3 +101,37 @@ class McpServerDetailOut(McpServerListItemOut):
 class McpRuntimeStatusOut(BaseModel):
     client_enabled: bool
     server_enabled: bool
+
+
+class McpToolAnnotationOut(BaseModel):
+    readOnlyHint: bool = False
+    destructiveHint: bool = False
+    idempotentHint: bool = False
+    openWorldHint: bool = False
+
+
+class McpToolOut(BaseModel):
+    name: str
+    description: str | None = None
+    inputSchema: dict[str, Any] = Field(default_factory=dict)
+    annotations: McpToolAnnotationOut = Field(default_factory=McpToolAnnotationOut)
+
+
+class McpListToolsOut(BaseModel):
+    ok: bool
+    tools: list[McpToolOut] = Field(default_factory=list)
+    error_code: str | None = None
+    error_message: str | None = None
+
+
+class McpCallToolIn(BaseModel):
+    arguments: dict[str, Any] = Field(default_factory=dict)
+
+
+class McpCallToolOut(BaseModel):
+    ok: bool
+    content: list[dict[str, Any]] = Field(default_factory=list)
+    structuredContent: dict[str, Any] | None = None
+    isError: bool = False
+    error_code: str | None = None
+    error_message: str | None = None

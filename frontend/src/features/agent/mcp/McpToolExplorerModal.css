@@ -1,0 +1,411 @@
+/** Fullscreen host for MCP tool list / call debugger. */
+
+.minerva-mcp-tool-explorer-modal.ant-modal-wrap {
+
+  overflow: hidden;
+
+}
+
+
+
+.minerva-mcp-tool-explorer-modal .ant-modal {
+
+  top: 0 !important;
+
+  display: flex;
+
+  flex-direction: column;
+
+  width: 100vw !important;
+
+  max-width: 100vw !important;
+
+  height: 100dvh !important;
+
+  max-height: 100dvh !important;
+
+  margin: 0 !important;
+
+  padding: 0 !important;
+
+}
+
+
+
+.minerva-mcp-tool-explorer-modal .ant-modal-container {
+
+  display: flex;
+
+  flex-direction: column;
+
+  flex: 1 1 auto;
+
+  min-height: 0;
+
+  height: 100%;
+
+  max-height: 100dvh;
+
+  padding: 0;
+
+  border-radius: 0;
+
+}
+
+
+
+.minerva-mcp-tool-explorer-modal .ant-modal-header {
+
+  flex-shrink: 0;
+
+  margin-bottom: 0;
+
+  padding: 16px 20px;
+
+  border-bottom: 1px solid var(--minerva-border, #2a3f58);
+
+}
+
+
+
+.minerva-mcp-tool-explorer-modal .ant-modal-body {
+
+  flex: 1 1 auto;
+
+  min-height: 0;
+
+  overflow: hidden;
+
+  padding: 0;
+
+  display: flex;
+
+  flex-direction: column;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__layout {
+
+  flex: 1;
+
+  min-height: 0;
+
+  display: flex;
+
+  overflow: hidden;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__sidebar {
+
+  width: 320px;
+
+  flex-shrink: 0;
+
+  border-right: 1px solid var(--minerva-border, #2a3f58);
+
+  display: flex;
+
+  flex-direction: column;
+
+  min-height: 0;
+
+  padding: 12px;
+
+  gap: 8px;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__sidebar-actions {
+
+  display: flex;
+
+  gap: 8px;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__search-meta {
+
+  font-size: 12px;
+
+  line-height: 1.4;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__tool-list-panel {
+
+  flex: 1;
+
+  min-height: 0;
+
+  overflow: hidden;
+
+  display: flex;
+
+  flex-direction: column;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__tool-list-panel > .ant-spin-nested-loading {
+
+  flex: 1;
+
+  min-height: 0;
+
+  display: flex;
+
+  flex-direction: column;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__tool-list-panel .ant-spin-container {
+
+  flex: 1;
+
+  min-height: 0;
+
+  display: flex;
+
+  flex-direction: column;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__tool-list {
+
+  flex: 1;
+
+  min-height: 0;
+
+  overflow: auto;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__tool-item {
+
+  padding: 10px 12px;
+
+  border-radius: 8px;
+
+  cursor: pointer;
+
+  border: 1px solid transparent;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__tool-item:hover {
+
+  background: rgb(255 255 255 / 4%);
+
+}
+
+
+
+.minerva-mcp-tool-explorer__tool-item--active {
+
+  background: rgb(255 255 255 / 8%);
+
+  border-color: var(--minerva-border, #2a3f58);
+
+}
+
+
+
+.minerva-mcp-tool-explorer__tool-name {
+
+  font-weight: 600;
+
+  word-break: break-all;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__tool-desc {
+
+  margin-top: 4px;
+
+  font-size: 12px;
+
+  color: rgb(255 255 255 / 55%);
+
+  display: -webkit-box;
+
+  -webkit-line-clamp: 2;
+
+  -webkit-box-orient: vertical;
+
+  overflow: hidden;
+
+}
+
+
+
+html.minerva-tone-sunshine .minerva-mcp-tool-explorer__tool-desc {
+
+  color: rgb(15 23 42 / 55%);
+
+}
+
+
+
+.minerva-mcp-tool-explorer__highlight {
+
+  padding: 0;
+
+  color: inherit;
+
+  background: rgb(250 173 20 / 35%);
+
+  border-radius: 2px;
+
+}
+
+
+
+html.minerva-tone-sunshine .minerva-mcp-tool-explorer__highlight {
+
+  background: rgb(250 173 20 / 45%);
+
+}
+
+
+
+.minerva-mcp-tool-explorer__main {
+
+  flex: 1;
+
+  min-width: 0;
+
+  min-height: 0;
+
+  overflow: auto;
+
+  padding: 20px 24px;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__title {
+
+  margin: 0 0 8px;
+
+  font-size: 22px;
+
+  font-weight: 700;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__tags {
+
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: 8px;
+
+  margin: 12px 0 16px;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__section {
+
+  margin-bottom: 16px;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__result {
+
+  margin-top: 16px;
+
+  padding: 12px;
+
+  border-radius: 8px;
+
+  border: 1px solid var(--minerva-border, #2a3f58);
+
+  background: rgb(0 0 0 / 15%);
+
+}
+
+
+
+.minerva-mcp-tool-explorer__result pre {
+
+  margin: 8px 0 0;
+
+  white-space: pre-wrap;
+
+  word-break: break-all;
+
+  font-size: 12px;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__result--success {
+
+  border-color: #389e0d;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__result--error {
+
+  border-color: #cf1322;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__empty {
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  height: 100%;
+
+  color: rgb(255 255 255 / 45%);
+
+}
+
+
+
+html.minerva-tone-sunshine .minerva-mcp-tool-explorer__empty {
+
+  color: rgb(15 23 42 / 45%);
+
+}
+
+

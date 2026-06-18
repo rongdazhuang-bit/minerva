@@ -176,10 +176,24 @@ export function formatAgentV2TraceLine(event: AgentSseEventV2, locale?: string):
       return `[subagent] start ${String(p.skill_id ?? '')}`
     case 'subagent.finished':
       return `[subagent] end ${String(p.skill_id ?? '')} ${String(p.status ?? '')}`
-    case 'tool.started':
+    case 'tool.started': {
+      const argsPreview = String(p.arguments_preview ?? '').trim()
+      if (argsPreview) {
+        const clipped =
+          argsPreview.length > 120 ? `${argsPreview.slice(0, 120)}…` : argsPreview
+        return `[tool] ${String(p.name ?? '')} … ${clipped}`
+      }
       return `[tool] ${String(p.name ?? '')} …`
-    case 'tool.finished':
+    }
+    case 'tool.finished': {
+      const resultPreview = String(p.result_preview ?? '').trim()
+      if (resultPreview) {
+        const clipped =
+          resultPreview.length > 200 ? `${resultPreview.slice(0, 200)}…` : resultPreview
+        return `[tool] ${String(p.name ?? '')} done → ${clipped}`
+      }
       return `[tool] ${String(p.name ?? '')} done`
+    }
     case 'memory.retrieved':
       return `[memory] hits=${String(p.hit_count ?? 0)}`
     case 'run.started':

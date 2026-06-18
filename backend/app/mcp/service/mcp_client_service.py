@@ -10,8 +10,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import AppError
+from app.mcp.api.schemas import McpCallToolOut, McpListToolsOut
 from app.mcp.domain.db.models import SysMcpClient
 from app.mcp.infrastructure import repository as mcp_repo
+from app.mcp.runtime.client_explorer import (
+    McpExplorerContext,
+    call_tool_for_client,
+    list_tools_for_client,
+)
 from app.mcp.runtime.connection_tester import McpConnectionTester, McpTestResult
 from app.agent.infrastructure.skill_loader import invalidate_subagent_cache_for_workspace
 from app.mcp.runtime.registry import mcp_registry
@@ -263,3 +269,48 @@ async def delete_client(
     await session.commit()
     await mcp_registry.refresh_workspace_clients(session, workspace_id)
     invalidate_subagent_cache_for_workspace(workspace_id)
+
+
+def _explorer_context_from_row(row: SysMcpClient) -> McpExplorerContext:
+    """Build explorer context from a persisted client row."""
+
+    return McpExplorerContext(
+        transport=row.transport,
+        config=dict(row.config or {}),
+        secrets=dict(row.secrets or {}),
+    )
+
+
+async def list_client_tools(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    client_id: uuid.UUID,
+) -> McpListToolsOut:
+    """List MCP tools for one saved client configuration."""
+
+    row = await get_client(session, workspace_id=workspace_id, client_id=client_id)
+    return await list_tools_for_client(_explorer_context_from_row(row))
+
+
+async def call_client_tool(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    client_id: uuid.UUID,
+    tool_name: str,
+    arguments: dict[str, Any],
+) -> McpCallToolOut:
+    """Call one MCP tool for a saved client configuration."""
+
+    name = (tool_name or "").strip()
+    if not name:
+        raise AppError("mcp.invalid_tool_name", "tool_name is required", 400)
+    if not isinstance(arguments, dict):
+        raise AppError("mcp.invalid_arguments", "arguments must be a JSON object", 400)
+    row = await get_client(session, workspace_id=workspace_id, client_id=client_id)
+    return await call_tool_for_client(
+        _explorer_context_from_row(row),
+        tool_name=name,
+        arguments=arguments,
+    )

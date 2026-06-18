@@ -1,7 +1,91 @@
+/** Agent MCP page: full-height card + scrollable tables (aligns with memory/skills list). */
+.minerva-agent-mcp-page {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.minerva-agent-mcp-page__card {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--minerva-surface, #1a2836) !important;
+  border: 1px solid var(--minerva-border, #2a3f58) !important;
+  border-radius: 12px;
+  box-shadow: 0 6px 16px rgb(0 0 0 / 14%);
+}
+
+html.minerva-tone-sunshine .minerva-agent-mcp-page__card {
+  background: var(--minerva-surface, #fff) !important;
+  box-shadow: 0 6px 16px rgb(15 23 42 / 8%);
+}
+
+.minerva-agent-mcp-page__card .ant-card-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.minerva-agent-mcp-page__tabs {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-agent-mcp-page__tabs .ant-tabs-nav {
+  flex-shrink: 0;
+}
+
+.minerva-agent-mcp-page__tabs .ant-tabs-content-holder {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-agent-mcp-page__tabs .ant-tabs-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+.minerva-agent-mcp-page__tabs .ant-tabs-tabpane-active {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+.minerva-agent-mcp-page__tab-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .minerva-agent-mcp-page__toolbar {
+  flex-shrink: 0;
   margin-bottom: 12px;
 }
 
 .minerva-agent-mcp-page__banner {
+  flex-shrink: 0;
   margin-bottom: 12px;
+}
+
+.minerva-agent-mcp-page__table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
 }

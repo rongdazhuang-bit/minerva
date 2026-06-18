@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -14,6 +15,24 @@ from mcp.client.stdio import StdioServerParameters, stdio_client
 from mcp.client.streamable_http import streamablehttp_client
 
 from app.config import settings
+
+
+@asynccontextmanager
+async def open_mcp_client_session(
+    *,
+    transport: str,
+    config: dict[str, Any],
+    secrets: dict[str, Any],
+) -> AsyncIterator[ClientSession]:
+    """Yield an MCP ``ClientSession`` for one transport (not yet initialized)."""
+
+    tester = McpConnectionTester()
+    async with tester._open_session(
+        transport=transport,
+        config=config,
+        secrets=secrets,
+    ) as session:
+        yield session
 
 
 @dataclass(frozen=True)
@@ -39,16 +58,18 @@ class McpConnectionTester:
         """Connect with the given transport and return tool names or an error."""
 
         transport_key = (transport or "").strip().upper()
+        timeout = float(settings.mcp_connect_timeout)
         try:
-            async with self._open_session(
-                transport=transport_key,
-                config=config or {},
-                secrets=secrets or {},
-            ) as session:
-                await session.initialize()
-                listed = await session.list_tools()
-                names = [tool.name for tool in listed.tools if getattr(tool, "name", None)]
-                return McpTestResult(ok=True, tool_names=names)
+            async with asyncio.timeout(timeout):
+                async with self._open_session(
+                    transport=transport_key,
+                    config=config or {},
+                    secrets=secrets or {},
+                ) as session:
+                    await session.initialize()
+                    listed = await session.list_tools()
+                    names = [tool.name for tool in listed.tools if getattr(tool, "name", None)]
+                    return McpTestResult(ok=True, tool_names=names)
         except TimeoutError:
             return McpTestResult(
                 ok=False,
@@ -109,9 +130,10 @@ class McpConnectionTester:
                 env=env or None,
                 cwd=str(cwd).strip() if cwd else None,
             )
-            async with stdio_client(params) as (read, write):
-                async with ClientSession(read, write) as session:
-                    yield session
+            async with asyncio.timeout(timeout):
+                async with stdio_client(params) as (read, write):
+                    async with ClientSession(read, write) as session:
+                        yield session
             return
 
         url = str(config.get("url") or "").strip()

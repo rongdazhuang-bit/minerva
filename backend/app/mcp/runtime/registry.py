@@ -98,14 +98,14 @@ class McpRuntimeRegistry:
 
     async def resolve_langchain_tools(
         self, workspace_id: uuid.UUID
-    ) -> tuple[list[Any], list[Any]]:
+    ) -> tuple[list[Any], list[Any], list[str]]:
         """Open MCP client sessions for a workspace and return LangChain tools + bundles."""
 
         if not settings.mcp_client_enabled:
-            return [], []
+            return [], [], []
         snapshots = self.list_client_snapshots(workspace_id)
         if not snapshots:
-            return [], []
+            return [], [], []
         return await load_langchain_tools_for_snapshots(snapshots)
 
     @staticmethod

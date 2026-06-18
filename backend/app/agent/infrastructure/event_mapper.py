@@ -76,7 +76,11 @@ def map_langchain_stream_event(
         )
     if kind == "on_tool_end":
         output = event.get("data", {}).get("output")
-        preview = str(output)[:240] if output is not None else ""
+        preview = (
+            str(output).replace("\n", " ").replace("\r", " ")[:400]
+            if output is not None
+            else ""
+        )
         return build_sse_event(
             event_type=AgentSseEventType.tool_finished,
             run_id=run_id,

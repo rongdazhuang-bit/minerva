@@ -5,6 +5,7 @@ export type McpTransport = 'STDIO' | 'SSE' | 'STREAMABLE_HTTP'
 export type McpClientListItem = {
   id: string
   name: string
+  url: string | null
   transport: McpTransport
   enabled: boolean
   remark: string | null
@@ -70,6 +71,36 @@ export type McpRuntimeStatus = {
   server_enabled: boolean
 }
 
+export type McpToolAnnotation = {
+  readOnlyHint: boolean
+  destructiveHint: boolean
+  idempotentHint: boolean
+  openWorldHint: boolean
+}
+
+export type McpTool = {
+  name: string
+  description: string | null
+  inputSchema: Record<string, unknown>
+  annotations: McpToolAnnotation
+}
+
+export type McpListToolsResult = {
+  ok: boolean
+  tools: McpTool[]
+  error_code?: string | null
+  error_message?: string | null
+}
+
+export type McpCallToolResult = {
+  ok: boolean
+  content?: Array<{ type: string; text: string }>
+  structuredContent?: Record<string, unknown> | null
+  isError?: boolean
+  error_code?: string | null
+  error_message?: string | null
+}
+
 export function getMcpRuntimeStatus(workspaceId: string) {
   return apiJson<McpRuntimeStatus>(`/workspaces/${workspaceId}/mcp/runtime-status`)
 }
@@ -105,6 +136,25 @@ export function patchMcpClient(workspaceId: string, clientId: string, body: Part
 
 export function deleteMcpClient(workspaceId: string, clientId: string) {
   return apiJson<void>(`/workspaces/${workspaceId}/mcp/clients/${clientId}`, { method: 'DELETE' })
+}
+
+export function listMcpClientTools(workspaceId: string, clientId: string) {
+  return apiJson<McpListToolsResult>(`/workspaces/${workspaceId}/mcp/clients/${clientId}/tools`)
+}
+
+export function callMcpClientTool(
+  workspaceId: string,
+  clientId: string,
+  toolName: string,
+  arguments_: Record<string, unknown>,
+) {
+  return apiJson<McpCallToolResult>(
+    `/workspaces/${workspaceId}/mcp/clients/${clientId}/tools/${encodeURIComponent(toolName)}/call`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ arguments: arguments_ }),
+    },
+  )
 }
 
 export function listMcpServers(workspaceId: string) {

@@ -1,7 +1,8 @@
 /** Agent skills list and INDEX registry layout (full-height card + editor). */
 .minerva-agent-skills-page {
   width: 100%;
-  max-width: none;
+  max-width: 100%;
+  min-width: 0;
   height: 100%;
   min-height: 0;
   display: flex;
@@ -45,7 +46,27 @@ html.minerva-tone-sunshine .minerva-agent-skills-page__card {
 .minerva-agent-skills-page__table-wrap {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.minerva-agent-skills-page__table-wrap .ant-table-wrapper {
+  width: 100%;
+  max-width: 100%;
+}
+
+.minerva-agent-skills-page__table .ant-table {
+  table-layout: fixed;
+  width: 100% !important;
+}
+
+.minerva-agent-skills-page__table .ant-table-cell {
+  overflow: hidden;
+}
+
+.minerva-agent-skills-page__table .ant-table-cell-ellipsis {
+  word-break: break-all;
 }
 
 .minerva-agent-skills-page__registry {
