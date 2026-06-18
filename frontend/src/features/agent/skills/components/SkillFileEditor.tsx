@@ -1,10 +1,53 @@
 /**
  * Monaco-based editor for agent skill text files (.md, .py, .json).
  */
-import Editor from '@monaco-editor/react'
+import Editor, { type BeforeMount } from '@monaco-editor/react'
 import { useEffect, useRef, useState } from 'react'
 import { MINERVA_TONE_EVENT } from '@/features/auth/authTheme'
 import './SkillFileEditor.css'
+
+/** Vertical/horizontal Monaco scrollbar width — matches `minerva-scrollbar-thin` (4px). */
+const MONACO_SCROLLBAR_SIZE = 4
+
+/** Shared Monaco options; scrollbar size aligns with app thin scrollbar tokens. */
+const BASE_EDITOR_OPTIONS = {
+  minimap: { enabled: false },
+  wordWrap: 'on' as const,
+  scrollBeyondLastLine: false,
+  automaticLayout: true,
+  scrollbar: {
+    verticalScrollbarSize: MONACO_SCROLLBAR_SIZE,
+    horizontalScrollbarSize: MONACO_SCROLLBAR_SIZE,
+    verticalSliderSize: MONACO_SCROLLBAR_SIZE,
+    horizontalSliderSize: MONACO_SCROLLBAR_SIZE,
+    useShadows: false,
+    arrowSize: 0,
+  },
+}
+
+/** Registers Minerva editor themes with thin-scrollbar slider colors. */
+const registerMinervaMonacoThemes: BeforeMount = (monaco) => {
+  monaco.editor.defineTheme('minerva-dark', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [],
+    colors: {
+      'scrollbarSlider.background': '#94a3b870',
+      'scrollbarSlider.hoverBackground': '#7dd3fc9e',
+      'scrollbarSlider.activeBackground': '#7dd3fc9e',
+    },
+  })
+  monaco.editor.defineTheme('minerva-light', {
+    base: 'vs',
+    inherit: true,
+    rules: [],
+    colors: {
+      'scrollbarSlider.background': '#64748b61',
+      'scrollbarSlider.hoverBackground': '#3b82f680',
+      'scrollbarSlider.activeBackground': '#3b82f680',
+    },
+  })
+}
 
 /** Maps skill file extensions to Monaco language identifiers. */
 const LANG_BY_EXT: Record<string, string> = {
@@ -29,9 +72,9 @@ type SkillFileEditorProps = {
 /**
  * Returns Monaco theme id matching the active Minerva UI tone on ``<html>``.
  */
-function resolveMonacoTheme(): 'vs' | 'vs-dark' {
-  if (typeof document === 'undefined') return 'vs-dark'
-  return document.documentElement.classList.contains('minerva-tone-sunshine') ? 'vs' : 'vs-dark'
+function resolveMonacoTheme(): 'minerva-light' | 'minerva-dark' {
+  if (typeof document === 'undefined') return 'minerva-dark'
+  return document.documentElement.classList.contains('minerva-tone-sunshine') ? 'minerva-light' : 'minerva-dark'
 }
 
 /**
@@ -69,17 +112,15 @@ export function SkillFileEditor({ path, value, onChange, readOnly, layoutKey }: 
   return (
     <div ref={containerRef} className="skill-file-editor">
       <Editor
+        beforeMount={registerMinervaMonacoThemes}
         height={editorHeight}
         theme={monacoTheme}
         language={language}
         value={value}
         onChange={(v) => onChange(v ?? '')}
         options={{
+          ...BASE_EDITOR_OPTIONS,
           readOnly,
-          minimap: { enabled: false },
-          wordWrap: 'on',
-          scrollBeyondLastLine: false,
-          automaticLayout: true,
         }}
       />
     </div>

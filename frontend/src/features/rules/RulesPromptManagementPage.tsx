@@ -324,15 +324,6 @@ export function RulesPromptManagementPage() {
     <div className="minerva-rules-page">
       <Card className="minerva-rules-page__card" variant="borderless" style={{ minHeight: 0 }}>
         <div className="minerva-rules-page__toolbar">
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            className="minerva-rules-page__add-btn"
-            onClick={openCreate}
-            disabled={dictLoading}
-          >
-            {t('rules.promptToolbarAdd')}
-          </Button>
           <Cascader
             allowClear
             changeOnSelect
@@ -347,6 +338,15 @@ export function RulesPromptManagementPage() {
           />
           <Button onClick={runSearch}>{t('rules.search')}</Button>
           <Button onClick={resetFilters}>{t('rules.resetFilter')}</Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            className="minerva-rules-page__add-btn"
+            onClick={openCreate}
+            disabled={dictLoading}
+          >
+            {t('rules.promptToolbarAdd')}
+          </Button>
         </div>
         <div className="minerva-rules-page__table-wrap">
           <Table<RuleConfigPromptListItem>

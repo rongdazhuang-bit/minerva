@@ -117,6 +117,13 @@ function contentScrollStyleForPath(pathname: string): CSSProperties {
       overflowX: 'hidden',
     }
   }
+  if (pathname.startsWith('/app/agents/skills')) {
+    return {
+      ...contentScrollStyle,
+      overflowY: 'hidden',
+      overflowX: 'hidden',
+    }
+  }
   if (pathname.startsWith('/app/settings/menus')) {
     return {
       ...contentScrollStyle,

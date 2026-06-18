@@ -37,6 +37,7 @@
 /* 记忆管理等全高页：占满主内容区，表格在页内滚动 */
 .minerva-app-main-scroll > .minerva-agent-memory-page,
 .minerva-app-main-scroll > .minerva-agent-mcp-page,
+.minerva-app-main-scroll > .minerva-agent-skills-page,
 .minerva-app-main-scroll > .minerva-menu-config-page,
 .minerva-app-main-scroll > .minerva-dataset-list-page,
 .minerva-app-main-scroll > .minerva-dataset-section-layout,

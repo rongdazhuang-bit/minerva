@@ -434,15 +434,6 @@ export function RulesManagementPage() {
     <div className="minerva-rules-page">
       <Card className="minerva-rules-page__card" variant="borderless" style={{ minHeight: 0 }}>
         <div className="minerva-rules-page__toolbar">
-          <Button
-            className="minerva-rules-page__add-btn"
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={openCreate}
-            disabled={dictLoading}
-          >
-            {t('rules.toolbarAdd')}
-          </Button>
           <Cascader
             className="minerva-rules-page__filter minerva-rules-page__filter--cascade"
             allowClear
@@ -467,6 +458,15 @@ export function RulesManagementPage() {
           />
           <Button onClick={runSearch}>{t('rules.search')}</Button>
           <Button onClick={resetFilters}>{t('rules.resetFilter')}</Button>
+          <Button
+            className="minerva-rules-page__add-btn"
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={openCreate}
+            disabled={dictLoading}
+          >
+            {t('rules.toolbarAdd')}
+          </Button>
         </div>
         <div className="minerva-rules-page__table-wrap">
           <Table<RuleBaseListItem>

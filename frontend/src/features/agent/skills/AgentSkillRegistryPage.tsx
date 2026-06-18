@@ -135,14 +135,16 @@ export function AgentSkillRegistryPage() {
           />
         ) : null}
         <div className="minerva-agent-skills-page__registry">
-          <Spin spinning={loading} className="minerva-agent-skills-page__editor">
+          <Spin spinning={loading} className="minerva-agent-skills-page__main-spin">
             {!loading ? (
-              <SkillFileEditor
-                path={INDEX_PATH}
-                value={content}
-                onChange={setContent}
-                readOnly={!canManageTenantSkills}
-              />
+              <div className="minerva-agent-skills-page__editor">
+                <SkillFileEditor
+                  path={INDEX_PATH}
+                  value={content}
+                  onChange={setContent}
+                  readOnly={!canManageTenantSkills}
+                />
+              </div>
             ) : null}
           </Spin>
         </div>

@@ -35,6 +35,7 @@ html.minerva-tone-sunshine .minerva-agent-skills-page__card {
 }
 
 .minerva-agent-skills-page__toolbar {
+  flex-shrink: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -74,12 +75,12 @@ html.minerva-tone-sunshine .minerva-agent-skills-page__card {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  overflow: hidden;
 }
 
 .minerva-agent-skills-page__editor {
   flex: 1 1 auto;
-  min-height: 320px;
+  min-height: 0;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -128,7 +129,15 @@ html.minerva-tone-sunshine .minerva-agent-skills-page__card {
 
 .minerva-agent-skills-page__main-spin {
   flex: 1 1 auto;
-  min-height: 320px;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-agent-skills-page__main-spin.ant-spin-nested-loading {
+  flex: 1 1 auto;
+  min-height: 0;
   height: 100%;
   display: flex;
   flex-direction: column;
