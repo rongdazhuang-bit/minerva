@@ -82,6 +82,7 @@ def _import_models() -> None:
     import app.file_ocr.domain.db.models_log  # noqa: F401
     import app.file_ocr.domain.db.models_result  # noqa: F401
     import app.sys.tool.ocr.domain.db.models  # noqa: F401
+    import app.mcp.domain.db.models  # noqa: F401
     import app.agent.domain.db.models  # noqa: F401
     import app.translate.domain.db.models  # noqa: F401
     import app.dataset.domain.db.models  # noqa: F401
