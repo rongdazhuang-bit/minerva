@@ -12,6 +12,7 @@ from langchain_core.messages import BaseMessage
 from langgraph.graph.state import CompiledStateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agent.infrastructure.run_db_writer import AgentRunDbWriter
 from app.agent.memory.protocols import MemoryPersistStrategy, MemoryRetrieveStrategy
 from app.agent.infrastructure.reasoning_collector import ReasoningCollector
 from app.agent.infrastructure.openai_usage import (
@@ -32,7 +33,7 @@ SseEmitFn = Callable[[bytes], Awaitable[None]]
 class GraphDeps:
     """Per-run services passed into compiled graph nodes."""
 
-    db: AsyncSession
+    db_writer: AgentRunDbWriter
     model: BaseChatModel
     workspace_id: uuid.UUID
     session_id: uuid.UUID
@@ -52,6 +53,20 @@ class GraphDeps:
     accumulated_usage: OpenAIUsage = field(default_factory=dict)
     usage_tracker: RunUsageTracker = field(default_factory=RunUsageTracker)
     _llm_round_seq: dict[uuid.UUID, int] = field(default_factory=dict)
+
+    @asynccontextmanager
+    async def db_write(self) -> AsyncIterator[AsyncSession]:
+        """Short write transaction: commit on success, rollback on error."""
+
+        async with self.db_writer.session() as session:
+            yield session
+
+    @asynccontextmanager
+    async def db_read(self) -> AsyncIterator[AsyncSession]:
+        """Short read-only session (always rolled back on exit)."""
+
+        async with self.db_writer.session(read_only=True) as session:
+            yield session
 
     def next_llm_round_seq(self, parent_node_id: uuid.UUID) -> int:
         """Return the next ``sequence_idx`` for ``llm.round`` rows under one parent node."""
@@ -137,16 +152,17 @@ class GraphDeps:
 
         seq = self.next_llm_round_seq(parent_node_id)
         node_id = uuid.uuid4()
-        await self.usage_tracker.begin_llm_round(
-            self.db,
-            node_id=node_id,
-            run_id=self.run_id,
-            parent_node_id=parent_node_id,
-            sequence_idx=seq,
-            phase=phase,
-            step_id=step_id,
-            skill_id=skill_id,
-        )
+        async with self.db_write() as session:
+            await self.usage_tracker.begin_llm_round(
+                session,
+                node_id=node_id,
+                run_id=self.run_id,
+                parent_node_id=parent_node_id,
+                sequence_idx=seq,
+                phase=phase,
+                step_id=step_id,
+                skill_id=skill_id,
+            )
         return node_id
 
     async def finalize_llm_call_to_db(
@@ -165,17 +181,18 @@ class GraphDeps:
 
         if node_id is None:
             return
-        await self.usage_tracker.finalize_llm_round(
-            self.db,
-            node_id=node_id,
-            raw_usage=raw_usage,
-            phase=phase,
-            status=status,
-            step_id=step_id,
-            skill_id=skill_id,
-            reasoning_text=reasoning_text,
-            error_message=error_message,
-        )
+        async with self.db_write() as session:
+            await self.usage_tracker.finalize_llm_round(
+                session,
+                node_id=node_id,
+                raw_usage=raw_usage,
+                phase=phase,
+                status=status,
+                step_id=step_id,
+                skill_id=skill_id,
+                reasoning_text=reasoning_text,
+                error_message=error_message,
+            )
         if status == "success":
             await self.emit_llm_usage(
                 raw_usage,

@@ -127,10 +127,10 @@ flowchart TB
 
 1. 客户端 `POST .../sessions/{session_id}/runs`，Header 可含 `X-Minerva-Run-Id`（由路由预生成 `run_id`）。
 2. `AgentGraphRunService.run_stream_sse` 创建 asyncio 队列，后台任务执行图，主协程从队列读出 SSE 行。
-3. 校验会话、加载 `SysModel`、写入 `agent_run` 与用户 `agent_message`。
-4. 构建 `GraphDeps`（含截断后的会话历史 LangChain 消息）。
-5. `graph.ainvoke(initial_state, config)` 执行主图。
-6. 将 `final_answer` 写入 assistant 消息，`finalize_agent_run`，`commit`，发送 `run.finished`。
+3. 校验会话、加载 `SysModel`、写入 `agent_run` 与用户 `agent_message`；**提交**启动阶段事务（释放 `agent_session` 行锁）。
+4. 构建 `GraphDeps`（含 `AgentRunDbWriter` 与截断后的会话历史 LangChain 消息）。
+5. `graph.ainvoke(initial_state, config)` 执行主图；图内每次 DB 读写经 `db_write` / `db_read` 打开**独立短 session 并即时 commit**（避免跨节点大事务）。
+6. 将 `final_answer` 写入 assistant 消息、`finalize_agent_run`（各自短 session），发送 `run.finished`。
 7. 成功时 **异步** 调度 `schedule_persist_turn_memory_background`（不阻塞 SSE 结束）。
 8. 发送 `data: [DONE]`，关闭流。
 
@@ -173,7 +173,7 @@ START → memory.retrieve → planner → executor ⇄ executor
 
 | 字段 | 说明 |
 |------|------|
-| `db` | 当前请求 `AsyncSession` |
+| `db_writer` | `AgentRunDbWriter`：图运行时短 session，每次写入/读取后 commit 或 rollback |
 | `model` | `BaseChatModel` |
 | `workspace_id`, `session_id`, `run_id`, `user_id` | 标识 |
 | `memory_store` | `AgentMemoryStore` 实例 |
@@ -422,7 +422,8 @@ START → memory.retrieve → planner → executor ⇄ executor
 app/core/api          → 挂载 agent v2 路由、工作区成员校验
 app/sys/model_provider → SysModel 行（endpoint、api_key、model_name）
 app/config            → Agent 相关限制与沙箱路径
-app/core/infrastructure/db → AsyncSession、async_session_factory（后台记忆）
+app/core/infrastructure/db → AsyncSession、async_session_factory（Run 图内短 session、后台记忆）
+app/agent/infrastructure/run_db_writer.py → AgentRunDbWriter（图节点即时 commit）
 ```
 
 Agent **不**直接调用 `app/llm` 的手写循环；统一经 LangChain `ChatOpenAI` 访问兼容 OpenAI 的提供商。

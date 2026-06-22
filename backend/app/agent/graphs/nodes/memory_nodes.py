@@ -15,19 +15,20 @@ async def memory_retrieve_node(state: AgentGraphState, config: RunnableConfig) -
 
     deps: GraphDeps = config["configurable"]["deps"]
     query_text = state.get("user_message", "")
-    hits = await deps.memory_retrieve.retrieve(
-        deps.db,
-        workspace_id=deps.workspace_id,
-        session_id=deps.session_id,
-        query_text=query_text,
-    )
-    memory_context = await deps.memory_retrieve.build_planner_context(
-        deps.db,
-        workspace_id=deps.workspace_id,
-        session_id=deps.session_id,
-        query_text=query_text,
-        hits=hits,
-    )
+    async with deps.db_read() as session:
+        hits = await deps.memory_retrieve.retrieve(
+            session,
+            workspace_id=deps.workspace_id,
+            session_id=deps.session_id,
+            query_text=query_text,
+        )
+        memory_context = await deps.memory_retrieve.build_planner_context(
+            session,
+            workspace_id=deps.workspace_id,
+            session_id=deps.session_id,
+            query_text=query_text,
+            hits=hits,
+        )
     degraded = len(hits) == 0 and settings.agent_memory_backend == "mem0" and bool(
         query_text
     )

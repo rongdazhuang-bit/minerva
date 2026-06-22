@@ -124,17 +124,18 @@ async def _finalize_synthesizer_node(deps: GraphDeps, synth_node_id: uuid.UUID) 
     """Roll up synthesizer phase usage onto the synthesizer.run node."""
 
     phase_slice = (deps.usage_tracker.document.get("by_phase") or {}).get("synthesizer") or {}
-    if phase_slice:
-        await deps.usage_tracker.rollup_children(
-            deps.db,
+    async with deps.db_write() as session:
+        if phase_slice:
+            await deps.usage_tracker.rollup_children(
+                session,
+                node_id=synth_node_id,
+                child_usage=phase_slice,
+            )
+        await agent_repo.finalize_run_node(
+            session,
             node_id=synth_node_id,
-            child_usage=phase_slice,
+            status="success",
         )
-    await agent_repo.finalize_run_node(
-        deps.db,
-        node_id=synth_node_id,
-        status="success",
-    )
 
 
 def _format_subagent_blob(results: list[StepResult]) -> str:
@@ -175,15 +176,16 @@ async def synthesizer_node(state: AgentGraphState, config: RunnableConfig) -> di
         return {"final_answer": direct}
 
     synth_node_id = uuid.uuid4()
-    await agent_repo.begin_run_node(
-        deps.db,
-        node_id=synth_node_id,
-        run_id=deps.run_id,
-        parent_node_id=None,
-        sequence_idx=800,
-        node_type="synthesizer.run",
-        node_name="synthesizer",
-    )
+    async with deps.db_write() as session:
+        await agent_repo.begin_run_node(
+            session,
+            node_id=synth_node_id,
+            run_id=deps.run_id,
+            parent_node_id=None,
+            sequence_idx=800,
+            node_type="synthesizer.run",
+            node_name="synthesizer",
+        )
 
     try:
         if not results:
@@ -212,10 +214,11 @@ async def synthesizer_node(state: AgentGraphState, config: RunnableConfig) -> di
         await _finalize_synthesizer_node(deps, synth_node_id)
         return {"final_answer": text}
     except Exception as exc:
-        await agent_repo.finalize_run_node(
-            deps.db,
-            node_id=synth_node_id,
-            status="failed",
-            error_message=str(exc)[:500],
-        )
+        async with deps.db_write() as session:
+            await agent_repo.finalize_run_node(
+                session,
+                node_id=synth_node_id,
+                status="failed",
+                error_message=str(exc)[:500],
+            )
         raise

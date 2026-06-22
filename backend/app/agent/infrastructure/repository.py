@@ -472,6 +472,27 @@ async def _run_node_has_failed_child(session: AsyncSession, *, node_id: uuid.UUI
     return (await session.execute(stmt)).scalar_one_or_none() is not None
 
 
+async def insert_agent_plan(
+    session: AsyncSession,
+    *,
+    plan_id: uuid.UUID,
+    run_id: uuid.UUID,
+    steps_json: dict[str, Any] | list[Any],
+    status: str = "active",
+) -> uuid.UUID:
+    """Insert one ``agent_plan`` row for a run."""
+
+    row = AgentPlan(
+        id=plan_id,
+        run_id=run_id,
+        steps_json=steps_json,
+        status=status,
+    )
+    session.add(row)
+    await session.flush()
+    return plan_id
+
+
 async def begin_run_node(
     session: AsyncSession,
     *,

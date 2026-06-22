@@ -87,15 +87,16 @@ async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:
     ]
 
     plan_node_id = uuid.uuid4()
-    await agent_repo.begin_run_node(
-        deps.db,
-        node_id=plan_node_id,
-        run_id=deps.run_id,
-        parent_node_id=None,
-        sequence_idx=1,
-        node_type="plan.created",
-        node_name="planner",
-    )
+    async with deps.db_write() as session:
+        await agent_repo.begin_run_node(
+            session,
+            node_id=plan_node_id,
+            run_id=deps.run_id,
+            parent_node_id=None,
+            sequence_idx=1,
+            node_type="plan.created",
+            node_name="planner",
+        )
 
     plan: Plan | None = plan_from_preferred_skill(pref, request_text)
     forced_plan = plan is not None
@@ -175,16 +176,13 @@ async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:
     plan.steps = plan.steps[: settings.agent_max_plan_steps]
 
     plan_id = uuid.uuid4()
-    from app.agent.domain.db.models import AgentPlan
-
-    row = AgentPlan(
-        id=plan_id,
-        run_id=deps.run_id,
-        steps_json=plan.model_dump(),
-        status="active",
-    )
-    deps.db.add(row)
-    await deps.db.flush()
+    async with deps.db_write() as session:
+        await agent_repo.insert_agent_plan(
+            session,
+            plan_id=plan_id,
+            run_id=deps.run_id,
+            steps_json=plan.model_dump(),
+        )
 
     if deps.emit_sse:
         await deps.emit_sse(
@@ -200,18 +198,18 @@ async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:
         )
 
     phase_slice = (deps.usage_tracker.document.get("by_phase") or {}).get("planner") or {}
-    if phase_slice:
-        await deps.usage_tracker.rollup_children(
-            deps.db,
+    async with deps.db_write() as session:
+        if phase_slice:
+            await deps.usage_tracker.rollup_children(
+                session,
+                node_id=plan_node_id,
+                child_usage=phase_slice,
+            )
+        await agent_repo.finalize_run_node(
+            session,
             node_id=plan_node_id,
-            child_usage=phase_slice,
+            status="success",
+            outputs_json={"step_count": len(plan.steps)},
         )
-
-    await agent_repo.finalize_run_node(
-        deps.db,
-        node_id=plan_node_id,
-        status="success",
-        outputs_json={"step_count": len(plan.steps)},
-    )
 
     return {"plan": plan, "plan_id": plan_id, "current_step_index": 0}

@@ -28,6 +28,7 @@ from app.agent.infrastructure.langgraph_checkpointer import (
     get_langgraph_checkpointer,
     reset_langgraph_checkpointer,
 )
+from app.agent.infrastructure.run_db_writer import AgentRunDbWriter
 from app.agent.memory.factory import create_memory_strategies
 from app.agent.service.memory_persist_service import schedule_persist_turn_memory_background
 from app.config import settings
@@ -39,7 +40,7 @@ log = get_logger(__name__)
 
 
 async def _finalize_run_usage(
-    session: AsyncSession,
+    writer: AgentRunDbWriter,
     *,
     deps: GraphDeps,
     session_id: uuid.UUID,
@@ -48,24 +49,28 @@ async def _finalize_run_usage(
     error_code: str | None = None,
     error_message: str | None = None,
 ) -> dict[str, Any]:
-    """Write layered ``usage_json`` on the run and merge session totals."""
+    """Write layered ``usage_json`` on the run and merge session totals (short transaction)."""
 
     usage_snapshot = deps.usage_tracker.build_run_snapshot()
-    await agent_repo.finalize_agent_run(
-        session,
-        run_id=run_id,
-        status=status,
-        error_code=error_code,
-        error_message=error_message,
-        usage_json=usage_snapshot or None,
-    )
-    session_delta = deps.usage_tracker.build_session_delta()
-    if session_delta:
-        await agent_repo.merge_session_usage_json(
-            session,
-            session_id=session_id,
-            delta=session_delta,
+
+    async def _write(db: AsyncSession) -> None:
+        await agent_repo.finalize_agent_run(
+            db,
+            run_id=run_id,
+            status=status,
+            error_code=error_code,
+            error_message=error_message,
+            usage_json=usage_snapshot or None,
         )
+        session_delta = deps.usage_tracker.build_session_delta()
+        if session_delta:
+            await agent_repo.merge_session_usage_json(
+                db,
+                session_id=session_id,
+                delta=session_delta,
+            )
+
+    await writer.run(_write)
     return usage_snapshot
 
 
@@ -338,7 +343,7 @@ class AgentGraphRunService:
                 await session.commit()
 
                 deps = GraphDeps(
-                    db=session,
+                    db_writer=AgentRunDbWriter(),
                     model=model_row,
                     workspace_id=workspace_id,
                     session_id=session_id,
@@ -418,6 +423,7 @@ class AgentGraphRunService:
 
                 final_answer = (final_state.get("final_answer") or "").strip()
                 usage_snapshot = deps.usage_tracker.build_run_snapshot()
+                finalize_writer = AgentRunDbWriter()
                 if final_answer:
                     meta_payload: dict[str, Any] = {}
                     reasoning_text: str | None = None
@@ -431,24 +437,27 @@ class AgentGraphRunService:
                         if reasoning_meta is not None:
                             meta_payload["reasoning"] = reasoning_meta
                         reasoning_text = deps.reasoning_collector.build_message_reasoning_text()
-                    await agent_repo.append_agent_message(
-                        session,
-                        session_id=session_id,
-                        role="assistant",
-                        content=final_answer,
-                        run_id=run_id,
-                        meta_json=meta_payload if meta_payload else None,
-                        reasoning_text=reasoning_text,
-                    )
+
+                    async def _append_assistant(db: AsyncSession) -> None:
+                        await agent_repo.append_agent_message(
+                            db,
+                            session_id=session_id,
+                            role="assistant",
+                            content=final_answer,
+                            run_id=run_id,
+                            meta_json=meta_payload if meta_payload else None,
+                            reasoning_text=reasoning_text,
+                        )
+
+                    await finalize_writer.run(_append_assistant)
 
                 usage_snapshot = await _finalize_run_usage(
-                    session,
+                    finalize_writer,
                     deps=deps,
                     session_id=session_id,
                     run_id=run_id,
                     status="success",
                 )
-                await session.commit()
                 finished_payload: dict[str, Any] = {"status": "success"}
                 if usage_snapshot:
                     finished_payload["usage"] = usage_snapshot
@@ -489,23 +498,27 @@ class AgentGraphRunService:
                     session_id=str(session_id),
                     code=e.code,
                 )
-                await agent_repo.finalize_agent_run(
-                    session,
-                    run_id=run_id,
-                    status="failed",
-                    error_code=e.code,
-                    error_message=str(e.message),
-                    usage_json=(deps.usage_tracker.build_run_snapshot() if deps else None),
-                )
-                if deps is not None:
-                    session_delta = deps.usage_tracker.build_session_delta()
-                    if session_delta:
-                        await agent_repo.merge_session_usage_json(
-                            session,
-                            session_id=session_id,
-                            delta=session_delta,
-                        )
-                await session.commit()
+                fail_writer = AgentRunDbWriter()
+
+                async def _fail_app_error(db: AsyncSession) -> None:
+                    await agent_repo.finalize_agent_run(
+                        db,
+                        run_id=run_id,
+                        status="failed",
+                        error_code=e.code,
+                        error_message=str(e.message),
+                        usage_json=(deps.usage_tracker.build_run_snapshot() if deps else None),
+                    )
+                    if deps is not None:
+                        session_delta = deps.usage_tracker.build_session_delta()
+                        if session_delta:
+                            await agent_repo.merge_session_usage_json(
+                                db,
+                                session_id=session_id,
+                                delta=session_delta,
+                            )
+
+                await fail_writer.run(_fail_app_error)
                 failed_payload: dict[str, Any] = {"status": "failed"}
                 if deps is not None:
                     snap = deps.usage_tracker.build_run_snapshot()
@@ -536,23 +549,27 @@ class AgentGraphRunService:
                     run_id=str(run_id),
                     session_id=str(session_id),
                 )
-                await agent_repo.finalize_agent_run(
-                    session,
-                    run_id=run_id,
-                    status="failed",
-                    error_code="agent.internal_error",
-                    error_message=str(e),
-                    usage_json=(deps.usage_tracker.build_run_snapshot() if deps else None),
-                )
-                if deps is not None:
-                    session_delta = deps.usage_tracker.build_session_delta()
-                    if session_delta:
-                        await agent_repo.merge_session_usage_json(
-                            session,
-                            session_id=session_id,
-                            delta=session_delta,
-                        )
-                await session.commit()
+                fail_writer = AgentRunDbWriter()
+
+                async def _fail_internal(db: AsyncSession) -> None:
+                    await agent_repo.finalize_agent_run(
+                        db,
+                        run_id=run_id,
+                        status="failed",
+                        error_code="agent.internal_error",
+                        error_message=str(e),
+                        usage_json=(deps.usage_tracker.build_run_snapshot() if deps else None),
+                    )
+                    if deps is not None:
+                        session_delta = deps.usage_tracker.build_session_delta()
+                        if session_delta:
+                            await agent_repo.merge_session_usage_json(
+                                db,
+                                session_id=session_id,
+                                delta=session_delta,
+                            )
+
+                await fail_writer.run(_fail_internal)
                 failed_payload: dict[str, Any] = {"status": "failed"}
                 if deps is not None:
                     snap = deps.usage_tracker.build_run_snapshot()

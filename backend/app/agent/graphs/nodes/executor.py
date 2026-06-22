@@ -52,15 +52,16 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
         )
 
     node_id = uuid.uuid4()
-    await agent_repo.begin_run_node(
-        deps.db,
-        node_id=node_id,
-        run_id=deps.run_id,
-        parent_node_id=None,
-        sequence_idx=10 + idx,
-        node_type="subagent.run",
-        node_name=step.skill_id,
-    )
+    async with deps.db_write() as session:
+        await agent_repo.begin_run_node(
+            session,
+            node_id=node_id,
+            run_id=deps.run_id,
+            parent_node_id=None,
+            sequence_idx=10 + idx,
+            node_type="subagent.run",
+            node_name=step.skill_id,
+        )
 
     ctx = SkillToolContext(workspace_id=deps.workspace_id, chat_model=deps.model)
     try:
@@ -94,30 +95,30 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
 
     step_slice = (deps.usage_tracker.document.get("by_step") or {}).get(step.id) or {}
     step_usage = dict(step_slice) if step_slice else {}
-    if step_usage:
-        await deps.usage_tracker.rollup_children(
-            deps.db,
-            node_id=node_id,
-            child_usage=step_usage,
-        )
-
     finish_status = "success" if step.status == "success" else "failed"
-    await agent_repo.finalize_run_node(
-        deps.db,
-        node_id=node_id,
-        status=finish_status,
-    )
-    await agent_repo.insert_terminal_run_node(
-        deps.db,
-        node_id=uuid.uuid4(),
-        run_id=deps.run_id,
-        parent_node_id=node_id,
-        sequence_idx=0,
-        node_type="subagent.finish",
-        node_name=step.skill_id,
-        status=finish_status,
-        outputs_json={"chars": len(output)},
-    )
+    async with deps.db_write() as session:
+        if step_usage:
+            await deps.usage_tracker.rollup_children(
+                session,
+                node_id=node_id,
+                child_usage=step_usage,
+            )
+        await agent_repo.finalize_run_node(
+            session,
+            node_id=node_id,
+            status=finish_status,
+        )
+        await agent_repo.insert_terminal_run_node(
+            session,
+            node_id=uuid.uuid4(),
+            run_id=deps.run_id,
+            parent_node_id=node_id,
+            sequence_idx=0,
+            node_type="subagent.finish",
+            node_name=step.skill_id,
+            status=finish_status,
+            outputs_json={"chars": len(output)},
+        )
 
     if deps.emit_sse:
         await deps.emit_sse(
