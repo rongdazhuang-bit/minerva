@@ -330,24 +330,28 @@ def build_skill_react_agent(
     *,
     cache: dict[tuple[str, str], CompiledStateGraph] | None = None,
     extra_tools: list[Any] | None = None,
+    mcp_tools_for_skill: list[Any] | None = None,
 ) -> CompiledStateGraph:
-    """Compile a ReAct sub-agent with tools loaded on demand for one skill."""
+    """Compile a ReAct sub-agent; cache base graph (skill tools only), merge MCP at runtime."""
 
     sid = _normalize_skill_id(skill_id)
     cache_key = (sid, str(ctx.workspace_id))
     effective_cache = cache if cache is not None else _GLOBAL_SUBAGENT_CACHE
-    extras = list(extra_tools or [])
-    if not extras and effective_cache is not None and cache_key in effective_cache:
-        return effective_cache[cache_key]
+    extras = list(mcp_tools_for_skill if mcp_tools_for_skill is not None else (extra_tools or []))
 
-    tools = load_tools_for_skill(sid, ctx)
-    if extras:
-        tools = _merge_tools_by_name(tools, extras)
     prompt = build_skill_system_prompt(sid)
-    graph = create_react_agent(model, tools=tools, prompt=prompt)
-    if not extras and effective_cache is not None:
-        effective_cache[cache_key] = graph
-    return graph
+    base = effective_cache.get(cache_key) if effective_cache is not None else None
+    if base is None:
+        tools = load_tools_for_skill(sid, ctx)
+        base = create_react_agent(model, tools=tools, prompt=prompt)
+        if effective_cache is not None:
+            effective_cache[cache_key] = base
+
+    if not extras:
+        return base
+
+    merged = _merge_tools_by_name(load_tools_for_skill(sid, ctx), extras)
+    return create_react_agent(model, tools=merged, prompt=prompt)
 
 
 def _section_body(body: str, heading: str) -> str:

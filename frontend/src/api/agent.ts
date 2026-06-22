@@ -86,6 +86,8 @@ export type AgentRunCreateBodyV2 = {
   regenerate_last_assistant?: boolean
   /** 是否开启思考模式；显式 false 覆盖 model_config / 全局默认。 */
   enable_thinking?: boolean | null
+  /** 跳过本轮长期记忆检索。 */
+  skip_memory?: boolean
 }
 
 export type AgentConversationModel = {
@@ -256,6 +258,7 @@ export async function streamAgentRun(
         regenerate_from_message_id: body.regenerate_from_message_id ?? null,
         regenerate_last_assistant: body.regenerate_last_assistant ?? false,
         enable_thinking: body.enable_thinking ?? null,
+        skip_memory: body.skip_memory ?? false,
       }),
       signal,
     },

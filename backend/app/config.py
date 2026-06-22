@@ -591,6 +591,87 @@ class Settings(BaseSettings):
         description="Agent file 技能单文件读/写最大字节数。",
         validation_alias=AliasChoices("AGENT_FILE_MAX_BYTES", "agent_file_max_bytes"),
     )
+    agent_router_enabled: bool = Field(
+        default=True,
+        description="启用请求分级路由（direct_chat / single_skill / full_pipeline）。",
+        validation_alias=AliasChoices("AGENT_ROUTER_ENABLED", "agent_router_enabled"),
+    )
+    agent_router_simple_max_chars: int = Field(
+        default=120,
+        ge=20,
+        le=2000,
+        description="direct_chat 路由允许的最大用户消息字符数。",
+        validation_alias=AliasChoices(
+            "AGENT_ROUTER_SIMPLE_MAX_CHARS",
+            "agent_router_simple_max_chars",
+        ),
+    )
+    agent_router_llm_fallback: bool = Field(
+        default=False,
+        description="启发式路由不确定时是否用轻量 LLM 分类（Phase 1 默认关）。",
+        validation_alias=AliasChoices(
+            "AGENT_ROUTER_LLM_FALLBACK",
+            "agent_router_llm_fallback",
+        ),
+    )
+    agent_memory_retrieve_skip_when_empty: bool = Field(
+        default=True,
+        description="sql 记忆后端在空库且无回忆关键词时跳过 memory.retrieve。",
+        validation_alias=AliasChoices(
+            "AGENT_MEMORY_RETRIEVE_SKIP_WHEN_EMPTY",
+            "agent_memory_retrieve_skip_when_empty",
+        ),
+    )
+    agent_memory_recall_keywords: str = Field(
+        default="",
+        description="逗号分隔的回忆类关键词；空则使用内置中文默认词表。",
+        validation_alias=AliasChoices(
+            "AGENT_MEMORY_RECALL_KEYWORDS",
+            "agent_memory_recall_keywords",
+        ),
+    )
+    agent_subagent_ainvoke_fallback: bool = Field(
+        default=False,
+        description="astream_events 无 output 时是否 fallback 到 ainvoke（默认关）。",
+        validation_alias=AliasChoices(
+            "AGENT_SUBAGENT_AINVOKE_FALLBACK",
+            "agent_subagent_ainvoke_fallback",
+        ),
+    )
+    agent_step_failure_policy: Literal["continue", "abort", "replan"] = Field(
+        default="continue",
+        description="子步骤失败策略：continue / abort / replan。",
+        validation_alias=AliasChoices(
+            "AGENT_STEP_FAILURE_POLICY",
+            "agent_step_failure_policy",
+        ),
+    )
+    agent_max_replan_attempts: int = Field(
+        default=2,
+        ge=0,
+        le=10,
+        description="每 Run 最大 Re-plan 次数（replan 策略）。",
+        validation_alias=AliasChoices(
+            "AGENT_MAX_REPLAN_ATTEMPTS",
+            "agent_max_replan_attempts",
+        ),
+    )
+    agent_parallel_steps_enabled: bool = Field(
+        default=False,
+        description="无 depends_on 的多步是否并行执行（file/ppt 仍串行）。",
+        validation_alias=AliasChoices(
+            "AGENT_PARALLEL_STEPS_ENABLED",
+            "agent_parallel_steps_enabled",
+        ),
+    )
+    agent_graph_astream_enabled: bool = Field(
+        default=True,
+        description="主图使用 astream 驱动（false 时回退 ainvoke）。",
+        validation_alias=AliasChoices(
+            "AGENT_GRAPH_ASTREAM_ENABLED",
+            "agent_graph_astream_enabled",
+        ),
+    )
     doc_translate_max_file_bytes: int = Field(
         default=20971520,
         ge=1024,

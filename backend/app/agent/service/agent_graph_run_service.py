@@ -30,6 +30,7 @@ from app.agent.infrastructure.langgraph_checkpointer import (
 )
 from app.agent.infrastructure.run_db_writer import AgentRunDbWriter
 from app.agent.memory.factory import create_memory_strategies
+from app.agent.service.graph_run_lifecycle import run_graph_to_completion
 from app.agent.service.memory_persist_service import schedule_persist_turn_memory_background
 from app.config import settings
 from app.exceptions import AppError
@@ -118,16 +119,16 @@ class AgentGraphRunService:
             self._graph = build_main_graph(checkpointer=checkpointer)
         return self._graph
 
-    async def _ainvoke_with_checkpoint_recovery(
+    async def _run_graph_with_checkpoint_recovery(
         self,
         graph,
         initial: AgentGraphState,
         run_config: dict,
     ) -> AgentGraphState:
-        """Run the graph; rebuild the checkpoint pool once on ``PoolTimeout``."""
+        """Run graph via lifecycle helper; rebuild checkpoint pool once on ``PoolTimeout``."""
 
         try:
-            return await graph.ainvoke(initial, config=run_config)
+            return await run_graph_to_completion(graph, initial, run_config)
         except PoolTimeout as e:
             log.warning(
                 "checkpoint pool timeout during agent run, rebuilding pool: {}", e
@@ -135,7 +136,7 @@ class AgentGraphRunService:
             await reset_langgraph_checkpointer()
             self._graph = None
             graph = await self._get_graph()
-            return await graph.ainvoke(initial, config=run_config)
+            return await run_graph_to_completion(graph, initial, run_config)
 
     async def run_stream_sse(
         self,
@@ -153,6 +154,7 @@ class AgentGraphRunService:
         regenerate_from_message_id: uuid.UUID | None = None,
         regenerate_last_assistant: bool = False,
         enable_thinking: bool | None = None,
+        skip_memory: bool = False,
     ) -> AsyncIterator[bytes]:
         """Execute one agent run; yield SSE v2 lines as the graph produces them.
 
@@ -240,6 +242,7 @@ class AgentGraphRunService:
                         "temperature": temperature,
                         "max_tokens": max_tokens,
                         "enable_thinking": enable_thinking,
+                        "skip_memory": skip_memory,
                     },
                 )
 
@@ -356,11 +359,13 @@ class AgentGraphRunService:
                     temperature=temperature,
                     max_tokens=max_tokens,
                     conversation_messages=conversation_messages,
+                    skip_memory=skip_memory,
                 )
                 try:
                     mcp_tools, mcp_bundles, mcp_unavailable = await mcp_registry.resolve_langchain_tools(
                         workspace_id
                     )
+                    deps.mcp_all_tools = mcp_tools
                     deps.mcp_extra_tools = mcp_tools
                     deps.mcp_bundles = mcp_bundles
                     if mcp_unavailable:
@@ -402,11 +407,16 @@ class AgentGraphRunService:
                     "model_id": model_id,
                     "user_message": user_message,
                     "preferred_skills": preferred_skills or [],
+                    "route_kind": None,
+                    "skip_memory": skip_memory,
                     "plan": None,
                     "current_step_index": 0,
                     "retrieved_memories": [],
                     "subagent_results": [],
                     "final_answer": None,
+                    "abort_run": False,
+                    "replan_requested": False,
+                    "replan_attempt": 0,
                 }
 
                 graph = await self._get_graph()
@@ -417,7 +427,7 @@ class AgentGraphRunService:
                     }
                 }
 
-                final_state = await self._ainvoke_with_checkpoint_recovery(
+                final_state = await self._run_graph_with_checkpoint_recovery(
                     graph, initial, run_config
                 )
 

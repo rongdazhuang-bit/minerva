@@ -656,20 +656,7 @@ export function AgentsPage() {
             (options?.regenerateLastAssistant || !regenerateFromMessageId),
         )
 
-        const { runId } = await streamAgentRun(
-          workspaceId,
-          sid,
-          {
-            user_message: apiBody,
-            model_id: mid,
-            temperature: null,
-            max_tokens: maxTok,
-            preferred_skills: options?.preferredSkills ?? [],
-            regenerate_from_message_id: regenerateFromMessageId,
-            regenerate_last_assistant: regenerateLastAssistant,
-            enable_thinking: thinkingEnabled,
-          },
-          (evt: AgentStreamEvent) => {
+        const handleStreamEvent = (evt: AgentStreamEvent) => {
             if (evt.kind === 'done') return
             if (evt.kind === 'error') {
               pushAsstLog(`[error] ${evt.code}: ${evt.message}`)
@@ -774,7 +761,22 @@ export function AgentsPage() {
                 )
               }
             }
+        }
+
+        const { runId } = await streamAgentRun(
+          workspaceId,
+          sid,
+          {
+            user_message: apiBody,
+            model_id: mid,
+            temperature: null,
+            max_tokens: maxTok,
+            preferred_skills: options?.preferredSkills ?? [],
+            regenerate_from_message_id: regenerateFromMessageId,
+            regenerate_last_assistant: regenerateLastAssistant,
+            enable_thinking: thinkingEnabled,
           },
+          handleStreamEvent,
           ac.signal,
         )
         if (runId) {

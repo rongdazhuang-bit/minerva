@@ -26,6 +26,10 @@ class PlanStep(BaseModel):
     goal: str = Field(description="该步要完成的用户子目标，一句中文。")
     status: PlanStepStatus = "pending"
     done_criteria: str | None = None
+    depends_on: list[str] = Field(
+        default_factory=list,
+        description="前置步骤 id 列表；空表示无依赖（可并行，受 AGENT_PARALLEL_STEPS_ENABLED 控制）。",
+    )
 
     @field_validator("skill_id", mode="before")
     @classmethod

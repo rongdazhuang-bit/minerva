@@ -753,3 +753,39 @@ async def finalize_agent_run(
     if usage_json is not None:
         row.usage_json = usage_json
     await session.flush()
+
+
+async def count_long_term_memory(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    session_id: uuid.UUID,
+) -> int:
+    """Count long-term memory rows for workspace + session scope (sql backend gate)."""
+
+    stmt = (
+        select(func.count())
+        .select_from(AgentLongTermMemory)
+        .where(
+            AgentLongTermMemory.workspace_id == workspace_id,
+            or_(
+                AgentLongTermMemory.session_id.is_(None),
+                AgentLongTermMemory.session_id == session_id,
+            ),
+        )
+    )
+    return int((await session.execute(stmt)).scalar_one())
+
+
+async def supersede_agent_plan(
+    session: AsyncSession,
+    *,
+    plan_id: uuid.UUID,
+) -> None:
+    """Mark an existing plan row as superseded (re-plan)."""
+
+    row = await session.get(AgentPlan, plan_id)
+    if row is None:
+        return
+    row.status = "superseded"
+    await session.flush()

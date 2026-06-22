@@ -207,6 +207,8 @@ export function formatAgentV2TraceLine(event: AgentSseEventV2, locale?: string):
     }
     case 'run.error':
       return `[run.error] ${String(p.code ?? '')}: ${String(p.message ?? '')}`
+    case 'route.decided':
+      return `[route] ${String(p.route_kind ?? '')}`
     case 'llm.delta':
       return ''
     case 'llm.usage': {

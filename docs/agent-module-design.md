@@ -141,12 +141,14 @@ flowchart TB
 ### 4.1 图拓扑
 
 ```text
-START → memory.retrieve → planner → executor ⇄ executor
-                                              ↓ (无剩余步骤)
-                                         synthesizer → END
+START → router
+  ├─ direct_chat      → direct_responder → END
+  ├─ single_skill     → memory.retrieve? → executor → synthesizer → END
+  └─ full_pipeline    → memory.retrieve → planner → executor ⇄ executor/planner → synthesizer → END
 ```
 
-- **条件边**：`route_after_executor` 根据 `current_step_index` 与 `plan.steps` 长度决定继续 `executor` 或进入 `synthesizer`。
+- **条件边**：`route_after_executor` 根据失败策略、`replan_requested`、pending 步骤决定继续 `executor`、回到 `planner`、进入 `synthesizer` 或 `END`（abort）。
+- **记忆门控**：`memory.retrieve` 在 sql 空库、direct_chat、显式 `skip_memory` 时写入空上下文。
 - **注意**：长期记忆**写入**不在主图内，而在 Run 成功后的后台任务中完成（见 §8）。
 
 ### 4.2 图状态 `AgentGraphState`
@@ -157,6 +159,8 @@ START → memory.retrieve → planner → executor ⇄ executor
 | `model_id` | UUID | `SysModel.id` |
 | `user_message` | str | 本轮用户输入 |
 | `preferred_skills` | list[str] | 用户偏好技能 hint（注入 Planner 提示） |
+| `route_kind` | str | `direct_chat` / `single_skill` / `full_pipeline` |
+| `skip_memory` | bool | 跳过 memory.retrieve |
 | `plan` | Plan \| None | 结构化计划 |
 | `plan_id` | UUID \| None | 持久化后的 `agent_plan.id` |
 | `current_step_index` | int | 当前执行步下标 |
@@ -227,8 +231,7 @@ START → memory.retrieve → planner → executor ⇄ executor
 
 ### 6.1 注册与发现
 
-- **索引**：`skills/INDEX.md` 的「子技能列表」定义 `id` 与一行描述（兼作子 Agent 系统提示首段）。
-- **详情**：`skills/<id>/SKILL.md` 含 `## 何时使用`、`## Planner 路由`（触发词列表，子串匹配，INDEX 顺序优先）。
+- **索引**：`skills/INDEX.json` 定义 `id` 与描述；`skills/<id>/SKILL.md` 含 `## 何时使用`、`## Planner 路由`、可选 `## MCP 工具`。
 - **工具**：`skills/<id>/tools.py` 实现 `register_tools(ctx: SkillToolContext) -> list[Tool]`。
 
 `skill_loader.py` 负责解析、构建 Planner 索引、加载工具、`create_react_agent` 编译子图。
@@ -330,7 +333,8 @@ START → memory.retrieve → planner → executor ⇄ executor
   "model_id": "uuid",
   "temperature": 0.7,
   "max_tokens": 4096,
-  "preferred_skills": ["file"]
+  "preferred_skills": ["file"],
+  "skip_memory": false
 }
 ```
 
