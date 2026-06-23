@@ -28,7 +28,7 @@ import {
 import type { ReactNode } from 'react'
 
 /** Maps Ant Design icon component names to rendered icons for menus. */
-export const menuIconMap = {
+export const menuIconMap: Record<string, ReactNode> = {
   ApiOutlined: <ApiOutlined />,
   AuditOutlined: <AuditOutlined />,
   BankOutlined: <BankOutlined />,
@@ -54,7 +54,7 @@ export const menuIconMap = {
   TranslationOutlined: <TranslationOutlined />,
   UnorderedListOutlined: <UnorderedListOutlined />,
   UserOutlined: <UserOutlined />,
-} satisfies Record<string, ReactNode>
+}
 
 /** Sorted icon names available in the menu icon picker. */
 export const MENU_ICON_NAMES = Object.keys(menuIconMap).sort()

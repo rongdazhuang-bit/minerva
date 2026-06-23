@@ -59,9 +59,10 @@ export const AgentComposerInput = forwardRef(function AgentComposerInput(
   useLayoutEffect(() => {
     if (!refocusAfterChipChangeRef.current) return
     refocusAfterChipChangeRef.current = false
-    const el =
-      inputRef.current?.resizableTextArea?.textArea ??
-      (inputRef.current as { input?: HTMLTextAreaElement | null } | null)?.input
+    const ref = inputRef.current as
+      | (InputRef & { resizableTextArea?: { textArea: HTMLTextAreaElement }; input?: HTMLTextAreaElement })
+      | null
+    const el = ref?.resizableTextArea?.textArea ?? ref?.input
     el?.focus({ preventScroll: true })
   }, [chip, displayValue])
 

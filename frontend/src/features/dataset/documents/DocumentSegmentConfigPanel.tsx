@@ -1,6 +1,6 @@
 /** Document segmentation configuration and preview (reuses create-wizard panels). */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, Button, Form, Input, Popconfirm, Spin, Typography, message } from 'antd'
+import { Alert, Button, Form, Input, Popconfirm, Spin, message } from 'antd'
 import type { FormInstance } from 'antd'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'

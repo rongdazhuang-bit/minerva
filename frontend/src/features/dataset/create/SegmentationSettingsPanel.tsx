@@ -2,7 +2,7 @@
 
 import { ApartmentOutlined, QuestionCircleOutlined, SettingOutlined } from '@ant-design/icons'
 import { Button, Checkbox, Form, Input, InputNumber, Radio, Select, Space, Tooltip, Typography } from 'antd'
-import type { FormInstance, Rule } from 'antd'
+import type { FormInstance } from 'antd'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ChunkingFormValues, ParentModeType } from '@/features/dataset/shared/chunkingForm'
@@ -59,15 +59,15 @@ export function SegmentationSettingsPanel({
   const isGeneralActive = docForm === 'text_model' || docForm === 'qa_model'
   const isHierarchicalActive = docForm === 'hierarchical_model'
 
-  const delimiterRules = useMemo<Rule[]>(
+  const delimiterRules = useMemo(
     () => [{ required: true, whitespace: true, message: t('dataset.create.field.delimiterRequired') }],
     [t],
   )
-  const maxLengthRules = useMemo<Rule[]>(
+  const maxLengthRules = useMemo(
     () => [{ required: true, message: t('dataset.create.field.maxLengthRequired') }],
     [t],
   )
-  const overlapRules = useMemo<Rule[]>(
+  const overlapRules = useMemo(
     () => [{ required: true, message: t('dataset.create.field.overlapRequired') }],
     [t],
   )

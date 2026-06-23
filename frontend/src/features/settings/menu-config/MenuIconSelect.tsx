@@ -2,7 +2,7 @@ import { Select, Space } from 'antd'
 import type { SelectProps } from 'antd'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { MENU_ICON_NAMES, menuIconMap, resolveMenuIcon } from './menuIconMap'
+import { MENU_ICON_NAMES, resolveMenuIcon } from './menuIconMap'
 import './MenuIconSelect.css'
 
 type MenuIconSelectProps = {
@@ -44,7 +44,7 @@ export function MenuIconSelect({ value, onChange }: MenuIconSelectProps) {
         if (!name) return null
         return (
           <Space size="small" className="minerva-menu-icon-select__option">
-            {menuIconMap[name] ?? resolveMenuIcon(name)}
+            {resolveMenuIcon(name)}
             <span>{name}</span>
           </Space>
         )
