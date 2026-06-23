@@ -28,6 +28,27 @@ minerva_backend_venv_ready() {
   return 1
 }
 
+minerva_install_spacy_model_if_needed() {
+  local pip_py=$1
+
+  if [[ "${MINERVA_SKIP_SPACY_MODEL:-}" == "1" ]]; then
+    return 0
+  fi
+  if ! "${pip_py}" -c "import spacy" >/dev/null 2>&1; then
+    return 0
+  fi
+  if "${pip_py}" -c "import en_core_web_sm" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "[venv] downloading spaCy model en_core_web_sm (mem0 NLP)..."
+  if ! "${pip_py}" -m spacy download en_core_web_sm; then
+    echo "[warn] spaCy model en_core_web_sm download failed; mem0 NLP may be unavailable" >&2
+    echo "[hint] retry: ${pip_py} -m spacy download en_core_web_sm" >&2
+    echo "[hint] or set MINERVA_SKIP_SPACY_MODEL=1 if using AGENT_MEMORY_BACKEND=sql only" >&2
+  fi
+}
+
 minerva_ensure_backend_venv() {
   local backend_dir=$1
   local venv_dir="${backend_dir}/.venv"
@@ -70,6 +91,8 @@ minerva_ensure_backend_venv() {
     cd "${backend_dir}" || exit 1
     "${pip_py}" -m pip install -e '.[dev]'
   )
+
+  minerva_install_spacy_model_if_needed "${pip_py}"
 
   if ! minerva_backend_venv_ready "${backend_dir}"; then
     echo "[error] venv bootstrap finished but backend/.venv python is still unavailable" >&2
