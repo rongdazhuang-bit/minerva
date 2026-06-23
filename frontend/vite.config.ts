@@ -52,4 +52,21 @@ export default defineConfig({
       '^/(ratelimit-probe|validation-probe)': devApiProxy,
     },
   },
+  build: {
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        /** Split heavy deps to reduce peak memory during production build. */
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (id.includes('/mermaid') || id.includes('\\mermaid')) return 'mermaid'
+          if (id.includes('/cytoscape') || id.includes('\\cytoscape')) return 'cytoscape'
+          if (id.includes('@monaco-editor') || id.includes('monaco-editor')) return 'monaco'
+          if (id.includes('/katex') || id.includes('\\katex')) return 'katex'
+          if (id.includes('/recharts') || id.includes('\\recharts')) return 'recharts'
+          if (id.includes('/antd') || id.includes('\\antd') || id.includes('@ant-design')) return 'antd'
+        },
+      },
+    },
+  },
 })
