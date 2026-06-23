@@ -4,7 +4,8 @@
 #   run-backend.sh [profile]              foreground (default local)
 #   run-backend.sh start [profile]        nohup background (Linux/macOS)
 #   run-backend.sh stop|status|restart [profile]
-# Env: MINERVA_BACKEND_PORT, MINERVA_PYTHON, MINERVA_ALLOW_SYSTEM_PYTHON, MINERVA_BACKEND_RELOAD
+# Env: MINERVA_BACKEND_PORT, MINERVA_PYTHON, MINERVA_ALLOW_SYSTEM_PYTHON, MINERVA_BACKEND_RELOAD,
+#      MINERVA_SKIP_VENV_BOOTSTRAP (set 1 to disable auto .venv creation)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
