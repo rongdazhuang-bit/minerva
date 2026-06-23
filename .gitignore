@@ -37,3 +37,4 @@ __pycache__/
 /backend/data/
 /backend/logs/
 /backend/tests/
+.minerva/

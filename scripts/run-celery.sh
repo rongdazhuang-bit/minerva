@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# Start Celery worker or beat. Usage: run-celery.sh <profile> <worker|beat>
-# Default Python: backend/.venv/bin/python (or Scripts/python.exe on Windows Git Bash)
+# Start Celery worker or beat.
+# Usage:
+#   run-celery.sh <profile> <worker|beat>                 foreground
+#   run-celery.sh start <profile> <worker|beat>           nohup background
+#   run-celery.sh stop|status|restart <profile> <worker|beat>
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -9,18 +12,28 @@ BACKEND_DIR="${REPO_ROOT}/backend"
 
 # shellcheck source=_backend-common.sh
 source "${SCRIPT_DIR}/_backend-common.sh"
+# shellcheck source=_service-common.sh
+source "${SCRIPT_DIR}/_service-common.sh"
 
 usage() {
   cat >&2 <<'EOF'
-Usage: run-celery.sh <profile> <worker|beat>
+Usage: run-celery.sh [start|stop|status|restart] <profile> <worker|beat>
   profile   env name, maps to backend/.env.<profile>
   subcmd    worker or beat (run twice for both)
 
 Examples:
   run-celery.sh local worker
-  run-celery.sh local beat
+  run-celery.sh start local worker
+  run-celery.sh stop local beat
+  run-celery.sh status local worker
 EOF
 }
+
+ACTION="foreground"
+if [[ "${1:-}" == "start" || "${1:-}" == "stop" || "${1:-}" == "status" || "${1:-}" == "restart" ]]; then
+  ACTION="$1"
+  shift
+fi
 
 if [[ $# -ne 2 ]]; then
   usage
@@ -50,21 +63,57 @@ fi
 minerva_backend_setup "${PROFILE}"
 
 CELERY_APP="app.celery_app:celery_app"
-"${MINERVA_PYTHON}" -m app.sys.celery.service.broker_preflight
-export MINERVA_CELERY_POOL="${MINERVA_CELERY_POOL:-}"
-export MINERVA_CELERY_CONCURRENCY="${MINERVA_CELERY_CONCURRENCY:-4}"
-export MINERVA_CELERY_QUEUES="${MINERVA_CELERY_QUEUES:-default,dataset}"
-if [[ "${SUBCMD}" == "worker" ]]; then
-  POOL="${MINERVA_CELERY_POOL}"
-  if [[ -z "${POOL}" ]]; then
-    if [[ "$(uname -s 2>/dev/null || true)" == *MINGW* ]] || [[ "$(uname -s 2>/dev/null || true)" == *MSYS* ]]; then
-      POOL="threads"
-    else
-      POOL="prefork"
+SERVICE_NAME="celery-${SUBCMD}-${PROFILE}"
+CELERY_CMD=()
+
+build_celery_cmd() {
+  "${MINERVA_PYTHON}" -m app.sys.celery.service.broker_preflight
+  export MINERVA_CELERY_POOL="${MINERVA_CELERY_POOL:-}"
+  export MINERVA_CELERY_CONCURRENCY="${MINERVA_CELERY_CONCURRENCY:-4}"
+  export MINERVA_CELERY_QUEUES="${MINERVA_CELERY_QUEUES:-default,dataset}"
+  if [[ "${SUBCMD}" == "worker" ]]; then
+    POOL="${MINERVA_CELERY_POOL}"
+    if [[ -z "${POOL}" ]]; then
+      if [[ "$(uname -s 2>/dev/null || true)" == *MINGW* ]] || [[ "$(uname -s 2>/dev/null || true)" == *MSYS* ]]; then
+        POOL="threads"
+      else
+        POOL="prefork"
+      fi
     fi
+    CELERY_CMD=(
+      "${MINERVA_PYTHON}" -m celery -A "${CELERY_APP}" worker --loglevel=INFO
+      --pool="${POOL}" --concurrency="${MINERVA_CELERY_CONCURRENCY}" -Q "${MINERVA_CELERY_QUEUES}"
+    )
+  else
+    CELERY_CMD=(
+      "${MINERVA_PYTHON}" -m celery -A "${CELERY_APP}" beat --loglevel=INFO
+    )
   fi
-  exec "${MINERVA_PYTHON}" -m celery -A "${CELERY_APP}" worker --loglevel=INFO \
-    --pool="${POOL}" --concurrency="${MINERVA_CELERY_CONCURRENCY}" -Q "${MINERVA_CELERY_QUEUES}"
-else
-  exec "${MINERVA_PYTHON}" -m celery -A "${CELERY_APP}" beat --loglevel=INFO
-fi
+}
+
+case "${ACTION}" in
+  foreground)
+    build_celery_cmd
+    exec "${CELERY_CMD[@]}"
+    ;;
+  start)
+    build_celery_cmd
+    echo "[run-celery] dir: ${MINERVA_BACKEND_DIR}  subcmd: ${SUBCMD}"
+    minerva_service_start "${SERVICE_NAME}" "${CELERY_CMD[@]}"
+    ;;
+  stop)
+    minerva_service_stop "${SERVICE_NAME}"
+    ;;
+  status)
+    minerva_service_status "${SERVICE_NAME}"
+    ;;
+  restart)
+    build_celery_cmd
+    echo "[run-celery] dir: ${MINERVA_BACKEND_DIR}  subcmd: ${SUBCMD}"
+    minerva_service_restart "${SERVICE_NAME}" "${CELERY_CMD[@]}"
+    ;;
+  *)
+    usage
+    exit 1
+    ;;
+esac
