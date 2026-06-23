@@ -129,7 +129,9 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 **排错（Windows + Python 3.13）：** 若报 `No module named 'pydantic_core._pydantic_core'`，多因启动或 `pip` 实际使用了 **3.13t**（`python3.13t.exe`）而 `pydantic-core` 无对应预编译包。请用 **标准 3.13** 建 venv 并装依赖：``py -3.13 -m venv .venv``，激活后再 ``pip install -e ".[dev]"``；或全局安装/修复时用 ``py -3.13 -m pip install --force-reinstall "pydantic" "pydantic-core"``，不要在此时使用 ``py -3 -m pip``（可能仍指向 3.13t）。
 
-成功后可访问接口文档： [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) ，健康检查： [http://127.0.0.1:8000/healthz](http://127.0.0.1:8000/healthz) 。
+成功后可访问接口文档： [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) ，健康检查： [http://127.0.0.1:8000/healthz](http://127.0.0.1:8000/healthz) 。业务 API 统一前缀 **`/api`**（如 `POST /api/auth/login`）。
+
+**生产部署**：前端 `npm run build` 后，可参考 `scripts/nginx/minerva.conf` 配置 Nginx（`/api/*` 转发后端，静态资源托管 `frontend/dist`）。
 
 **说明：**
 
@@ -156,10 +158,13 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
    cp .env.dev.example .env.dev
    ```
 
-2. 确认 `.env` 中 `VITE_API_BASE_URL` 指向本机 API，例如：
+2. 确认 `.env` 中 `VITE_API_BASE_URL`：
+   - **开发（推荐）**：留空，走 Vite 代理 `/api` → 后端
+   - **浏览器直连后端调试**：可设为 `http://127.0.0.1:8000`（仍通过 `VITE_API_PATH_PREFIX=/api` 拼接路径）
 
    ```env
-   VITE_API_BASE_URL=http://127.0.0.1:8000
+   # VITE_API_BASE_URL=
+   # VITE_API_PATH_PREFIX=/api
    ```
 
 3. 安装依赖并启动开发服务器：
@@ -171,25 +176,28 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 4. 浏览器打开终端中提示的地址（默认多为 [http://127.0.0.1:5173](http://127.0.0.1:5173) ），在页面中**注册/登录**后使用已接入的功能模块。
 
-5. 生产构建立：
+5. 生产构建：
 
    ```bash
-   npm run build
+   npm run build:production   # 加载 .env.production
+   npm run build:test         # 加载 .env.test
    ```
 
-   输出在 `frontend/dist/`，可交由任意静态资源服务器或反向代理到后端。
+   `npm run build` 等同于 `build:production`。
+
+   输出在 `frontend/dist/`，可交由 Nginx 等静态服务器托管；参考 `scripts/nginx/minerva.conf`。
 
 ## 五、服务与地址一览
 
 | 服务 | 默认地址 | 说明 |
 |------|----------|------|
 | 前端 (Vite) | http://127.0.0.1:5173 | 见 `frontend` 的 `npm run dev` 输出 |
-| 后端 API | http://127.0.0.1:8000 | FastAPI，Swagger 见 `/docs` |
+| 后端 API | http://127.0.0.1:8000 | FastAPI；Swagger `/docs`；业务接口 `/api/*` |
 | PostgreSQL | 127.0.0.1:5432 | 用户/库/密码与 `docker-compose.yml` 一致时可用 `backend/.env.example` 默认连接串 |
 
 ## 使用说明（简要）
 
-- 登录/注册 调用 `POST /auth/login`、`/auth/register`；当前工作空间 ID 在 JWT 的 `wid` 声明中，前端会据此请求需授权的后端资源。
+- 登录/注册 调用 `POST /api/auth/login`、`/api/auth/register`；当前工作空间 ID 在 JWT 的 `wid` 声明中，前端会据此请求需授权的后端资源。
 
 ## 六、知识库（Dataset / 智库）
 

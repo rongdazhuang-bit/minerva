@@ -1,4 +1,4 @@
-import { AUTH_API_FETCH_TIMEOUT_MS, resolveApiBaseUrl } from '@/api/config'
+import { apiOrigin, AUTH_API_FETCH_TIMEOUT_MS } from '@/api/config'
 import {
   forceLogoutOnAuthFailure,
   getAccessToken,
@@ -6,7 +6,7 @@ import {
   refreshTokens,
 } from '@/api/tokenSession'
 
-export { apiOrigin, resolveApiBaseUrl } from '@/api/config'
+export { apiOrigin, resolveApiBaseUrl, API_PATH_PREFIX } from '@/api/config'
 
 export class ApiError extends Error {
   constructor(
@@ -18,12 +18,10 @@ export class ApiError extends Error {
   }
 }
 
-const base = resolveApiBaseUrl()
-
 /**
  * 带 Bearer 的 ``fetch``：临近过期主动 refresh；401 时 refresh 并重试一次。
  *
- * ``/auth/*`` 登录/注册等路径不附带 token，也不触发 refresh，避免过期本地 token 阻塞认证请求。
+ * ``/api/auth/*`` 登录/注册等路径不附带 token，也不触发 refresh，避免过期本地 token 阻塞认证请求。
  */
 export async function authFetch(url: string, init?: RequestInit): Promise<Response> {
   const skipToken = isAuthApiPath(url)
@@ -53,11 +51,11 @@ export async function authFetch(url: string, init?: RequestInit): Promise<Respon
 }
 
 /**
- * 无需登录的 JSON 请求（验证码等公开 ``/auth`` 读接口）。
+ * 无需登录的 JSON 请求（验证码等公开 ``/api/auth`` 读接口）。
  */
 export async function publicApiJson<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers)
-  const res = await fetch(`${base}${path}`, {
+  const res = await fetch(`${apiOrigin()}${path}`, {
     ...init,
     headers,
     signal: init?.signal ?? AbortSignal.timeout(AUTH_API_FETCH_TIMEOUT_MS),
@@ -82,7 +80,7 @@ export async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
   if (hasBody && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
-  const res = await authFetch(`${base}${path}`, { ...init, headers })
+  const res = await authFetch(`${apiOrigin()}${path}`, { ...init, headers })
   const text = await res.text()
   if (!res.ok) {
     try {

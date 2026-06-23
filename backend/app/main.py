@@ -17,6 +17,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.config import settings
 from app.core.api.router import api
+from app.core.api.routers import health, probe
 from app.core.logging_config import configure_logging
 from app.core.logging_middleware import HttpLoggingMiddleware
 from app.errors import register_exception_handlers
@@ -76,4 +77,6 @@ if settings.app_env in ("dev", "development", "local", "test"):
     _cors["allow_origin_regex"] = _DEV_CORS_ORIGIN_REGEX
 app.add_middleware(HttpLoggingMiddleware)
 app.add_middleware(CORSMiddleware, **_cors)
-app.include_router(api)
+app.include_router(health.router)
+app.include_router(probe.router)
+app.include_router(api, prefix="/api")

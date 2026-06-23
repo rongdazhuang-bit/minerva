@@ -1,6 +1,6 @@
 import { jwtDecode } from 'jwt-decode'
 
-import { apiOrigin, AUTH_API_FETCH_TIMEOUT_MS } from '@/api/config'
+import { API_PATH_PREFIX, apiOrigin, AUTH_API_FETCH_TIMEOUT_MS } from '@/api/config'
 
 export const STORAGE_ACCESS = 'access_token'
 export const STORAGE_REFRESH = 'refresh_token'
@@ -79,12 +79,15 @@ function authPathname(pathOrUrl: string): string {
 /** 登录/注册验证码 GET（无需 Bearer，须放行）。 */
 export function isAuthCaptchaApiPath(pathOrUrl: string): boolean {
   const p = authPathname(pathOrUrl)
-  return p === '/auth/login/captcha' || p === '/auth/register/captcha'
+  return (
+    p === `${API_PATH_PREFIX}/auth/login/captcha` ||
+    p === `${API_PATH_PREFIX}/auth/register/captcha`
+  )
 }
 
 /** 请求 URL 是否属于认证 API（不附带 token、不参与 401 自动 refresh）。 */
 export function isAuthApiPath(pathOrUrl: string): boolean {
-  return authPathname(pathOrUrl).startsWith('/auth/')
+  return authPathname(pathOrUrl).startsWith(`${API_PATH_PREFIX}/auth/`)
 }
 
 /** 清 token；若不在认证页则跳转登录。 */

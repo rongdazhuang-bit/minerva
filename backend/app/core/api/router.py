@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.core.api.routers import auth, health, probe
+from app.core.api.routers import auth
 from app.s3.api.router import router as s3_files_router
 from app.sys.dict.api.router import router as dicts_router
 from app.sys.menu.api.router import router as menus_router
@@ -23,8 +23,6 @@ from app.sys.celery.api.router import router as celery_jobs_router
 from app.dataset.api.router import router as datasets_router
 
 api = APIRouter()
-api.include_router(health.router)
-api.include_router(probe.router)
 api.include_router(auth.router)
 api.include_router(ocr_tools_router)
 api.include_router(mcp_router)

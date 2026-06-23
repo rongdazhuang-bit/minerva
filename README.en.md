@@ -129,7 +129,9 @@ Optional: `MINERVA_BACKEND_PORT` overrides API port (default 8000).
 
 **Troubleshooting (Windows + Python 3.13):** If encountering `No module named 'pydantic_core._pydantic_core'`, it's often because the startup or `pip` is using **3.13t** (`python3.13t.exe`) while `pydantic-core` has no corresponding precompiled package. Use **standard 3.13** to create venv and install dependencies: ``py -3.13 -m venv .venv``, activate it and then ``pip install -e ".[dev]"``; or for global installation/repair use ``py -3.13 -m pip install --force-reinstall "pydantic" "pydantic-core"``, do not use ``py -3 -m pip`` at this time (may still point to 3.13t).
 
-After successful startup, access API documentation: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs), health check: [http://127.0.0.1:8000/healthz](http://127.0.0.1:8000/healthz).
+After successful startup, access API documentation: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs), health check: [http://127.0.0.1:8000/healthz](http://127.0.0.1:8000/healthz). Business APIs use the **`/api`** prefix (e.g. `POST /api/auth/login`).
+
+**Production:** After `npm run build`, see `scripts/nginx/minerva.conf` for Nginx (`/api/*` proxied to the backend, static files from `frontend/dist`).
 
 **Notes:**
 
@@ -156,10 +158,13 @@ Open another terminal and operate in the **`frontend` directory**:
    cp .env.dev.example .env.dev
    ```
 
-2. Confirm `VITE_API_BASE_URL` in `.env` points to local API, for example:
+2. Set `VITE_API_BASE_URL` in `.env`:
+   - **Development (recommended):** leave empty; Vite proxies `/api` to the backend
+   - **Direct browser → backend:** set `http://127.0.0.1:8000` (paths still use `VITE_API_PATH_PREFIX=/api`)
 
    ```env
-   VITE_API_BASE_URL=http://127.0.0.1:8000
+   # VITE_API_BASE_URL=
+   # VITE_API_PATH_PREFIX=/api
    ```
 
 3. Install dependencies and start development server:
@@ -174,22 +179,25 @@ Open another terminal and operate in the **`frontend` directory**:
 5. Production build:
 
    ```bash
-   npm run build
+   npm run build:production   # loads .env.production
+   npm run build:test         # loads .env.test
    ```
 
-   Output is in `frontend/dist/`, can be served by any static resource server or reverse proxy to backend.
+   `npm run build` is an alias for `build:production`.
+
+   Output is in `frontend/dist/`; see `scripts/nginx/minerva.conf` for Nginx.
 
 ## 5. Services and Addresses Overview
 
 | Service | Default Address | Description |
 |---------|-----------------|-------------|
 | Frontend (Vite) | http://127.0.0.1:5173 | See `npm run dev` output in `frontend` |
-| Backend API | http://127.0.0.1:8000 | FastAPI, Swagger at `/docs` |
+| Backend API | http://127.0.0.1:8000 | FastAPI; Swagger `/docs`; business APIs under `/api/*` |
 | PostgreSQL | 127.0.0.1:5432 | User/database/password consistent with `docker-compose.yml`, can use default connection string from `backend/.env.example` |
 
 ## Usage Instructions (Brief)
 
-- Login/Register calls `POST /auth/login`, `/auth/register`; current workspace ID is in JWT's `wid` claim, frontend uses this to request authorized backend resources.
+- Login/Register calls `POST /api/auth/login`, `/api/auth/register`; current workspace ID is in JWT's `wid` claim, frontend uses this to request authorized backend resources.
 
 ## Contributing
 

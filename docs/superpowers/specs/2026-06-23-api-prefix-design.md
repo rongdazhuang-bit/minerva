@@ -1,7 +1,7 @@
 # API 接口 `/api` 根前缀设计说明
 
 **日期**：2026-06-23  
-**状态**：待实现  
+**状态**：已实现（2026-06-23）  
 **范围**：为所有业务 API 统一添加 `/api` 根前缀；前后端路径对齐；开发代理与 Nginx 转发约定。  
 **不包含**：生产 Nginx 具体配置落地、历史 spec/plan 文档批量修订。
 
@@ -144,18 +144,9 @@ proxy: {
 
 ---
 
-## 6. Nginx 参考（不在本次代码实现范围）
+## 6. Nginx 参考
 
-```nginx
-location /api/ {
-    proxy_pass http://127.0.0.1:8000/api/;
-}
-location /healthz {
-    proxy_pass http://127.0.0.1:8000/healthz;
-}
-```
-
-前端同源部署时 `VITE_API_BASE_URL` 留空，浏览器请求 `/api/...`。
+见仓库 **`scripts/nginx/minerva.conf`**（同源托管前端 + `/api/*` 转发后端）。
 
 ---
 

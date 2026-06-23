@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/node-large.mjs node_modules/typescript/lib/tsc.js -b && node scripts/node-large.mjs node_modules/vite/bin/vite.js build",
+    "build": "npm run build:production",
+    "build:production": "node scripts/node-large.mjs node_modules/typescript/lib/tsc.js -b && node scripts/node-large.mjs node_modules/vite/bin/vite.js build --mode production",
+    "build:test": "node scripts/node-large.mjs node_modules/typescript/lib/tsc.js -b && node scripts/node-large.mjs node_modules/vite/bin/vite.js build --mode test",
     "lint": "eslint .",
     "preview": "vite preview"
   },
