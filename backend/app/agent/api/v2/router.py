@@ -300,7 +300,6 @@ async def create_agent_run_sse(
                 regenerate_from_message_id=body.regenerate_from_message_id,
                 regenerate_last_assistant=body.regenerate_last_assistant,
                 enable_thinking=body.enable_thinking,
-                skip_memory=body.skip_memory,
             ):
                 yield chunk
         except Exception:

@@ -63,10 +63,6 @@ async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:
     deps: GraphDeps = config["configurable"]["deps"]
     from app.agent.graphs.nodes.memory_nodes import memory_context_text
 
-    replan_attempt = int(state.get("replan_attempt") or 0)
-    is_replan = bool(state.get("replan_requested")) or replan_attempt > 0
-    old_plan_id = state.get("plan_id")
-
     mem_block = memory_context_text(state)
     pref = state.get("preferred_skills") or []
     pref_hint = f"\n用户偏好技能：{', '.join(pref)}" if pref else ""
@@ -78,26 +74,16 @@ async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:
     )
     request_text = (user_text or "").strip()
 
-    replan_block = ""
-    if is_replan:
-        prior = state.get("subagent_results") or []
-        if prior:
-            lines = [
-                f"- 步骤 {r.get('step_id')} ({r.get('skill_id')}): {r.get('output', '')[:300]}"
-                for r in prior
-            ]
-            replan_block = "\n\n【前次执行失败摘要】\n" + "\n".join(lines)
-
-    human_body = (
-        f"{mem_block}\n\n【本轮用户请求】：{request_text}{replan_block}\n\n"
-        "请直接输出 Plan JSON 对象，不要用 >、markdown 代码块或其它前缀。"
-        if mem_block
-        else f"【本轮用户请求】：{request_text}{replan_block}\n\n请直接输出 Plan JSON 对象，不要用 >、markdown 代码块或其它前缀。"
-    )
-
     planner_messages = [
         SystemMessage(content=sys + pref_hint),
-        HumanMessage(content=human_body),
+        HumanMessage(
+            content=(
+                f"{mem_block}\n\n【本轮用户请求】：{request_text}\n\n"
+                "请直接输出 Plan JSON 对象，不要用 >、markdown 代码块或其它前缀。"
+                if mem_block
+                else f"【本轮用户请求】：{request_text}\n\n请直接输出 Plan JSON 对象，不要用 >、markdown 代码块或其它前缀。"
+            )
+        ),
     ]
 
     plan_node_id = uuid.uuid4()
@@ -112,7 +98,7 @@ async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:
             node_name="planner",
         )
 
-    plan: Plan | None = None if is_replan else plan_from_preferred_skill(pref, request_text)
+    plan: Plan | None = plan_from_preferred_skill(pref, request_text)
     forced_plan = plan is not None
 
     if plan is None:
@@ -191,8 +177,6 @@ async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:
 
     plan_id = uuid.uuid4()
     async with deps.db_write() as session:
-        if old_plan_id is not None and is_replan:
-            await agent_repo.supersede_agent_plan(session, plan_id=old_plan_id)
         await agent_repo.insert_agent_plan(
             session,
             plan_id=plan_id,
@@ -201,31 +185,15 @@ async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:
         )
 
     if deps.emit_sse:
-        payload: dict = {
-            "plan_id": str(plan_id),
-            "steps": [s.model_dump() for s in plan.steps],
-        }
-        if is_replan:
-            payload["replan_attempt"] = replan_attempt
-            if old_plan_id is not None:
-                payload["supersedes_plan_id"] = str(old_plan_id)
-                await deps.emit_sse(
-                    build_sse_event(
-                        event_type=AgentSseEventType.plan_superseded,
-                        run_id=deps.run_id,
-                        session_id=deps.session_id,
-                        payload={
-                            "old_plan_id": str(old_plan_id),
-                            "new_plan_id": str(plan_id),
-                        },
-                    )
-                )
         await deps.emit_sse(
             build_sse_event(
                 event_type=AgentSseEventType.plan_created,
                 run_id=deps.run_id,
                 session_id=deps.session_id,
-                payload=payload,
+                payload={
+                    "plan_id": str(plan_id),
+                    "steps": [s.model_dump() for s in plan.steps],
+                },
             )
         )
 
@@ -244,10 +212,4 @@ async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:
             outputs_json={"step_count": len(plan.steps)},
         )
 
-    return {
-        "plan": plan,
-        "plan_id": plan_id,
-        "current_step_index": 0,
-        "replan_requested": False,
-        "subagent_results": [],
-    }
+    return {"plan": plan, "plan_id": plan_id, "current_step_index": 0}

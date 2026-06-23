@@ -202,7 +202,7 @@ async def synthesizer_node(state: AgentGraphState, config: RunnableConfig) -> di
         sys = "你是助手。根据各步骤的执行结果，用简洁中文回答用户的原始问题。"
         history = deps.conversation_messages or []
         prior_turns, _ = split_trailing_user_message(history)
-        text = await _stream_model_text(
+        text = await _invoke_model_text(
             deps,
             [
                 *prior_turns,

@@ -139,10 +139,6 @@ class AgentRunCreateV2(BaseModel):
         default=None,
         description="是否开启思考模式；null 表示按 model_config / 全局默认。",
     )
-    skip_memory: bool = Field(
-        default=False,
-        description="为 true 时跳过本轮 memory.retrieve。",
-    )
 
     @model_validator(mode="after")
     def _require_message_or_single_preferred_skill(self) -> "AgentRunCreateV2":
