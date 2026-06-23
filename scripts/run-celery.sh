@@ -52,14 +52,6 @@ case "${SUBCMD}" in
     ;;
 esac
 
-if [[ -z "${MINERVA_PYTHON:-}" ]]; then
-  if [[ -x "${BACKEND_DIR}/.venv/bin/python" ]]; then
-    export MINERVA_PYTHON="${BACKEND_DIR}/.venv/bin/python"
-  elif [[ -f "${BACKEND_DIR}/.venv/Scripts/python.exe" ]]; then
-    export MINERVA_PYTHON="${BACKEND_DIR}/.venv/Scripts/python.exe"
-  fi
-fi
-
 minerva_backend_setup "${PROFILE}"
 
 CELERY_APP="app.celery_app:celery_app"

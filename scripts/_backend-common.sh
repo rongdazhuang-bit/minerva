@@ -2,7 +2,7 @@
 # Sourced by run-backend.sh / run-celery.sh. Do not execute directly.
 # Usage: minerva_backend_setup <profile>
 # Sets MINERVA_BACKEND_DIR, MINERVA_PYTHON (backend/.venv by default), APP_ENV
-# When backend/.venv is missing, creates it and runs pip install -e '.[dev]' (unless MINERVA_SKIP_VENV_BOOTSTRAP=1).
+# Creates backend/.venv when missing and installs -e '.[dev]' when deps are incomplete.
 
 minerva_find_bootstrap_python() {
   local candidate
@@ -18,14 +18,26 @@ minerva_find_bootstrap_python() {
   return 1
 }
 
-minerva_backend_venv_ready() {
+minerva_backend_venv_python() {
   local backend_dir=$1
   local venv_py="${backend_dir}/.venv/bin/python"
   local venv_py_win="${backend_dir}/.venv/Scripts/python.exe"
 
-  [[ -f "${venv_py}" && -x "${venv_py}" ]] && return 0
-  [[ -f "${venv_py_win}" ]] && return 0
+  if [[ -f "${venv_py}" && -x "${venv_py}" ]]; then
+    echo "${venv_py}"
+    return 0
+  fi
+  if [[ -f "${venv_py_win}" ]]; then
+    echo "${venv_py_win}"
+    return 0
+  fi
   return 1
+}
+
+minerva_backend_deps_installed() {
+  local pip_py=$1
+
+  "${pip_py}" -c "import uvicorn" >/dev/null 2>&1
 }
 
 minerva_install_spacy_model_if_needed() {
@@ -49,38 +61,13 @@ minerva_install_spacy_model_if_needed() {
   fi
 }
 
-minerva_ensure_backend_venv() {
+minerva_install_backend_deps() {
   local backend_dir=$1
-  local venv_dir="${backend_dir}/.venv"
-  local venv_py="${backend_dir}/.venv/bin/python"
-  local bootstrap
+  local pip_py=$2
 
-  if minerva_backend_venv_ready "${backend_dir}"; then
-    return 0
-  fi
-  if [[ "${MINERVA_SKIP_VENV_BOOTSTRAP:-}" == "1" ]]; then
-    return 1
-  fi
   if [[ ! -f "${backend_dir}/pyproject.toml" ]]; then
-    echo "[error] ${backend_dir}/pyproject.toml not found; cannot bootstrap venv" >&2
+    echo "[error] ${backend_dir}/pyproject.toml not found; cannot install backend deps" >&2
     return 1
-  fi
-  if ! bootstrap="$(minerva_find_bootstrap_python)"; then
-    echo "[error] python3/python with stdlib venv not found; cannot create backend/.venv" >&2
-    return 1
-  fi
-
-  echo "[venv] backend/.venv not found; creating with ${bootstrap}..."
-  "${bootstrap}" -m venv "${venv_dir}"
-
-  if [[ ! -f "${venv_py}" && ! -f "${backend_dir}/.venv/Scripts/python.exe" ]]; then
-    echo "[error] venv created but python executable is missing under ${venv_dir}" >&2
-    return 1
-  fi
-
-  local pip_py="${venv_py}"
-  if [[ ! -x "${pip_py}" ]]; then
-    pip_py="${backend_dir}/.venv/Scripts/python.exe"
   fi
 
   echo "[venv] upgrading pip..."
@@ -94,19 +81,53 @@ minerva_ensure_backend_venv() {
 
   minerva_install_spacy_model_if_needed "${pip_py}"
 
-  if ! minerva_backend_venv_ready "${backend_dir}"; then
-    echo "[error] venv bootstrap finished but backend/.venv python is still unavailable" >&2
+  if ! minerva_backend_deps_installed "${pip_py}"; then
+    echo "[error] backend dependencies still missing after pip install (uvicorn not importable)" >&2
     return 1
   fi
 
-  echo "[venv] ready"
+  echo "[venv] dependencies ready"
   return 0
+}
+
+minerva_bootstrap_backend_venv() {
+  local backend_dir=$1
+  local venv_dir="${backend_dir}/.venv"
+  local pip_py bootstrap
+
+  if [[ "${MINERVA_SKIP_VENV_BOOTSTRAP:-}" == "1" ]]; then
+    return 1
+  fi
+
+  if pip_py="$(minerva_backend_venv_python "${backend_dir}")"; then
+    if minerva_backend_deps_installed "${pip_py}"; then
+      return 0
+    fi
+    echo "[venv] backend/.venv exists but dependencies are incomplete; installing..."
+    minerva_install_backend_deps "${backend_dir}" "${pip_py}"
+    return $?
+  fi
+
+  if ! bootstrap="$(minerva_find_bootstrap_python)"; then
+    echo "[error] python3/python with stdlib venv not found; cannot create backend/.venv" >&2
+    return 1
+  fi
+
+  echo "[venv] backend/.venv not found; creating with ${bootstrap}..."
+  "${bootstrap}" -m venv "${venv_dir}"
+
+  if ! pip_py="$(minerva_backend_venv_python "${backend_dir}")"; then
+    echo "[error] venv created but python executable is missing under ${venv_dir}" >&2
+    return 1
+  fi
+
+  minerva_install_backend_deps "${backend_dir}" "${pip_py}"
 }
 
 minerva_backend_setup() {
   local profile="${1:?profile required}"
   local script_dir repo_root backend_dir env_file
-  local venv_py venv_py_win
+  local venv_py venv_py_win pip_py
 
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   repo_root="$(cd "${script_dir}/.." && pwd)"
@@ -129,10 +150,11 @@ minerva_backend_setup() {
       echo "[error] MINERVA_PYTHON not found: ${MINERVA_PYTHON}" >&2
       exit 1
     fi
-  elif [[ -f "${venv_py}" && -x "${venv_py}" ]]; then
-    MINERVA_PYTHON="${venv_py}"
-  elif [[ -f "${venv_py_win}" ]]; then
-    MINERVA_PYTHON="${venv_py_win}"
+    if [[ "${MINERVA_PYTHON}" == "${venv_py}" || "${MINERVA_PYTHON}" == "${venv_py_win}" ]]; then
+      if ! minerva_backend_deps_installed "${MINERVA_PYTHON}"; then
+        minerva_install_backend_deps "${backend_dir}" "${MINERVA_PYTHON}" || exit 1
+      fi
+    fi
   elif [[ "${MINERVA_ALLOW_SYSTEM_PYTHON:-}" == "1" ]]; then
     if command -v python3 >/dev/null 2>&1; then
       MINERVA_PYTHON="python3"
@@ -142,8 +164,10 @@ minerva_backend_setup() {
       echo "[error] python3/python not found on PATH" >&2
       exit 1
     fi
-  elif minerva_ensure_backend_venv "${backend_dir}"; then
-    if [[ -f "${venv_py}" && -x "${venv_py}" ]]; then
+  elif minerva_bootstrap_backend_venv "${backend_dir}"; then
+    if pip_py="$(minerva_backend_venv_python "${backend_dir}")"; then
+      MINERVA_PYTHON="${pip_py}"
+    elif [[ -f "${venv_py}" && -x "${venv_py}" ]]; then
       MINERVA_PYTHON="${venv_py}"
     elif [[ -f "${venv_py_win}" ]]; then
       MINERVA_PYTHON="${venv_py_win}"
