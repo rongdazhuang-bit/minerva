@@ -4,6 +4,7 @@
 #   run-celery.sh <profile> <worker|beat>                 foreground
 #   run-celery.sh start <profile> <worker|beat>           nohup background
 #   run-celery.sh stop|status|restart <profile> <worker|beat>
+# Deps: run bash scripts/install-backend.sh once before first start
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
