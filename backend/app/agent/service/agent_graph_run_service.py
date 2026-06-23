@@ -39,27 +39,52 @@ from app.sys.model_provider.infrastructure import repository as model_repo
 log = get_logger(__name__)
 
 
-async def _finalize_run_usage(
+async def _prepare_assistant_finalize_meta(
+    deps: GraphDeps,
+    usage_snapshot: dict[str, Any] | None,
+    *,
+    status: str = "success",
+) -> tuple[dict[str, Any], str | None]:
+    """Build assistant ``meta_json`` / ``reasoning_text`` and emit reasoning SSE when enabled."""
+
+    meta_payload: dict[str, Any] = {"streaming": False, "status": status}
+    reasoning_text: str | None = None
+    if usage_snapshot:
+        meta_payload["usage"] = usage_snapshot
+    if deps.reasoning_collector:
+        await deps.reasoning_collector.mark_all_done(fallback_usage=usage_snapshot)
+        reasoning_meta = deps.reasoning_collector.build_message_reasoning()
+        if reasoning_meta is not None:
+            meta_payload["reasoning"] = reasoning_meta
+        reasoning_text = deps.reasoning_collector.build_message_reasoning_text()
+    return meta_payload, reasoning_text
+
+
+async def _persist_run_success_finalize(
     writer: AgentRunDbWriter,
     *,
     deps: GraphDeps,
     session_id: uuid.UUID,
     run_id: uuid.UUID,
-    status: str,
-    error_code: str | None = None,
-    error_message: str | None = None,
-) -> dict[str, Any]:
-    """Write layered ``usage_json`` on the run and merge session totals (short transaction)."""
-
-    usage_snapshot = deps.usage_tracker.build_run_snapshot()
+    content: str,
+    meta_payload: dict[str, Any],
+    reasoning_text: str | None,
+    usage_snapshot: dict[str, Any] | None,
+) -> None:
+    """Persist assistant message and run/session usage in one short transaction."""
 
     async def _write(db: AsyncSession) -> None:
+        await agent_repo.update_agent_message(
+            db,
+            message_id=deps.assistant_message_id,
+            content=content or None,
+            meta_json=meta_payload,
+            reasoning_text=reasoning_text,
+        )
         await agent_repo.finalize_agent_run(
             db,
             run_id=run_id,
-            status=status,
-            error_code=error_code,
-            error_message=error_message,
+            status="success",
             usage_json=usage_snapshot or None,
         )
         session_delta = deps.usage_tracker.build_session_delta()
@@ -71,7 +96,6 @@ async def _finalize_run_usage(
             )
 
     await writer.run(_write)
-    return usage_snapshot
 
 
 async def _finalize_early_failed_run(
@@ -101,6 +125,40 @@ async def _safe_rollback(session: AsyncSession) -> None:
         await session.rollback()
     except Exception:
         pass
+
+
+def _resolve_persisted_assistant_content(deps: GraphDeps, final_state: AgentGraphState) -> str:
+    """Prefer in-memory streamed assistant text; fall back to graph ``final_answer``."""
+
+    streamed = deps.assistant_stream.get_text().strip()
+    if streamed:
+        return streamed
+    return (final_state.get("final_answer") or "").strip()
+
+
+async def _mark_assistant_message_terminal(
+    writer: AgentRunDbWriter,
+    *,
+    deps: GraphDeps,
+    status: str,
+) -> None:
+    """Finalize a placeholder assistant row after run failure (partial content allowed)."""
+
+    content = deps.assistant_stream.get_text().strip()
+    usage_snapshot = deps.usage_tracker.build_run_snapshot()
+    meta_payload: dict[str, Any] = {"streaming": False, "status": status}
+    if usage_snapshot:
+        meta_payload["usage"] = usage_snapshot
+
+    async def _write(db: AsyncSession) -> None:
+        await agent_repo.update_agent_message(
+            db,
+            message_id=deps.assistant_message_id,
+            content=content or None,
+            meta_json=meta_payload,
+        )
+
+    await writer.run(_write)
 
 
 class AgentGraphRunService:
@@ -244,6 +302,7 @@ class AgentGraphRunService:
                 )
 
                 is_regenerate = bool(regenerate_from_message_id or regenerate_last_assistant)
+                user_message_id: uuid.UUID | None = None
                 if is_regenerate:
                     truncate_from: int | None = None
                     if regenerate_from_message_id is not None:
@@ -322,13 +381,24 @@ class AgentGraphRunService:
                         from_seq=truncate_from,
                     )
                 else:
-                    await agent_repo.append_agent_message(
+                    user_row = await agent_repo.append_agent_message(
                         session,
                         session_id=session_id,
                         role="user",
                         content=user_message,
                         run_id=run_id,
                     )
+                    user_message_id = user_row.id
+
+                assistant_row = await agent_repo.append_agent_message(
+                    session,
+                    session_id=session_id,
+                    role="assistant",
+                    content="",
+                    run_id=run_id,
+                    meta_json={"streaming": True},
+                )
+                assistant_message_id = assistant_row.id
 
                 msg_rows = await agent_repo.list_agent_messages_ordered(
                     session, session_id=session_id
@@ -342,6 +412,20 @@ class AgentGraphRunService:
                 # locks from allocate_next_message_seq are not held for minutes.
                 await session.commit()
 
+                created_payload: dict[str, Any] = {
+                    "assistant_message_id": str(assistant_message_id),
+                }
+                if user_message_id is not None:
+                    created_payload["user_message_id"] = str(user_message_id)
+                await emit(
+                    build_sse_event(
+                        event_type=AgentSseEventType.message_created,
+                        run_id=run_id,
+                        session_id=session_id,
+                        payload=created_payload,
+                    )
+                )
+
                 deps = GraphDeps(
                     db_writer=AgentRunDbWriter(),
                     model=model_row,
@@ -351,6 +435,8 @@ class AgentGraphRunService:
                     user_id=user_id,
                     memory_retrieve=self._memory_retrieve,
                     memory_persist=self._memory_persist,
+                    assistant_message_id=assistant_message_id,
+                    user_message_id=user_message_id,
                     reasoning_collector=reasoning_collector,
                     emit_sse=emit,
                     temperature=temperature,
@@ -421,41 +507,11 @@ class AgentGraphRunService:
                     graph, initial, run_config
                 )
 
-                final_answer = (final_state.get("final_answer") or "").strip()
+                final_answer = _resolve_persisted_assistant_content(deps, final_state)
                 usage_snapshot = deps.usage_tracker.build_run_snapshot()
-                finalize_writer = AgentRunDbWriter()
-                if final_answer:
-                    meta_payload: dict[str, Any] = {}
-                    reasoning_text: str | None = None
-                    if usage_snapshot:
-                        meta_payload["usage"] = usage_snapshot
-                    if deps.reasoning_collector:
-                        await deps.reasoning_collector.mark_all_done(
-                            fallback_usage=usage_snapshot,
-                        )
-                        reasoning_meta = deps.reasoning_collector.build_message_reasoning()
-                        if reasoning_meta is not None:
-                            meta_payload["reasoning"] = reasoning_meta
-                        reasoning_text = deps.reasoning_collector.build_message_reasoning_text()
-
-                    async def _append_assistant(db: AsyncSession) -> None:
-                        await agent_repo.append_agent_message(
-                            db,
-                            session_id=session_id,
-                            role="assistant",
-                            content=final_answer,
-                            run_id=run_id,
-                            meta_json=meta_payload if meta_payload else None,
-                            reasoning_text=reasoning_text,
-                        )
-
-                    await finalize_writer.run(_append_assistant)
-
-                usage_snapshot = await _finalize_run_usage(
-                    finalize_writer,
-                    deps=deps,
-                    session_id=session_id,
-                    run_id=run_id,
+                meta_payload, reasoning_text = await _prepare_assistant_finalize_meta(
+                    deps,
+                    usage_snapshot or None,
                     status="success",
                 )
                 finished_payload: dict[str, Any] = {"status": "success"}
@@ -469,6 +525,24 @@ class AgentGraphRunService:
                         payload=finished_payload,
                     )
                 )
+                try:
+                    await _persist_run_success_finalize(
+                        AgentRunDbWriter(),
+                        deps=deps,
+                        session_id=session_id,
+                        run_id=run_id,
+                        content=final_answer,
+                        meta_payload=meta_payload,
+                        reasoning_text=reasoning_text,
+                        usage_snapshot=usage_snapshot or None,
+                    )
+                except Exception:
+                    log.exception(
+                        "agent run persist failed after run.finished",
+                        event="agent.run.persist_failed",
+                        run_id=str(run_id),
+                        session_id=str(session_id),
+                    )
                 log.info(
                     "agent run finished",
                     event="agent.run.finished",
@@ -499,6 +573,10 @@ class AgentGraphRunService:
                     code=e.code,
                 )
                 fail_writer = AgentRunDbWriter()
+                if deps is not None:
+                    await _mark_assistant_message_terminal(
+                        fail_writer, deps=deps, status="failed"
+                    )
 
                 async def _fail_app_error(db: AsyncSession) -> None:
                     await agent_repo.finalize_agent_run(
@@ -550,6 +628,10 @@ class AgentGraphRunService:
                     session_id=str(session_id),
                 )
                 fail_writer = AgentRunDbWriter()
+                if deps is not None:
+                    await _mark_assistant_message_terminal(
+                        fail_writer, deps=deps, status="failed"
+                    )
 
                 async def _fail_internal(db: AsyncSession) -> None:
                     await agent_repo.finalize_agent_run(

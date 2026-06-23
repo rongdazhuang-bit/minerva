@@ -6,11 +6,10 @@ from app.core.log import get_logger
 from typing import Any
 
 from celery import Task, shared_task
-from sqlalchemy import create_engine
-
 from app.agent.constants import AGENT_CHECKPOINT_PURGE_TASK_NAME
 from app.agent.service.checkpoint_purge_service import run_checkpoint_purge
 from app.config import settings
+from app.core.infrastructure.db.sql_logging import create_app_sync_engine
 from app.sys.celery.service.scheduled_task_guard import scheduled_singleton_guard
 
 log = get_logger(__name__)
@@ -19,7 +18,7 @@ log = get_logger(__name__)
 def _sync_engine():
     """Build a one-off sync engine for purge SQL (not the LangGraph pool)."""
 
-    return create_engine(
+    return create_app_sync_engine(
         settings.sync_database_url,
         pool_pre_ping=True,
         pool_size=1,

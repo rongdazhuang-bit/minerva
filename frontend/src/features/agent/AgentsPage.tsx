@@ -51,7 +51,6 @@ import {
   hasVisibleReasoning,
   resolveReasoningTokenCount,
   isAgentMessageUuid,
-  mergeAgentChatWithLocal,
   parseInvalidSkillPrefixFromDraft,
   parseSkillPrefixFromDraft,
   sessionListLabel,
@@ -561,6 +560,8 @@ export function AgentsPage() {
       }
 
       const asstId = `a-${Date.now()}`
+      const userLocalId = isRegenerate ? null : `u-${Date.now()}`
+      const msgIds = { assistant: asstId, user: userLocalId }
       const asstMsg: AgentChatMsg = {
         id: asstId,
         role: 'assistant',
@@ -591,7 +592,7 @@ export function AgentsPage() {
         }
       } else {
         const userMsg: AgentChatMsg = {
-          id: `u-${Date.now()}`,
+          id: userLocalId!,
           role: 'user',
           content: apiBody,
         }
@@ -608,7 +609,7 @@ export function AgentsPage() {
       const pushAsstLog = (line: string) => {
         setMessages((prev) =>
           prev.map((row) =>
-            row.id === asstId && row.role === 'assistant'
+            row.id === msgIds.assistant && row.role === 'assistant'
               ? { ...row, processLog: [...(row.processLog ?? []).slice(-199), line] }
               : row,
           ),
@@ -618,7 +619,7 @@ export function AgentsPage() {
       const setAsstTotalTokens = (total: number) => {
         setMessages((prev) =>
           prev.map((row) =>
-            row.id === asstId && row.role === 'assistant'
+            row.id === msgIds.assistant && row.role === 'assistant'
               ? { ...row, totalTokens: total }
               : row,
           ),
@@ -679,6 +680,30 @@ export function AgentsPage() {
             const ev = evt.event
             const traceLine = formatAgentV2TraceLine(ev, i18n.language)
             if (traceLine) pushAsstLog(traceLine)
+            if (ev.type === 'message.created') {
+              const serverAsstId =
+                ev.payload.assistant_message_id != null
+                  ? String(ev.payload.assistant_message_id)
+                  : null
+              const serverUserId =
+                ev.payload.user_message_id != null
+                  ? String(ev.payload.user_message_id)
+                  : null
+              if (serverAsstId) msgIds.assistant = serverAsstId
+              if (serverUserId) msgIds.user = serverUserId
+              setMessages((prev) =>
+                prev.map((m) => {
+                  if (serverAsstId && m.id === asstId) {
+                    return { ...m, id: serverAsstId }
+                  }
+                  if (serverUserId && userLocalId && m.id === userLocalId) {
+                    return { ...m, id: serverUserId }
+                  }
+                  return m
+                }),
+              )
+              return
+            }
             if (ev.type === 'llm.reasoning.segment_done') {
               const phase = String(ev.payload.phase ?? '')
               const stepId =
@@ -688,7 +713,7 @@ export function AgentsPage() {
               const tokens = Number(ev.payload.reasoning_tokens ?? 0)
               setMessages((prev) =>
                 prev.map((m) =>
-                  m.id === asstId
+                  m.id === msgIds.assistant
                     ? {
                         ...m,
                         reasoningSegments: updateReasoningSegmentTokens(
@@ -709,7 +734,7 @@ export function AgentsPage() {
               if (Number.isFinite(tokens) && tokens > 0) {
                 setMessages((prev) =>
                   prev.map((m) =>
-                    m.id === asstId
+                    m.id === msgIds.assistant
                       ? { ...m, reasoningTokens: Math.trunc(tokens) }
                       : m,
                   ),
@@ -731,7 +756,7 @@ export function AgentsPage() {
                 setReasoningOpenKeys(['reasoning'])
                 setMessages((prev) =>
                   prev.map((m) => {
-                    if (m.id !== asstId) return m
+                    if (m.id !== msgIds.assistant) return m
                     const segments = appendReasoningDelta(
                       m.reasoningSegments ?? [],
                       phase,
@@ -747,7 +772,7 @@ export function AgentsPage() {
                 setReasoningOpenKeys([])
                 setMessages((prev) =>
                   prev.map((m) =>
-                    m.id === asstId ? { ...m, content: m.content + text } : m,
+                    m.id === msgIds.assistant ? { ...m, content: m.content + text } : m,
                   ),
                 )
               }
@@ -769,7 +794,7 @@ export function AgentsPage() {
               if (reasoningTotal != null) {
                 setMessages((prev) =>
                   prev.map((m) =>
-                    m.id === asstId ? { ...m, reasoningTokens: reasoningTotal } : m,
+                    m.id === msgIds.assistant ? { ...m, reasoningTokens: reasoningTotal } : m,
                   ),
                 )
               }
@@ -794,25 +819,6 @@ export function AgentsPage() {
         setStreaming(false)
         setReasoningOpenKeys([])
         abortRef.current = null
-        if (sid && workspaceId) {
-          const syncSid = sid
-          const syncSessionFromServer = async () => {
-            const detail = await getAgentSessionDetail(workspaceId, syncSid)
-            const serverChat = agentMessagesToChat(detail.messages)
-            setMessages((prev) => mergeAgentChatWithLocal(serverChat, prev))
-          }
-          try {
-            await syncSessionFromServer()
-            // memory.persist 在后台异步 patch usage，延迟再拉一次以展示完整 token。
-            window.setTimeout(() => {
-              void syncSessionFromServer().catch(() => {
-                /* 二次同步失败不阻断 UI */
-              })
-            }, 2500)
-          } catch {
-            /* 同步失败不阻断 UI */
-          }
-        }
         void queryClient.invalidateQueries({ queryKey: ['agent-sessions', workspaceId] })
       }
     },

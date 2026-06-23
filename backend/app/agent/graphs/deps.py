@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agent.infrastructure.run_db_writer import AgentRunDbWriter
 from app.agent.memory.protocols import MemoryPersistStrategy, MemoryRetrieveStrategy
 from app.agent.infrastructure.reasoning_collector import ReasoningCollector
+from app.agent.infrastructure.assistant_stream_collector import AssistantStreamCollector
 from app.agent.infrastructure.openai_usage import (
     OpenAIUsage,
     extract_usage_document,
@@ -41,6 +42,10 @@ class GraphDeps:
     user_id: uuid.UUID
     memory_retrieve: MemoryRetrieveStrategy
     memory_persist: MemoryPersistStrategy
+    assistant_message_id: uuid.UUID
+    # 单次 run 内缓冲助手 SSE 正文，结束时一次性 UPDATE 落库。
+    assistant_stream: AssistantStreamCollector = field(default_factory=AssistantStreamCollector)
+    user_message_id: uuid.UUID | None = None
     # 单次 run 内缓冲思考流、发 SSE 并生成落库用的 reasoning 元数据；未开启 thinking 时为 None。
     reasoning_collector: ReasoningCollector | None = None
     emit_sse: SseEmitFn | None = None

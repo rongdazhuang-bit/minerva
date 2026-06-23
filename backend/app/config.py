@@ -84,6 +84,14 @@ class Settings(BaseSettings):
         description="When True, application logs are written to stdout.",
         validation_alias=AliasChoices("LOG_STDOUT_ENABLED", "log_stdout_enabled"),
     )
+    log_sql_enabled: bool = Field(
+        default=False,
+        description=(
+            "When True, log each SQL statement with execution duration (milliseconds) "
+            "via app.db.sql logger."
+        ),
+        validation_alias=AliasChoices("LOG_SQL_ENABLED", "log_sql_enabled"),
+    )
     database_url: str = Field(
         default="postgresql+asyncpg://minerva:minerva@127.0.0.1:5432/minerva",
         description="Async SQLAlchemy URL (asyncpg driver).",

@@ -53,6 +53,7 @@ async def _stream_model_text(
             piece = getattr(chunk, "content", None)
             if not isinstance(piece, str) or not piece:
                 continue
+            deps.assistant_stream.append(piece)
             parts.append(piece)
             if deps.emit_sse:
                 await deps.emit_sse(

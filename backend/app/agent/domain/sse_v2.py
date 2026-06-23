@@ -31,7 +31,8 @@ class AgentSseEventType(str, Enum):
     tool_finished = "tool.finished"
     memory_retrieved = "memory.retrieved"
     mcp_tools_unavailable = "mcp.tools_unavailable"
-    message_final = "message.final"  # Reserved; not emitted (assistant text uses llm.delta only).
+    message_created = "message.created"
+    message_final = "message.final"  # Reserved; assistant ids use ``message.created``.
 
 
 def utc_iso_now() -> str:

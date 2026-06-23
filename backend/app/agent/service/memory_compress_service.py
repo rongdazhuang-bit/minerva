@@ -7,12 +7,13 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import create_engine, nulls_last, select
+from sqlalchemy import nulls_last, select
 
 from app.agent.domain.db.models import AgentSession
 from app.agent.memory.mem0.client import get_mem0_memory, mem0_entity_filters
 from app.agent.service.mem0_llm_client import mem0_llm_complete
 from app.config import settings
+from app.core.infrastructure.db.sql_logging import create_app_sync_engine
 
 log = get_logger(__name__)
 
@@ -52,7 +53,7 @@ def _parse_created_at(value: Any) -> datetime | None:
 def _list_session_pairs() -> list[tuple[uuid.UUID, uuid.UUID]]:
     """Load workspace/session ids to scan (sync SQLAlchemy)."""
 
-    engine = create_engine(
+    engine = create_app_sync_engine(
         settings.sync_database_url,
         pool_pre_ping=True,
         pool_size=1,

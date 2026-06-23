@@ -7,10 +7,11 @@ import threading
 from typing import Any
 
 from celery.beat import Scheduler
-from sqlalchemy import create_engine, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import settings
+from app.core.infrastructure.db.sql_logging import create_app_sync_engine
 from app.sys.celery.domain.db.models import SysCelery
 from app.sys.celery.service.scheduled_task_guard import build_schedule_run_headers
 from app.sys.celery.service.task_payload_codec import normalize_task_args, normalize_task_kwargs
@@ -30,7 +31,7 @@ def _ensure_sync_engine() -> None:
     global _engine, _SessionLocal  # noqa: PLW0603
 
     if _engine is None:
-        _engine = create_engine(
+        _engine = create_app_sync_engine(
             settings.sync_database_url,
             pool_pre_ping=True,
             pool_size=2,

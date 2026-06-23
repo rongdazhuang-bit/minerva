@@ -102,6 +102,8 @@ def _configure_quiet_database_loggers() -> None:
 
     for logger_name in _QUIET_DATABASE_LOGGERS:
         logging.getLogger(logger_name).setLevel(logging.WARNING)
+    if settings.log_sql_enabled:
+        logging.getLogger("app.db.sql").setLevel(logging.INFO)
 
 
 def _configure_uvicorn_loggers(level: int) -> None:

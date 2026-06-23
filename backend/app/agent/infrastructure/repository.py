@@ -364,6 +364,29 @@ async def append_agent_message(
     return row
 
 
+async def update_agent_message(
+    session: AsyncSession,
+    *,
+    message_id: uuid.UUID,
+    content: str | None = None,
+    reasoning_text: str | None = None,
+    meta_json: dict[str, Any] | list[Any] | None = None,
+) -> None:
+    """Update one persisted message row (content and/or metadata)."""
+
+    row = await session.get(AgentMessage, message_id)
+    if row is None:
+        return
+    if content is not None:
+        row.content = content
+    if reasoning_text is not None:
+        row.reasoning_text = reasoning_text
+    if meta_json is not None:
+        row.meta_json = meta_json
+    await session.flush()
+    await touch_agent_session(session, session_id=row.session_id)
+
+
 async def get_agent_message_for_session(
     session: AsyncSession,
     *,

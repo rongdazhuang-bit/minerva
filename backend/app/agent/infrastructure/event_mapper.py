@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.agent.domain.sse_v2 import AgentSseEventType, build_sse_event
+
+if TYPE_CHECKING:
+    from app.agent.infrastructure.assistant_stream_collector import AssistantStreamCollector
 
 
 def map_langchain_stream_event(
@@ -17,6 +20,7 @@ def map_langchain_stream_event(
     step_id: str | None = None,
     skill_id: str | None = None,
     emit_reasoning: bool = False,
+    assistant_stream: AssistantStreamCollector | None = None,
 ) -> bytes | None:
     """Convert one ``astream_events`` v2 dict to an SSE line, or None if skipped."""
 
@@ -47,13 +51,16 @@ def map_langchain_stream_event(
                 payload=payload,
             )
         if content:
+            text = str(content)
+            if assistant_stream is not None:
+                assistant_stream.append(text)
             return build_sse_event(
                 event_type=AgentSseEventType.llm_delta,
                 run_id=run_id,
                 session_id=session_id,
                 payload={
                     "channel": "assistant",
-                    "text": str(content),
+                    "text": text,
                     "step_id": step_id,
                     "skill_id": skill_id,
                 },

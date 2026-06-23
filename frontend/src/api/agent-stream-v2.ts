@@ -198,6 +198,8 @@ export function formatAgentV2TraceLine(event: AgentSseEventV2, locale?: string):
       return `[memory] hits=${String(p.hit_count ?? 0)}`
     case 'run.started':
       return '[run] started'
+    case 'message.created':
+      return '[message] created'
     case 'run.finished': {
       const usage = parseOpenAIUsage(p.usage)
       if (usage) {
