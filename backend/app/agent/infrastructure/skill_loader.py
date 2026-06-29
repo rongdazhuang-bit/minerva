@@ -311,6 +311,9 @@ def _merge_tools_by_name(base: list[Any], extra: list[Any]) -> list[Any]:
     return merged
 
 
+merge_tools_by_name = _merge_tools_by_name
+
+
 def invalidate_subagent_cache_for_workspace(workspace_id: uuid.UUID) -> None:
     """Drop cached sub-agents for one workspace (after MCP config changes)."""
 

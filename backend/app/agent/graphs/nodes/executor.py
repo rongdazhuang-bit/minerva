@@ -14,6 +14,7 @@ from app.agent.graphs.state import AgentGraphState, StepResult
 from app.agent.infrastructure import repository as agent_repo
 from app.agent.infrastructure.skill_loader import build_skill_react_agent
 from app.agent.infrastructure.skill_tool_context import SkillToolContext
+from app.agent.infrastructure.temporal_context import prepare_executor_temporal_context
 from app.config import settings
 
 
@@ -64,13 +65,19 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
         )
 
     ctx = SkillToolContext(workspace_id=deps.workspace_id, chat_model=deps.model)
+    user_text = (state.get("user_message") or "").strip()
+    effective_goal, extra_tools = prepare_executor_temporal_context(
+        user_message=user_text,
+        step_goal=step.goal,
+        mcp_extra_tools=deps.mcp_extra_tools,
+    )
     try:
         subagent = build_skill_react_agent(
             deps.model,
             step.skill_id,
             ctx,
             cache=deps.subagent_cache,
-            extra_tools=deps.mcp_extra_tools or None,
+            extra_tools=extra_tools or None,
         )
         output = await run_subagent_with_stream(
             deps,
@@ -78,6 +85,7 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
             step=step,
             recursion_limit=settings.agent_subagent_recursion_limit,
             parent_node_id=node_id,
+            goal_override=effective_goal if effective_goal != step.goal else None,
         )
         step.status = "success" if output else "failed"
     except Exception as e:

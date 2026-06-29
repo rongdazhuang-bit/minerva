@@ -58,12 +58,14 @@ async def run_subagent_with_stream(
     step: PlanStep,
     recursion_limit: int,
     parent_node_id: uuid.UUID,
+    goal_override: str | None = None,
 ) -> str:
     """Run one sub-agent with ``astream_events`` and forward tool/LLM deltas to SSE."""
 
     config_sub = {"recursion_limit": recursion_limit}
     history = deps.conversation_messages or []
-    inputs = {"messages": messages_with_user_input(history, step.goal)}
+    effective_goal = (goal_override or step.goal or "").strip()
+    inputs = {"messages": messages_with_user_input(history, effective_goal)}
     output = ""
     collector = deps.reasoning_collector
     collector_active = collector is not None and collector.thinking_enabled

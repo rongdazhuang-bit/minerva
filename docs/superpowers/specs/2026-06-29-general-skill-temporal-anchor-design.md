@@ -1,7 +1,7 @@
 # Agent 相对时间锚定（Executor 全局注入）设计说明
 
 **日期**：2026-06-29  
-**状态**：已批准，待实现  
+**状态**：已实现  
 **范围**：当用户消息含相对时间表述（如「今年」「去年同期」「本季度」）时，在 `executor_node` 层全局预取系统日期并合并 `get_system_datetime` 工具，使 `general` 及任意其它 skill（含 MCP 混合步）能正确解析时间区间。
 
 **关系**：扩展 `docs/superpowers/specs/2026-05-16-agent-system-datetime-skill-design.md`（`datetime` skill 仍负责显式「几点/几号」问答；本 spec 负责含相对时间的分析/查询类请求）。
@@ -263,3 +263,17 @@ subagent = build_skill_react_agent(..., extra_tools=extras or None)
 | `2026-05-16-agent-system-datetime-skill-design.md` | `datetime` skill 与 `get_system_datetime` 工具来源；本 spec 共享同一工具实现 |
 | `2026-06-15-amap-location-weather-skills-design.md` | `weather` 等 skill 在含「今天天气」时可同时获得 temporal 注入 |
 | `2026-06-18-mcp-management-design.md` | MCP 工具与 `get_system_datetime` 经同一 `extra_tools` 合并 |
+
+---
+
+## 12. 实现对照（2026-06-29）
+
+| 本 spec | 代码 |
+|---------|------|
+| §4.3 共享 `datetime_tool` | `backend/app/agent/infrastructure/datetime_tool.py` |
+| §4.1 `temporal_context` | `backend/app/agent/infrastructure/temporal_context.py` |
+| §5 executor 注入 | `backend/app/agent/graphs/nodes/executor.py` |
+| §5.2 `goal_override` | `backend/app/agent/graphs/nodes/subagent_runner.py` |
+| §6 SKILL / Planner | `general/SKILL.md`, `datetime/SKILL.md`, `planner.py` |
+| §8 单测 | `backend/tests/test_*`（本地 pytest；目录在 `.gitignore`） |
+| Plan | `docs/superpowers/plans/2026-06-29-general-skill-temporal-anchor.md` |

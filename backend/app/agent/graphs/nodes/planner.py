@@ -29,7 +29,7 @@ from app.config import settings
 PLANNER_SYSTEM_TEMPLATE = """你是任务规划器。根据【本轮用户请求】拆分为若干步骤，每步指定 skill_id（{skill_ids}）。
 
 路由以 INDEX 与各 skill 的「何时使用」「Planner 路由」为准；命中触发词时必须选对应 skill_id。
-不要把需要「当前服务器时间/日期」的问题分给 general；不要把「列出/读取/写入沙箱文件」分给 general（应选 file）。
+不要把需要「当前服务器时间/日期」的显式问答（几点、几号、星期几）分给 general；含「今年/去年同期」等业务相对时间的分析仍可分给 general（executor 会自动锚定日期）。不要把「列出/读取/写入沙箱文件」分给 general（应选 file）。
 
 只输出符合 schema 的计划，步数不超过 {max_steps}。能一步完成时不要拆多步。
 
@@ -54,7 +54,8 @@ PLANNER_SYSTEM_TEMPLATE = """你是任务规划器。根据【本轮用户请求
 用户：你好 → steps: [{{"id":"s1","skill_id":"general","goal":"你好"}}]
 用户：列出当前目录文件 → steps: [{{"id":"s1","skill_id":"file","goal":"列出当前目录文件"}}]
 用户：帮我做一份产品路演的 PPT → steps: [{{"id":"s1","skill_id":"ppt","goal":"制作产品路演演示文稿 pptx"}}]
-用户：把这份 PDF 转成幻灯片 → steps: [{{"id":"s1","skill_id":"ppt","goal":"将 PDF 转为 pptx 演示文稿"}}]"""
+用户：把这份 PDF 转成幻灯片 → steps: [{{"id":"s1","skill_id":"ppt","goal":"将 PDF 转为 pptx 演示文稿"}}]
+用户：桂山风电场今年第一季度运行情况并与去年同期对比 → steps: [{{"id":"s1","skill_id":"general","goal":"桂山风电场今年第一季度运行情况并与去年同期对比"}}]"""
 
 
 async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:

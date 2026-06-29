@@ -8,6 +8,8 @@
 
 **子 Agent 执行**：进入本 skill 后必须先调用 `get_system_datetime`（向用户报告本地时间时用 `timezone=LOCAL`），再根据返回的 `iso` 用中文简洁作答；不得声称无法获取实时时间。
 
+**相对时间业务句**（如「今年第一季度」「去年同期」嵌入风电场/营收分析）由 executor 全局预注入系统时间并合并本工具，Planner **无需**单独拆 `datetime` 步；仍由业务 skill（如 `general`）一步完成。
+
 ## Planner 路由
 
 - 现在几点
