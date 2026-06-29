@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 
 from langgraph.graph.state import CompiledStateGraph
 
@@ -15,6 +16,18 @@ from app.agent.infrastructure.reasoning_collector import (
     extract_reasoning_from_langchain_message,
     reasoning_tokens_from_raw,
 )
+from app.agent.infrastructure.subagent_synthesis import (
+    SubagentRunStats,
+    message_requested_tools,
+)
+
+
+@dataclass(frozen=True)
+class SubagentRunOutcome:
+    """Text output and routing stats from one sub-agent execution."""
+
+    output: str
+    stats: SubagentRunStats
 
 
 def extract_last_ai_text(messages: list) -> str:
@@ -59,7 +72,7 @@ async def run_subagent_with_stream(
     recursion_limit: int,
     parent_node_id: uuid.UUID,
     goal_override: str | None = None,
-) -> str:
+) -> SubagentRunOutcome:
     """Run one sub-agent with ``astream_events`` and forward tool/LLM deltas to SSE."""
 
     config_sub = {"recursion_limit": recursion_limit}
@@ -67,6 +80,8 @@ async def run_subagent_with_stream(
     effective_goal = (goal_override or step.goal or "").strip()
     inputs = {"messages": messages_with_user_input(history, effective_goal)}
     output = ""
+    stats = SubagentRunStats()
+    persist_assistant_stream = True
     collector = deps.reasoning_collector
     collector_active = collector is not None and collector.thinking_enabled
     subagent_reasoning_tokens = 0
@@ -74,6 +89,12 @@ async def run_subagent_with_stream(
 
     try:
         async for event in subagent.astream_events(inputs, config=config_sub, version="v2"):
+            if event.get("event") == "on_tool_start":
+                stats = SubagentRunStats(
+                    tool_call_count=stats.tool_call_count + 1,
+                    last_ai_had_tool_calls=stats.last_ai_had_tool_calls,
+                )
+                persist_assistant_stream = False
             if event.get("event") == "on_chat_model_start":
                 run_id_key = str(event.get("run_id") or "")
                 pending_llm_nodes[run_id_key] = await deps.begin_llm_call_to_db(
@@ -96,6 +117,11 @@ async def run_subagent_with_stream(
             if event.get("event") == "on_chat_model_end":
                 data = event.get("data") or {}
                 llm_output = data.get("output")
+                if message_requested_tools(llm_output):
+                    stats = SubagentRunStats(
+                        tool_call_count=stats.tool_call_count,
+                        last_ai_had_tool_calls=True,
+                    )
                 run_id_key = str(event.get("run_id") or "")
                 llm_node_id = pending_llm_nodes.pop(run_id_key, None)
                 round_text = extract_reasoning_from_langchain_message(llm_output)
@@ -109,6 +135,7 @@ async def run_subagent_with_stream(
                     reasoning_text=round_text or None,
                 )
             if deps.emit_sse:
+                stream_sink = deps.assistant_stream if persist_assistant_stream else None
                 line = map_langchain_stream_event(
                     event,
                     run_id=deps.run_id,
@@ -117,7 +144,7 @@ async def run_subagent_with_stream(
                     step_id=step.id,
                     skill_id=step.skill_id,
                     emit_reasoning=False,
-                    assistant_stream=deps.assistant_stream,
+                    assistant_stream=stream_sink,
                 )
                 if line:
                     await deps.emit_sse(line)
@@ -140,6 +167,11 @@ async def run_subagent_with_stream(
                     role = getattr(msg, "type", None) or getattr(msg, "role", None)
                     if role in ("ai", "assistant"):
                         llm_output = msg
+                        if message_requested_tools(msg):
+                            stats = SubagentRunStats(
+                                tool_call_count=stats.tool_call_count,
+                                last_ai_had_tool_calls=True,
+                            )
                         round_text = extract_reasoning_from_langchain_message(msg)
                         subagent_reasoning_tokens += reasoning_tokens_from_raw(msg)
                         if collector_active and round_text:
@@ -179,4 +211,4 @@ async def run_subagent_with_stream(
             skill_id=step.skill_id,
         )
 
-    return output
+    return SubagentRunOutcome(output=output, stats=stats)
