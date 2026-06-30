@@ -21,6 +21,7 @@ class FileStorageCreateIn(BaseModel):
     secret_key: str | None = Field(default=None, max_length=128)
     auth_name: str | None = Field(default=None, max_length=64)
     auth_passwd: str | None = Field(default=None, max_length=128)
+    local_path: str | None = Field(default=None, max_length=128)
 
 
 class FileStoragePatchIn(BaseModel):
@@ -36,6 +37,7 @@ class FileStoragePatchIn(BaseModel):
     secret_key: str | None = Field(default=None, max_length=128)
     auth_name: str | None = Field(default=None, max_length=64)
     auth_passwd: str | None = Field(default=None, max_length=128)
+    local_path: str | None = Field(default=None, max_length=128)
 
 
 class FileStorageListItemOut(BaseModel):
@@ -52,6 +54,7 @@ class FileStorageListItemOut(BaseModel):
     auth_type: str
     endpoint_url: str | None
     auth_name: str | None
+    local_path: str | None
     has_api_key: bool
     has_password: bool
     create_at: datetime | None
@@ -75,6 +78,7 @@ class FileStorageDetailOut(BaseModel):
     secret_key: str | None
     auth_name: str | None
     auth_passwd: str | None
+    local_path: str | None
     create_at: datetime | None
     update_at: datetime | None
 

@@ -45,6 +45,7 @@ def _to_list_item(row: SysStorage) -> FileStorageListItemOut:
         auth_type=row.auth_type,
         endpoint_url=row.endpoint_url,
         auth_name=row.auth_name,
+        local_path=row.local_path,
         has_api_key=bool(row.api_key),
         has_password=bool(row.auth_passwd),
         create_at=row.create_at,
@@ -68,6 +69,7 @@ def _to_detail(row: SysStorage) -> FileStorageDetailOut:
         secret_key=row.secret_key,
         auth_name=row.auth_name,
         auth_passwd=row.auth_passwd,
+        local_path=row.local_path,
         create_at=row.create_at,
         update_at=row.update_at,
     )
@@ -87,6 +89,7 @@ def _to_create_data(body: FileStorageCreateIn) -> dict[str, Any]:
         "secret_key": body.secret_key,
         "auth_name": body.auth_name,
         "auth_passwd": body.auth_passwd,
+        "local_path": body.local_path,
     }
 
 
