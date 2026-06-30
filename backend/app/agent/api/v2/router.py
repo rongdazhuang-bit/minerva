@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, File, Query, Response, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.api.v2.schemas import (
+    AgentAttachmentUploadOut,
     AgentConversationModelOut,
+    AgentMessageAttachmentOut,
     AgentOverviewUsageDailyStatsOut,
     AgentSkillItemOut,
     AgentSkillListOut,
@@ -30,6 +32,19 @@ from app.agent.infrastructure.repository import (
 )
 from app.agent.infrastructure import repository as agent_repo
 from app.agent.infrastructure.skill_loader import list_indexed_skills
+from app.agent.infrastructure.chat_model_factory import model_supports_vision
+from app.agent.infrastructure.vision_mime import allowed_vision_mime_set
+from app.agent.infrastructure.attachment_kind import allowed_attachment_mime_set
+from app.agent.service.agent_attachment_service import (
+    AGENT_ATTACHMENT_MODULE_PREFIX,
+    attachment_rows_to_api_out,
+    collect_legacy_meta_attachment_object_keys,
+    delete_legacy_meta_attachment_objects,
+    delete_storage_objects_for_rows,
+    legacy_meta_attachments_to_api_out,
+    validate_attachment_upload_payload,
+)
+from app.files.service.workspace_file_service import WorkspaceFileService
 from app.agent.api.v2.memory_router import router as memory_router
 from app.agent.api.v2.skills_mgmt_router import router as skills_mgmt_router
 from app.config import settings
@@ -59,7 +74,52 @@ async def get_agent_v2_config(
     """Expose agent runtime flags (e.g. memory backend) to the UI."""
 
     _ = workspace_id
-    return AgentV2ConfigOut(memory_backend=settings.agent_memory_backend)
+    return AgentV2ConfigOut(
+        memory_backend=settings.agent_memory_backend,
+        vision_image_max_count=settings.agent_vision_image_max_count,
+        vision_image_max_bytes=settings.agent_vision_image_max_bytes,
+        vision_image_allowed_mime=sorted(
+            allowed_vision_mime_set(settings.agent_vision_image_allowed_mime)
+        ),
+        attachment_max_count=settings.agent_attachment_max_count,
+        attachment_max_bytes=settings.agent_attachment_max_bytes,
+        attachment_allowed_mime=sorted(
+            allowed_attachment_mime_set(settings.agent_attachment_allowed_mime)
+        ),
+    )
+
+
+async def _attachments_for_message_out(
+    db: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    message_id: uuid.UUID,
+    meta_json: dict | None,
+    db_rows: list,
+) -> list[AgentMessageAttachmentOut]:
+    """Resolve attachments for one message from DB rows or legacy meta_json."""
+
+    message_rows = [row for row in db_rows if row.message_id == message_id]
+    if message_rows:
+        payloads = await attachment_rows_to_api_out(
+            db, workspace_id=workspace_id, rows=message_rows
+        )
+        return [AgentMessageAttachmentOut.model_validate(item) for item in payloads]
+
+    if not isinstance(meta_json, dict):
+        return []
+    raw = meta_json.get("attachments")
+    if not isinstance(raw, list):
+        return []
+    legacy_items = [item for item in raw if isinstance(item, dict) and item.get("object_key")]
+    if not legacy_items:
+        return []
+    payloads = await legacy_meta_attachments_to_api_out(
+        db,
+        workspace_id=workspace_id,
+        meta_attachments=legacy_items,
+    )
+    return [AgentMessageAttachmentOut.model_validate(item) for item in payloads]
 
 
 def _to_agent_conversation_model(row) -> AgentConversationModelOut:
@@ -73,6 +133,7 @@ def _to_agent_conversation_model(row) -> AgentConversationModelOut:
         endpoint_url=endpoint,
         max_tokens=row.max_tokens,
         tags=list(row.tags or []),
+        supports_vision=model_supports_vision(row.tags),
     )
 
 
@@ -86,6 +147,41 @@ async def list_agent_conversation_models(
 
     rows = await model_repo.list_agent_conversation_models(db, workspace_id=workspace_id)
     return [_to_agent_conversation_model(r) for r in rows]
+
+
+@router.post("/attachments:upload", response_model=AgentAttachmentUploadOut, status_code=201)
+async def upload_agent_attachment(
+    workspace_id: uuid.UUID,
+    file: UploadFile | None = File(default=None),
+    _workspace: uuid.UUID = Depends(require_workspace_member),
+    db: AsyncSession = Depends(get_db),
+) -> AgentAttachmentUploadOut:
+    """Upload one vision image for agent chat (uses workspace active storage)."""
+
+    if file is None:
+        raise AppError("agent.attachment_file_required", "file is required", 422)
+    payload = await file.read()
+    file_name = file.filename or "upload.bin"
+    content_type = validate_attachment_upload_payload(
+        payload=payload,
+        file_name=file_name,
+        content_type=file.content_type,
+    )
+    service = WorkspaceFileService(session=db)
+    result = await service.upload_file(
+        workspace_id=workspace_id,
+        module_prefix=AGENT_ATTACHMENT_MODULE_PREFIX,
+        file_name=file_name,
+        payload=payload,
+        content_type=content_type,
+    )
+    return AgentAttachmentUploadOut(
+        object_key=result.object_key,
+        file_name=result.file_name,
+        content_type=result.content_type,
+        size=result.size,
+        download_url=result.download_url,
+    )
 
 
 @router.get("/skills", response_model=AgentSkillListOut)
@@ -212,6 +308,7 @@ async def get_agent_session_detail(
     if row is None:
         raise AppError("agent.session_not_found", "会话不存在或不属于当前工作区。")
     msg_rows = await agent_repo.list_agent_messages_ordered(db, session_id=session_id)
+    all_att_rows = await agent_repo.list_attachments_for_session(db, session_id=session_id)
     message_outs: list[AgentMessageOut] = []
     for m in msg_rows:
         reasoning_raw = (
@@ -235,6 +332,13 @@ async def get_agent_session_detail(
                 meta_json=m.meta_json if isinstance(m.meta_json, dict) else None,
                 reasoning_text=m.reasoning_text,
                 reasoning=reasoning,
+                attachments=await _attachments_for_message_out(
+                    db,
+                    workspace_id=workspace_id,
+                    message_id=m.id,
+                    meta_json=m.meta_json if isinstance(m.meta_json, dict) else None,
+                    db_rows=all_att_rows,
+                ),
             )
         )
     return AgentSessionDetailOut(
@@ -261,6 +365,25 @@ async def delete_agent_session(
 ) -> Response:
     """删除会话及其关联数据。"""
 
+    attachment_rows = await agent_repo.list_attachments_for_session(
+        db, session_id=session_id
+    )
+    msg_rows = await agent_repo.list_agent_messages_ordered(db, session_id=session_id)
+    db_object_keys = {row.object_key for row in attachment_rows}
+    legacy_object_keys = collect_legacy_meta_attachment_object_keys(
+        msg_rows,
+        exclude_keys=db_object_keys,
+    )
+    if attachment_rows:
+        await delete_storage_objects_for_rows(
+            db, workspace_id=workspace_id, rows=attachment_rows
+        )
+    if legacy_object_keys:
+        await delete_legacy_meta_attachment_objects(
+            db,
+            workspace_id=workspace_id,
+            object_keys=legacy_object_keys,
+        )
     deleted = await agent_repo.delete_agent_session(
         db, workspace_id=workspace_id, session_id=session_id
     )
@@ -300,6 +423,14 @@ async def create_agent_run_sse(
                 regenerate_from_message_id=body.regenerate_from_message_id,
                 regenerate_last_assistant=body.regenerate_last_assistant,
                 enable_thinking=body.enable_thinking,
+                attachments=[
+                    {
+                        "object_key": a.object_key,
+                        "file_name": a.file_name,
+                        "content_type": a.content_type,
+                    }
+                    for a in body.attachments
+                ],
             ):
                 yield chunk
         except Exception:

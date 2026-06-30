@@ -607,6 +607,75 @@ class Settings(BaseSettings):
         description="Agent file 技能单文件读/写最大字节数。",
         validation_alias=AliasChoices("AGENT_FILE_MAX_BYTES", "agent_file_max_bytes"),
     )
+    agent_vision_image_max_count: int = Field(
+        default=1,
+        ge=1,
+        le=20,
+        description="Agent 对话单次 run 最多图片附件数。",
+        validation_alias=AliasChoices(
+            "AGENT_VISION_IMAGE_MAX_COUNT",
+            "agent_vision_image_max_count",
+        ),
+    )
+    agent_vision_image_max_bytes: int = Field(
+        default=5_242_880,
+        ge=1,
+        description="Agent 对话单张图片最大字节数（默认 5MB）。",
+        validation_alias=AliasChoices(
+            "AGENT_VISION_IMAGE_MAX_BYTES",
+            "agent_vision_image_max_bytes",
+        ),
+    )
+    agent_vision_image_allowed_mime: str = Field(
+        default="image/jpeg,image/jpg,image/png",
+        description="Agent 对话允许的图片 MIME，逗号分隔。",
+        validation_alias=AliasChoices(
+            "AGENT_VISION_IMAGE_ALLOWED_MIME",
+            "agent_vision_image_allowed_mime",
+        ),
+    )
+    agent_attachment_max_count: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="单条 Agent 消息最多附件数。",
+        validation_alias=AliasChoices(
+            "AGENT_ATTACHMENT_MAX_COUNT",
+            "agent_attachment_max_count",
+        ),
+    )
+    agent_attachment_max_bytes: int = Field(
+        default=5242880,
+        ge=1,
+        description="Agent 消息单附件最大字节数（默认 5MB）。",
+        validation_alias=AliasChoices(
+            "AGENT_ATTACHMENT_MAX_BYTES",
+            "agent_attachment_max_bytes",
+        ),
+    )
+    agent_attachment_allowed_mime: str = Field(
+        default=(
+            "image/jpeg,image/jpg,image/png,image/gif,image/webp,"
+            "application/pdf,text/plain,text/csv,"
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document,"
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+        description="Agent 消息附件允许的 MIME，逗号分隔。",
+        validation_alias=AliasChoices(
+            "AGENT_ATTACHMENT_ALLOWED_MIME",
+            "agent_attachment_allowed_mime",
+        ),
+    )
+    agent_attachment_download_expires_in: int = Field(
+        default=3600,
+        ge=60,
+        le=86400,
+        description="Agent 附件下载 URL 有效期（秒）。",
+        validation_alias=AliasChoices(
+            "AGENT_ATTACHMENT_DOWNLOAD_EXPIRES_IN",
+            "agent_attachment_download_expires_in",
+        ),
+    )
     doc_translate_max_file_bytes: int = Field(
         default=20971520,
         ge=1024,

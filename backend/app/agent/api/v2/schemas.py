@@ -79,6 +79,19 @@ class AgentMessageOut(BaseModel):
     meta_json: dict[str, Any] | None = None
     reasoning_text: str | None = None
     reasoning: AgentMessageReasoningOut | None = None
+    attachments: list["AgentMessageAttachmentOut"] = Field(default_factory=list)
+
+
+class AgentMessageAttachmentOut(BaseModel):
+    """One attachment referenced by a user message."""
+
+    id: UUID | None = None
+    object_key: str
+    file_name: str | None = None
+    content_type: str | None = None
+    size: int | None = None
+    kind: str = "file"
+    download_url: str | None = None
 
 
 class AgentSessionDetailOut(BaseModel):
@@ -123,6 +136,7 @@ class AgentRunCreateV2(BaseModel):
     """发起一次 v2 run（服务端托管模型连接）。"""
 
     user_message: str = ""
+    attachments: list["AgentAttachmentIn"] = Field(default_factory=list)
     model_id: UUID
     temperature: float | None = Field(default=None, ge=0, le=2)
     max_tokens: int | None = Field(default=None, ge=1)
@@ -142,17 +156,35 @@ class AgentRunCreateV2(BaseModel):
 
     @model_validator(mode="after")
     def _require_message_or_single_preferred_skill(self) -> "AgentRunCreateV2":
-        """Allow empty ``user_message`` when exactly one registered skill is preferred."""
+        """Allow empty ``user_message`` when skill-only or attachments are present."""
 
         from app.agent.infrastructure.skill_loader import get_indexed_skill
 
-        if self.user_message.strip():
+        if self.user_message.strip() or self.attachments:
             return self
         if len(self.preferred_skills) == 1 and get_indexed_skill(self.preferred_skills[0]):
             return self
         raise ValueError(
             "user_message must not be empty unless preferred_skills contains exactly one valid skill id"
         )
+
+
+class AgentAttachmentIn(BaseModel):
+    """Reference one uploaded vision image for an agent run."""
+
+    object_key: str = Field(min_length=1)
+    file_name: str | None = None
+    content_type: str | None = None
+
+
+class AgentAttachmentUploadOut(BaseModel):
+    """Upload response for one agent vision image."""
+
+    object_key: str
+    file_name: str
+    content_type: str | None
+    size: int
+    download_url: str
 
 
 class AgentConversationModelOut(BaseModel):
@@ -164,6 +196,7 @@ class AgentConversationModelOut(BaseModel):
     endpoint_url: str
     max_tokens: int | None = None
     tags: list[str]
+    supports_vision: bool = False
 
 
 class SkillRegistryItemOut(BaseModel):
@@ -214,6 +247,12 @@ class AgentV2ConfigOut(BaseModel):
     """Runtime agent feature flags exposed to the frontend."""
 
     memory_backend: str
+    vision_image_max_count: int = 1
+    vision_image_max_bytes: int = 5_242_880
+    vision_image_allowed_mime: list[str] = Field(default_factory=list)
+    attachment_max_count: int = 5
+    attachment_max_bytes: int = 5_242_880
+    attachment_allowed_mime: list[str] = Field(default_factory=list)
 
 
 class AgentMemoryProfileOut(BaseModel):
@@ -256,3 +295,5 @@ class AgentMem0MemoryListOut(BaseModel):
 
 
 SkillFileTreeNodeOut.model_rebuild()
+AgentMessageOut.model_rebuild()
+AgentRunCreateV2.model_rebuild()

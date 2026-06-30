@@ -14,6 +14,7 @@ from app.agent.domain.db.models import (
     AgentLongTermMemory,
     AgentMemoryProfile,
     AgentMessage,
+    AgentMessageAttachment,
     AgentPlan,
     AgentRun,
     AgentRunNode,
@@ -142,6 +143,7 @@ async def delete_agent_session(
                 .values(source_run_id=None)
             )
 
+        await delete_attachments_for_session(session, session_id=session_id)
         await session.execute(
             delete(AgentMessage).where(AgentMessage.session_id == session_id)
         )
@@ -406,6 +408,101 @@ async def get_agent_message_for_session(
         )
     )
     return (await session.execute(stmt)).scalar_one_or_none()
+
+
+async def insert_agent_message_attachments(
+    session: AsyncSession,
+    *,
+    rows: list[AgentMessageAttachment],
+) -> list[AgentMessageAttachment]:
+    """批量插入消息附件行。"""
+
+    for row in rows:
+        session.add(row)
+    await session.flush()
+    return rows
+
+
+async def list_attachments_for_session(
+    session: AsyncSession,
+    *,
+    session_id: uuid.UUID,
+) -> list[AgentMessageAttachment]:
+    """按 session 加载全部附件行（按 created_at 排序）。"""
+
+    stmt = (
+        select(AgentMessageAttachment)
+        .where(AgentMessageAttachment.session_id == session_id)
+        .order_by(AgentMessageAttachment.created_at.asc())
+    )
+    return list((await session.execute(stmt)).scalars().all())
+
+
+async def list_attachments_for_message_ids(
+    session: AsyncSession,
+    *,
+    message_ids: list[uuid.UUID],
+) -> list[AgentMessageAttachment]:
+    """批量按 message_id 加载附件。"""
+
+    if not message_ids:
+        return []
+    stmt = (
+        select(AgentMessageAttachment)
+        .where(AgentMessageAttachment.message_id.in_(message_ids))
+        .order_by(AgentMessageAttachment.created_at.asc())
+    )
+    return list((await session.execute(stmt)).scalars().all())
+
+
+async def delete_attachments_for_session(
+    session: AsyncSession,
+    *,
+    session_id: uuid.UUID,
+) -> list[AgentMessageAttachment]:
+    """删除 session 下全部附件行并返回被删行（供存储清理）。"""
+
+    rows = await list_attachments_for_session(session, session_id=session_id)
+    if rows:
+        await session.execute(
+            delete(AgentMessageAttachment).where(
+                AgentMessageAttachment.session_id == session_id
+            )
+        )
+    return rows
+
+
+async def delete_attachments_for_messages_from_seq(
+    session: AsyncSession,
+    *,
+    session_id: uuid.UUID,
+    from_seq: int,
+) -> list[AgentMessageAttachment]:
+    """删除 seq >= from_seq 的消息关联附件，返回被删行。"""
+
+    msg_ids = list(
+        (
+            await session.execute(
+                select(AgentMessage.id).where(
+                    AgentMessage.session_id == session_id,
+                    AgentMessage.seq >= from_seq,
+                )
+            )
+        ).scalars().all()
+    )
+    if not msg_ids:
+        return []
+    stmt = select(AgentMessageAttachment).where(
+        AgentMessageAttachment.message_id.in_(msg_ids)
+    )
+    rows = list((await session.execute(stmt)).scalars().all())
+    if rows:
+        await session.execute(
+            delete(AgentMessageAttachment).where(
+                AgentMessageAttachment.message_id.in_(msg_ids)
+            )
+        )
+    return rows
 
 
 async def delete_agent_messages_from_seq(

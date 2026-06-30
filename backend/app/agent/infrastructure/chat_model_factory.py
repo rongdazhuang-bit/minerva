@@ -14,17 +14,41 @@ from app.agent.infrastructure.direct_endpoint_openai_client import (
 from app.agent.infrastructure.thinking_config import ThinkingConfig
 from app.exceptions import AppError
 from app.llm.strategies.http_common import normalize_openai_base_url
-from app.sys.model_provider.domain.constants import MODEL_TAG_CHAT
+from app.sys.model_provider.domain.constants import MODEL_TAG_CHAT, MODEL_TAG_MULTIMODAL
 from app.sys.model_provider.domain.db.models import SysModel
 from app.sys.model_provider.infrastructure import repository as model_repo
+
+
+def _normalize_model_tags(tags: object) -> set[str]:
+    """Return stripped tag codes from a ``sys_models.tags`` JSON array."""
+
+    if not isinstance(tags, list):
+        return set()
+    return {str(t).strip() for t in tags if t is not None}
 
 
 def _tags_allow_agent(tags: object) -> bool:
     """Return whether the model row is tagged for agent conversation usage."""
 
-    if not isinstance(tags, list):
-        return False
-    return MODEL_TAG_CHAT in {str(t).strip() for t in tags if t is not None}
+    normalized = _normalize_model_tags(tags)
+    return MODEL_TAG_CHAT in normalized or MODEL_TAG_MULTIMODAL in normalized
+
+
+def model_supports_vision(tags: object) -> bool:
+    """Return whether the model accepts vision/image attachments in agent chat."""
+
+    return MODEL_TAG_MULTIMODAL in _normalize_model_tags(tags)
+
+
+def assert_model_supports_vision(row: SysModel) -> None:
+    """Raise when attachments are sent but the model lacks MULTIMODAL tag."""
+
+    if not model_supports_vision(getattr(row, "tags", None)):
+        raise AppError(
+            "agent.model_vision_not_supported",
+            "该模型不支持图片输入，请选择多模态模型。",
+            422,
+        )
 
 
 class ChatModelFactory:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import SystemMessage
 from langchain_core.runnables import RunnableConfig
 
 from app.agent.domain.plan import Plan, PlanStep, plan_fallback_skill_id
@@ -17,6 +17,7 @@ from app.agent.infrastructure.skill_loader import (
     build_planner_system_intro,
     plan_from_preferred_skill,
 )
+from app.agent.infrastructure.vision_messages import build_vision_human_message
 from app.agent.infrastructure import repository as agent_repo
 from app.agent.infrastructure.reasoning_collector import (
     extract_reasoning_from_langchain_message,
@@ -74,17 +75,25 @@ async def planner_node(state: AgentGraphState, config: RunnableConfig) -> dict:
         skill_index=build_planner_skill_index(),
     )
     request_text = (user_text or "").strip()
-
+    request_block = (
+        f"{mem_block}\n\n【本轮用户请求】：{request_text}\n\n"
+        "请直接输出 Plan JSON 对象，不要用 >、markdown 代码块或其它前缀。"
+        if mem_block
+        else f"【本轮用户请求】：{request_text}\n\n请直接输出 Plan JSON 对象，不要用 >、markdown 代码块或其它前缀。"
+    )
+    attachments = state.get("user_attachments") or deps.user_attachments
+    async with deps.workspace_files() as file_service:
+        user_msg = await build_vision_human_message(
+            request_block,
+            attachments,
+            workspace_id=deps.workspace_id,
+            file_service=file_service,
+            cache=deps.vision_cache,
+            include_images=deps.model_supports_vision,
+        )
     planner_messages = [
         SystemMessage(content=sys + pref_hint),
-        HumanMessage(
-            content=(
-                f"{mem_block}\n\n【本轮用户请求】：{request_text}\n\n"
-                "请直接输出 Plan JSON 对象，不要用 >、markdown 代码块或其它前缀。"
-                if mem_block
-                else f"【本轮用户请求】：{request_text}\n\n请直接输出 Plan JSON 对象，不要用 >、markdown 代码块或其它前缀。"
-            )
-        ),
+        user_msg,
     ]
 
     plan_node_id = uuid.uuid4()

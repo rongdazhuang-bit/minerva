@@ -4,6 +4,7 @@
 import {
   CopyOutlined,
   MoreOutlined,
+  PaperClipOutlined,
   RedoOutlined,
   RobotOutlined,
   SendOutlined,
@@ -14,6 +15,7 @@ import {
   Collapse,
   Dropdown,
   Flex,
+  Image,
   Popconfirm,
   Select,
   Spin,
@@ -29,16 +31,22 @@ import {
   createAgentSession,
   deleteAgentSession,
   getAgentSessionDetail,
+  getAgentV2Config,
   AGENT_SESSIONS_PAGE_SIZE,
   listAgentConversationModels,
   listAgentSessions,
   listAgentSkills,
+  resolveAgentAttachmentUrl,
   streamAgentRun,
+  uploadAgentAttachment,
+  type AgentAttachmentMeta,
   type AgentSessionListItem,
   type AgentStreamEvent,
 } from '@/api/agent'
 import { extractTotalTokens, formatAgentV2TraceLine, formatTokenCount, formatTokenNumber, extractReasoningTokens } from '@/api/agent-stream-v2'
 import { AgentComposerInput } from '@/features/agent/AgentComposerInput'
+import { AgentAttachmentFile, isImageAttachment } from '@/features/agent/AgentAttachmentFile'
+import { AgentAttachmentImage } from '@/features/agent/AgentAttachmentImage'
 import { AgentSkillSlashMenu } from '@/features/agent/AgentSkillSlashMenu'
 import {
   agentMessagesToChat,
@@ -103,6 +111,8 @@ export function AgentsPage() {
   const [sessionLoadingId, setSessionLoadingId] = useState<string | null>(null)
   const [messages, setMessages] = useState<AgentChatMsg[]>([])
   const [draft, setDraft] = useState('')
+  const [pendingAttachments, setPendingAttachments] = useState<AgentAttachmentMeta[]>([])
+  const [attachmentUploading, setAttachmentUploading] = useState(false)
   const [slashOpen, setSlashOpen] = useState(false)
   const [slashFilter, setSlashFilter] = useState('')
   const [slashActiveIndex, setSlashActiveIndex] = useState(0)
@@ -128,6 +138,7 @@ export function AgentsPage() {
   const composerHeightRef = useRef(0)
   /** Composer ``Input.TextArea`` ref for refocus after a run finishes. */
   const draftInputRef = useRef<InputRef | null>(null)
+  const attachmentFileInputRef = useRef<HTMLInputElement | null>(null)
   /** Tracks previous ``streaming`` to detect assistant run completion. */
   const wasStreamingRef = useRef(false)
   /** When true, user scrolled up in the message list; pause auto-scroll until next send. */
@@ -136,6 +147,12 @@ export function AgentsPage() {
   const modelsQuery = useQuery({
     queryKey: ['agent-conversation-models', workspaceId],
     queryFn: () => listAgentConversationModels(workspaceId!),
+    enabled: Boolean(workspaceId),
+  })
+
+  const agentConfigQuery = useQuery({
+    queryKey: ['agent-v2-config', workspaceId],
+    queryFn: () => getAgentV2Config(workspaceId!),
     enabled: Boolean(workspaceId),
   })
 
@@ -319,6 +336,21 @@ export function AgentsPage() {
 
   const usableModels = useMemo(() => modelsQuery.data ?? [], [modelsQuery.data])
 
+  const selectedModelSupportsVision = useMemo(() => {
+    const row = usableModels.find((m) => m.id === prefs.selectedModelId)
+    return Boolean(row?.supports_vision)
+  }, [usableModels, prefs.selectedModelId])
+
+  const attachmentMaxCount = agentConfigQuery.data?.attachment_max_count ?? 5
+  const attachmentMaxBytes = agentConfigQuery.data?.attachment_max_bytes ?? 5_242_880
+  const attachmentAllowedMime = agentConfigQuery.data?.attachment_allowed_mime ?? [
+    'image/jpeg',
+    'image/png',
+    'application/pdf',
+    'text/plain',
+  ]
+  const visionMaxCount = agentConfigQuery.data?.vision_image_max_count ?? 1
+
   useEffect(() => {
     setPrefs((p) => {
       if (p.selectedModelId) return p
@@ -411,8 +443,71 @@ export function AgentsPage() {
     if (!prefs.selectedModelId) return false
     const skillId = parseSkillPrefixFromDraft(draft, allSkillIds)
     const body = stripSkillPrefixFromDraft(draft, skillId)
-    return body.length > 0 || skillId !== null
-  }, [workspaceId, streaming, prefs.selectedModelId, draft, allSkillIds])
+    return body.length > 0 || skillId !== null || pendingAttachments.length > 0
+  }, [workspaceId, streaming, prefs.selectedModelId, draft, allSkillIds, pendingAttachments.length])
+
+  const attachmentAccept = useMemo(
+    () => attachmentAllowedMime.join(','),
+    [attachmentAllowedMime],
+  )
+
+  const pendingImageCount = useMemo(
+    () => pendingAttachments.filter((a) => isImageAttachment(a)).length,
+    [pendingAttachments],
+  )
+
+  const handleAttachmentFilePick = useCallback(
+    async (file: File) => {
+      if (!workspaceId) return false
+      if (pendingAttachments.length >= attachmentMaxCount) {
+        message.warning(t('agents.attachment.limitReached', { count: attachmentMaxCount }))
+        return false
+      }
+      if (file.size > attachmentMaxBytes) {
+        message.warning(t('agents.attachment.tooLarge'))
+        return false
+      }
+      const mime = (file.type || '').toLowerCase()
+      const normalizedMime = mime === 'image/jpg' ? 'image/jpeg' : mime
+      const allowed = attachmentAllowedMime.map((m) => m.toLowerCase())
+      if (!allowed.includes(normalizedMime) && !allowed.includes(mime)) {
+        message.warning(t('agents.attachment.mimeNotAllowed'))
+        return false
+      }
+      const willBeImage = normalizedMime.startsWith('image/') || mime.startsWith('image/')
+      if (willBeImage && pendingImageCount >= visionMaxCount) {
+        message.warning(t('agents.vision.limitReached', { count: visionMaxCount }))
+        return false
+      }
+      if (willBeImage && !selectedModelSupportsVision) {
+        message.warning(t('agents.attachment.imageNeedsVisionModel'))
+        return false
+      }
+      setAttachmentUploading(true)
+      try {
+        const uploaded = await uploadAgentAttachment(workspaceId, file)
+        setPendingAttachments((prev) => [...prev, uploaded])
+      } catch (e) {
+        const err = e instanceof ApiError ? e.message : t('agents.attachment.uploadFailed')
+        message.error(err)
+      } finally {
+        setAttachmentUploading(false)
+      }
+      return false
+    },
+    [
+      workspaceId,
+      pendingAttachments.length,
+      pendingImageCount,
+      attachmentMaxCount,
+      attachmentMaxBytes,
+      attachmentAllowedMime,
+      visionMaxCount,
+      selectedModelSupportsVision,
+      message,
+      t,
+    ],
+  )
 
   const handleDraftChange = useCallback((value: string) => {
     setDraft(value)
@@ -537,6 +632,7 @@ export function AgentsPage() {
         regenerateFromAssistantId?: string
         regenerateLastAssistant?: boolean
         preferredSkills?: string[]
+        attachments?: AgentAttachmentMeta[]
       },
     ) => {
       if (!workspaceId) {
@@ -549,7 +645,8 @@ export function AgentsPage() {
         return
       }
       const apiBody = userMessage.trim()
-      if (!apiBody && !(options?.preferredSkills?.length ?? 0)) return
+      const runAttachments = options?.attachments ?? []
+      if (!apiBody && runAttachments.length === 0 && !(options?.preferredSkills?.length ?? 0)) return
 
       const isRegenerate = Boolean(
         options?.regenerateFromAssistantId || options?.regenerateLastAssistant,
@@ -595,8 +692,10 @@ export function AgentsPage() {
           id: userLocalId!,
           role: 'user',
           content: apiBody,
+          attachments: runAttachments.length > 0 ? runAttachments : undefined,
         }
         setMessages((m) => [...m, userMsg, asstMsg])
+        setPendingAttachments([])
       }
 
       userScrolledUpRef.current = false
@@ -663,6 +762,11 @@ export function AgentsPage() {
           {
             user_message: apiBody,
             model_id: mid,
+            attachments: runAttachments.map((a) => ({
+              object_key: a.object_key,
+              file_name: a.file_name ?? null,
+              content_type: a.content_type ?? null,
+            })),
             temperature: null,
             max_tokens: maxTok,
             preferred_skills: options?.preferredSkills ?? [],
@@ -839,14 +943,21 @@ export function AgentsPage() {
     }
     const skillId = parseSkillPrefixFromDraft(draft, allSkillIds)
     const apiBody = stripSkillPrefixFromDraft(draft, skillId)
-    if (!apiBody && !skillId) return
+    if (!apiBody && !skillId && pendingAttachments.length === 0) return
+    const hasImageAttachment = pendingAttachments.some((a) => isImageAttachment(a))
+    if (hasImageAttachment && !selectedModelSupportsVision) {
+      message.warning(t('agents.attachment.imageNeedsVisionModel'))
+      return
+    }
+    const attachments = [...pendingAttachments]
     setDraft('')
     setSlashOpen(false)
     setSlashFilter('')
     await runAgentTurn(apiBody, {
       preferredSkills: skillId ? [skillId] : [],
+      attachments,
     })
-  }, [draft, allSkillIds, runAgentTurn, message, t])
+  }, [draft, allSkillIds, pendingAttachments, selectedModelSupportsVision, runAgentTurn, message, t])
 
   /** 删除当前助手回复及其后消息，调用 runs 接口用同一条用户提问重新流式生成。 */
   const onRegenerate = useCallback(
@@ -1246,7 +1357,28 @@ export function AgentsPage() {
                         className="agents-page__md-user-wrap agents-page__msg-body"
                         style={{ flex: 1, minWidth: 0 }}
                       >
-                        <AgentAssistantMarkdown markdown={messageBody} />
+                        {m.attachments?.length ? (
+                          <div className="agents-page__msg-attachments">
+                            <Image.PreviewGroup>
+                              {m.attachments.map((att) =>
+                                isImageAttachment(att) ? (
+                                  <AgentAttachmentImage
+                                    key={att.id ?? att.object_key}
+                                    att={att}
+                                  />
+                                ) : (
+                                  <AgentAttachmentFile
+                                    key={att.id ?? att.object_key}
+                                    att={att}
+                                  />
+                                ),
+                              )}
+                            </Image.PreviewGroup>
+                          </div>
+                        ) : null}
+                        {messageBody.trim() ? (
+                          <AgentAssistantMarkdown markdown={messageBody} />
+                        ) : null}
                       </div>
                     )}
                   </Flex>
@@ -1321,6 +1453,42 @@ export function AgentsPage() {
               onPick={pickSlashSkill}
               onHoverIndex={setSlashActiveIndex}
             />
+            {pendingAttachments.length > 0 ? (
+              <div className="agents-page__composer-attachments">
+                {pendingAttachments.map((att) => {
+                  const src = resolveAgentAttachmentUrl(att.download_url)
+                  const image = isImageAttachment(att)
+                  return (
+                    <div key={att.object_key} className="agents-page__composer-attachment">
+                      {image && src ? (
+                        <img
+                          className="agents-page__composer-attachment-img"
+                          src={src}
+                          alt={att.file_name ?? t('agents.vision.imageAlt')}
+                        />
+                      ) : (
+                        <span className="agents-page__composer-attachment-file-label">
+                          {att.file_name ?? att.object_key.split('/').pop()}
+                        </span>
+                      )}
+                    <button
+                      type="button"
+                      className="agents-page__composer-attachment-remove"
+                      aria-label={t('agents.vision.remove')}
+                      disabled={streaming}
+                      onClick={() =>
+                        setPendingAttachments((prev) =>
+                          prev.filter((row) => row.object_key !== att.object_key),
+                        )
+                      }
+                    >
+                      ×
+                    </button>
+                  </div>
+                  )
+                })}
+              </div>
+            ) : null}
             <AgentComposerInput
               ref={draftInputRef}
               value={draft}
@@ -1362,6 +1530,33 @@ export function AgentsPage() {
                 gap={10}
                 style={{ flex: 1, minWidth: 0, width: '100%', justifyContent: 'flex-end' }}
               >
+                {workspaceId ? (
+                  <>
+                    <input
+                      ref={attachmentFileInputRef}
+                      type="file"
+                      accept={attachmentAccept}
+                      hidden
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        e.target.value = ''
+                        if (file) void handleAttachmentFilePick(file)
+                      }}
+                    />
+                    <Button
+                      type="text"
+                      icon={<PaperClipOutlined />}
+                      loading={attachmentUploading}
+                      disabled={
+                        streaming ||
+                        pendingAttachments.length >= attachmentMaxCount ||
+                        usableModels.length === 0
+                      }
+                      aria-label={t('agents.attachment.upload')}
+                      onClick={() => attachmentFileInputRef.current?.click()}
+                    />
+                  </>
+                ) : null}
                 <Select
                   showSearch
                   optionFilterProp="label"

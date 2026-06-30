@@ -11,7 +11,11 @@ from app.agent.domain.sse_v2 import AgentSseEventType, build_sse_event
 from app.agent.graphs.deps import GraphDeps
 from app.agent.graphs.state import AgentGraphState, StepResult
 from app.agent.infrastructure import repository as agent_repo
-from app.agent.infrastructure.chat_history import messages_with_user_input, split_trailing_user_message
+from app.agent.infrastructure.chat_history import (
+    messages_with_user_input_vision,
+    split_trailing_user_message,
+)
+from app.agent.infrastructure.vision_messages import build_vision_human_message
 from app.agent.infrastructure.reasoning_collector import (
     extract_reasoning_from_langchain_chunk,
     extract_reasoning_from_langchain_message,
@@ -171,6 +175,7 @@ async def synthesizer_node(state: AgentGraphState, config: RunnableConfig) -> di
     deps: GraphDeps = config["configurable"]["deps"]
     results = state.get("subagent_results") or []
     user_message = state.get("user_message", "")
+    attachments = state.get("user_attachments") or deps.user_attachments
 
     direct = resolve_final_answer_from_subagent_results(results, user_message=user_message)
     if direct is not None:
@@ -194,7 +199,16 @@ async def synthesizer_node(state: AgentGraphState, config: RunnableConfig) -> di
             if history:
                 model_messages = history
             else:
-                model_messages = messages_with_user_input([], user_message)
+                async with deps.workspace_files() as file_service:
+                    model_messages = await messages_with_user_input_vision(
+                        [],
+                        user_message,
+                        attachments,
+                        workspace_id=deps.workspace_id,
+                        file_service=file_service,
+                        cache=deps.vision_cache,
+                        include_images=deps.model_supports_vision,
+                    )
             text = await _stream_model_text(deps, model_messages, synth_node_id=synth_node_id)
             await _finalize_synthesizer_node(deps, synth_node_id)
             return {"final_answer": text}
@@ -203,12 +217,22 @@ async def synthesizer_node(state: AgentGraphState, config: RunnableConfig) -> di
         sys = "你是助手。根据各步骤的执行结果，用简洁中文回答用户的原始问题。"
         history = deps.conversation_messages or []
         prior_turns, _ = split_trailing_user_message(history)
+        merge_text = f"用户问题：{user_message}\n\n步骤结果：\n{blob}"
+        async with deps.workspace_files() as file_service:
+            merge_user_msg = await build_vision_human_message(
+                merge_text,
+                attachments,
+                workspace_id=deps.workspace_id,
+                file_service=file_service,
+                cache=deps.vision_cache,
+                include_images=deps.model_supports_vision,
+            )
         text = await _invoke_model_text(
             deps,
             [
                 *prior_turns,
                 SystemMessage(content=sys),
-                HumanMessage(content=f"用户问题：{user_message}\n\n步骤结果：\n{blob}"),
+                merge_user_msg,
             ],
             synth_node_id=synth_node_id,
         )

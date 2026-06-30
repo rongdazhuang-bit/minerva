@@ -29,6 +29,16 @@ export type AgentSessionListItem = {
   usage?: Record<string, unknown> | null
 }
 
+export type AgentMessageAttachmentOut = {
+  id?: string | null
+  object_key: string
+  file_name?: string | null
+  content_type?: string | null
+  size?: number | null
+  kind?: 'image' | 'file' | string | null
+  download_url?: string | null
+}
+
 export type AgentMessageOut = {
   id: string
   role: string
@@ -47,6 +57,7 @@ export type AgentMessageOut = {
     }>
     reasoning_tokens: number
   } | null
+  attachments?: AgentMessageAttachmentOut[]
 }
 
 export type AgentSessionDetailOut = {
@@ -77,6 +88,7 @@ export type AgentOverviewUsageDailyStats = {
 export type AgentRunCreateBodyV2 = {
   user_message: string
   model_id: string
+  attachments?: AgentAttachmentMeta[]
   temperature?: number | null
   max_tokens?: number | null
   preferred_skills?: string[]
@@ -95,6 +107,15 @@ export type AgentConversationModel = {
   endpoint_url: string
   max_tokens: number | null
   tags: string[]
+  supports_vision?: boolean
+}
+
+export type AgentAttachmentMeta = {
+  object_key: string
+  file_name?: string | null
+  content_type?: string | null
+  size?: number | null
+  download_url?: string | null
 }
 
 export type AgentStreamEvent = AgentStreamV2ParseResult
@@ -250,6 +271,11 @@ export async function streamAgentRun(
       body: JSON.stringify({
         user_message: body.user_message,
         model_id: body.model_id,
+        attachments: (body.attachments ?? []).map((a) => ({
+          object_key: a.object_key,
+          file_name: a.file_name ?? null,
+          content_type: a.content_type ?? null,
+        })),
         temperature: body.temperature ?? null,
         max_tokens: body.max_tokens ?? null,
         preferred_skills: body.preferred_skills ?? [],
@@ -292,6 +318,36 @@ export async function streamAgentRun(
 
 export type AgentV2ConfigOut = {
   memory_backend: string
+  vision_image_max_count?: number
+  vision_image_max_bytes?: number
+  vision_image_allowed_mime?: string[]
+  attachment_max_count?: number
+  attachment_max_bytes?: number
+  attachment_allowed_mime?: string[]
+}
+
+/** Resolve attachment download URL for ``<img src>`` (handles relative local paths). */
+export function resolveAgentAttachmentUrl(downloadUrl: string | null | undefined): string | undefined {
+  if (!downloadUrl) return undefined
+  if (/^https?:\/\//i.test(downloadUrl)) return downloadUrl
+  const origin = apiOrigin().replace(/\/$/, '')
+  return downloadUrl.startsWith('/') ? `${origin}${downloadUrl}` : `${origin}/${downloadUrl}`
+}
+
+/** POST one vision image for agent chat composer. */
+export async function uploadAgentAttachment(
+  workspaceId: string,
+  file: File,
+): Promise<AgentAttachmentMeta> {
+  const form = new FormData()
+  form.append('file', file)
+  const res = await authFetch(`${v2Base(workspaceId)}/attachments:upload`, {
+    method: 'POST',
+    body: form,
+  })
+  const text = await res.text()
+  if (!res.ok) await parseJsonError(text, res)
+  return JSON.parse(text) as AgentAttachmentMeta
 }
 
 export type AgentMemoryProfileOut = {

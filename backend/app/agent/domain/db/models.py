@@ -116,6 +116,44 @@ class AgentMessage(Base):
     message_json: Mapped[dict[str, Any] | list[Any] | None] = mapped_column(JSONB, nullable=True)
 
 
+class AgentMessageAttachment(Base):
+    """Agent 对话消息附件元数据（不含 download_url）。"""
+
+    __tablename__ = "agent_message_attachment"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        index=True,
+        nullable=False,
+    )
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        index=True,
+        nullable=False,
+    )
+    message_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        index=True,
+        nullable=False,
+    )
+    object_key: Mapped[str] = mapped_column(String(1024), nullable=False)
+    storage_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    file_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    content_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    size: Mapped[int | None] = mapped_column(sa.BIGINT, nullable=True)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), nullable=False
+    )
+
+
 class AgentPlan(Base):
     """单次 run 的结构化计划快照。"""
 

@@ -20,8 +20,19 @@ from app.agent.graphs.deps import GraphDeps
 from app.agent.graphs.main import build_main_graph
 from app.agent.graphs.state import AgentGraphState
 from app.agent.infrastructure import repository as agent_repo
-from app.agent.infrastructure.chat_history import agent_rows_to_langchain
-from app.agent.infrastructure.chat_model_factory import ChatModelFactory
+from app.agent.infrastructure.chat_history import build_conversation_messages_for_run
+from app.agent.infrastructure.chat_model_factory import (
+    ChatModelFactory,
+    assert_model_supports_vision,
+    model_supports_vision,
+)
+from app.agent.infrastructure.vision_messages import VisionAttachmentCache
+from app.agent.service.agent_attachment_service import (
+    build_attachment_rows_for_message,
+    delete_storage_objects_for_rows,
+    resolve_attachment_meta_for_run,
+)
+from app.files.service.workspace_file_service import WorkspaceFileService
 from app.agent.infrastructure.reasoning_collector import ReasoningCollector
 from app.agent.infrastructure.thinking_config import resolve_agent_thinking_config
 from app.agent.infrastructure.langgraph_checkpointer import (
@@ -37,6 +48,46 @@ from app.mcp.runtime.registry import mcp_registry
 from app.sys.model_provider.infrastructure import repository as model_repo
 
 log = get_logger(__name__)
+
+
+def _vision_only_attachments(attachments: list[dict]) -> list[dict]:
+    """Return attachment dicts with ``kind=image`` for vision graph injection."""
+
+    return [item for item in attachments if item.get("kind") == "image"]
+
+
+async def _attachment_dicts_from_message(
+    session: AsyncSession,
+    *,
+    message_id: uuid.UUID,
+    meta_json: dict[str, Any] | list[Any] | None,
+) -> list[dict]:
+    """Load attachment metadata for one message from DB rows or legacy meta_json."""
+
+    att_rows = await agent_repo.list_attachments_for_message_ids(
+        session, message_ids=[message_id]
+    )
+    if att_rows:
+        return [
+            {
+                "object_key": row.object_key,
+                "file_name": row.file_name,
+                "content_type": row.content_type,
+                "size": row.size,
+                "kind": row.kind,
+            }
+            for row in att_rows
+        ]
+    if not isinstance(meta_json, dict):
+        return []
+    raw_attachments = meta_json.get("attachments")
+    if not isinstance(raw_attachments, list):
+        return []
+    return [
+        dict(item)
+        for item in raw_attachments
+        if isinstance(item, dict) and item.get("object_key")
+    ]
 
 
 async def _prepare_assistant_finalize_meta(
@@ -211,6 +262,7 @@ class AgentGraphRunService:
         regenerate_from_message_id: uuid.UUID | None = None,
         regenerate_last_assistant: bool = False,
         enable_thinking: bool | None = None,
+        attachments: list[dict] | None = None,
     ) -> AsyncIterator[bytes]:
         """Execute one agent run; yield SSE v2 lines as the graph produces them.
 
@@ -252,6 +304,30 @@ class AgentGraphRunService:
                 sys_row = await model_repo.get_for_workspace(
                     session, workspace_id=workspace_id, model_id=model_id
                 )
+                if sys_row is None:
+                    await emit(
+                        build_sse_event(
+                            event_type=AgentSseEventType.run_error,
+                            run_id=run_id,
+                            session_id=session_id,
+                            payload={
+                                "code": "agent.model_not_found",
+                                "message": "模型不存在。",
+                            },
+                        )
+                    )
+                    return
+
+                run_attachments: list[dict] = []
+                if attachments:
+                    run_attachments = await resolve_attachment_meta_for_run(
+                        session,
+                        workspace_id=workspace_id,
+                        items=attachments,
+                    )
+                    if any(item.get("kind") == "image" for item in run_attachments):
+                        assert_model_supports_vision(sys_row)
+
                 thinking = resolve_agent_thinking_config(
                     run_flag=enable_thinking,
                     model_config_raw=sys_row.model_config if sys_row else None,
@@ -375,6 +451,17 @@ class AgentGraphRunService:
                             )
                             return
                         truncate_from = last_asst.seq
+                    removed_attachments = await agent_repo.delete_attachments_for_messages_from_seq(
+                        session,
+                        session_id=session_id,
+                        from_seq=truncate_from,
+                    )
+                    if removed_attachments:
+                        await delete_storage_objects_for_rows(
+                            session,
+                            workspace_id=workspace_id,
+                            rows=removed_attachments,
+                        )
                     await agent_repo.delete_agent_messages_from_seq(
                         session,
                         session_id=session_id,
@@ -387,8 +474,21 @@ class AgentGraphRunService:
                         role="user",
                         content=user_message,
                         run_id=run_id,
+                        meta_json=None,
                     )
                     user_message_id = user_row.id
+                    if run_attachments:
+                        attachment_rows = await build_attachment_rows_for_message(
+                            session,
+                            workspace_id=workspace_id,
+                            session_id=session_id,
+                            message_id=user_row.id,
+                            created_by=user_id,
+                            items=run_attachments,
+                        )
+                        await agent_repo.insert_agent_message_attachments(
+                            session, rows=attachment_rows
+                        )
 
                 assistant_row = await agent_repo.append_agent_message(
                     session,
@@ -403,9 +503,44 @@ class AgentGraphRunService:
                 msg_rows = await agent_repo.list_agent_messages_ordered(
                     session, session_id=session_id
                 )
-                conversation_messages = agent_rows_to_langchain(
+                if is_regenerate and not run_attachments:
+                    for row in reversed(msg_rows):
+                        if (row.role or "").strip().lower() != "user":
+                            continue
+                        loaded = await _attachment_dicts_from_message(
+                            session,
+                            message_id=row.id,
+                            meta_json=row.meta_json if isinstance(row.meta_json, dict) else None,
+                        )
+                        if loaded:
+                            run_attachments = loaded
+                            break
+                vision_attachments = _vision_only_attachments(run_attachments)
+                vision_cache = VisionAttachmentCache()
+                file_service = WorkspaceFileService(session=session)
+                supports_vision = model_supports_vision(sys_row.tags)
+                att_rows = await agent_repo.list_attachments_for_session(
+                    session, session_id=session_id
+                )
+                attachments_by_message_id: dict[uuid.UUID, list[dict]] = {}
+                for att_row in att_rows:
+                    attachments_by_message_id.setdefault(att_row.message_id, []).append(
+                        {
+                            "object_key": att_row.object_key,
+                            "file_name": att_row.file_name,
+                            "content_type": att_row.content_type,
+                            "size": att_row.size,
+                            "kind": att_row.kind,
+                        }
+                    )
+                conversation_messages = await build_conversation_messages_for_run(
                     msg_rows,
+                    workspace_id=workspace_id,
+                    file_service=file_service,
+                    cache=vision_cache,
+                    include_vision_in_history=supports_vision,
                     max_messages=settings.agent_chat_history_message_limit,
+                    attachments_by_message_id=attachments_by_message_id,
                 )
 
                 # Commit setup writes before the long graph run so agent_session row
@@ -442,6 +577,9 @@ class AgentGraphRunService:
                     temperature=temperature,
                     max_tokens=max_tokens,
                     conversation_messages=conversation_messages,
+                    user_attachments=vision_attachments,
+                    vision_cache=vision_cache,
+                    model_supports_vision=supports_vision,
                 )
                 try:
                     mcp_tools, mcp_bundles, mcp_unavailable = await mcp_registry.resolve_langchain_tools(
@@ -487,6 +625,7 @@ class AgentGraphRunService:
                     "user_id": user_id,
                     "model_id": model_id,
                     "user_message": user_message,
+                    "user_attachments": vision_attachments,
                     "preferred_skills": preferred_skills or [],
                     "plan": None,
                     "current_step_index": 0,

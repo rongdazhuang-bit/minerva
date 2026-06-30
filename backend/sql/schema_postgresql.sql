@@ -687,6 +687,28 @@ COMMENT ON COLUMN public.agent_message.run_id IS '产生该条的 run（可空�
 COMMENT ON COLUMN public.agent_message.created_at IS '创建时间';
 COMMENT ON COLUMN public.agent_message.message_json IS 'LangChain 消息序列化(JSONB)';
 
+CREATE TABLE IF NOT EXISTS public.agent_message_attachment (
+  id uuid NOT NULL,
+  workspace_id uuid NOT NULL,
+  session_id uuid NOT NULL,
+  message_id uuid NOT NULL,
+  object_key varchar(1024) NOT NULL,
+  storage_kind varchar(16) NOT NULL,
+  file_name varchar(256) NULL,
+  content_type varchar(128) NULL,
+  size bigint NULL,
+  kind varchar(16) NOT NULL,
+  created_by uuid NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT agent_message_attachment_pk PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS ix_agent_message_attachment_workspace_id ON public.agent_message_attachment (workspace_id);
+CREATE INDEX IF NOT EXISTS ix_agent_message_attachment_session_id ON public.agent_message_attachment (session_id);
+CREATE INDEX IF NOT EXISTS ix_agent_message_attachment_message_id ON public.agent_message_attachment (message_id);
+COMMENT ON TABLE public.agent_message_attachment IS 'Agent 对话消息附件元数据（不含 download_url）';
+COMMENT ON COLUMN public.agent_message_attachment.storage_kind IS '上传时快照: S3 / LOCAL / DEFAULT_LOCAL';
+COMMENT ON COLUMN public.agent_message_attachment.kind IS 'image | file';
+
 CREATE TABLE IF NOT EXISTS public.agent_plan (
   id uuid NOT NULL,
   run_id uuid NOT NULL,

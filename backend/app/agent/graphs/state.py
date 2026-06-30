@@ -26,6 +26,7 @@ class AgentGraphState(TypedDict, total=False):
     user_id: uuid.UUID
     model_id: uuid.UUID
     user_message: str
+    user_attachments: list[dict]
     preferred_skills: list[str]
     plan: Plan | None
     plan_id: uuid.UUID | None

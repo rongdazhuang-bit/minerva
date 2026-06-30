@@ -5,10 +5,10 @@ from __future__ import annotations
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.sys.model_provider.domain.constants import MODEL_TAG_CHAT
+from app.sys.model_provider.domain.constants import MODEL_TAG_CHAT, MODEL_TAG_MULTIMODAL
 from app.sys.model_provider.domain.db.models import SysModel
 
 
@@ -19,12 +19,16 @@ def agent_conversation_models_select(*, workspace_id: uuid.UUID):
         func.btrim(SysModel.endpoint_url) != ""
     )
     api_key_ok = (SysModel.api_key.isnot(None)) & (func.btrim(SysModel.api_key) != "")
+    tag_ok = or_(
+        SysModel.tags.contains([MODEL_TAG_CHAT]),
+        SysModel.tags.contains([MODEL_TAG_MULTIMODAL]),
+    )
     return (
         select(SysModel)
         .where(
             SysModel.workspace_id == workspace_id,
             SysModel.enabled.is_(True),
-            SysModel.tags.contains([MODEL_TAG_CHAT]),
+            tag_ok,
             endpoint_ok,
             api_key_ok,
         )

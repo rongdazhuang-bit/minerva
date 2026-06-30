@@ -8,7 +8,7 @@ from langgraph.graph.state import CompiledStateGraph
 
 from app.agent.domain.plan import PlanStep
 from app.agent.graphs.deps import GraphDeps
-from app.agent.infrastructure.chat_history import messages_with_user_input
+from app.agent.infrastructure.chat_history import messages_with_user_input_vision
 from app.agent.infrastructure.event_mapper import map_langchain_stream_event
 from app.agent.infrastructure.reasoning_collector import (
     extract_reasoning_from_langchain_chunk,
@@ -65,7 +65,17 @@ async def run_subagent_with_stream(
     config_sub = {"recursion_limit": recursion_limit}
     history = deps.conversation_messages or []
     effective_goal = (goal_override or step.goal or "").strip()
-    inputs = {"messages": messages_with_user_input(history, effective_goal)}
+    async with deps.workspace_files() as file_service:
+        run_messages = await messages_with_user_input_vision(
+            history,
+            effective_goal,
+            deps.user_attachments,
+            workspace_id=deps.workspace_id,
+            file_service=file_service,
+            cache=deps.vision_cache,
+            include_images=deps.model_supports_vision,
+        )
+    inputs = {"messages": run_messages}
     output = ""
     collector = deps.reasoning_collector
     collector_active = collector is not None and collector.thinking_enabled

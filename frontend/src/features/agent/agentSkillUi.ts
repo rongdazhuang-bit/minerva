@@ -2,6 +2,8 @@
  * Helpers for agent skill prefix in the composer and chat bubbles.
  */
 
+import type { AgentMessageAttachmentOut } from '@/api/agent'
+
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -121,6 +123,7 @@ export type AgentChatMsg = {
   id: string
   role: 'user' | 'assistant'
   content: string
+  attachments?: AgentMessageAttachmentOut[]
   /** Merged plain reasoning text (legacy / fallback). */
   reasoning?: string
   reasoningSegments?: AgentReasoningSegment[]
@@ -257,6 +260,7 @@ export function agentMessagesToChat(
     role: string
     content: string | null
     meta_json?: unknown
+    attachments?: AgentMessageAttachmentOut[]
     reasoning_text?: string | null
     reasoning?: {
       segments?: AgentReasoningSegment[]
@@ -268,7 +272,15 @@ export function agentMessagesToChat(
   for (const m of rows) {
     if (m.role !== 'user' && m.role !== 'assistant') continue
     const text = (m.content ?? '').trim()
+    const attachmentRows =
+      m.attachments ??
+      (Array.isArray(
+        (m.meta_json as { attachments?: AgentMessageAttachmentOut[] } | null)?.attachments,
+      )
+        ? (m.meta_json as { attachments: AgentMessageAttachmentOut[] }).attachments
+        : [])
     if (m.role === 'assistant' && !text) continue
+    if (m.role === 'user' && !text && attachmentRows.length === 0) continue
     const usage = (m.meta_json as { usage?: unknown } | null | undefined)?.usage
     const totalTokens = extractTotalTokens(usage) ?? undefined
     const metaReasoning = (
@@ -297,6 +309,7 @@ export function agentMessagesToChat(
       id: m.id,
       role: m.role,
       content: m.content ?? '',
+      attachments: attachmentRows.length > 0 ? attachmentRows : undefined,
       totalTokens,
       reasoning: (m.reasoning_text ?? '').trim() || undefined,
       reasoningSegments: segments.length > 0 ? segments : undefined,

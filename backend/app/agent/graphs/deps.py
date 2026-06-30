@@ -16,6 +16,8 @@ from app.agent.infrastructure.run_db_writer import AgentRunDbWriter
 from app.agent.memory.protocols import MemoryPersistStrategy, MemoryRetrieveStrategy
 from app.agent.infrastructure.reasoning_collector import ReasoningCollector
 from app.agent.infrastructure.assistant_stream_collector import AssistantStreamCollector
+from app.agent.infrastructure.vision_messages import VisionAttachmentCache
+from app.files.service.workspace_file_service import WorkspaceFileService
 from app.agent.infrastructure.openai_usage import (
     OpenAIUsage,
     extract_usage_document,
@@ -52,6 +54,9 @@ class GraphDeps:
     temperature: float | None = None
     max_tokens: int | None = None
     conversation_messages: list[BaseMessage] | None = None
+    user_attachments: list[dict] = field(default_factory=list)
+    vision_cache: VisionAttachmentCache = field(default_factory=VisionAttachmentCache)
+    model_supports_vision: bool = False
     subagent_cache: dict[tuple[str, str], CompiledStateGraph] = field(default_factory=dict)
     mcp_extra_tools: list[Any] = field(default_factory=list)
     mcp_bundles: list[Any] = field(default_factory=list)
@@ -72,6 +77,13 @@ class GraphDeps:
 
         async with self.db_writer.session(read_only=True) as session:
             yield session
+
+    @asynccontextmanager
+    async def workspace_files(self) -> AsyncIterator[WorkspaceFileService]:
+        """Open a read session and yield a workspace file service for attachment IO."""
+
+        async with self.db_read() as session:
+            yield WorkspaceFileService(session=session)
 
     def next_llm_round_seq(self, parent_node_id: uuid.UUID) -> int:
         """Return the next ``sequence_idx`` for ``llm.round`` rows under one parent node."""
