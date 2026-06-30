@@ -62,3 +62,40 @@ async def get_for_workspace(
         )
     )
     return result.scalar_one_or_none()
+
+
+async def get_enabled_for_workspace(
+    session: AsyncSession, *, workspace_id: uuid.UUID
+) -> SysStorage | None:
+    """Return the single enabled storage row for a workspace, if any."""
+
+    result = await session.execute(
+        select(SysStorage)
+        .where(
+            SysStorage.workspace_id == workspace_id,
+            SysStorage.enabled.is_(True),
+        )
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+async def disable_others_for_workspace(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    keep_storage_id: uuid.UUID,
+) -> None:
+    """Disable all other enabled storage rows in the same workspace."""
+
+    from sqlalchemy import update
+
+    await session.execute(
+        update(SysStorage)
+        .where(
+            SysStorage.workspace_id == workspace_id,
+            SysStorage.id != keep_storage_id,
+            SysStorage.enabled.is_(True),
+        )
+        .values(enabled=False)
+    )
