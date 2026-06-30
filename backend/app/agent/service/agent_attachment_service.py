@@ -66,16 +66,22 @@ def validate_attachment_upload_payload(
     mime_for_kind = normalized or (content_type or "").strip().lower()
     is_image = mime_for_kind.startswith("image/")
 
-    if is_image:
-        try:
-            assert_allowed_vision_extension(file_name)
-        except ValueError as exc:
-            raise AppError(
-                "agent.attachment_mime_not_allowed",
-                "Attachment file type is not allowed",
-                422,
-            ) from exc
-        normalized = normalize_vision_mime(content_type)
+    if not is_image:
+        raise AppError(
+            "agent.attachment_mime_not_allowed",
+            "Only image attachments are allowed",
+            422,
+        )
+
+    try:
+        assert_allowed_vision_extension(file_name)
+    except ValueError as exc:
+        raise AppError(
+            "agent.attachment_mime_not_allowed",
+            "Attachment file type is not allowed",
+            422,
+        ) from exc
+    normalized = normalize_vision_mime(content_type)
 
     check_mime = normalized or (content_type or "").strip().lower() or "application/octet-stream"
     allowed = allowed_attachment_mime_set(settings.agent_attachment_allowed_mime)
@@ -127,6 +133,12 @@ async def resolve_attachment_meta_for_run(
             str(raw_content_type or "").strip().lower() or None
         )
         kind = attachment_kind_from_mime(content_type)
+        if kind != "image":
+            raise AppError(
+                "agent.attachment_mime_not_allowed",
+                "Only image attachments are allowed",
+                422,
+            )
 
         try:
             raw = await file_service.read_object_bytes(
@@ -152,22 +164,21 @@ async def resolve_attachment_meta_for_run(
                 422,
             )
 
-        if kind == "image":
-            image_count += 1
-            if image_count > settings.agent_vision_image_max_count:
-                raise AppError(
-                    "agent.vision_attachment_limit",
-                    "Too many image attachments",
-                    422,
-                )
-            if size > settings.agent_vision_image_max_bytes:
-                raise AppError("agent.vision_file_too_large", "Image file is too large", 422)
-            if content_type not in vision_allowed:
-                raise AppError(
-                    "agent.vision_mime_not_allowed",
-                    "Image MIME type is not allowed",
-                    422,
-                )
+        image_count += 1
+        if image_count > settings.agent_vision_image_max_count:
+            raise AppError(
+                "agent.vision_attachment_limit",
+                "Too many image attachments",
+                422,
+            )
+        if size > settings.agent_vision_image_max_bytes:
+            raise AppError("agent.vision_file_too_large", "Image file is too large", 422)
+        if content_type not in vision_allowed:
+            raise AppError(
+                "agent.vision_mime_not_allowed",
+                "Image MIME type is not allowed",
+                422,
+            )
 
         resolved.append(
             {

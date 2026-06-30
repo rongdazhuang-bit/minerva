@@ -4,7 +4,7 @@
 import {
   CopyOutlined,
   MoreOutlined,
-  PaperClipOutlined,
+  PictureOutlined,
   RedoOutlined,
   RobotOutlined,
   SendOutlined,
@@ -341,15 +341,19 @@ export function AgentsPage() {
     return Boolean(row?.supports_vision)
   }, [usableModels, prefs.selectedModelId])
 
-  const attachmentMaxCount = agentConfigQuery.data?.attachment_max_count ?? 5
-  const attachmentMaxBytes = agentConfigQuery.data?.attachment_max_bytes ?? 5_242_880
-  const attachmentAllowedMime = agentConfigQuery.data?.attachment_allowed_mime ?? [
-    'image/jpeg',
-    'image/png',
-    'application/pdf',
-    'text/plain',
-  ]
-  const visionMaxCount = agentConfigQuery.data?.vision_image_max_count ?? 1
+  useEffect(() => {
+    if (!selectedModelSupportsVision && pendingAttachments.length > 0) {
+      setPendingAttachments([])
+    }
+  }, [selectedModelSupportsVision, pendingAttachments.length])
+
+  const imageMaxCount = agentConfigQuery.data?.vision_image_max_count ?? 1
+  const imageMaxBytes = agentConfigQuery.data?.vision_image_max_bytes ?? 5_242_880
+  const imageAllowedMime = useMemo(() => {
+    const fromApi = agentConfigQuery.data?.vision_image_allowed_mime ?? ['image/jpeg', 'image/png']
+    return fromApi.filter((m) => m.toLowerCase().startsWith('image/'))
+  }, [agentConfigQuery.data?.vision_image_allowed_mime])
+  const imageAccept = useMemo(() => imageAllowedMime.join(','), [imageAllowedMime])
 
   useEffect(() => {
     setPrefs((p) => {
@@ -446,40 +450,29 @@ export function AgentsPage() {
     return body.length > 0 || skillId !== null || pendingAttachments.length > 0
   }, [workspaceId, streaming, prefs.selectedModelId, draft, allSkillIds, pendingAttachments.length])
 
-  const attachmentAccept = useMemo(
-    () => attachmentAllowedMime.join(','),
-    [attachmentAllowedMime],
-  )
-
-  const pendingImageCount = useMemo(
-    () => pendingAttachments.filter((a) => isImageAttachment(a)).length,
-    [pendingAttachments],
-  )
-
   const handleAttachmentFilePick = useCallback(
     async (file: File) => {
       if (!workspaceId) return false
-      if (pendingAttachments.length >= attachmentMaxCount) {
-        message.warning(t('agents.attachment.limitReached', { count: attachmentMaxCount }))
+      if (pendingAttachments.length >= imageMaxCount) {
+        message.warning(t('agents.vision.limitReached', { count: imageMaxCount }))
         return false
       }
-      if (file.size > attachmentMaxBytes) {
-        message.warning(t('agents.attachment.tooLarge'))
+      if (file.size > imageMaxBytes) {
+        message.warning(t('agents.vision.tooLarge'))
         return false
       }
       const mime = (file.type || '').toLowerCase()
       const normalizedMime = mime === 'image/jpg' ? 'image/jpeg' : mime
-      const allowed = attachmentAllowedMime.map((m) => m.toLowerCase())
+      if (!normalizedMime.startsWith('image/')) {
+        message.warning(t('agents.vision.mimeNotAllowed'))
+        return false
+      }
+      const allowed = imageAllowedMime.map((m) => m.toLowerCase())
       if (!allowed.includes(normalizedMime) && !allowed.includes(mime)) {
-        message.warning(t('agents.attachment.mimeNotAllowed'))
+        message.warning(t('agents.vision.mimeNotAllowed'))
         return false
       }
-      const willBeImage = normalizedMime.startsWith('image/') || mime.startsWith('image/')
-      if (willBeImage && pendingImageCount >= visionMaxCount) {
-        message.warning(t('agents.vision.limitReached', { count: visionMaxCount }))
-        return false
-      }
-      if (willBeImage && !selectedModelSupportsVision) {
+      if (!selectedModelSupportsVision) {
         message.warning(t('agents.attachment.imageNeedsVisionModel'))
         return false
       }
@@ -488,7 +481,7 @@ export function AgentsPage() {
         const uploaded = await uploadAgentAttachment(workspaceId, file)
         setPendingAttachments((prev) => [...prev, uploaded])
       } catch (e) {
-        const err = e instanceof ApiError ? e.message : t('agents.attachment.uploadFailed')
+        const err = e instanceof ApiError ? e.message : t('agents.vision.uploadFailed')
         message.error(err)
       } finally {
         setAttachmentUploading(false)
@@ -498,11 +491,9 @@ export function AgentsPage() {
     [
       workspaceId,
       pendingAttachments.length,
-      pendingImageCount,
-      attachmentMaxCount,
-      attachmentMaxBytes,
-      attachmentAllowedMime,
-      visionMaxCount,
+      imageMaxCount,
+      imageMaxBytes,
+      imageAllowedMime,
       selectedModelSupportsVision,
       message,
       t,
@@ -944,8 +935,7 @@ export function AgentsPage() {
     const skillId = parseSkillPrefixFromDraft(draft, allSkillIds)
     const apiBody = stripSkillPrefixFromDraft(draft, skillId)
     if (!apiBody && !skillId && pendingAttachments.length === 0) return
-    const hasImageAttachment = pendingAttachments.some((a) => isImageAttachment(a))
-    if (hasImageAttachment && !selectedModelSupportsVision) {
+    if (pendingAttachments.length > 0 && !selectedModelSupportsVision) {
       message.warning(t('agents.attachment.imageNeedsVisionModel'))
       return
     }
@@ -1453,14 +1443,13 @@ export function AgentsPage() {
               onPick={pickSlashSkill}
               onHoverIndex={setSlashActiveIndex}
             />
-            {pendingAttachments.length > 0 ? (
+            {selectedModelSupportsVision && pendingAttachments.length > 0 ? (
               <div className="agents-page__composer-attachments">
                 {pendingAttachments.map((att) => {
                   const src = resolveAgentAttachmentUrl(att.download_url)
-                  const image = isImageAttachment(att)
                   return (
                     <div key={att.object_key} className="agents-page__composer-attachment">
-                      {image && src ? (
+                      {src ? (
                         <img
                           className="agents-page__composer-attachment-img"
                           src={src}
@@ -1530,12 +1519,12 @@ export function AgentsPage() {
                 gap={10}
                 style={{ flex: 1, minWidth: 0, width: '100%', justifyContent: 'flex-end' }}
               >
-                {workspaceId ? (
+                {workspaceId && selectedModelSupportsVision ? (
                   <>
                     <input
                       ref={attachmentFileInputRef}
                       type="file"
-                      accept={attachmentAccept}
+                      accept={imageAccept}
                       hidden
                       onChange={(e) => {
                         const file = e.target.files?.[0]
@@ -1545,14 +1534,14 @@ export function AgentsPage() {
                     />
                     <Button
                       type="text"
-                      icon={<PaperClipOutlined />}
+                      icon={<PictureOutlined />}
                       loading={attachmentUploading}
                       disabled={
                         streaming ||
-                        pendingAttachments.length >= attachmentMaxCount ||
+                        pendingAttachments.length >= imageMaxCount ||
                         usableModels.length === 0
                       }
-                      aria-label={t('agents.attachment.upload')}
+                      aria-label={t('agents.vision.upload')}
                       onClick={() => attachmentFileInputRef.current?.click()}
                     />
                   </>

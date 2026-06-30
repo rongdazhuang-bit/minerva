@@ -654,13 +654,8 @@ class Settings(BaseSettings):
         ),
     )
     agent_attachment_allowed_mime: str = Field(
-        default=(
-            "image/jpeg,image/jpg,image/png,image/gif,image/webp,"
-            "application/pdf,text/plain,text/csv,"
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document,"
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        ),
-        description="Agent 消息附件允许的 MIME，逗号分隔。",
+        default="image/jpeg,image/jpg,image/png",
+        description="Agent 消息附件允许的 MIME（仅图片），逗号分隔。",
         validation_alias=AliasChoices(
             "AGENT_ATTACHMENT_ALLOWED_MIME",
             "agent_attachment_allowed_mime",
