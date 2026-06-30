@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.core.api.routers import auth
+from app.local.api.router import router as local_files_router
 from app.s3.api.router import router as s3_files_router
 from app.sys.dict.api.router import router as dicts_router
 from app.sys.menu.api.router import router as menus_router
@@ -33,6 +34,7 @@ api.include_router(translate_router)
 api.include_router(model_providers_router)
 api.include_router(file_storages_router)
 api.include_router(s3_files_router)
+api.include_router(local_files_router)
 api.include_router(dicts_router)
 api.include_router(menus_router)
 api.include_router(roles_router)
