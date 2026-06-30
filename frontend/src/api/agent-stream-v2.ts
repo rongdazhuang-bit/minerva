@@ -162,6 +162,13 @@ export function parseAgentV2SseLine(raw: string): AgentStreamV2ParseResult | nul
   return null
 }
 
+const SQL_QUERY_ARG_PATTERN = /['"]?(?:querySql|query_sql|sql)['"]?\s*:/i
+
+/** Keep MCP SQL tool arguments intact in the process log; other tools stay clipped. */
+function shouldShowFullToolArgumentsPreview(argsPreview: string): boolean {
+  return SQL_QUERY_ARG_PATTERN.test(argsPreview)
+}
+
 /** Format one v2 event as a single process-log line for the UI. */
 export function formatAgentV2TraceLine(event: AgentSseEventV2, locale?: string): string {
   const p = event.payload
@@ -180,7 +187,9 @@ export function formatAgentV2TraceLine(event: AgentSseEventV2, locale?: string):
       const argsPreview = String(p.arguments_preview ?? '').trim()
       if (argsPreview) {
         const clipped =
-          argsPreview.length > 120 ? `${argsPreview.slice(0, 120)}…` : argsPreview
+          shouldShowFullToolArgumentsPreview(argsPreview) || argsPreview.length <= 120
+            ? argsPreview
+            : `${argsPreview.slice(0, 120)}…`
         return `[tool] ${String(p.name ?? '')} … ${clipped}`
       }
       return `[tool] ${String(p.name ?? '')} …`

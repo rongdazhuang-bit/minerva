@@ -2,10 +2,33 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from typing import TYPE_CHECKING, Any
 
 from app.agent.domain.sse_v2 import AgentSseEventType, build_sse_event
+
+_TOOL_ARGS_PREVIEW_MAX_LEN = 240
+_SQL_QUERY_INPUT_KEYS = ("querySql", "query_sql", "sql", "query")
+
+
+def _format_tool_arguments_preview(inp: Any) -> str:
+    """Build process-log preview for tool inputs; MCP SQL query args stay complete."""
+
+    if inp is None:
+        return ""
+    if isinstance(inp, dict):
+        for key in _SQL_QUERY_INPUT_KEYS:
+            value = inp.get(key)
+            if isinstance(value, str) and value.strip():
+                try:
+                    return json.dumps(inp, ensure_ascii=False)
+                except (TypeError, ValueError):
+                    return str(inp)
+    text = str(inp)
+    if len(text) <= _TOOL_ARGS_PREVIEW_MAX_LEN:
+        return text
+    return text[:_TOOL_ARGS_PREVIEW_MAX_LEN]
 
 if TYPE_CHECKING:
     from app.agent.infrastructure.assistant_stream_collector import AssistantStreamCollector
@@ -68,7 +91,7 @@ def map_langchain_stream_event(
     if kind == "on_tool_start":
         data = event.get("data") or {}
         inp = data.get("input")
-        args_preview = str(inp)[:240] if inp is not None else ""
+        args_preview = _format_tool_arguments_preview(inp)
         return build_sse_event(
             event_type=AgentSseEventType.tool_started,
             run_id=run_id,
