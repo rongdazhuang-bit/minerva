@@ -67,6 +67,7 @@ type FileStorageFormValues = {
   enabled: boolean
   auth_type: string
   endpoint_url?: string
+  local_path?: string
   api_key?: string
   secret_key?: string
   auth_name?: string
@@ -103,11 +104,27 @@ function renderCopyable(
 
 /** Build request payload from form values. */
 function toPayload(values: FileStorageFormValues): FileStorageCreateBody {
+  const storageType = values.type?.trim() || null
+  const isLocal = (storageType ?? '').toUpperCase() === 'LOCAL'
+  const isS3 = (storageType ?? '').toUpperCase() === 'S3'
+  if (isLocal) {
+    return {
+      name: values.name?.trim() || null,
+      bucket_name: null,
+      type: storageType,
+      enabled: values.enabled,
+      auth_type: 'NONE',
+      endpoint_url: null,
+      local_path: values.local_path?.trim() || null,
+      api_key: null,
+      secret_key: null,
+      auth_name: null,
+      auth_passwd: null,
+    }
+  }
   const authType = values.auth_type.trim()
   const isBasic = authType.toUpperCase() === 'BASIC'
   const isApiKey = authType.toUpperCase() === 'API_KEY'
-  const storageType = values.type?.trim() || null
-  const isS3 = (storageType ?? '').toUpperCase() === 'S3'
   return {
     name: values.name?.trim() || null,
     bucket_name: isS3 ? values.bucket_name?.trim() || null : null,
@@ -115,6 +132,7 @@ function toPayload(values: FileStorageFormValues): FileStorageCreateBody {
     enabled: values.enabled,
     auth_type: authType,
     endpoint_url: values.endpoint_url?.trim() || null,
+    local_path: null,
     api_key: isApiKey ? values.api_key?.trim() || null : null,
     secret_key: isApiKey ? values.secret_key?.trim() || null : null,
     auth_name: isBasic ? values.auth_name?.trim() || null : null,
@@ -155,6 +173,8 @@ export function FileStoragePage() {
   const showBasicFields = watchedAuthType.toUpperCase() === 'BASIC'
   const showApiKeyField = watchedAuthType.toUpperCase() === 'API_KEY'
   const showBucketField = (watchedStorageType ?? '').trim().toUpperCase() === 'S3'
+  const showLocalPathField = (watchedStorageType ?? '').trim().toUpperCase() === 'LOCAL'
+  const showRemoteFields = !showLocalPathField
 
   const authTypeOptions = useMemo(
     () => [
@@ -268,6 +288,7 @@ export function FileStoragePage() {
         enabled: detail.enabled,
         auth_type: canonicalFileStorageAuthType(detail.auth_type),
         endpoint_url: detail.endpoint_url ?? '',
+        local_path: detail.local_path ?? '',
         api_key: detail.api_key ?? '',
         secret_key: detail.secret_key ?? '',
         auth_name: detail.auth_name ?? '',
@@ -343,10 +364,8 @@ export function FileStoragePage() {
     })
     try {
       await patchFileStorage(workspaceId, storageId, { enabled })
-      setItems((prev) =>
-        prev.map((item) => (item.id === storageId ? { ...item, enabled } : item)),
-      )
       setViewDetail((prev) => (prev && prev.id === storageId ? { ...prev, enabled } : prev))
+      setRev((n) => n + 1)
     } catch (e) {
       showAppError(messageApi, t, e)
     } finally {
@@ -383,6 +402,14 @@ export function FileStoragePage() {
       title: t('settings.fileStorageBucketName'),
       dataIndex: 'bucket_name',
       key: 'bucket_name',
+      width: 160,
+      ellipsis: true,
+      render: (v: string | null) => v?.trim() || '—',
+    },
+    {
+      title: t('settings.fileStorageLocalPath'),
+      dataIndex: 'local_path',
+      key: 'local_path',
       width: 160,
       ellipsis: true,
       render: (v: string | null) => v?.trim() || '—',
@@ -552,59 +579,76 @@ export function FileStoragePage() {
               <Input allowClear maxLength={63} />
             </Form.Item>
           ) : null}
+          {showLocalPathField ? (
+            <Form.Item
+              name="local_path"
+              label={t('settings.fileStorageLocalPath')}
+              extra={t('settings.fileStorageLocalPathHint')}
+            >
+              <Input
+                allowClear
+                maxLength={128}
+                placeholder={t('settings.fileStorageLocalPathPlaceholder')}
+              />
+            </Form.Item>
+          ) : null}
           <Form.Item name="enabled" label={t('settings.fileStorageEnabled')}>
             <Select options={statusOptions} />
           </Form.Item>
-          <Form.Item
-            name="auth_type"
-            label={t('settings.fileStorageAuthType')}
-            rules={[{ required: true, message: t('settings.fileStorageAuthTypeRequired') }]}
-          >
-            <Select allowClear options={authTypeOptions} />
-          </Form.Item>
-          <Form.Item
-            name="endpoint_url"
-            label={t('settings.fileStorageEndpointUrl')}
-            rules={[{ type: 'url', message: t('settings.ocrErrorUrl') }]}
-          >
-            <Input allowClear maxLength={128} />
-          </Form.Item>
-          {showBasicFields ? (
+          {showRemoteFields ? (
             <>
-              <Form.Item name="auth_name" label={t('settings.fileStorageAuthName')}>
-                <Input allowClear maxLength={64} />
-              </Form.Item>
-              <Form.Item name="auth_passwd" label={t('settings.fileStorageAuthPasswd')}>
-                <Input allowClear maxLength={128} autoComplete="off" />
-              </Form.Item>
-            </>
-          ) : null}
-          {showApiKeyField ? (
-            <>
-              <Form.Item name="api_key" label={t('settings.fileStorageApiKey')}>
-                <Input allowClear maxLength={128} autoComplete="off" />
+              <Form.Item
+                name="auth_type"
+                label={t('settings.fileStorageAuthType')}
+                rules={[{ required: true, message: t('settings.fileStorageAuthTypeRequired') }]}
+              >
+                <Select allowClear options={authTypeOptions} />
               </Form.Item>
               <Form.Item
-                name="secret_key"
-                label={t('settings.fileStorageSecretKey')}
-                dependencies={['auth_type']}
-                rules={
-                  editingId
-                    ? []
-                    : [
-                        {
-                          validator: async (_, value) => {
-                            const at = form.getFieldValue('auth_type') as string | undefined
-                            if ((at ?? '').toUpperCase() !== 'API_KEY') return
-                            if (String(value ?? '').trim()) return
-                            throw new Error(t('settings.fileStorageSecretKeyRequired'))
-                          },
-                        },
-                      ]
-                }
+                name="endpoint_url"
+                label={t('settings.fileStorageEndpointUrl')}
+                rules={[{ type: 'url', message: t('settings.ocrErrorUrl') }]}
               >
-                <Input allowClear maxLength={128} autoComplete="off" />
+                <Input allowClear maxLength={128} />
               </Form.Item>
+              {showBasicFields ? (
+                <>
+                  <Form.Item name="auth_name" label={t('settings.fileStorageAuthName')}>
+                    <Input allowClear maxLength={64} />
+                  </Form.Item>
+                  <Form.Item name="auth_passwd" label={t('settings.fileStorageAuthPasswd')}>
+                    <Input allowClear maxLength={128} autoComplete="off" />
+                  </Form.Item>
+                </>
+              ) : null}
+              {showApiKeyField ? (
+                <>
+                  <Form.Item name="api_key" label={t('settings.fileStorageApiKey')}>
+                    <Input allowClear maxLength={128} autoComplete="off" />
+                  </Form.Item>
+                  <Form.Item
+                    name="secret_key"
+                    label={t('settings.fileStorageSecretKey')}
+                    dependencies={['auth_type']}
+                    rules={
+                      editingId
+                        ? []
+                        : [
+                            {
+                              validator: async (_, value) => {
+                                const at = form.getFieldValue('auth_type') as string | undefined
+                                if ((at ?? '').toUpperCase() !== 'API_KEY') return
+                                if (String(value ?? '').trim()) return
+                                throw new Error(t('settings.fileStorageSecretKeyRequired'))
+                              },
+                            },
+                          ]
+                    }
+                  >
+                    <Input allowClear maxLength={128} autoComplete="off" />
+                  </Form.Item>
+                </>
+              ) : null}
             </>
           ) : null}
         </Form>

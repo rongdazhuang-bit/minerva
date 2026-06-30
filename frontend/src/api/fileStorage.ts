@@ -10,6 +10,7 @@ export type FileStorageListItem = {
   enabled: boolean
   auth_type: string
   endpoint_url: string | null
+  local_path: string | null
   auth_name: string | null
   has_api_key: boolean
   has_password: boolean
@@ -27,6 +28,7 @@ export type FileStorageDetail = {
   enabled: boolean
   auth_type: string
   endpoint_url: string | null
+  local_path: string | null
   api_key: string | null
   secret_key: string | null
   auth_name: string | null
@@ -49,6 +51,7 @@ export type FileStorageCreateBody = {
   enabled?: boolean
   auth_type: string
   endpoint_url?: string | null
+  local_path?: string | null
   api_key?: string | null
   secret_key?: string | null
   auth_name?: string | null
@@ -63,6 +66,7 @@ export type FileStoragePatchBody = Partial<{
   enabled: boolean
   auth_type: string
   endpoint_url: string | null
+  local_path: string | null
   api_key: string | null
   secret_key: string | null
   auth_name: string | null
