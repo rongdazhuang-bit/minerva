@@ -15,8 +15,6 @@ class StepResult(TypedDict, total=False):
     step_id: str
     skill_id: str
     output: str
-    tool_call_count: int
-    last_ai_had_tool_calls: bool
 
 
 class AgentGraphState(TypedDict, total=False):

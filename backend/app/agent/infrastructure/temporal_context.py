@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.agent.infrastructure.datetime_tool import resolve_system_datetime
+from app.agent.infrastructure.datetime_tool import get_system_datetime, resolve_system_datetime
 
 # Substring triggers; English matching is case-insensitive via lowered haystack.
 _TEMPORAL_ANCHOR_PHRASES: tuple[str, ...] = (
@@ -79,8 +79,8 @@ def build_temporal_step_goal(base_goal: str, payload: dict[str, Any]) -> str:
 
     anchor = format_temporal_anchor_prefix(payload)
     instruction = (
-        "【时间锚定】上方已注入服务器当前时间，禁止调用 get_system_datetime；"
-        "直接据此解析相对时间区间。"
+        "【时间锚定】若需其它时区或再次确认，可调用 get_system_datetime；"
+        "否则可直接使用上方时间。"
     )
     body = (base_goal or "").strip()
     return f"{anchor}\n\n{instruction}\n\n{body}".strip()
@@ -92,11 +92,14 @@ def prepare_executor_temporal_context(
     step_goal: str,
     mcp_extra_tools: list[Any] | None,
 ) -> tuple[str, list[Any]]:
-    """Return effective goal and extra tools (unchanged extras; prefetch only, no datetime tool)."""
+    """Return effective goal and merged extra tools when temporal anchor is required."""
+
+    from app.agent.infrastructure.skill_loader import merge_tools_by_name
 
     extras = list(mcp_extra_tools or [])
     if not user_message_needs_temporal_anchor(user_message):
         return step_goal, extras
     payload = prefetch_system_datetime(timezone="LOCAL")
     effective_goal = build_temporal_step_goal(step_goal, payload)
+    extras = merge_tools_by_name([get_system_datetime], extras)
     return effective_goal, extras

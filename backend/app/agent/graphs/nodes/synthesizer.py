@@ -17,19 +17,6 @@ from app.agent.infrastructure.reasoning_collector import (
     extract_reasoning_from_langchain_message,
     reasoning_tokens_from_raw,
 )
-from app.agent.infrastructure.subagent_synthesis import (
-    any_step_needs_synthesizer,
-    step_result_needs_synthesizer,
-)
-
-_SYNTH_SYSTEM_DEFAULT = "你是助手。根据各步骤的执行结果，用简洁中文回答用户的原始问题。"
-
-_SYNTH_SYSTEM_AFTER_TOOLS = """你是助手。根据各步骤的执行结果（含工具查询返回的数据），用结构化中文直接回答用户的原始问题。
-
-要求：
-- 给出完整分析结论（可分点、表格或对比），不要描述查询过程；
-- 禁止「让我继续查询」「已确认…现在查询」类旁白；
-- 若数据不完整，在结论中说明缺失项，不要承诺继续查数。"""
 
 
 async def _stream_model_text(
@@ -157,24 +144,8 @@ def _format_subagent_blob(results: list[StepResult]) -> str:
 
     parts: list[str] = []
     for r in results:
-        tools = int(r.get("tool_call_count") or 0)
-        suffix = f"（工具调用 {tools} 次）" if tools else ""
-        parts.append(f"[{r.get('skill_id')}]{suffix} {r.get('output', '')}")
+        parts.append(f"[{r.get('skill_id')}] {r.get('output', '')}")
     return "\n\n".join(parts)
-
-
-def _results_used_tools(results: list[StepResult]) -> bool:
-    """Return True when any step invoked at least one tool."""
-
-    return any(int(r.get("tool_call_count") or 0) > 0 for r in results)
-
-
-def _synthesizer_system_prompt(results: list[StepResult]) -> str:
-    """Pick synthesizer instructions based on whether tools were used."""
-
-    if _results_used_tools(results):
-        return _SYNTH_SYSTEM_AFTER_TOOLS
-    return _SYNTH_SYSTEM_DEFAULT
 
 
 def resolve_final_answer_from_subagent_results(
@@ -182,38 +153,16 @@ def resolve_final_answer_from_subagent_results(
     *,
     user_message: str,
 ) -> str | None:
-    """Return a final answer without synthesizer when a single step already finished cleanly.
+    """Return a final answer without a second LLM call when sub-agents already answered.
 
-    Skips synthesizer only for one-step runs with no tools and a complete-looking reply.
+    A single successful step already streamed its reply via ``llm.delta``; re-synthesizing
+    would duplicate the same text on the client.
     """
 
-    _ = user_message
     if len(results) != 1:
         return None
-    result = results[0]
-    if step_result_needs_synthesizer(result):
-        return None
-    output = (result.get("output") or "").strip()
+    output = (results[0].get("output") or "").strip()
     return output if output else None
-
-
-def _prepare_synthesizer_messages(
-    deps: GraphDeps,
-    *,
-    user_message: str,
-    results: list[StepResult],
-) -> list:
-    """Build chat messages for the synthesizer model call."""
-
-    blob = _format_subagent_blob(results)
-    sys = _synthesizer_system_prompt(results)
-    history = deps.conversation_messages or []
-    prior_turns, _ = split_trailing_user_message(history)
-    return [
-        *prior_turns,
-        SystemMessage(content=sys),
-        HumanMessage(content=f"用户问题：{user_message}\n\n步骤结果：\n{blob}"),
-    ]
 
 
 async def synthesizer_node(state: AgentGraphState, config: RunnableConfig) -> dict:
@@ -250,19 +199,19 @@ async def synthesizer_node(state: AgentGraphState, config: RunnableConfig) -> di
             await _finalize_synthesizer_node(deps, synth_node_id)
             return {"final_answer": text}
 
-        if any_step_needs_synthesizer(results) and deps.assistant_stream.get_text():
-            deps.assistant_stream.reset()
-
-        model_messages = _prepare_synthesizer_messages(
+        blob = _format_subagent_blob(results)
+        sys = "你是助手。根据各步骤的执行结果，用简洁中文回答用户的原始问题。"
+        history = deps.conversation_messages or []
+        prior_turns, _ = split_trailing_user_message(history)
+        text = await _invoke_model_text(
             deps,
-            user_message=user_message,
-            results=results,
+            [
+                *prior_turns,
+                SystemMessage(content=sys),
+                HumanMessage(content=f"用户问题：{user_message}\n\n步骤结果：\n{blob}"),
+            ],
+            synth_node_id=synth_node_id,
         )
-        use_stream = len(results) == 1 and any_step_needs_synthesizer(results)
-        if use_stream:
-            text = await _stream_model_text(deps, model_messages, synth_node_id=synth_node_id)
-        else:
-            text = await _invoke_model_text(deps, model_messages, synth_node_id=synth_node_id)
         await _finalize_synthesizer_node(deps, synth_node_id)
         return {"final_answer": text}
     except Exception as exc:

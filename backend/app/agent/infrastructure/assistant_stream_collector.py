@@ -21,8 +21,3 @@ class AssistantStreamCollector:
         """Return the full concatenated assistant text for persistence."""
 
         return "".join(self._parts)
-
-    def reset(self) -> None:
-        """Clear buffered assistant text (before synthesizer replaces sub-agent narration)."""
-
-        self._parts.clear()

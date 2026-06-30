@@ -71,7 +71,6 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
         step_goal=step.goal,
         mcp_extra_tools=deps.mcp_extra_tools,
     )
-    outcome = None
     try:
         subagent = build_skill_react_agent(
             deps.model,
@@ -80,7 +79,7 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
             cache=deps.subagent_cache,
             extra_tools=extra_tools or None,
         )
-        outcome = await run_subagent_with_stream(
+        output = await run_subagent_with_stream(
             deps,
             subagent,
             step=step,
@@ -88,12 +87,10 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
             parent_node_id=node_id,
             goal_override=effective_goal if effective_goal != step.goal else None,
         )
-        output = outcome.output
         step.status = "success" if output else "failed"
     except Exception as e:
         output = f"[subagent error: {e}]"
         step.status = "failed"
-        outcome = None
 
     plan.steps[idx] = step
     step_result: StepResult = {
@@ -101,9 +98,6 @@ async def executor_node(state: AgentGraphState, config: RunnableConfig) -> dict:
         "skill_id": step.skill_id,
         "output": output,
     }
-    if outcome is not None:
-        step_result["tool_call_count"] = outcome.stats.tool_call_count
-        step_result["last_ai_had_tool_calls"] = outcome.stats.last_ai_had_tool_calls
     results = list(state.get("subagent_results") or [])
     results.append(step_result)
 
