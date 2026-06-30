@@ -1,7 +1,7 @@
 # 文件存储：本地存储 + 启用互斥 + 默认兜底
 
 **日期**：2026-06-30  
-**状态**：待实现  
+**状态**：已实现（2026-06-30，分支 `feat/file-storage-local`）  
 **范围**：扩展系统设置「文件存储」支持 `LOCAL` 类型与相对路径；同一 workspace 仅允许一条启用配置（后端自动互斥）；无启用项时回退到环境变量定义的默认本地目录；新增 `app/local/` 提供与 S3 对齐的对象文件 API；保留 `/s3/files` 与 `/local/files` 双轨，业务模块通过 resolver 自行选择。
 
 **关联文档**：`docs/superpowers/specs/2026-04-30-s3-file-storage-design.md`（S3 能力与 `sys_storage` 表）
@@ -307,18 +307,22 @@ elif active.kind in ("LOCAL", "DEFAULT_LOCAL"):
 
 ---
 
-## 10. 实现对照（待回填）
+## 10. 实现对照（以代码为准，2026-06-30）
 
-| spec 条目 | 计划代码位置 | 状态 |
-|-----------|--------------|------|
-| `local_path` 列 | `schema_postgresql.sql`, `SysStorage` | 待做 |
-| `FILE_STORAGE_LOCAL_ROOT` | `config.py`, `.env.example`, `.env.dev` | 待做 |
-| `resolve_active_storage` | `file_storage/service/storage_resolver.py` | 待做 |
-| 启用互斥 | `file_storage_service.create/update` | 待做 |
-| `app/local/*` | 新模块 | 待做 |
-| S3 加载修正 | `s3_file_service._load_storage_config` | 待做 |
-| 设置页 LOCAL UI | `FileStoragePage.tsx`, `fileStorage.ts` | 待做 |
-| STORGE_TYPE 种子 | `sql/` 种子或 patch | 待做 |
+| spec 条目 | 代码位置 | 状态 |
+|-----------|----------|------|
+| `local_path` 列 | `backend/sql/schema_postgresql.sql`, `patches/2026-06-30-sys-storage-local-path.sql`, `SysStorage` | 已实现 |
+| `FILE_STORAGE_LOCAL_ROOT` | `config.py` `resolve_file_storage_local_root()`, `.env.example`, `.env.dev` | 已实现 |
+| 路径校验与 root 解析 | `file_storage/service/path_validation.py` | 已实现 |
+| `resolve_active_storage` | `file_storage/service/storage_resolver.py` | 已实现 |
+| 启用互斥 | `file_storage_service.create/update` + `repository.disable_others_for_workspace` | 已实现 |
+| `app/local/*` | `backend/app/local/`（api/domain/infrastructure/service） | 已实现 |
+| local files API 挂载 | `local/api/router.py`, `core/api/router.py` | 已实现 |
+| S3 加载修正 | `s3_file_service._load_storage_config`（enabled + type=S3） | 已实现 |
+| 设置 API `local_path` | `file_storage/api/schemas.py`, `router.py` | 已实现 |
+| 设置页 LOCAL UI | `FileStoragePage.tsx`, `fileStorage.ts`, i18n | 已实现 |
+| STORGE_TYPE 种子 | `patches/2026-06-30-storge-type-local-dict-item.sql` | 已实现 |
+| 业务模块迁移 OCR/Dataset | — | 未做（非目标） |
 
 ---
 

@@ -385,7 +385,7 @@ COMMENT ON COLUMN public.sys_storage.id IS 'id';
 COMMENT ON COLUMN public.sys_storage.workspace_id IS '工作空间id';
 COMMENT ON COLUMN public.sys_storage."name" IS '配置显示名称';
 COMMENT ON COLUMN public.sys_storage.bucket_name IS 'S3 桶名（对象接口使用）';
-COMMENT ON COLUMN public.sys_storage.local_path IS '本地存储根目录（相对 FILE_STORAGE_LOCAL_ROOT 或绝对路径）';
+COMMENT ON COLUMN public.sys_storage.local_path IS 'LOCAL 类型相对 workspace 根的路径段';
 COMMENT ON COLUMN public.sys_storage."type" IS '存储类型';
 COMMENT ON COLUMN public.sys_storage.enabled IS '状态';
 COMMENT ON COLUMN public.sys_storage.auth_type IS '认证方式';
