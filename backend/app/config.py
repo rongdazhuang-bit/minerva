@@ -593,6 +593,14 @@ class Settings(BaseSettings):
         description="Agent 工作区文件沙箱根目录；空则使用 backend/data/agent-files。",
         validation_alias=AliasChoices("AGENT_FILES_ROOT", "agent_files_root"),
     )
+    file_storage_local_root: str = Field(
+        default="",
+        description="文件存储本地根目录；空则使用 backend/data/file-storage。",
+        validation_alias=AliasChoices(
+            "FILE_STORAGE_LOCAL_ROOT",
+            "file_storage_local_root",
+        ),
+    )
     agent_file_max_bytes: int = Field(
         default=524288,
         ge=1024,
@@ -803,6 +811,15 @@ def resolve_agent_files_root() -> Path:
     if raw:
         return Path(raw).resolve()
     return (_BACKEND_DIR / "data" / "agent-files").resolve()
+
+
+def resolve_file_storage_local_root() -> Path:
+    """Return configured file storage local root, defaulting to ``backend/data/file-storage``."""
+
+    raw = (settings.file_storage_local_root or "").strip()
+    if raw:
+        return Path(raw).resolve()
+    return (_BACKEND_DIR / "data" / "file-storage").resolve()
 
 
 # Singleton loaded at import time for ``from app.config import settings``.

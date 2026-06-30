@@ -32,6 +32,7 @@ class SysStorage(Base):
     )
     name: Mapped[str | None] = mapped_column(String(32), nullable=True)
     bucket_name: Mapped[str | None] = mapped_column(String(63), nullable=True)
+    local_path: Mapped[str | None] = mapped_column(String(128), nullable=True)
     type: Mapped[str | None] = mapped_column(String(16), nullable=True)
     enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=sa.true()
