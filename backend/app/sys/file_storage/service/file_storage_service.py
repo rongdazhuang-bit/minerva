@@ -11,6 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.exceptions import AppError
 from app.sys.file_storage.domain.db.models import SysStorage
 from app.sys.file_storage.infrastructure import repository as repo
+from app.sys.file_storage.infrastructure.repository import disable_others_for_workspace
+from app.sys.file_storage.service.path_validation import normalize_local_path_segment
 
 
 _LEGACY_AUTH_TO_CANON: dict[str, str] = {
@@ -50,13 +52,34 @@ def _is_s3_storage(storage_type: str | None) -> bool:
     return (storage_type or "").strip().upper() == "S3"
 
 
+def _is_local_storage(storage_type: str | None) -> bool:
+    """Return True when storage type is LOCAL (case-insensitive)."""
+
+    return (storage_type or "").strip().upper() == "LOCAL"
+
+
+async def _apply_enable_mutex(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    storage_id: uuid.UUID,
+) -> None:
+    """Disable other enabled storage rows in the same workspace."""
+
+    await disable_others_for_workspace(
+        session,
+        workspace_id=workspace_id,
+        keep_storage_id=storage_id,
+    )
+
+
 def _assert_identity_fields(
     *,
     name: str | None,
     bucket_name: str | None,
     storage_type: str | None,
 ) -> None:
-    """Require display ``name``; require ``bucket_name`` when type is S3."""
+    """Require display ``name``; require ``bucket_name`` only when type is S3."""
 
     if not (name or "").strip():
         raise AppError("file_storage.name_required", "name is required", 422)
@@ -155,34 +178,43 @@ async def create_storage(
 ) -> SysStorage:
     """Create a workspace file storage row and persist it."""
 
-    normalized_auth_type = _normalize_auth_type(str(data["auth_type"]))
     name = _normalize_nullable_str(data.get("name"))
     bucket_name = _normalize_nullable_str(data.get("bucket_name"))
     storage_type = _normalize_nullable_str(data.get("type"))
+    local_path = normalize_local_path_segment(data.get("local_path"))
     endpoint_url = _normalize_nullable_str(data.get("endpoint_url"))
-    api_key = _normalize_nullable_str(data.get("api_key"))
-    secret_key = _normalize_nullable_str(data.get("secret_key"))
-    auth_name = _normalize_nullable_str(data.get("auth_name"))
-    auth_passwd = _normalize_nullable_str(data.get("auth_passwd"))
 
     _assert_identity_fields(
         name=name,
         bucket_name=bucket_name,
         storage_type=storage_type,
     )
-    _assert_auth_fields(
-        auth_type=normalized_auth_type,
-        api_key=api_key,
-        secret_key=secret_key,
-        auth_name=auth_name,
-        auth_passwd=auth_passwd,
-        strict=True,
-    )
+    if _is_local_storage(storage_type):
+        normalized_auth_type = "NONE"
+        api_key = None
+        secret_key = None
+        auth_name = None
+        auth_passwd = None
+    else:
+        normalized_auth_type = _normalize_auth_type(str(data["auth_type"]))
+        api_key = _normalize_nullable_str(data.get("api_key"))
+        secret_key = _normalize_nullable_str(data.get("secret_key"))
+        auth_name = _normalize_nullable_str(data.get("auth_name"))
+        auth_passwd = _normalize_nullable_str(data.get("auth_passwd"))
+        _assert_auth_fields(
+            auth_type=normalized_auth_type,
+            api_key=api_key,
+            secret_key=secret_key,
+            auth_name=auth_name,
+            auth_passwd=auth_passwd,
+            strict=True,
+        )
     now = _utc_now()
     row = SysStorage(
         workspace_id=workspace_id,
         name=name,
         bucket_name=bucket_name,
+        local_path=local_path,
         type=storage_type,
         enabled=bool(data.get("enabled", True)),
         auth_type=normalized_auth_type,
@@ -195,6 +227,11 @@ async def create_storage(
         update_at=now,
     )
     session.add(row)
+    await session.flush()
+    if row.enabled:
+        await _apply_enable_mutex(
+            session, workspace_id=workspace_id, storage_id=row.id
+        )
     await session.commit()
     await session.refresh(row)
     return row
@@ -213,6 +250,9 @@ async def update_storage(
     for key, value in patch.items():
         if key == "auth_type" and isinstance(value, str):
             setattr(row, key, _normalize_auth_type(value))
+            continue
+        if key == "local_path":
+            setattr(row, key, normalize_local_path_segment(value))
             continue
         if key in {
             "name",
@@ -233,15 +273,26 @@ async def update_storage(
         bucket_name=row.bucket_name,
         storage_type=row.type,
     )
-    _assert_auth_fields(
-        auth_type=row.auth_type,
-        api_key=row.api_key,
-        secret_key=row.secret_key,
-        auth_name=row.auth_name,
-        auth_passwd=row.auth_passwd,
-        strict=False,
-    )
+    if _is_local_storage(row.type):
+        row.auth_type = "NONE"
+        row.api_key = None
+        row.secret_key = None
+        row.auth_name = None
+        row.auth_passwd = None
+    else:
+        _assert_auth_fields(
+            auth_type=row.auth_type,
+            api_key=row.api_key,
+            secret_key=row.secret_key,
+            auth_name=row.auth_name,
+            auth_passwd=row.auth_passwd,
+            strict=False,
+        )
     row.update_at = _utc_now()
+    if row.enabled:
+        await _apply_enable_mutex(
+            session, workspace_id=workspace_id, storage_id=row.id
+        )
     await session.commit()
     await session.refresh(row)
     return row
