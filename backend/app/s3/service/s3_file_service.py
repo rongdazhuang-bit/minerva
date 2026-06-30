@@ -145,11 +145,10 @@ class S3FileService:
 
         result = await self._session.execute(
             sa.select(SysStorage)
-            .where(SysStorage.workspace_id == workspace_id)
-            .order_by(
-                SysStorage.update_at.desc().nulls_last(),
-                SysStorage.create_at.desc().nulls_last(),
-                SysStorage.id.desc(),
+            .where(
+                SysStorage.workspace_id == workspace_id,
+                SysStorage.enabled.is_(True),
+                sa.func.upper(SysStorage.type) == "S3",
             )
             .limit(1)
         )
