@@ -307,6 +307,39 @@ html.minerva-tone-sunshine .minerva-md-chart-title {
   border-right: 1px solid color-mix(in srgb, var(--minerva-border, #2a3f58) 85%, transparent);
 }
 
+.minerva-md-plain-math-host {
+  min-height: auto;
+}
+
+.minerva-md-plain-math-body {
+  padding: 0.75em 0.85em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.88em;
+  line-height: 1.55;
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--minerva-ink, #e8f0f8);
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.minerva-md-plain-math-line {
+  min-height: 1.55em;
+}
+
+.minerva-md-plain-math-katex {
+  display: inline;
+  vertical-align: baseline;
+}
+
+.minerva-md-plain-math-katex .katex {
+  font-size: 1em;
+}
+
+.minerva-md-plain-math-katex--display {
+  display: block;
+  margin: 0.35em 0;
+}
+
 .minerva-md-syntax-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
 }

@@ -1,4 +1,5 @@
 import { prepareMarkdownFencedDiagrams } from '@/components/markdown/normalizeMarkdownFences'
+import { isPlainTextFenceLanguage } from '@/components/markdown/plainTextMathBlock'
 import {
   applyOcrMarkdownImagePlaceholders,
   normalizeDisplayMathFencesForRemarkMath,
@@ -780,6 +781,30 @@ export function mapOutsideFencedCodeBlocks(text: string, transform: (chunk: stri
   return parts.map((part, idx) => (idx % 2 === 1 ? part : transform(part))).join('')
 }
 
+/** Opening fence with optional info string and body (non-greedy close). */
+const FENCED_BLOCK_WITH_INFO_RE = /^```([^\n]*)\n([\s\S]*?)```$/
+
+/**
+ * Apply ``transform`` only inside plaintext fenced code blocks (empty / text / plaintext lang).
+ */
+export function mapInsidePlainTextFencedCodeBlocks(
+  text: string,
+  transform: (body: string) => string,
+): string {
+  const parts = text.split(/(```[\s\S]*?```)/g)
+  return parts
+    .map((part, idx) => {
+      if (idx % 2 === 0) return part
+      const match = FENCED_BLOCK_WITH_INFO_RE.exec(part)
+      if (!match) return part
+      const info = match[1] ?? ''
+      if (!isPlainTextFenceLanguage(info)) return part
+      const body = match[2] ?? ''
+      return `\`\`\`${info}\n${transform(body)}\`\`\``
+    })
+    .join('')
+}
+
 /**
  * Apply ``transform`` only outside ``$$...$$`` spans (avoids nesting ``$`` inside display math).
  */
@@ -1199,7 +1224,14 @@ export function mapOutsideGfmTableRows(text: string, transform: (chunk: string) 
  * Agent chat math preprocessing (CJK in math, parenthesized TeX, loose ``$`` delimiters).
  */
 export function normalizeMarkdownForAgent(markdown: string): string {
-  return mapOutsideFencedCodeBlocks(prepareMarkdownFencedDiagrams(markdown), (chunk) => {
+  const withPlainTextFenceMath = mapInsidePlainTextFencedCodeBlocks(
+    prepareMarkdownFencedDiagrams(markdown),
+    (body) =>
+      normalizeInlineMathSpans(
+        convertLatexBracketMathDelimiters(body),
+      ),
+  )
+  return mapOutsideFencedCodeBlocks(withPlainTextFenceMath, (chunk) => {
     const withSafeNumericTildes = escapeTildesInProseOutsideMath(chunk)
     const withHtmlTableMath = wrapBareLatexInHtmlTableCells(withSafeNumericTildes)
     const base = ensureBlankLineBeforeDisplayMathFences(

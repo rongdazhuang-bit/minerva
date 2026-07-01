@@ -28,6 +28,8 @@ import {
   normalizeMarkdownForOcr,
 } from '@/components/markdown/normalizeMarkdownMath'
 import { MarkdownChartBlock } from '@/components/markdown/MarkdownChartBlock'
+import { PlainTextMathCodeBlock } from '@/components/markdown/PlainTextMathCodeBlock'
+import { shouldRenderPlainTextMathBlock } from '@/components/markdown/plainTextMathBlock'
 import {
   isChartFenceLanguage,
 } from '@/components/markdown/parseMarkdownChartConfig'
@@ -228,6 +230,9 @@ function createPreBlock(richCode: boolean) {
         const rawLang = langMatch?.[1] ?? ''
         if (rawLang && isChartFenceLanguage(rawLang)) {
           return <MarkdownChartBlock code={inner} />
+        }
+        if (shouldRenderPlainTextMathBlock(rawLang, inner)) {
+          return <PlainTextMathCodeBlock code={inner} rawLanguage={rawLang} />
         }
         const lang = rawLang ? normalizePrismLanguage(rawLang) : 'plaintext'
         return <PrismCodeWithCopy code={inner} language={lang} rawLanguage={rawLang} />
