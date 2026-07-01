@@ -6,13 +6,13 @@
 -- 使用: psql -U minerva -d minerva -f schema_postgresql.sql
 
 DO $$ BEGIN
-  CREATE TYPE tenant_role AS ENUM ('owner', 'admin', 'member');
+  CREATE TYPE tenant_role AS ENUM ('admin', 'member');
 EXCEPTION
   WHEN duplicate_object THEN NULL;
 END $$;
 
 DO $$ BEGIN
-  CREATE TYPE workspace_role AS ENUM ('owner', 'admin', 'member');
+  CREATE TYPE workspace_role AS ENUM ('admin', 'member');
 EXCEPTION
   WHEN duplicate_object THEN NULL;
 END $$;
@@ -65,6 +65,70 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_user_role_user_role
 CREATE INDEX IF NOT EXISTS ix_sys_user_role_user_id ON public.sys_user_role (user_id);
 CREATE INDEX IF NOT EXISTS ix_sys_user_role_role_id ON public.sys_user_role (role_id);
 COMMENT ON TABLE public.sys_user_role IS 'User to workspace sys_role mapping (app-enforced)';
+
+CREATE TABLE IF NOT EXISTS public.sys_permission (
+  id               UUID         NOT NULL,
+  perm_code        VARCHAR(128) NOT NULL,
+  perm_name        VARCHAR(128) NOT NULL,
+  perm_type        VARCHAR(16)  NOT NULL,
+  resource_pattern VARCHAR(256) NULL,
+  menu_id          UUID         NULL,
+  status           BOOLEAN      NOT NULL DEFAULT true,
+  remark           VARCHAR(500) NULL,
+  create_at        TIMESTAMPTZ  NULL DEFAULT now(),
+  update_at        TIMESTAMPTZ  NULL,
+  CONSTRAINT sys_permission_pk PRIMARY KEY (id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_permission_perm_code ON public.sys_permission (perm_code);
+CREATE INDEX IF NOT EXISTS ix_sys_permission_perm_type ON public.sys_permission (perm_type);
+CREATE INDEX IF NOT EXISTS ix_sys_permission_menu_id ON public.sys_permission (menu_id);
+
+CREATE TABLE IF NOT EXISTS public.sys_role_permission (
+  id            UUID NOT NULL,
+  role_id       UUID NOT NULL,
+  permission_id UUID NOT NULL,
+  CONSTRAINT sys_role_permission_pk PRIMARY KEY (id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_role_permission_role_perm
+  ON public.sys_role_permission (role_id, permission_id);
+CREATE INDEX IF NOT EXISTS ix_sys_role_permission_role_id ON public.sys_role_permission (role_id);
+CREATE INDEX IF NOT EXISTS ix_sys_role_permission_permission_id ON public.sys_role_permission (permission_id);
+
+CREATE TABLE IF NOT EXISTS public.sys_tenant_entitlement (
+  id                 UUID         NOT NULL,
+  tenant_id          UUID         NOT NULL,
+  feature_code       VARCHAR(64)  NOT NULL,
+  enabled            BOOLEAN      NOT NULL DEFAULT true,
+  granted_by_user_id UUID         NOT NULL,
+  create_at          TIMESTAMPTZ  NULL DEFAULT now(),
+  update_at          TIMESTAMPTZ  NULL,
+  CONSTRAINT sys_tenant_entitlement_pk PRIMARY KEY (id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_tenant_entitlement_tenant_feature
+  ON public.sys_tenant_entitlement (tenant_id, feature_code);
+CREATE INDEX IF NOT EXISTS ix_sys_tenant_entitlement_tenant_id ON public.sys_tenant_entitlement (tenant_id);
+
+CREATE TABLE IF NOT EXISTS public.sys_user_grant (
+  id                  UUID         NOT NULL,
+  user_id             UUID         NOT NULL,
+  grant_type          VARCHAR(32)  NOT NULL,
+  role_id             UUID         NULL,
+  permission_id       UUID         NULL,
+  scope_type          VARCHAR(16)  NOT NULL,
+  scope_id            UUID         NULL,
+  granted_by_user_id  UUID         NOT NULL,
+  status              BOOLEAN      NOT NULL DEFAULT true,
+  create_at           TIMESTAMPTZ  NULL DEFAULT now(),
+  update_at           TIMESTAMPTZ  NULL,
+  CONSTRAINT sys_user_grant_pk PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS ix_sys_user_grant_user_scope
+  ON public.sys_user_grant (user_id, scope_type, scope_id);
+CREATE INDEX IF NOT EXISTS ix_sys_user_grant_scope_type_id
+  ON public.sys_user_grant (scope_type, scope_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_user_grant_user_role_scope
+  ON public.sys_user_grant (user_id, grant_type, role_id, scope_type, scope_id)
+  WHERE grant_type = 'role' AND role_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS refresh_tokens (
   id         UUID         NOT NULL,

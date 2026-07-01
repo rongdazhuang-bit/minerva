@@ -238,7 +238,6 @@ export function UsersPage() {
   const membershipTag = useCallback(
     (role: string) => {
       const map: Record<string, string> = {
-        owner: t('users.membershipOwner'),
         admin: t('users.membershipAdmin'),
         member: t('users.membershipMember'),
       }
@@ -409,7 +408,6 @@ export function UsersPage() {
                 placeholder={t('users.membershipRole')}
                 style={{ width: 120 }}
                 options={[
-                  { value: 'owner', label: t('users.membershipOwner') },
                   { value: 'admin', label: t('users.membershipAdmin') },
                   { value: 'member', label: t('users.membershipMember') },
                 ]}

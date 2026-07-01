@@ -80,6 +80,11 @@ async def require_workspace_member(
     session: AsyncSession = Depends(get_db),
 ) -> uuid.UUID:
     """Use on routes that declare path param `workspace_id`; membership is checked."""
+    if user.is_super_admin:
+        ws = await session.get(Workspace, workspace_id)
+        if ws is None:
+            raise AppError("auth.forbidden", "Workspace not found", 403)
+        return workspace_id
     if not await find_workspace_for_user(session, user_id=user.id, workspace_id=workspace_id):
         raise AppError("auth.forbidden", "Not a member of this workspace", 403)
     return workspace_id
@@ -90,15 +95,20 @@ async def require_workspace_owner_or_admin(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> uuid.UUID:
-    """Ensure ``user`` is owner or admin in ``workspace_id``."""
+    """Ensure ``user`` is workspace admin (or platform super-admin)."""
 
+    if user.is_super_admin:
+        ws = await session.get(Workspace, workspace_id)
+        if ws is None:
+            raise AppError("auth.forbidden", "Workspace not found", 403)
+        return workspace_id
     role = await find_workspace_role_for_user(
         session, user_id=user.id, workspace_id=workspace_id
     )
     if role is None:
         raise AppError("auth.forbidden", "Not a member of this workspace", 403)
-    if role not in (MembershipRole.owner, MembershipRole.admin):
-        raise AppError("auth.forbidden", "Only workspace owner/admin can manage model providers", 403)
+    if role != MembershipRole.admin:
+        raise AppError("auth.forbidden", "Only workspace admin can manage this resource", 403)
     return workspace_id
 
 
@@ -107,8 +117,13 @@ async def require_tenant_owner_or_admin(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> uuid.UUID:
-    """Ensure user is tenant owner or admin for the workspace's tenant."""
+    """Ensure user is tenant admin (membership or grant) for the workspace's tenant."""
 
+    if user.is_super_admin:
+        ws = await session.get(Workspace, workspace_id)
+        if ws is None:
+            raise AppError("auth.forbidden", "Workspace not found", 403)
+        return workspace_id
     if not await find_workspace_for_user(
         session, user_id=user.id, workspace_id=workspace_id
     ):
@@ -121,6 +136,11 @@ async def require_tenant_owner_or_admin(
     )
     if role is None:
         raise AppError("auth.forbidden", "Not a member of this tenant", 403)
-    if role not in (MembershipRole.owner, MembershipRole.admin):
-        raise AppError("skills.forbidden", "Only tenant owner/admin can manage skills", 403)
+    if role != MembershipRole.admin:
+        from app.core.domain.authorization.repository import is_tenant_admin
+
+        if not await is_tenant_admin(
+            session, user_id=user.id, tenant_id=ws.tenant_id
+        ):
+            raise AppError("skills.forbidden", "Only tenant admin can manage skills", 403)
     return workspace_id

@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 import jwt
 from fastapi import APIRouter, Depends
+from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,6 +40,12 @@ from app.core.infrastructure.security.login_captcha import (
     verify_login_captcha,
     verify_register_captcha,
 )
+from app.core.api.deps import bearer, get_current_user, _decode_access_payload
+from app.core.security.permission_resolver import (
+    build_permission_context,
+    parse_uuid_claim,
+)
+from app.sys.menu.infrastructure import repository as menu_repo
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -82,6 +89,20 @@ class TokenOut(BaseModel):
     token_type: str = "bearer"
 
 
+class AuthorizationOut(BaseModel):
+    """Effective permissions summary for the authenticated user."""
+
+    is_super_admin: bool
+    tenant_id: uuid.UUID | None = None
+    workspace_id: uuid.UUID | None = None
+    workspace_role: str | None = None
+    tenant_role: str | None = None
+    is_tenant_admin: bool
+    tenant_features: list[str]
+    permissions: list[str]
+    menu_paths: list[str]
+
+
 async def _issue_tokens(
     session: AsyncSession,
     *,
@@ -91,6 +112,10 @@ async def _issue_tokens(
 ) -> tuple[TokenOut, uuid.UUID]:
     """Create access/refresh tokens after validating workspace membership."""
 
+    user = await session.get(User, user_id)
+    if user is None:
+        raise AppError("auth.invalid_token", "User not found", 401)
+
     jti = uuid.uuid4()
     r = await session.execute(
         select(WorkspaceMembership.role).where(
@@ -99,7 +124,7 @@ async def _issue_tokens(
         )
     )
     wrole = r.scalar_one_or_none()
-    if wrole is None:
+    if wrole is None and not user.is_super_admin:
         raise AppError("auth.no_workspace_membership", "No workspace membership for user", 401)
     tr = await session.execute(
         select(TenantMembership.role).where(
@@ -112,8 +137,9 @@ async def _issue_tokens(
         user_id=user_id,
         tenant_id=tenant_id,
         workspace_id=workspace_id,
-        workspace_role=wrole.value,
+        workspace_role=wrole.value if wrole is not None else None,
         tenant_role=trole.value if trole is not None else None,
+        is_super_admin=bool(user.is_super_admin),
     )
     refresh = create_refresh_token(user_id=user_id, jti=jti)
     return (
@@ -216,6 +242,15 @@ async def refresh(body: RefreshIn, session: AsyncSession = Depends(get_db)) -> T
         .limit(1)
     )
     first = wsm.first()
+    if first is None and u.is_super_admin:
+        wsm = await session.execute(
+            select(Workspace, Tenant)
+            .select_from(Workspace)
+            .join(Tenant, Tenant.id == Workspace.tenant_id)
+            .where(Tenant.status.is_(True), Workspace.status.is_(True))
+            .limit(1)
+        )
+        first = wsm.first()
     if first is None:
         raise AppError("auth.invalid_token", "No workspace for user", 401)
     workspace, tenant = first
@@ -228,3 +263,45 @@ async def refresh(body: RefreshIn, session: AsyncSession = Depends(get_db)) -> T
     )
     await persist_refresh_token(session, user_id=uid, jti=new_j)
     return tok
+
+
+@router.get("/me/authorization", response_model=AuthorizationOut)
+async def me_authorization(
+    user: User = Depends(get_current_user),
+    cred: HTTPAuthorizationCredentials | None = Depends(bearer),
+    session: AsyncSession = Depends(get_db),
+) -> AuthorizationOut:
+    """Return effective permissions for the current access token."""
+
+    if cred is None:
+        raise AppError("auth.missing_token", "Authorization Bearer token required", 401)
+    payload = _decode_access_payload(cred)
+    ctx = await build_permission_context(
+        session,
+        user=user,
+        tenant_id=parse_uuid_claim(payload, "tid"),
+        workspace_id=parse_uuid_claim(payload, "wid"),
+    )
+    menu_paths: list[str] = []
+    if ctx.menu_ids:
+        rows = await menu_repo.list_all(session)
+        by_id = {r.id: r for r in rows}
+        menu_paths = sorted(
+            {
+                str(by_id[mid].path)
+                for mid in ctx.menu_ids
+                if mid in by_id and by_id[mid].path
+            }
+        )
+    perms = sorted(ctx.permissions) if "*" not in ctx.permissions else ["*"]
+    return AuthorizationOut(
+        is_super_admin=ctx.is_super_admin,
+        tenant_id=ctx.tenant_id,
+        workspace_id=ctx.workspace_id,
+        workspace_role=ctx.workspace_role.value if ctx.workspace_role else None,
+        tenant_role=ctx.tenant_role.value if ctx.tenant_role else None,
+        is_tenant_admin=ctx.is_tenant_admin,
+        tenant_features=sorted(ctx.tenant_features),
+        permissions=perms,
+        menu_paths=menu_paths,
+    )

@@ -3,6 +3,7 @@ import {
   DeleteOutlined,
   EditOutlined,
   PlusOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons'
 import {
   Alert,
@@ -36,6 +37,7 @@ import { ApiError } from '@/api/client'
 import { showAppError, useAppMessage } from '@/app/useAppMessage'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
 import { TenantFormDrawer, type TenantFormValues } from './TenantFormDrawer'
+import { TenantEntitlementDrawer } from './TenantEntitlementDrawer'
 import { WorkspaceDrawer } from './WorkspaceDrawer'
 import './TenantsPage.css'
 
@@ -74,6 +76,8 @@ export function TenantsPage() {
   const [initialForm, setInitialForm] = useState<TenantFormValues | null>(null)
   const [workspaceDrawerOpen, setWorkspaceDrawerOpen] = useState(false)
   const [workspaceTenant, setWorkspaceTenant] = useState<SysTenantListItem | null>(null)
+  const [entitlementOpen, setEntitlementOpen] = useState(false)
+  const [entitlementTenant, setEntitlementTenant] = useState<SysTenantListItem | null>(null)
 
   const listQuery = useQuery({
     queryKey: ['tenants', page, pageSize, filters, refreshTick],
@@ -130,6 +134,11 @@ export function TenantsPage() {
   const openWorkspaces = useCallback((row: SysTenantListItem) => {
     setWorkspaceTenant(row)
     setWorkspaceDrawerOpen(true)
+  }, [])
+
+  const openEntitlements = useCallback((row: SysTenantListItem) => {
+    setEntitlementTenant(row)
+    setEntitlementOpen(true)
   }, [])
 
   const handleSubmit = useCallback(
@@ -233,6 +242,15 @@ export function TenantsPage() {
                 icon={<ApartmentOutlined />}
                 onClick={() => openWorkspaces(row)}
                 aria-label={t('tenants.workspaces')}
+              />
+            </Tooltip>
+            <Tooltip title={t('tenants.entitlements')}>
+              <Button
+                type="text"
+                size="small"
+                icon={<SafetyCertificateOutlined />}
+                onClick={() => openEntitlements(row)}
+                aria-label={t('tenants.entitlements')}
               />
             </Tooltip>
           </Space>
@@ -347,6 +365,15 @@ export function TenantsPage() {
           setWorkspaceDrawerOpen(false)
           setWorkspaceTenant(null)
         }}
+      />
+      <TenantEntitlementDrawer
+        open={entitlementOpen}
+        tenant={entitlementTenant}
+        onClose={() => {
+          setEntitlementOpen(false)
+          setEntitlementTenant(null)
+        }}
+        onSaved={reloadList}
       />
     </div>
   )

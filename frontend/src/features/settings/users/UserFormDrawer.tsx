@@ -68,7 +68,6 @@ function buildDepartmentTreeData(
 
 /** Map membership_role code to i18n label. */
 function membershipRoleLabel(role: string, t: (key: string) => string): string {
-  if (role === 'owner') return t('users.membershipOwner')
   if (role === 'admin') return t('users.membershipAdmin')
   return t('users.membershipMember')
 }

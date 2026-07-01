@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { jwtDecode } from 'jwt-decode'
 import {
   createContext,
@@ -9,6 +10,7 @@ import {
   type ReactNode,
 } from 'react'
 
+import { fetchAuthorization } from '@/api/auth'
 import {
   STORAGE_ACCESS,
   STORAGE_REFRESH,
@@ -19,7 +21,13 @@ import {
   subscribeTokensUpdated,
 } from '@/api/tokenSession'
 
-type JwtPayload = { sub?: string; wid?: string; wrole?: string; trole?: string }
+type JwtPayload = {
+  sub?: string
+  wid?: string
+  wrole?: string
+  trole?: string
+  sa?: boolean
+}
 
 function readUserIdFromToken(access: string | null): string | null {
   if (!access) return null
@@ -70,6 +78,16 @@ function readTenantRoleFromToken(access: string | null): string | null {
   }
 }
 
+function readSuperAdminFromToken(access: string | null): boolean {
+  if (!access) return false
+  try {
+    const p = jwtDecode(access) as JwtPayload
+    return Boolean(p.sa)
+  } catch {
+    return false
+  }
+}
+
 type AuthValue = {
   accessToken: string | null
   refreshToken: string | null
@@ -79,9 +97,20 @@ type AuthValue = {
   workspaceRole: string | null
   /** Tenant role from JWT ``trole`` claim (null when absent or legacy token). */
   tenantRole: string | null
-  /** true when the current access token includes owner/admin for the active workspace. */
+  /** Platform super administrator from JWT ``sa`` or authorization API. */
+  isSuperAdmin: boolean
+  /** Tenant administrator from authorization API. */
+  isTenantAdmin: boolean
+  /** Workspace admin from JWT ``wrole``. */
+  isWorkspaceAdmin: boolean
+  /** @deprecated Use isWorkspaceAdmin */
   isWorkspaceManager: boolean
-  /** true when ``trole`` is owner or admin (skills-mgmt and other tenant-wide admin UI). */
+  /** Enabled tenant feature codes from authorization API. */
+  tenantFeatures: ReadonlySet<string>
+  /** Effective permission codes; super-admin behaves as full access in hasPerm. */
+  permissions: ReadonlySet<string>
+  hasPerm: (code: string) => boolean
+  /** true when ``trole`` is admin or tenant admin grant (skills UI). */
   canManageTenantSkills: boolean
   isAuthenticated: boolean
   setTokens: (a: string, r: string) => void
@@ -141,14 +170,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => readTenantRoleFromToken(accessToken),
     [accessToken],
   )
-  const isWorkspaceManager = useMemo(() => {
+  const isSuperAdminFromToken = useMemo(
+    () => readSuperAdminFromToken(accessToken),
+    [accessToken],
+  )
+
+  const authzQuery = useQuery({
+    queryKey: ['auth', 'authorization', accessToken ?? ''],
+    queryFn: fetchAuthorization,
+    enabled: Boolean(accessToken),
+    staleTime: 60_000,
+  })
+
+  const isWorkspaceAdmin = useMemo(() => {
     const r = workspaceRole?.toLowerCase()
-    return r === 'owner' || r === 'admin'
+    return r === 'admin'
   }, [workspaceRole])
+
+  const isWorkspaceManager = isWorkspaceAdmin
+
+  const isSuperAdmin = isSuperAdminFromToken || Boolean(authzQuery.data?.is_super_admin)
+  const isTenantAdmin = Boolean(authzQuery.data?.is_tenant_admin)
+  const tenantFeatures = useMemo(
+    () => new Set(authzQuery.data?.tenant_features ?? []),
+    [authzQuery.data?.tenant_features],
+  )
+  const permissions = useMemo(
+    () => new Set(authzQuery.data?.permissions ?? []),
+    [authzQuery.data?.permissions],
+  )
+
+  const hasPerm = useCallback(
+    (code: string) => {
+      if (isSuperAdmin || permissions.has('*')) return true
+      return permissions.has(code)
+    },
+    [isSuperAdmin, permissions],
+  )
+
   const canManageTenantSkills = useMemo(() => {
+    if (isSuperAdmin || isTenantAdmin) return true
     const r = tenantRole?.toLowerCase()
-    return r === 'owner' || r === 'admin'
-  }, [tenantRole])
+    return r === 'admin'
+  }, [isSuperAdmin, isTenantAdmin, tenantRole])
 
   const setTokens = useCallback((a: string, r: string) => {
     setStoredTokens(a, r)
@@ -172,7 +236,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       workspaceId,
       workspaceRole,
       tenantRole,
+      isSuperAdmin,
+      isTenantAdmin,
+      isWorkspaceAdmin,
       isWorkspaceManager,
+      tenantFeatures,
+      permissions,
+      hasPerm,
       canManageTenantSkills,
       isAuthenticated: Boolean(accessToken),
       setTokens,
@@ -185,7 +255,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       workspaceId,
       workspaceRole,
       tenantRole,
+      isSuperAdmin,
+      isTenantAdmin,
+      isWorkspaceAdmin,
       isWorkspaceManager,
+      tenantFeatures,
+      permissions,
+      hasPerm,
       canManageTenantSkills,
       setTokens,
       clear,

@@ -1,7 +1,7 @@
 # 统一权限网关（RBAC + ABAC 混合 + 独立授权表）设计说明
 
 **日期**：2026-07-01  
-**状态**：已批准，待实现  
+**状态**：部分实现（P0–P1 进行中，2026-07-01）  
 **范围**：引入独立授权表、统一 `PermissionGateway`、身份层 `owner` 合并为 `admin`、`sys_role` 改为 tenant 作用域；超管租户功能开通与租户管理员授权链；JWT/前端权限对齐。  
 **依赖**：
 - [2026-06-10-menu-management-design.md](./2026-06-10-menu-management-design.md)（`sys_menu`、侧栏、perms）

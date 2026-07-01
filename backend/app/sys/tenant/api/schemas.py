@@ -89,3 +89,27 @@ class SysWorkspaceListPageOut(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class SysTenantEntitlementsOut(BaseModel):
+    """Enabled feature codes for one tenant."""
+
+    feature_codes: list[str]
+
+
+class SysTenantEntitlementsPutIn(BaseModel):
+    """Replace tenant feature entitlements."""
+
+    feature_codes: list[str]
+
+
+class SysTenantAdminsOut(BaseModel):
+    """Tenant administrator user ids."""
+
+    user_ids: list[uuid.UUID]
+
+
+class SysTenantAdminsPutIn(BaseModel):
+    """Replace tenant administrator grants."""
+
+    user_ids: list[uuid.UUID]

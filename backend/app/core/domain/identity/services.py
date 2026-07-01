@@ -60,14 +60,14 @@ async def register_user(
         TenantMembership(
             user_id=user.id,
             tenant_id=tenant.id,
-            role=MembershipRole.owner,
+            role=MembershipRole.admin,
         )
     )
     session.add(
         WorkspaceMembership(
             user_id=user.id,
             workspace_id=workspace.id,
-            role=MembershipRole.owner,
+            role=MembershipRole.admin,
         )
     )
     await session.commit()
@@ -97,6 +97,15 @@ async def authenticate_user(
         .limit(1)
     )
     first = ws_row.first()
+    if first is None and user.is_super_admin:
+        ws_row = await session.execute(
+            select(Workspace, Tenant)
+            .select_from(Workspace)
+            .join(Tenant, Tenant.id == Workspace.tenant_id)
+            .where(Tenant.status.is_(True), Workspace.status.is_(True))
+            .limit(1)
+        )
+        first = ws_row.first()
     if first is None:
         return None
     workspace, tenant = first
@@ -187,19 +196,33 @@ async def is_super_admin_user(session: AsyncSession, *, user_id: uuid.UUID) -> b
 async def is_any_tenant_owner_or_admin(
     session: AsyncSession, *, user_id: uuid.UUID
 ) -> bool:
-    """True when super-admin, or owner/admin in at least one tenant."""
+    """True when super-admin, tenant admin grant, or tenant membership admin."""
 
     if await is_super_admin_user(session, user_id=user_id):
         return True
     r = await session.execute(
-        select(TenantMembership.id)
+        select(TenantMembership.tenant_id)
         .where(
             TenantMembership.user_id == user_id,
-            TenantMembership.role.in_((MembershipRole.owner, MembershipRole.admin)),
+            TenantMembership.role == MembershipRole.admin,
         )
         .limit(1)
     )
-    return r.scalar_one_or_none() is not None
+    if r.scalar_one_or_none() is not None:
+        return True
+    from app.core.domain.authorization.models import GrantScopeType, GrantType, SysUserGrant
+
+    g = await session.execute(
+        select(SysUserGrant.id)
+        .where(
+            SysUserGrant.user_id == user_id,
+            SysUserGrant.grant_type == GrantType.tenant_admin.value,
+            SysUserGrant.scope_type == GrantScopeType.tenant.value,
+            SysUserGrant.status.is_(True),
+        )
+        .limit(1)
+    )
+    return g.scalar_one_or_none() is not None
 
 
 async def is_any_workspace_member(

@@ -137,7 +137,7 @@ async def get_mcp_client(
     role = await find_workspace_role_for_user(
         session, user_id=user.id, workspace_id=workspace_id
     )
-    can_manage = role in (MembershipRole.owner, MembershipRole.admin)
+    can_manage = role == MembershipRole.admin
     return _client_detail(row, redact_secrets=not can_manage)
 
 

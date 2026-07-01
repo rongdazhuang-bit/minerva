@@ -8,7 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-MembershipRoleLiteral = Literal["owner", "admin", "member"]
+MembershipRoleLiteral = Literal["admin", "member"]
 
 
 class SysUserCreateIn(BaseModel):

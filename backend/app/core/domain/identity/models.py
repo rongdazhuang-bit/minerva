@@ -18,7 +18,6 @@ from app.core.infrastructure.db.base import Base
 class MembershipRole(str, enum.Enum):
     """Tenant/workspace authorization role bucket."""
 
-    owner = "owner"
     admin = "admin"
     member = "member"
 

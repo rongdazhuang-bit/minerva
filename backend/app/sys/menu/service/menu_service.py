@@ -10,7 +10,7 @@ from typing import Any
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.domain.identity.services import is_super_admin_user
+from app.core.domain.identity.models import User, Workspace
 from app.exceptions import AppError
 from app.sys.menu.api.schemas import SysMenuNodeOut
 from app.sys.menu.domain.db.models import SysMenu
@@ -213,25 +213,25 @@ async def list_nav_tree_for_user(
 ) -> list[SysMenuNodeOut]:
     """Return sidebar tree filtered by the user's enabled roles in the workspace."""
 
-    rows = await repo.list_all(session)
-    nav_rows = filter_nav_rows(rows)
-    if await is_super_admin_user(session, user_id=user_id):
-        return build_menu_tree(nav_rows)
-
-    role_ids = await user_repo.list_role_ids_for_user_in_workspace(
-        session,
-        workspace_id=workspace_id,
-        user_id=user_id,
-        enabled_only=True,
-    )
-    if not role_ids:
+    user = await session.get(User, user_id)
+    if user is None:
         return []
 
-    granted_menu_ids = set(
-        await role_repo.list_menu_ids_for_roles(session, role_ids)
+    ws = await session.get(Workspace, workspace_id)
+    tenant_id = ws.tenant_id if ws is not None else None
+    from app.core.security.permission_resolver import build_permission_context
+
+    ctx = await build_permission_context(
+        session,
+        user=user,
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
     )
-    allowed_ids = expand_allowed_nav_menu_ids(rows, granted_menu_ids)
-    return build_menu_tree(filter_rows_by_menu_ids(nav_rows, allowed_ids))
+    rows = await repo.list_all(session)
+    nav_rows = filter_nav_rows(rows)
+    if ctx.is_super_admin:
+        return build_menu_tree(nav_rows)
+    return build_menu_tree(filter_rows_by_menu_ids(nav_rows, set(ctx.menu_ids)))
 
 
 async def create_menu(session: AsyncSession, data: dict[str, Any]) -> SysMenu:

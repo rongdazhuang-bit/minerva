@@ -8,7 +8,8 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, File, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api.deps import get_current_user, require_workspace_member
+from app.core.api.deps import get_current_user
+from app.dataset.api.deps import require_dataset_workspace
 from app.core.domain.identity.models import User
 from app.dependencies import get_db
 from app.dataset.api.schemas import (
@@ -68,7 +69,7 @@ async def list_datasets(
     indexing_technique: str | None = Query(default=None, description="high_quality 或 economy"),
     created_from: datetime | None = Query(default=None),
     created_to: datetime | None = Query(default=None),
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetListPageOut:
     """List knowledge bases with optional name, indexing mode, and date filters."""
@@ -92,7 +93,7 @@ async def create_dataset(
     workspace_id: uuid.UUID,
     body: DatasetCreateIn,
     user: User = Depends(get_current_user),
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetDetailOut:
     """Create an empty knowledge base (Dify POST /datasets)."""
@@ -112,7 +113,7 @@ async def upload_dataset_source_file(
     workspace_id: uuid.UUID,
     file: UploadFile = File(...),
     user: User = Depends(get_current_user),
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetUploadOut:
     """Upload one source file for dataset ingestion."""
@@ -136,7 +137,7 @@ async def upload_dataset_source_file(
 @router.get("/process-rule", response_model=DatasetProcessRuleOut)
 async def get_default_process_rule(
     workspace_id: uuid.UUID,
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
 ) -> DatasetProcessRuleOut:
     """Return default chunking and cleaning rules."""
 
@@ -147,7 +148,7 @@ async def get_default_process_rule(
 async def estimate_dataset_indexing(
     workspace_id: uuid.UUID,
     body: DatasetIndexingEstimateIn,
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetIndexingEstimateOut:
     """Preview chunking for uploaded files without persisting a dataset."""
@@ -168,7 +169,7 @@ async def init_dataset(
     workspace_id: uuid.UUID,
     body: DatasetInitIn,
     user: User = Depends(get_current_user),
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetInitOut:
     """Create a knowledge base with documents and enqueue indexing."""
@@ -194,7 +195,7 @@ async def init_dataset(
 async def get_dataset(
     workspace_id: uuid.UUID,
     dataset_id: uuid.UUID,
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetDetailOut:
     """Return one knowledge base detail."""
@@ -211,7 +212,7 @@ async def patch_dataset(
     dataset_id: uuid.UUID,
     body: DatasetPatchIn,
     user: User = Depends(get_current_user),
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetDetailOut:
     """Update knowledge base settings."""
@@ -233,7 +234,7 @@ async def patch_dataset(
 async def delete_dataset(
     workspace_id: uuid.UUID,
     dataset_id: uuid.UUID,
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete one knowledge base and all dependent rows."""
@@ -250,7 +251,7 @@ async def list_documents(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
     keyword: str | None = Query(default=None),
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetDocumentListPageOut:
     """List documents within one knowledge base."""
@@ -275,7 +276,7 @@ async def append_documents(
     dataset_id: uuid.UUID,
     body: DatasetDocumentAppendIn,
     user: User = Depends(get_current_user),
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetDocumentAppendOut:
     """Append uploaded files to an existing knowledge base."""
@@ -296,7 +297,7 @@ async def get_document(
     workspace_id: uuid.UUID,
     dataset_id: uuid.UUID,
     document_id: uuid.UUID,
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetDocumentOut:
     """Return one document detail."""
@@ -316,7 +317,7 @@ async def patch_document(
     dataset_id: uuid.UUID,
     document_id: uuid.UUID,
     body: DatasetDocumentPatchIn,
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetDocumentOut:
     """Rename or update one document."""
@@ -340,7 +341,7 @@ async def get_document_indexing_status(
     workspace_id: uuid.UUID,
     dataset_id: uuid.UUID,
     document_id: uuid.UUID,
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetDocumentIndexingStatusOut:
     """Return indexing progress for one document."""
@@ -359,7 +360,7 @@ async def delete_document(
     workspace_id: uuid.UUID,
     dataset_id: uuid.UUID,
     document_id: uuid.UUID,
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete one document."""
@@ -377,7 +378,7 @@ async def enable_document(
     workspace_id: uuid.UUID,
     dataset_id: uuid.UUID,
     document_id: uuid.UUID,
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetDocumentOut:
     """Enable one document."""
@@ -397,7 +398,7 @@ async def disable_document(
     workspace_id: uuid.UUID,
     dataset_id: uuid.UUID,
     document_id: uuid.UUID,
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetDocumentOut:
     """Disable one document."""
@@ -417,7 +418,7 @@ async def retry_document(
     workspace_id: uuid.UUID,
     dataset_id: uuid.UUID,
     document_id: uuid.UUID,
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetDocumentOut:
     """Retry indexing for one failed document."""
@@ -439,7 +440,7 @@ async def reprocess_document_indexing(
     workspace_id: uuid.UUID,
     dataset_id: uuid.UUID,
     document_id: uuid.UUID,
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetDocumentOut:
     """Reprocess one document with its current process_rule and enqueue indexing."""
@@ -457,7 +458,7 @@ async def reprocess_document_indexing(
 async def retry_dataset(
     workspace_id: uuid.UUID,
     dataset_id: uuid.UUID,
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetRetryOut:
     """Retry all failed documents in one knowledge base."""
@@ -475,7 +476,7 @@ async def pause_document(
     workspace_id: uuid.UUID,
     dataset_id: uuid.UUID,
     document_id: uuid.UUID,
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetDocumentOut:
     """Mark one document as paused."""
@@ -495,7 +496,7 @@ async def resume_document(
     workspace_id: uuid.UUID,
     dataset_id: uuid.UUID,
     document_id: uuid.UUID,
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetDocumentOut:
     """Resume one paused document."""
@@ -521,7 +522,7 @@ async def list_segments(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
     keyword: str | None = Query(default=None),
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetSegmentListPageOut:
     """List segments for one document."""
@@ -551,7 +552,7 @@ async def create_segment(
     document_id: uuid.UUID,
     body: DatasetSegmentCreateIn,
     user: User = Depends(get_current_user),
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetSegmentOut:
     """Create one segment and sync indexes."""
@@ -577,7 +578,7 @@ async def patch_segment(
     document_id: uuid.UUID,
     segment_id: uuid.UUID,
     body: DatasetSegmentPatchIn,
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetSegmentOut:
     """Update segment content and rebuild indexes."""
@@ -602,7 +603,7 @@ async def list_segment_child_chunks(
     dataset_id: uuid.UUID,
     document_id: uuid.UUID,
     segment_id: uuid.UUID,
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetChildChunkListOut:
     """List child chunks for one parent segment (hierarchical mode)."""
@@ -629,7 +630,7 @@ async def create_segment_child_chunk(
     segment_id: uuid.UUID,
     body: DatasetChildChunkCreateIn,
     user: User = Depends(get_current_user),
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetChildChunkOut:
     """Create one child chunk under a parent segment (Dify POST child_chunks)."""
@@ -657,7 +658,7 @@ async def patch_segment_child_chunk(
     segment_id: uuid.UUID,
     child_chunk_id: uuid.UUID,
     body: DatasetChildChunkPatchIn,
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetChildChunkOut:
     """Update one child chunk content and rebuild its index."""
@@ -684,7 +685,7 @@ async def delete_segment_child_chunk(
     document_id: uuid.UUID,
     segment_id: uuid.UUID,
     child_chunk_id: uuid.UUID,
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete one child chunk and remove its vector/keyword index."""
@@ -708,7 +709,7 @@ async def delete_segment(
     dataset_id: uuid.UUID,
     document_id: uuid.UUID,
     segment_id: uuid.UUID,
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete one segment."""
@@ -731,7 +732,7 @@ async def enable_segment(
     dataset_id: uuid.UUID,
     document_id: uuid.UUID,
     segment_id: uuid.UUID,
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetSegmentOut:
     """Enable one segment."""
@@ -756,7 +757,7 @@ async def disable_segment(
     dataset_id: uuid.UUID,
     document_id: uuid.UUID,
     segment_id: uuid.UUID,
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetSegmentOut:
     """Disable one segment."""
@@ -778,7 +779,7 @@ async def hit_testing(
     dataset_id: uuid.UUID,
     body: HitTestingIn,
     user: User = Depends(get_current_user),
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> HitTestingOut:
     """Run recall test against dataset segments."""
@@ -800,7 +801,7 @@ async def list_dataset_queries(
     dataset_id: uuid.UUID,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetQueryListPageOut:
     """List hit-testing query history."""
@@ -823,7 +824,7 @@ async def get_batch_indexing_status(
     workspace_id: uuid.UUID,
     dataset_id: uuid.UUID,
     batch: str,
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _member: uuid.UUID = Depends(require_dataset_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DatasetBatchIndexingStatusOut:
     """Poll indexing progress for one wizard batch."""

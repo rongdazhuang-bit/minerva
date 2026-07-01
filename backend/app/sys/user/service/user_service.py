@@ -35,7 +35,6 @@ _USER_FORM_META_LIMIT = 500
 
 
 _ALL_MEMBERSHIP_ROLES = [
-    MembershipRole.owner.value,
     MembershipRole.admin.value,
     MembershipRole.member.value,
 ]
@@ -51,8 +50,6 @@ def resolve_assignable_membership_roles(
 
     if actor_is_super_admin:
         return list(_ALL_MEMBERSHIP_ROLES)
-    if actor_workspace_role == MembershipRole.owner:
-        return [MembershipRole.owner.value, MembershipRole.member.value]
     if actor_workspace_role == MembershipRole.admin:
         return [MembershipRole.admin.value, MembershipRole.member.value]
     return []
@@ -68,7 +65,7 @@ def can_edit_membership_role(
 
     if actor_is_super_admin:
         return True
-    return actor_workspace_role in (MembershipRole.owner, MembershipRole.admin)
+    return actor_workspace_role == MembershipRole.admin
 
 
 def assert_membership_role_assignable(
@@ -81,16 +78,6 @@ def assert_membership_role_assignable(
 ) -> None:
     """Raise AppError when membership_role assignment is not allowed."""
 
-    if (
-        not actor_is_super_admin
-        and target_current_role == MembershipRole.owner
-        and actor_workspace_role == MembershipRole.admin
-    ):
-        raise AppError(
-            "user.membership_role_forbidden",
-            "Cannot change workspace owner membership role",
-            403,
-        )
     if membership_role.value not in assignable_roles:
         raise AppError(
             "user.membership_role_forbidden",

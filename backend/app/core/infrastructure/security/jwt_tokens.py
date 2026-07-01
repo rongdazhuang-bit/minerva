@@ -20,6 +20,7 @@ def create_access_token(
     workspace_id: uuid.UUID,
     workspace_role: str | None = None,
     tenant_role: str | None = None,
+    is_super_admin: bool = False,
 ) -> str:
     """Mint a short-lived access JWT including tenant/workspace context."""
 
@@ -29,6 +30,7 @@ def create_access_token(
         "sub": str(user_id),
         "tid": str(tenant_id),
         "wid": str(workspace_id),
+        "sa": bool(is_super_admin),
         "type": "access",
         "exp": exp,
         "iat": now,
