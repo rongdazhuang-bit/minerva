@@ -8,7 +8,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api.deps import get_current_user, require_workspace_member
+from app.core.api.deps import get_current_user
+from app.rule.api.deps import require_rules_workspace
 from app.dependencies import get_db
 from app.core.domain.identity.models import User
 from app.pagination import DEFAULT_PAGE_SIZE
@@ -107,7 +108,7 @@ async def list_rule_base(
     subject_code: str | None = Query(default=None),
     document_type: str | None = Query(default=None),
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_rules_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> RuleBaseListPageOut:
     """Return paginated Rule Base rows filtered by optional query facets."""
@@ -135,7 +136,7 @@ async def list_rule_base(
 async def read_rule_base_overview_stats(
     workspace_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_rules_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> RuleBaseOverviewStatsOut:
     """Expose aggregate counts and distinct filter-value buckets."""
@@ -160,7 +161,7 @@ async def create_rule_base(
     workspace_id: uuid.UUID,
     body: RuleBaseCreateIn,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_rules_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> RuleBaseListItemOut:
     """Persist a newly authored Rule Base row."""
@@ -191,7 +192,7 @@ async def polish_review_rules(
     workspace_id: uuid.UUID,
     body: RuleBasePolishReviewRulesIn,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_rules_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> RuleBasePolishReviewRulesOut:
     """Invoke downstream polishing pipeline for AI-assisted rule text."""
@@ -213,7 +214,7 @@ async def patch_rule_base(
     rule_id: uuid.UUID,
     body: RuleBasePatchIn,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_rules_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> RuleBaseListItemOut:
     """Apply partial updates or short-circuit fetch when payload empty."""
@@ -238,7 +239,7 @@ async def remove_rule_base(
     workspace_id: uuid.UUID,
     rule_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_rules_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> Response:
     """Hard-delete Rule Base row scoped to workspace."""

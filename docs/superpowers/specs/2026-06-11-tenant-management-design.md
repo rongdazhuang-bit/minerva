@@ -7,6 +7,8 @@
 
 **包路径说明**：Python 包名为 `app.sys`；业务代码使用 `from app.sys.tenant...` 等完整限定导入。ORM 模型仍位于 `app.core.domain.identity.models`（`Tenant`、`Workspace`）。
 
+**权限网关（Supersede 部分）**：租户级 entitlement、tenant 管理员 grant 与统一鉴权见 [2026-07-01-unified-permission-gateway-design.md](./2026-07-01-unified-permission-gateway-design.md)；本 spec 的超管 CRUD 基线仍有效，扩展能力以网关 spec 为准。
+
 ---
 
 ## 1. 目标与成功标准

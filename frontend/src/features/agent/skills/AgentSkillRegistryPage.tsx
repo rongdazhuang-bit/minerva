@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next'
 import { useBlocker, useNavigate } from 'react-router-dom'
 import { readSkillFile, writeSkillFile } from '@/api/agentSkillsMgmt'
 import { useAuth } from '@/app/AuthContext'
+import { useCanManageTenantSkills } from '@/components/PermGuard'
 import { showAppError, useAppMessage } from '@/app/useAppMessage'
 import { SkillFileEditor } from '@/features/agent/skills/components/SkillFileEditor'
 import './AgentSkillsPage.css'
@@ -21,7 +22,8 @@ export function AgentSkillRegistryPage() {
   const { t } = useTranslation()
   const messageApi = useAppMessage()
   const navigate = useNavigate()
-  const { workspaceId, canManageTenantSkills } = useAuth()
+  const { workspaceId } = useAuth()
+  const canManageTenantSkills = useCanManageTenantSkills()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [content, setContent] = useState('')

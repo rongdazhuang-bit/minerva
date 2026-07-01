@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.domain.identity.models import Tenant, User, Workspace
 from app.dependencies import get_db
 from app.pagination import DEFAULT_PAGE_SIZE
-from app.sys.tenant.api.deps import require_super_admin
+from app.sys.tenant.api.deps import require_grant_manager, require_super_admin, require_tenant_admin
 from app.sys.tenant.api.schemas import (
     SysTenantAdminsOut,
     SysTenantAdminsPutIn,
@@ -21,12 +21,16 @@ from app.sys.tenant.api.schemas import (
     SysTenantListPageOut,
     SysTenantOut,
     SysTenantPatchIn,
+    SysUserGrantCreateIn,
+    SysUserGrantListPageOut,
+    SysUserGrantOut,
     SysWorkspaceCreateIn,
     SysWorkspaceListPageOut,
     SysWorkspaceOut,
     SysWorkspacePatchIn,
 )
 from app.sys.tenant.service import entitlement_service as entitlement_svc
+from app.sys.tenant.service import grant_service as grant_svc
 from app.sys.tenant.service import tenant_service as svc
 
 router = APIRouter(prefix="/sys/tenants", tags=["tenants"])
@@ -289,3 +293,74 @@ async def put_tenant_admins(
         granted_by_user_id=admin.id,
     )
     return SysTenantAdminsOut(user_ids=user_ids)
+
+
+@router.get("/{tenant_id}/grants", response_model=SysUserGrantListPageOut)
+async def list_tenant_grants(
+    tenant_id: uuid.UUID,
+    grant_type: str | None = Query(default=None),
+    user_id: uuid.UUID | None = Query(default=None),
+    scope_type: str | None = Query(default=None),
+    workspace_id: uuid.UUID | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
+    session: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_grant_manager),
+) -> SysUserGrantListPageOut:
+    """List authorization grants visible within one tenant."""
+
+    items, total = await grant_svc.list_grants_page(
+        session,
+        tenant_id=tenant_id,
+        page=page,
+        page_size=page_size,
+        grant_type=grant_type,
+        user_id=user_id,
+        scope_type=scope_type,
+        workspace_id=workspace_id,
+        actor_user_id=admin.id,
+    )
+    return SysUserGrantListPageOut(
+        items=[SysUserGrantOut.model_validate(i) for i in items],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.post("/{tenant_id}/grants", response_model=SysUserGrantOut, status_code=201)
+async def create_tenant_grant(
+    tenant_id: uuid.UUID,
+    body: SysUserGrantCreateIn,
+    session: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_grant_manager),
+) -> SysUserGrantOut:
+    """Create a role or direct_permission grant within tenant scope."""
+
+    row = await grant_svc.create_grant(
+        session,
+        tenant_id=tenant_id,
+        user_id=body.user_id,
+        grant_type=body.grant_type,
+        role_id=body.role_id,
+        permission_id=body.permission_id,
+        scope_type=body.scope_type,
+        scope_id=body.scope_id,
+        granted_by_user_id=admin.id,
+    )
+    return SysUserGrantOut.model_validate(row)
+
+
+@router.delete("/{tenant_id}/grants/{grant_id}", status_code=204)
+async def delete_tenant_grant(
+    tenant_id: uuid.UUID,
+    grant_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_grant_manager),
+) -> Response:
+    """Revoke one grant within tenant scope."""
+
+    await grant_svc.delete_grant(
+        session, tenant_id=tenant_id, grant_id=grant_id, actor_user_id=admin.id
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -127,7 +127,7 @@ const viewDrawerDescriptionStyles: NonNullable<DescriptionsProps['styles']> = {
 export function ModelProvidersPage() {
   const { t } = useTranslation()
   const message = useAppMessage()
-  const { workspaceId, isWorkspaceManager, workspaceRole, isAuthenticated } = useAuth()
+  const { workspaceId, isWorkspaceAdmin, workspaceRole, isAuthenticated } = useAuth()
   const [form] = Form.useForm<FormValues>()
 
   const [groups, setGroups] = useState<ModelProviderGroup[]>([])
@@ -445,7 +445,7 @@ export function ModelProvidersPage() {
 
   const onSubmit = async (values: FormValues) => {
     if (!workspaceId) return
-    if (!isWorkspaceManager) {
+    if (!isWorkspaceAdmin) {
       void message.error(t('settings.modelProvidersReadOnly'))
       return
     }
@@ -509,7 +509,7 @@ export function ModelProvidersPage() {
   }
 
   const handleToggleEnabled = async (row: ModelProviderGroupItem, next: boolean) => {
-    if (!workspaceId || !isWorkspaceManager) return
+    if (!workspaceId || !isWorkspaceAdmin) return
     const prev = row.enabled
     setGroups((g0) =>
       g0.map((g) => ({
@@ -586,7 +586,7 @@ export function ModelProvidersPage() {
       render: (v, row) => (
         <Switch
           checked={Boolean(v)}
-          disabled={!isWorkspaceManager}
+          disabled={!isWorkspaceAdmin}
           onChange={(n) => void handleToggleEnabled(row, n)}
         />
       ),
@@ -610,7 +610,7 @@ export function ModelProvidersPage() {
             onClick={() => void openView(row.id)}
             aria-label={t('settings.modelProvidersView')}
           />
-          {isWorkspaceManager ? (
+          {isWorkspaceAdmin ? (
             <>
               <Button
                 type="text"
@@ -652,13 +652,13 @@ export function ModelProvidersPage() {
           message={t('settings.modelProvidersTokenMissingRole')}
         />
       ) : null}
-      {isWorkspaceManager ? null : (
+      {isWorkspaceAdmin ? null : (
         <Alert className="minerva-model-providers__ro" type="info" showIcon message={t('settings.modelProvidersReadOnlyHint')} />
       )}
 
       <Card size="small" variant="borderless" className="minerva-model-providers__card">
         <div className="minerva-model-providers__toolbar">
-          {isWorkspaceManager ? (
+          {isWorkspaceAdmin ? (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => openCreate()} disabled={dictLoading && providerOptions.length === 0}>
               {t('settings.modelProvidersAdd')}
             </Button>
@@ -708,7 +708,7 @@ export function ModelProvidersPage() {
                         scroll={{ x: tableScrollX }}
                         locale={{ emptyText: t('settings.modelProvidersEmpty') }}
                         footer={
-                          isWorkspaceManager
+                          isWorkspaceAdmin
                             ? () => (
                                 <div className="minerva-model-providers__group-footer">
                                   <Button

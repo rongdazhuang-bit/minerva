@@ -35,6 +35,7 @@ export type SysUserCapabilities = {
   can_edit_membership_role: boolean
   assignable_membership_roles: string[]
   can_pick_tenant_workspace: boolean
+  is_tenant_admin: boolean
   default_tenant_id: string | null
 }
 

@@ -9,7 +9,8 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api.deps import get_current_user, require_workspace_member
+from app.core.api.deps import get_current_user
+from app.file_ocr.api.deps import require_ocr_workspace
 from app.dependencies import get_db
 from app.core.domain.identity.models import User
 from app.exceptions import AppError
@@ -55,7 +56,7 @@ async def list_ocr_files(
     create_at_start: datetime | None = Query(default=None),
     create_at_end: datetime | None = Query(default=None),
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_ocr_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> OcrFileListPageOut:
     """Return paginated OCR task rows with optional query filters."""
@@ -89,7 +90,7 @@ async def create_ocr_files(
     workspace_id: uuid.UUID,
     body: OcrFileCreateIn,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_ocr_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> OcrFileBatchCreateOut:
     """Create INIT OCR task rows after source files were uploaded to S3.
@@ -124,7 +125,7 @@ async def create_ocr_files(
 async def get_ocr_file_overview_stats(
     workspace_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_ocr_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> OcrFileOverviewStatsOut:
     """Return grouped OCR file-task counts for INIT/PROCESS/SUCCESS/FAILED statuses."""
@@ -160,7 +161,7 @@ async def get_ocr_file_overview_stats(
 async def get_ocr_file_overview_log_daily_stats(
     workspace_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_ocr_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> OcrFileOverviewLogDailyStatsOut:
     """Return last 30 local days of OCR log success/fail counts by engine."""
@@ -187,7 +188,7 @@ async def list_ocr_file_logs(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_ocr_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> OcrFileLogListPageOut:
     """Return paginated OCR run logs for one task in the workspace."""
@@ -221,7 +222,7 @@ async def get_ocr_file_layout_pages_endpoint(
     workspace_id: uuid.UUID,
     ocr_file_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_ocr_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> OcrLayoutPagesOut:
     """Return per-page layout blocks, rasters, and derived markdown for preview."""
@@ -236,7 +237,7 @@ async def get_ocr_file_markdown_pages_endpoint(
     workspace_id: uuid.UUID,
     ocr_file_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_ocr_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> OcrFileMarkdownPagesOut:
     """Return per-page markdown and parsed image maps for a SUCCESS OCR task."""
@@ -251,7 +252,7 @@ async def retry_ocr_file(
     workspace_id: uuid.UUID,
     ocr_file_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_ocr_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> OcrFileListItemOut:
     """Reset a finished or failed task to INIT so the OCR worker can pick it up again."""
@@ -292,7 +293,7 @@ async def delete_ocr_file(
     workspace_id: uuid.UUID,
     ocr_file_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_ocr_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> Response:
     """Delete one OCR task row in the current workspace."""

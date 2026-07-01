@@ -1,0 +1,31 @@
+.minerva-permissions-page {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.minerva-permissions-page__card {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.minerva-permissions-page__card .ant-card-body {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-permissions-page__header {
+  flex-shrink: 0;
+}
+
+.minerva-permissions-page__table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: 12px;
+}

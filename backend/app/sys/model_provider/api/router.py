@@ -8,7 +8,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api.deps import get_current_user, require_workspace_member, require_workspace_owner_or_admin
+from app.core.api.deps import get_current_user, require_workspace_member
+from app.core.security.permission_deps import require_workspace_manage
 from app.dependencies import get_db
 from app.core.domain.identity.models import User
 from app.sys.model_provider.api.schemas import (
@@ -160,7 +161,7 @@ async def create_model(
     workspace_id: uuid.UUID,
     body: ModelProviderCreateIn,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_workspace_manage),
     session: AsyncSession = Depends(get_db),
 ) -> ModelProviderDetailOut:
     row = await svc.create_model(
@@ -187,7 +188,7 @@ async def patch_model(
     model_id: uuid.UUID,
     body: ModelProviderPatchIn,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_workspace_manage),
     session: AsyncSession = Depends(get_db),
 ) -> ModelProviderDetailOut:
     patch = _to_patch_dict(body)
@@ -211,7 +212,7 @@ async def delete_model(
     workspace_id: uuid.UUID,
     model_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_workspace_manage),
     session: AsyncSession = Depends(get_db),
 ) -> Response:
     await svc.delete_model(session, workspace_id=workspace_id, model_id=model_id)

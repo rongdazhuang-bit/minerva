@@ -10,11 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.api.deps import (
     require_workspace_member,
-    require_workspace_owner_or_admin,
 )
 from app.dependencies import get_db
 from app.pagination import DEFAULT_PAGE_SIZE
 from app.sys.menu.api.schemas import SysMenuNodeOut
+from app.sys.role.api.deps import require_tenant_role_manager
 from app.sys.role.api.schemas import (
     SysRoleCreateIn,
     SysRoleDetailOut,
@@ -110,7 +110,7 @@ async def create_role(
     workspace_id: uuid.UUID,
     body: SysRoleCreateIn,
     session: AsyncSession = Depends(get_db),
-    _admin: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _admin: uuid.UUID = Depends(require_tenant_role_manager),
 ) -> SysRoleDetailOut:
     """Create a role in the current workspace."""
 
@@ -132,7 +132,7 @@ async def patch_role(
     role_id: uuid.UUID,
     body: SysRolePatchIn,
     session: AsyncSession = Depends(get_db),
-    _admin: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _admin: uuid.UUID = Depends(require_tenant_role_manager),
 ) -> SysRoleDetailOut:
     """Partially update a workspace role."""
 
@@ -156,7 +156,7 @@ async def delete_role(
     workspace_id: uuid.UUID,
     role_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
-    _admin: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _admin: uuid.UUID = Depends(require_tenant_role_manager),
 ) -> Response:
     """Delete a role and its menu links."""
 

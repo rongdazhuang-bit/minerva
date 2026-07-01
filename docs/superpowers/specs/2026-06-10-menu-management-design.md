@@ -6,6 +6,8 @@
 
 **包路径说明**：Python 包名为 `app.sys`（与标准库 `sys` 不同）；业务代码使用 `from app.sys.menu...` 等完整限定导入。
 
+**权限网关（Supersede 部分）**：本 spec 中侧栏按 `sys_role_menu` 过滤、菜单写鉴权依赖 tenant membership `owner/admin` 的约定，已由 [2026-07-01-unified-permission-gateway-design.md](./2026-07-01-unified-permission-gateway-design.md) 替代；侧栏经 `PermissionContext`，菜单写鉴权为超管或 tenant_admin grant。
+
 ---
 
 ## 1. 目标与成功标准

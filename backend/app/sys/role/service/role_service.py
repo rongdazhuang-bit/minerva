@@ -42,7 +42,7 @@ async def _commit_or_conflict(session: AsyncSession) -> None:
         if _is_unique_violation(e):
             raise AppError(
                 "role.conflict",
-                "Duplicate role_key in workspace",
+                "Duplicate role_key in tenant",
                 409,
             ) from e
         raise
@@ -135,8 +135,14 @@ async def create_role(
 
     menu_ids: list[uuid.UUID] = list(data.get("menu_ids") or [])
     await _validate_menu_ids(session, menu_ids)
+    tenant_id = await repo.get_tenant_id_for_workspace(
+        session, workspace_id=workspace_id
+    )
+    if tenant_id is None:
+        raise AppError("role.workspace_invalid", "Workspace not found", 404)
     now = _utc_now()
     row = SysRole(
+        tenant_id=tenant_id,
         workspace_id=workspace_id,
         role_name=str(data["role_name"]).strip(),
         role_key=str(data["role_key"]).strip(),
@@ -193,7 +199,7 @@ async def delete_role(
     """Delete role and all menu links in one transaction."""
 
     await _require_role(session, workspace_id=workspace_id, role_id=role_id)
-    await repo.delete_role_menus(session, role_id)
+    await repo.delete_role_permissions(session, role_id)
     await repo.delete_role(session, role_id)
     await session.commit()
 

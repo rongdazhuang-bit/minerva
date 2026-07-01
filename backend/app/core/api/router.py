@@ -22,6 +22,7 @@ from app.agent.api.v2.router import router as agent_router
 from app.translate.api.router import router as translate_router
 from app.sys.celery.api.router import router as celery_jobs_router
 from app.dataset.api.router import router as datasets_router
+from app.sys.permission.api.router import router as permissions_router
 
 api = APIRouter()
 api.include_router(auth.router)
@@ -44,3 +45,4 @@ api.include_router(rule_base_router)
 api.include_router(rule_config_prompt_router)
 api.include_router(celery_jobs_router)
 api.include_router(datasets_router)
+api.include_router(permissions_router)

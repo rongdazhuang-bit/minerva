@@ -103,15 +103,13 @@ type AuthValue = {
   isTenantAdmin: boolean
   /** Workspace admin from JWT ``wrole``. */
   isWorkspaceAdmin: boolean
-  /** @deprecated Use isWorkspaceAdmin */
-  isWorkspaceManager: boolean
+  /** Active tenant id from authorization API (null before load). */
+  tenantId: string | null
   /** Enabled tenant feature codes from authorization API. */
   tenantFeatures: ReadonlySet<string>
   /** Effective permission codes; super-admin behaves as full access in hasPerm. */
   permissions: ReadonlySet<string>
   hasPerm: (code: string) => boolean
-  /** true when ``trole`` is admin or tenant admin grant (skills UI). */
-  canManageTenantSkills: boolean
   isAuthenticated: boolean
   setTokens: (a: string, r: string) => void
   clear: () => void
@@ -187,10 +185,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return r === 'admin'
   }, [workspaceRole])
 
-  const isWorkspaceManager = isWorkspaceAdmin
-
   const isSuperAdmin = isSuperAdminFromToken || Boolean(authzQuery.data?.is_super_admin)
   const isTenantAdmin = Boolean(authzQuery.data?.is_tenant_admin)
+  const tenantId = authzQuery.data?.tenant_id ?? null
   const tenantFeatures = useMemo(
     () => new Set(authzQuery.data?.tenant_features ?? []),
     [authzQuery.data?.tenant_features],
@@ -203,16 +200,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasPerm = useCallback(
     (code: string) => {
       if (isSuperAdmin || permissions.has('*')) return true
+      if (
+        isTenantAdmin &&
+        (code === 'tenant:member:manage' || code === 'tenant:role:manage')
+      ) {
+        return true
+      }
+      if (code === 'tenant:member:manage' && isWorkspaceAdmin) return true
+      if (code === 'workspace:manage' && isWorkspaceAdmin) return true
       return permissions.has(code)
     },
-    [isSuperAdmin, permissions],
+    [isSuperAdmin, isTenantAdmin, isWorkspaceAdmin, permissions],
   )
-
-  const canManageTenantSkills = useMemo(() => {
-    if (isSuperAdmin || isTenantAdmin) return true
-    const r = tenantRole?.toLowerCase()
-    return r === 'admin'
-  }, [isSuperAdmin, isTenantAdmin, tenantRole])
 
   const setTokens = useCallback((a: string, r: string) => {
     setStoredTokens(a, r)
@@ -238,12 +237,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       tenantRole,
       isSuperAdmin,
       isTenantAdmin,
+      tenantId,
       isWorkspaceAdmin,
-      isWorkspaceManager,
       tenantFeatures,
       permissions,
       hasPerm,
-      canManageTenantSkills,
       isAuthenticated: Boolean(accessToken),
       setTokens,
       clear,
@@ -257,12 +255,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       tenantRole,
       isSuperAdmin,
       isTenantAdmin,
+      tenantId,
       isWorkspaceAdmin,
-      isWorkspaceManager,
       tenantFeatures,
       permissions,
       hasPerm,
-      canManageTenantSkills,
       setTokens,
       clear,
     ],

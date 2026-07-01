@@ -138,3 +138,41 @@ async def require_workspace_manage(
 
     PermissionGateway.authorize(ctx, workspace_manage_action(workspace_id))
     return workspace_id
+
+
+def make_require_feature_workspace(feature_code: str):
+    """Build a FastAPI dep that checks membership and tenant feature entitlement."""
+
+    async def require_feature_workspace(
+        workspace_id: uuid.UUID,
+        user: User = Depends(get_current_user),
+        cred: HTTPAuthorizationCredentials | None = Depends(_bearer),
+        session: AsyncSession = Depends(get_db),
+    ) -> uuid.UUID:
+        """Require workspace access and an enabled tenant feature module."""
+
+        if cred is None:
+            raise AppError(
+                "auth.missing_token", "Authorization Bearer token required", 401
+            )
+        payload = _decode_access_payload(cred)
+        ctx = await build_permission_context(
+            session,
+            user=user,
+            tenant_id=parse_uuid_claim(payload, "tid"),
+            workspace_id=parse_uuid_claim(payload, "wid"),
+        )
+        await require_data_scope_membership(session, ctx, workspace_id=workspace_id)
+        PermissionGateway.authorize(
+            ctx,
+            PermissionAction(feature_code=feature_code, workspace_id=workspace_id),
+        )
+        return workspace_id
+
+    require_feature_workspace.__name__ = (
+        f"require_feature_{feature_code.replace(':', '_')}"
+    )
+    require_feature_workspace.__doc__ = (
+        f"Require workspace access and enabled ``{feature_code}`` entitlement."
+    )
+    return require_feature_workspace

@@ -10,7 +10,8 @@ from fastapi import APIRouter, Depends, File, Query, Response, UploadFile, statu
 from fastapi.responses import RedirectResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api.deps import get_current_user, require_workspace_member
+from app.core.api.deps import get_current_user
+from app.s3.api.deps import require_file_storage_workspace
 from app.dependencies import get_db
 from app.core.domain.identity.models import User
 from app.exceptions import AppError
@@ -33,7 +34,7 @@ async def upload_workspace_s3_file(
     module_prefix: str = Query(min_length=1),
     file: UploadFile | None = File(default=None),
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_file_storage_workspace),
     service: S3FileService = Depends(get_s3_file_service),
 ) -> S3FileUploadOut:
     """Upload one file to workspace S3 storage."""
@@ -64,7 +65,7 @@ async def list_workspace_s3_files(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_file_storage_workspace),
     service: S3FileService = Depends(get_s3_file_service),
 ) -> S3FileListOut:
     """List workspace S3 files under one optional module prefix."""
@@ -96,7 +97,7 @@ async def download_workspace_s3_file(
     object_key: str = Query(min_length=1),
     mode: S3DownloadMode = Query(default=S3DownloadMode.redirect),
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_file_storage_workspace),
     service: S3FileService = Depends(get_s3_file_service),
 ) -> Response:
     """Download one S3 file by redirect URL or proxy stream."""
@@ -125,7 +126,7 @@ async def delete_workspace_s3_file(
     workspace_id: uuid.UUID,
     object_key: str = Query(min_length=1),
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_file_storage_workspace),
     service: S3FileService = Depends(get_s3_file_service),
 ) -> Response:
     """Delete one S3 object key from workspace storage."""

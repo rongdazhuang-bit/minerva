@@ -31,7 +31,11 @@ import {
   type SysUserPatchBody,
 } from '@/api/users'
 import { ApiError } from '@/api/client'
+import {
+  replaceWorkspaceRoleGrants,
+} from '@/api/grants'
 import { useAuth } from '@/app/AuthContext'
+import { PermGuard, useCanManageUsers } from '@/components/PermGuard'
 import { notifyMenuNavRefresh } from '@/app/menuNavRefresh'
 import { resolveApiErrorMessage, showAppError, useAppMessage } from '@/app/useAppMessage'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
@@ -75,7 +79,9 @@ function toListParams(values: FilterFormValues): SysUserListParams {
 export function UsersPage() {
   const { t } = useTranslation()
   const messageApi = useAppMessage()
-  const { workspaceId, userId, isWorkspaceManager } = useAuth()
+  const { workspaceId, userId, isSuperAdmin, isTenantAdmin, isWorkspaceAdmin, tenantId } = useAuth()
+  const canManageUsers = useCanManageUsers()
+  const useGrantApiForRoles = Boolean(tenantId) && (isSuperAdmin || isTenantAdmin || isWorkspaceAdmin)
   const tableWrapRef = useRef<HTMLDivElement | null>(null)
   const [tableBodyScrollY, setTableBodyScrollY] = useState(320)
   const [filterForm] = Form.useForm<FilterFormValues>()
@@ -184,15 +190,27 @@ export function UsersPage() {
       const { targetWorkspaceId } = context
       setSubmitting(true)
       try {
+        const raw = values as SysUserCreateBody & SysUserPatchBody
+        const roleIds = raw.role_ids ?? []
+        const profile = { ...raw } as SysUserCreateBody & SysUserPatchBody
+        if (useGrantApiForRoles) {
+          delete profile.role_ids
+        }
         if (drawerMode === 'create') {
-          await createUser(targetWorkspaceId, values as SysUserCreateBody)
+          const created = await createUser(targetWorkspaceId, profile as SysUserCreateBody)
+          if (useGrantApiForRoles && roleIds.length > 0 && tenantId) {
+            await replaceWorkspaceRoleGrants(tenantId, targetWorkspaceId, created.id, roleIds)
+          }
           if (targetWorkspaceId !== workspaceId) {
             messageApi.success(t('users.createSuccessOtherWorkspace'))
           } else {
             messageApi.success(t('users.createSuccess'))
           }
         } else if (editingId) {
-          await patchUser(workspaceId, editingId, values as SysUserPatchBody)
+          await patchUser(workspaceId, editingId, profile as SysUserPatchBody)
+          if (useGrantApiForRoles && tenantId) {
+            await replaceWorkspaceRoleGrants(tenantId, workspaceId, editingId, roleIds)
+          }
           messageApi.success(t('users.updateSuccess'))
         }
         setDrawerOpen(false)
@@ -204,7 +222,7 @@ export function UsersPage() {
         setSubmitting(false)
       }
     },
-    [workspaceId, drawerMode, editingId, messageApi, t, reloadList],
+    [workspaceId, drawerMode, editingId, messageApi, t, reloadList, useGrantApiForRoles, tenantId],
   )
 
   const handleRemoveMembership = useCallback(
@@ -302,10 +320,12 @@ export function UsersPage() {
         key: 'actions',
         fixed: 'right',
         width: 220,
-        render: (_v, row) => {
+        render: (_, row) => {
           const isSelf = userId != null && row.id === userId
-          return isWorkspaceManager ? (
-            <Space size="small">
+          if (!canManageUsers) return null
+          return (
+            <PermGuard perm="tenant:member:manage">
+              <Space size="small">
               <Tooltip title={t('users.edit')}>
                 <Button
                   type="link"
@@ -336,14 +356,15 @@ export function UsersPage() {
                   </Tooltip>
                 </Popconfirm>
               ) : null}
-            </Space>
-          ) : null
+              </Space>
+            </PermGuard>
+          )
         },
       },
     ],
     [
       t,
-      isWorkspaceManager,
+      canManageUsers,
       membershipTag,
       openEdit,
       handleRemoveMembership,
@@ -438,11 +459,11 @@ export function UsersPage() {
                 >
                   {t('users.reset')}
                 </Button>
-                {isWorkspaceManager ? (
+                <PermGuard perm="tenant:member:manage">
                   <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
                     {t('users.add')}
                   </Button>
-                ) : null}
+                </PermGuard>
               </Space>
             </Form.Item>
           </Form>

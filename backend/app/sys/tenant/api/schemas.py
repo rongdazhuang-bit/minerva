@@ -113,3 +113,38 @@ class SysTenantAdminsPutIn(BaseModel):
     """Replace tenant administrator grants."""
 
     user_ids: list[uuid.UUID]
+
+
+class SysUserGrantOut(BaseModel):
+    """One user authorization grant within a tenant."""
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    grant_type: str
+    role_id: uuid.UUID | None = None
+    permission_id: uuid.UUID | None = None
+    scope_type: str
+    scope_id: uuid.UUID | None = None
+    status: bool
+    create_at: datetime | None = None
+    update_at: datetime | None = None
+
+
+class SysUserGrantListPageOut(BaseModel):
+    """Paginated grant list for a tenant."""
+
+    items: list[SysUserGrantOut]
+    total: int
+    page: int
+    page_size: int
+
+
+class SysUserGrantCreateIn(BaseModel):
+    """Body for creating a role or direct_permission grant."""
+
+    user_id: uuid.UUID
+    grant_type: str = Field(pattern=r"^(role|direct_permission)$")
+    role_id: uuid.UUID | None = None
+    permission_id: uuid.UUID | None = None
+    scope_type: str = Field(pattern=r"^(tenant|workspace)$")
+    scope_id: uuid.UUID | None = None

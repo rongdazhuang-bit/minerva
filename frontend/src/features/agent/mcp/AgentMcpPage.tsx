@@ -92,7 +92,7 @@ function configToClientForm(
 export function AgentMcpPage() {
   const { t } = useTranslation()
   const messageApi = useAppMessage()
-  const { workspaceId, isWorkspaceManager } = useAuth()
+  const { workspaceId, isWorkspaceAdmin } = useAuth()
   const queryClient = useQueryClient()
   const [clientDrawerOpen, setClientDrawerOpen] = useState(false)
   const [serverDrawerOpen, setServerDrawerOpen] = useState(false)
@@ -307,7 +307,7 @@ export function AgentMcpPage() {
               aria-label={t('mcp.exploreTools', { defaultValue: '工具探索' })}
               onClick={() => setExplorerClient(row)}
             />
-            {isWorkspaceManager ? (
+            {isWorkspaceAdmin ? (
               <>
                 <Button type="link" icon={<EditOutlined />} onClick={() => void openEditClient(row)} />
                 <Popconfirm
@@ -325,7 +325,7 @@ export function AgentMcpPage() {
         ),
       },
     ],
-    [invalidate, isWorkspaceManager, openEditClient, t, workspaceId],
+    [invalidate, isWorkspaceAdmin, openEditClient, t, workspaceId],
   )
 
   const serverColumns: ColumnsType<McpServerListItem> = useMemo(
@@ -333,7 +333,7 @@ export function AgentMcpPage() {
       { title: t('mcp.colName', { defaultValue: '名称' }), dataIndex: 'name' },
       { title: 'slug', dataIndex: 'slug' },
       { title: t('mcp.colAuth', { defaultValue: '鉴权' }), dataIndex: 'auth_type' },
-      ...(isWorkspaceManager
+      ...(isWorkspaceAdmin
         ? [
             {
               title: t('common.actions', { defaultValue: '操作' }),
@@ -378,7 +378,7 @@ export function AgentMcpPage() {
           ]
         : []),
     ],
-    [invalidate, isWorkspaceManager, serverForm, t, workspaceId],
+    [invalidate, isWorkspaceAdmin, serverForm, t, workspaceId],
   )
 
   if (!workspaceId) {
@@ -388,7 +388,7 @@ export function AgentMcpPage() {
   return (
     <div className="minerva-agent-mcp-page">
       <Card className="minerva-agent-mcp-page__card" variant="borderless">
-        {!isWorkspaceManager ? (
+        {!isWorkspaceAdmin ? (
           <Alert
             type="info"
             showIcon
@@ -414,7 +414,7 @@ export function AgentMcpPage() {
                       })}
                     />
                   )}
-                  {isWorkspaceManager ? (
+                  {isWorkspaceAdmin ? (
                     <div className="minerva-agent-mcp-page__toolbar">
                       <Button
                         type="primary"
@@ -461,7 +461,7 @@ export function AgentMcpPage() {
                       })}
                     />
                   )}
-                  {isWorkspaceManager ? (
+                  {isWorkspaceAdmin ? (
                     <div className="minerva-agent-mcp-page__toolbar">
                       <Button
                         type="primary"
@@ -509,7 +509,7 @@ export function AgentMcpPage() {
         width={520}
         onClose={() => setClientDrawerOpen(false)}
         extra={
-          isWorkspaceManager ? (
+          isWorkspaceAdmin ? (
             <Button
               type="primary"
               loading={saveClientMutation.isPending || clientDetailLoading}
@@ -523,11 +523,11 @@ export function AgentMcpPage() {
       >
         <Form form={clientForm} layout="vertical" onFinish={(v) => saveClientMutation.mutate(v)}>
           <Form.Item name="name" label={t('mcp.colName', { defaultValue: '名称' })} rules={[{ required: true }]}>
-            <Input allowClear disabled={!isWorkspaceManager} />
+            <Input allowClear disabled={!isWorkspaceAdmin} />
           </Form.Item>
           <Form.Item name="transport" label={t('mcp.colTransport', { defaultValue: '传输' })} rules={[{ required: true }]}>
             <Select
-              disabled={!isWorkspaceManager}
+              disabled={!isWorkspaceAdmin}
               options={[
                 { value: 'STDIO', label: 'STDIO' },
                 { value: 'SSE', label: 'SSE' },
@@ -538,33 +538,33 @@ export function AgentMcpPage() {
           {transport === 'STDIO' ? (
             <>
               <Form.Item name="command" label="command" rules={[{ required: true }]}>
-                <Input allowClear disabled={!isWorkspaceManager} />
+                <Input allowClear disabled={!isWorkspaceAdmin} />
               </Form.Item>
               <Form.Item name="args" label="args (one per line)">
-                <Input.TextArea rows={3} allowClear disabled={!isWorkspaceManager} />
+                <Input.TextArea rows={3} allowClear disabled={!isWorkspaceAdmin} />
               </Form.Item>
               <Form.Item name="cwd" label="cwd">
-                <Input allowClear disabled={!isWorkspaceManager} />
+                <Input allowClear disabled={!isWorkspaceAdmin} />
               </Form.Item>
               <Form.Item name="envJson" label="env (JSON object)">
-                <Input.TextArea rows={3} placeholder='{"KEY":"value"}' disabled={!isWorkspaceManager} />
+                <Input.TextArea rows={3} placeholder='{"KEY":"value"}' disabled={!isWorkspaceAdmin} />
               </Form.Item>
             </>
           ) : (
             <>
               <Form.Item name="url" label="url" rules={[{ required: true }]}>
-                <Input allowClear disabled={!isWorkspaceManager} />
+                <Input allowClear disabled={!isWorkspaceAdmin} />
               </Form.Item>
               <Form.Item name="headersJson" label="headers (JSON object)">
-                <Input.TextArea rows={3} placeholder='{"Authorization":"Bearer ..."}' disabled={!isWorkspaceManager} />
+                <Input.TextArea rows={3} placeholder='{"Authorization":"Bearer ..."}' disabled={!isWorkspaceAdmin} />
               </Form.Item>
             </>
           )}
           <Form.Item name="enabled" label={t('mcp.colEnabled', { defaultValue: '启用' })} valuePropName="checked">
-            <Switch disabled={!isWorkspaceManager} />
+            <Switch disabled={!isWorkspaceAdmin} />
           </Form.Item>
           <Form.Item name="remark" label={t('common.remark', { defaultValue: '备注' })}>
-            <Input allowClear disabled={!isWorkspaceManager} />
+            <Input allowClear disabled={!isWorkspaceAdmin} />
           </Form.Item>
           {editingClient?.has_secrets && !clientForm.getFieldValue('envJson') && !clientForm.getFieldValue('headersJson') ? (
             <Alert
@@ -595,7 +595,7 @@ export function AgentMcpPage() {
         width={520}
         onClose={() => setServerDrawerOpen(false)}
         extra={
-          isWorkspaceManager ? (
+          isWorkspaceAdmin ? (
             <Button
               type="primary"
               loading={saveServerMutation.isPending}
@@ -608,14 +608,14 @@ export function AgentMcpPage() {
       >
         <Form form={serverForm} layout="vertical" onFinish={(v) => saveServerMutation.mutate(v)}>
           <Form.Item name="name" label={t('mcp.colName', { defaultValue: '名称' })} rules={[{ required: true }]}>
-            <Input allowClear disabled={!isWorkspaceManager} />
+            <Input allowClear disabled={!isWorkspaceAdmin} />
           </Form.Item>
           <Form.Item name="slug" label="slug" rules={[{ required: true }]}>
-            <Input allowClear placeholder="my-workspace-tools" disabled={!isWorkspaceManager} />
+            <Input allowClear placeholder="my-workspace-tools" disabled={!isWorkspaceAdmin} />
           </Form.Item>
           <Form.Item name="auth_type" label={t('mcp.colAuth', { defaultValue: '鉴权' })}>
             <Select
-              disabled={!isWorkspaceManager}
+              disabled={!isWorkspaceAdmin}
               options={[
                 { value: 'NONE', label: 'NONE' },
                 { value: 'BEARER', label: 'BEARER' },
@@ -624,21 +624,21 @@ export function AgentMcpPage() {
             />
           </Form.Item>
           <Form.Item name="auth_secret" label="auth_secret">
-            <Input.Password allowClear disabled={!isWorkspaceManager} />
+            <Input.Password allowClear disabled={!isWorkspaceAdmin} />
           </Form.Item>
           <Form.Item
             name="include_all_builtin"
             label={t('mcp.exposeAllBuiltin', { defaultValue: '暴露全部内置 Skills' })}
             valuePropName="checked"
           >
-            <Switch disabled={!isWorkspaceManager} />
+            <Switch disabled={!isWorkspaceAdmin} />
           </Form.Item>
           {!includeAllBuiltin ? (
             <Form.Item name="builtin_skills" label={t('mcp.exposeBuiltinSkills', { defaultValue: '选择内置 Skills' })}>
               <Select
                 mode="multiple"
                 allowClear
-                disabled={!isWorkspaceManager}
+                disabled={!isWorkspaceAdmin}
                 options={skillOptions}
                 placeholder={t('mcp.selectSkills', { defaultValue: '选择要暴露的技能' })}
               />
@@ -649,24 +649,24 @@ export function AgentMcpPage() {
             label={t('mcp.exposeAllClients', { defaultValue: '暴露全部 MCP 客户端' })}
             valuePropName="checked"
           >
-            <Switch disabled={!isWorkspaceManager} />
+            <Switch disabled={!isWorkspaceAdmin} />
           </Form.Item>
           {!includeAllClients ? (
             <Form.Item name="mcp_client_ids" label={t('mcp.exposeMcpClients', { defaultValue: '选择 MCP 客户端' })}>
               <Select
                 mode="multiple"
                 allowClear
-                disabled={!isWorkspaceManager}
+                disabled={!isWorkspaceAdmin}
                 options={clientOptions}
                 placeholder={t('mcp.selectClients', { defaultValue: '选择要代理的客户端' })}
               />
             </Form.Item>
           ) : null}
           <Form.Item name="enabled" label={t('mcp.colEnabled', { defaultValue: '启用' })} valuePropName="checked">
-            <Switch disabled={!isWorkspaceManager} />
+            <Switch disabled={!isWorkspaceAdmin} />
           </Form.Item>
           <Form.Item name="remark" label={t('common.remark', { defaultValue: '备注' })}>
-            <Input allowClear disabled={!isWorkspaceManager} />
+            <Input allowClear disabled={!isWorkspaceAdmin} />
           </Form.Item>
         </Form>
       </Drawer>

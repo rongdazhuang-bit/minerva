@@ -1,4 +1,4 @@
-"""SQLAlchemy models for workspace-scoped roles and role-menu links."""
+"""SQLAlchemy models for tenant-scoped roles and role-permission links."""
 
 from __future__ import annotations
 
@@ -14,18 +14,21 @@ from app.core.infrastructure.db.base import Base
 
 
 class SysRole(Base):
-    """RBAC role row scoped to one workspace."""
+    """RBAC role row scoped to one tenant (optionally one workspace)."""
 
     __tablename__ = "sys_role"
     __table_args__ = (
-        UniqueConstraint("workspace_id", "role_key", name="uq_sys_role_workspace_role_key"),
+        UniqueConstraint("tenant_id", "role_key", name="uq_sys_role_tenant_role_key"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    workspace_id: Mapped[uuid.UUID] = mapped_column(
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), index=True, nullable=False
+    )
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), index=True, nullable=True
     )
     role_name: Mapped[str] = mapped_column(String(64), nullable=False)
     role_key: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -41,23 +44,4 @@ class SysRole(Base):
     )
     update_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
-    )
-
-
-class SysRoleMenu(Base):
-    """Maps a workspace role to a global sys_menu id (app-enforced)."""
-
-    __tablename__ = "sys_role_menu"
-    __table_args__ = (
-        UniqueConstraint("role_id", "menu_id", name="uq_sys_role_menu_role_menu"),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    role_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), index=True, nullable=False
-    )
-    menu_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), index=True, nullable=False
     )

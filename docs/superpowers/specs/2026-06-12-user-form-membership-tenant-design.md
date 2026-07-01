@@ -6,7 +6,9 @@
 **依赖**：
 - [2026-06-11-user-management-design.md](./2026-06-11-user-management-design.md)（已实现的用户管理基线）
 - 租户/工作空间 API：`/sys/tenants`、`/sys/tenants/{tenant_id}/workspaces`
-- 身份域 `MembershipRole`、`is_super_admin_user`
+- 身份域 `MembershipRole`、`User.is_super_admin`（见 [2026-07-01-unified-permission-gateway-design.md](./2026-07-01-unified-permission-gateway-design.md)）
+
+**权限网关（Supersede 部分）**：本 spec 中 `owner` 成员角色、`is_super_admin_user` 旁路与 capabilities 分散判定，已由 [2026-07-01-unified-permission-gateway-design.md](./2026-07-01-unified-permission-gateway-design.md) 收敛至 `PermissionGateway` 与 `/auth/me/authorization`。
 
 ---
 

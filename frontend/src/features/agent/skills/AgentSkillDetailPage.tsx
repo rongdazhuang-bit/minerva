@@ -15,6 +15,7 @@ import {
   type SkillFileTreeNode,
 } from '@/api/agentSkillsMgmt'
 import { useAuth } from '@/app/AuthContext'
+import { useCanManageTenantSkills } from '@/components/PermGuard'
 import { showAppError, useAppMessage } from '@/app/useAppMessage'
 import { SkillBinaryFilePanel } from '@/features/agent/skills/components/SkillBinaryFilePanel'
 import { SkillFileEditor } from '@/features/agent/skills/components/SkillFileEditor'
@@ -55,7 +56,8 @@ export function AgentSkillDetailPage() {
   const navigate = useNavigate()
   const { skillId: skillIdParam } = useParams<{ skillId: string }>()
   const skillId = skillIdParam ? decodeURIComponent(skillIdParam) : ''
-  const { workspaceId, canManageTenantSkills } = useAuth()
+  const { workspaceId } = useAuth()
+  const canManageTenantSkills = useCanManageTenantSkills()
 
   const [treeLoading, setTreeLoading] = useState(true)
   const [treeNodes, setTreeNodes] = useState<SkillFileTreeNode[]>([])

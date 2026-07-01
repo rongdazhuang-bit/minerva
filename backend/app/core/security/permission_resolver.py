@@ -86,7 +86,7 @@ async def build_permission_context(
         )
 
         all_rows = await menu_repo.list_all(session)
-        granted_menu_ids = await auth_repo.load_menu_ids_for_roles_dual(
+        granted_menu_ids = await auth_repo.load_menu_ids_for_roles(
             session, role_ids=role_ids
         )
         menu_ids = expand_allowed_nav_menu_ids(all_rows, granted_menu_ids)

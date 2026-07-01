@@ -8,11 +8,9 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api.deps import (
-    get_current_user,
-    require_workspace_member,
-    require_workspace_owner_or_admin,
-)
+from app.core.api.deps import get_current_user
+from app.core.security.permission_deps import require_workspace_manage
+from app.sys.file_storage.api.deps import require_file_storage_workspace
 from app.dependencies import get_db
 from app.core.domain.identity.models import User
 from app.pagination import DEFAULT_PAGE_SIZE
@@ -112,7 +110,7 @@ async def list_file_storages(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_file_storage_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> FileStorageListPageOut:
     """Return paginated file storage list in current workspace."""
@@ -131,7 +129,7 @@ async def create_file_storage(
     workspace_id: uuid.UUID,
     body: FileStorageCreateIn,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_workspace_manage),
     session: AsyncSession = Depends(get_db),
 ) -> FileStorageDetailOut:
     """Create one file storage row in current workspace."""
@@ -149,7 +147,7 @@ async def get_file_storage(
     workspace_id: uuid.UUID,
     storage_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_file_storage_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> FileStorageDetailOut:
     """Load full detail for one file storage row."""
@@ -168,7 +166,7 @@ async def patch_file_storage(
     storage_id: uuid.UUID,
     body: FileStoragePatchIn,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_workspace_manage),
     session: AsyncSession = Depends(get_db),
 ) -> FileStorageDetailOut:
     """Patch one file storage row and return full detail."""
@@ -195,7 +193,7 @@ async def delete_file_storage(
     workspace_id: uuid.UUID,
     storage_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_workspace_manage),
     session: AsyncSession = Depends(get_db),
 ) -> Response:
     """Delete one file storage row."""

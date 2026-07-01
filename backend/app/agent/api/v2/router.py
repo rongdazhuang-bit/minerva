@@ -53,7 +53,8 @@ from app.agent.service.agent_graph_run_service import (
     get_agent_graph_run_service,
 )
 from app.agent.service.overview_usage_daily_stats import compute_overview_usage_daily_stats
-from app.core.api.deps import get_current_user, require_workspace_member
+from app.core.api.deps import get_current_user
+from app.agent.api.deps import require_agent_workspace
 from app.core.domain.identity.models import User
 from app.dependencies import get_db
 from app.exceptions import AppError
@@ -69,7 +70,7 @@ router.include_router(memory_router)
 async def get_agent_v2_config(
     workspace_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _member=Depends(require_workspace_member),
+    _member=Depends(require_agent_workspace),
 ) -> AgentV2ConfigOut:
     """Expose agent runtime flags (e.g. memory backend) to the UI."""
 
@@ -140,7 +141,7 @@ def _to_agent_conversation_model(row) -> AgentConversationModelOut:
 @router.get("/models", response_model=list[AgentConversationModelOut])
 async def list_agent_conversation_models(
     workspace_id: uuid.UUID,
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_agent_workspace),
     db: AsyncSession = Depends(get_db),
 ) -> list[AgentConversationModelOut]:
     """返回当前工作区可用于 Agent 对话的模型（SQL 已过滤）。"""
@@ -153,7 +154,7 @@ async def list_agent_conversation_models(
 async def upload_agent_attachment(
     workspace_id: uuid.UUID,
     file: UploadFile | None = File(default=None),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_agent_workspace),
     db: AsyncSession = Depends(get_db),
 ) -> AgentAttachmentUploadOut:
     """Upload one vision image for agent chat (uses workspace active storage)."""
@@ -187,7 +188,7 @@ async def upload_agent_attachment(
 @router.get("/skills", response_model=AgentSkillListOut)
 async def list_agent_skills(
     workspace_id: uuid.UUID,
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_agent_workspace),
 ) -> AgentSkillListOut:
     """返回内置技能列表（来自 ``skills/INDEX.json``，供前端偏好选择）。"""
 
@@ -207,7 +208,7 @@ async def list_agent_skills(
 @router.get("/overview-usage-daily-stats", response_model=AgentOverviewUsageDailyStatsOut)
 async def get_agent_overview_usage_daily_stats(
     workspace_id: uuid.UUID,
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_agent_workspace),
     db: AsyncSession = Depends(get_db),
 ) -> AgentOverviewUsageDailyStatsOut:
     """Return last 7 local days of agent token usage grouped by token type."""
@@ -219,7 +220,7 @@ async def get_agent_overview_usage_daily_stats(
 async def create_agent_session(
     workspace_id: uuid.UUID,
     body: AgentSessionCreateIn,
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_agent_workspace),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> AgentSessionOut:
@@ -251,7 +252,7 @@ async def list_agent_sessions(
     workspace_id: uuid.UUID,
     limit: int = Query(default=RECENT_AGENT_SESSIONS_DEFAULT_LIMIT, ge=1, le=50),
     cursor: str | None = Query(default=None, description="Keyset cursor from prior page ``next_cursor``."),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_agent_workspace),
     db: AsyncSession = Depends(get_db),
 ) -> AgentSessionListOut:
     """列出工作区最近的智能体会话（支持 ``cursor`` 滚动分页）。"""
@@ -297,7 +298,7 @@ async def list_agent_sessions(
 async def get_agent_session_detail(
     workspace_id: uuid.UUID,
     session_id: uuid.UUID,
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_agent_workspace),
     db: AsyncSession = Depends(get_db),
 ) -> AgentSessionDetailOut:
     """加载会话及其消息历史。"""
@@ -360,7 +361,7 @@ async def get_agent_session_detail(
 async def delete_agent_session(
     workspace_id: uuid.UUID,
     session_id: uuid.UUID,
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_agent_workspace),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
     """删除会话及其关联数据。"""
@@ -398,7 +399,7 @@ async def create_agent_run_sse(
     workspace_id: uuid.UUID,
     session_id: uuid.UUID,
     body: AgentRunCreateV2,
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_agent_workspace),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     svc: AgentGraphRunService = Depends(get_agent_graph_run_service),

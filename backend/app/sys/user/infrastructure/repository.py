@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.domain.identity.models import (
@@ -16,8 +16,8 @@ from app.core.domain.identity.models import (
     Workspace,
     WorkspaceMembership,
 )
+from app.core.domain.authorization.models import GrantScopeType, GrantType, SysUserGrant
 from app.sys.role.domain.db.models import SysRole
-from app.sys.user.domain.db.models import SysUserRole
 
 
 def _member_list_order():
@@ -52,11 +52,12 @@ def _apply_member_filters(
     if role_id is not None:
         stmt = stmt.where(
             User.id.in_(
-                select(SysUserRole.user_id)
-                .join(SysRole, SysRole.id == SysUserRole.role_id)
-                .where(
-                    SysUserRole.role_id == role_id,
-                    SysRole.workspace_id == workspace_id,
+                select(SysUserGrant.user_id).where(
+                    SysUserGrant.role_id == role_id,
+                    SysUserGrant.grant_type == GrantType.role.value,
+                    SysUserGrant.scope_type == GrantScopeType.workspace.value,
+                    SysUserGrant.scope_id == workspace_id,
+                    SysUserGrant.status.is_(True),
                 )
             )
         )
@@ -281,21 +282,37 @@ async def list_role_ids_for_user_in_workspace(
     *,
     workspace_id: uuid.UUID,
     user_id: uuid.UUID,
+    tenant_id: uuid.UUID | None = None,
     enabled_only: bool = False,
 ) -> list[uuid.UUID]:
-    """Return sys_role ids assigned to a user within one workspace."""
+    """Return sys_role ids assigned via workspace-scoped grants."""
 
-    stmt = (
-        select(SysUserRole.role_id)
-        .join(SysRole, SysRole.id == SysUserRole.role_id)
-        .where(
-            SysUserRole.user_id == user_id,
-            SysRole.workspace_id == workspace_id,
+    if tenant_id is None:
+        tenant_id = await get_tenant_id_for_workspace(
+            session, workspace_id=workspace_id
         )
+    grant_stmt = select(SysUserGrant.role_id).where(
+        SysUserGrant.user_id == user_id,
+        SysUserGrant.grant_type == GrantType.role.value,
+        SysUserGrant.status.is_(True),
+        SysUserGrant.scope_type == GrantScopeType.workspace.value,
+        SysUserGrant.scope_id == workspace_id,
+        SysUserGrant.role_id.is_not(None),
     )
-    if enabled_only:
-        stmt = stmt.where(SysRole.status.is_(True))
-    result = await session.execute(stmt)
+    if tenant_id is not None and enabled_only:
+        grant_stmt = grant_stmt.where(
+            SysUserGrant.role_id.in_(
+                select(SysRole.id).where(
+                    SysRole.tenant_id == tenant_id,
+                    SysRole.status.is_(True),
+                    or_(
+                        SysRole.workspace_id.is_(None),
+                        SysRole.workspace_id == workspace_id,
+                    ),
+                )
+            )
+        )
+    result = await session.execute(grant_stmt)
     return list(result.scalars().all())
 
 
@@ -304,54 +321,34 @@ async def list_roles_for_user_in_workspace(
     *,
     workspace_id: uuid.UUID,
     user_id: uuid.UUID,
+    tenant_id: uuid.UUID | None = None,
 ) -> Sequence[SysRole]:
-    """Return sys_role rows assigned to a user within one workspace."""
+    """Return sys_role rows assigned via workspace-scoped grants."""
 
+    if tenant_id is None:
+        tenant_id = await get_tenant_id_for_workspace(
+            session, workspace_id=workspace_id
+        )
+    if tenant_id is None:
+        return []
     result = await session.execute(
         select(SysRole)
-        .join(SysUserRole, SysUserRole.role_id == SysRole.id)
+        .join(SysUserGrant, SysUserGrant.role_id == SysRole.id)
         .where(
-            SysUserRole.user_id == user_id,
-            SysRole.workspace_id == workspace_id,
+            SysUserGrant.user_id == user_id,
+            SysUserGrant.grant_type == GrantType.role.value,
+            SysUserGrant.status.is_(True),
+            SysUserGrant.scope_type == GrantScopeType.workspace.value,
+            SysUserGrant.scope_id == workspace_id,
+            SysRole.tenant_id == tenant_id,
+            or_(
+                SysRole.workspace_id.is_(None),
+                SysRole.workspace_id == workspace_id,
+            ),
         )
         .order_by(SysRole.role_sort.asc(), SysRole.create_at.desc())
     )
     return result.scalars().all()
-
-
-async def replace_user_roles_in_workspace(
-    session: AsyncSession,
-    *,
-    workspace_id: uuid.UUID,
-    user_id: uuid.UUID,
-    role_ids: list[uuid.UUID],
-) -> None:
-    """Replace all role links for a user within one workspace."""
-
-    await delete_user_roles_in_workspace(
-        session, workspace_id=workspace_id, user_id=user_id
-    )
-    for role_id in role_ids:
-        session.add(SysUserRole(user_id=user_id, role_id=role_id))
-    await session.flush()
-
-
-async def delete_user_roles_in_workspace(
-    session: AsyncSession,
-    *,
-    workspace_id: uuid.UUID,
-    user_id: uuid.UUID,
-) -> None:
-    """Delete role links for a user where roles belong to the workspace."""
-
-    role_ids_subq = select(SysRole.id).where(SysRole.workspace_id == workspace_id)
-    await session.execute(
-        delete(SysUserRole).where(
-            SysUserRole.user_id == user_id,
-            SysUserRole.role_id.in_(role_ids_subq),
-        )
-    )
-    await session.flush()
 
 
 async def delete_membership(
@@ -382,13 +379,6 @@ async def count_all_memberships_for_user(
         .where(WorkspaceMembership.user_id == user_id)
     )
     return int(result.scalar_one() or 0)
-
-
-async def delete_all_user_roles(session: AsyncSession, *, user_id: uuid.UUID) -> None:
-    """Delete every sys_user_role row for a user."""
-
-    await session.execute(delete(SysUserRole).where(SysUserRole.user_id == user_id))
-    await session.flush()
 
 
 async def delete_all_memberships(session: AsyncSession, *, user_id: uuid.UUID) -> None:

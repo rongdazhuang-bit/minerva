@@ -193,38 +193,6 @@ async def is_super_admin_user(session: AsyncSession, *, user_id: uuid.UUID) -> b
     return user is not None and bool(user.is_super_admin)
 
 
-async def is_any_tenant_owner_or_admin(
-    session: AsyncSession, *, user_id: uuid.UUID
-) -> bool:
-    """True when super-admin, tenant admin grant, or tenant membership admin."""
-
-    if await is_super_admin_user(session, user_id=user_id):
-        return True
-    r = await session.execute(
-        select(TenantMembership.tenant_id)
-        .where(
-            TenantMembership.user_id == user_id,
-            TenantMembership.role == MembershipRole.admin,
-        )
-        .limit(1)
-    )
-    if r.scalar_one_or_none() is not None:
-        return True
-    from app.core.domain.authorization.models import GrantScopeType, GrantType, SysUserGrant
-
-    g = await session.execute(
-        select(SysUserGrant.id)
-        .where(
-            SysUserGrant.user_id == user_id,
-            SysUserGrant.grant_type == GrantType.tenant_admin.value,
-            SysUserGrant.scope_type == GrantScopeType.tenant.value,
-            SysUserGrant.status.is_(True),
-        )
-        .limit(1)
-    )
-    return g.scalar_one_or_none() is not None
-
-
 async def is_any_workspace_member(
     session: AsyncSession, *, user_id: uuid.UUID
 ) -> bool:

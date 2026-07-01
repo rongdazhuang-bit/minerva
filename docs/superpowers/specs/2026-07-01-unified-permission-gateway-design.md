@@ -1,7 +1,7 @@
 # 统一权限网关（RBAC + ABAC 混合 + 独立授权表）设计说明
 
 **日期**：2026-07-01  
-**状态**：部分实现（P0–P1 进行中，2026-07-01）  
+**状态**：已实现（P0–P3 + 审查差距修复，2026-07-01）  
 **范围**：引入独立授权表、统一 `PermissionGateway`、身份层 `owner` 合并为 `admin`、`sys_role` 改为 tenant 作用域；超管租户功能开通与租户管理员授权链；JWT/前端权限对齐。  
 **依赖**：
 - [2026-06-10-menu-management-design.md](./2026-06-10-menu-management-design.md)（`sys_menu`、侧栏、perms）
@@ -10,7 +10,7 @@
 - [2026-06-11-tenant-management-design.md](./2026-06-11-tenant-management-design.md)（租户 CRUD、超管鉴权）
 - [2026-06-12-user-form-membership-tenant-design.md](./2026-06-12-user-form-membership-tenant-design.md)（capabilities、超管旁路，将被网关收敛）
 
-**Supersede 部分**：上述 spec 中关于 `MembershipRole.owner`、分散 `is_super_admin_user` 旁路、`require_workspace_owner_or_admin` 作为唯一写鉴权方式的约定；实现完成后在相关 spec 增加交叉引用。
+**Supersede 部分**：上述 spec 中关于 `MembershipRole.owner`、分散 `is_super_admin_user` 旁路、`require_workspace_owner_or_admin` 作为唯一写鉴权方式的约定；已在相关 spec 增加交叉引用（2026-07-01）。
 
 **包路径说明**：Python 包名为 `app.sys`；网关与身份域使用 `app.core.security.*`、`app.core.domain.identity.*` 等完整限定导入。
 
@@ -441,15 +441,23 @@ class PermissionContext:
 
 ---
 
-## 11. 实现对照（待实现后回填）
+## 11. 实现对照
 
 | spec 条目 | 计划代码位置 | 状态 |
 |-----------|--------------|------|
-| PermissionGateway | `backend/app/core/security/permission_gateway.py` | 待实现 |
-| sys_permission ORM | `backend/app/core/domain/authorization/models.py`（或 `app/sys/permission/`） | 待实现 |
-| sys_user_grant | 同上 | 待实现 |
-| sys_tenant_entitlement | 同上 | 待实现 |
-| owner→admin patch | `backend/sql/patches/2026-07-01-unified-permission-gateway.sql` | 待实现 |
-| GET /auth/me/authorization | `backend/app/core/api/routers/auth.py` | 待实现 |
-| TenantsPage entitlement UI | `frontend/src/features/settings/tenants/` | 待实现 |
-| AuthContext hasPerm | `frontend/src/app/AuthContext.tsx` | 待实现 |
+| PermissionGateway | `backend/app/core/security/permission_gateway.py` | 已实现 |
+| sys_permission ORM | `backend/app/core/domain/authorization/models.py` | 已实现 |
+| sys_user_grant | 同上 | 已实现 |
+| sys_tenant_entitlement | 同上 | 已实现 |
+| owner→admin patch | `backend/sql/patches/2026-07-01-unified-permission-gateway-p0.sql` | 已实现 |
+| grant 双写 / 读切换 | `backend/sql/patches/2026-07-01-unified-permission-gateway-p2.sql` + user/grant service | 已实现 |
+| sys_role tenant 作用域 | `backend/sql/patches/2026-07-01-unified-permission-gateway-p3.sql` | 已实现 |
+| sys_role_permission 替代 sys_role_menu | P3 patch + `role/infrastructure/repository.py` | 已实现 |
+| 废弃 sys_user_role / sys_role_menu | P3 patch `DROP TABLE` | 已实现 |
+| GET /auth/me/authorization | `backend/app/core/api/routers/auth.py` | 已实现 |
+| TenantsPage entitlement UI | `frontend/src/features/settings/tenants/` | 已实现 |
+| AuthContext hasPerm | `frontend/src/app/AuthContext.tsx` | 已实现 |
+| Grant API | `backend/app/sys/tenant/api/router.py` | 已实现 |
+| GET /sys/permissions | `backend/app/sys/permission/api/router.py` | 已实现 |
+| Feature 门禁（各业务模块） | `backend/app/core/security/permission_deps.py` + 各模块 `api/deps.py` | 已实现 |
+| usePerm / PermGuard | `frontend/src/components/PermGuard.tsx` | 已实现 |

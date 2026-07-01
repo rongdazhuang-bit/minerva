@@ -32,6 +32,10 @@ COMMENT ON COLUMN public.sys_tenant.status IS 'true=正常 false=停用';
 COMMENT ON COLUMN public.sys_tenant.remark IS '备注';
 COMMENT ON COLUMN public.sys_tenant.create_at IS '创建时间';
 COMMENT ON COLUMN public.sys_tenant.update_at IS '修改时间';
+COMMENT ON TABLE public.sys_tenant IS '租户';
+COMMENT ON COLUMN public.sys_tenant.id IS '主键';
+COMMENT ON COLUMN public.sys_tenant."name" IS '租户名称';
+COMMENT ON COLUMN public.sys_tenant.slug IS '租户标识（全局唯一）';
 
 CREATE TABLE IF NOT EXISTS sys_user (
   id                  UUID         NOT NULL,
@@ -53,18 +57,14 @@ COMMENT ON COLUMN public.sys_user.nickname IS 'Display name';
 COMMENT ON COLUMN public.sys_user.phone IS 'Optional; globally unique when set';
 COMMENT ON COLUMN public.sys_user.status IS 'true=active false=cannot login';
 COMMENT ON COLUMN public.sys_user.department_item_id IS 'Logical ref sys_dict_item.id (SYS_DEPARTMENT)';
-
-CREATE TABLE IF NOT EXISTS public.sys_user_role (
-  id       UUID NOT NULL,
-  user_id  UUID NOT NULL,
-  role_id  UUID NOT NULL,
-  CONSTRAINT sys_user_role_pk PRIMARY KEY (id)
-);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_user_role_user_role
-  ON public.sys_user_role (user_id, role_id);
-CREATE INDEX IF NOT EXISTS ix_sys_user_role_user_id ON public.sys_user_role (user_id);
-CREATE INDEX IF NOT EXISTS ix_sys_user_role_role_id ON public.sys_user_role (role_id);
-COMMENT ON TABLE public.sys_user_role IS 'User to workspace sys_role mapping (app-enforced)';
+COMMENT ON TABLE public.sys_user IS '平台用户';
+COMMENT ON COLUMN public.sys_user.id IS '主键';
+COMMENT ON COLUMN public.sys_user.email IS '邮箱';
+COMMENT ON COLUMN public.sys_user.password_hash IS '密码哈希';
+COMMENT ON COLUMN public.sys_user.is_super_admin IS '是否平台超级管理员';
+COMMENT ON COLUMN public.sys_user.remark IS '备注';
+COMMENT ON COLUMN public.sys_user.created_at IS '创建时间';
+COMMENT ON COLUMN public.sys_user.update_at IS '修改时间';
 
 CREATE TABLE IF NOT EXISTS public.sys_permission (
   id               UUID         NOT NULL,
@@ -82,6 +82,17 @@ CREATE TABLE IF NOT EXISTS public.sys_permission (
 CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_permission_perm_code ON public.sys_permission (perm_code);
 CREATE INDEX IF NOT EXISTS ix_sys_permission_perm_type ON public.sys_permission (perm_type);
 CREATE INDEX IF NOT EXISTS ix_sys_permission_menu_id ON public.sys_permission (menu_id);
+COMMENT ON COLUMN public.sys_permission.id IS '主键';
+COMMENT ON COLUMN public.sys_permission.perm_name IS '权限名称';
+COMMENT ON COLUMN public.sys_permission.resource_pattern IS 'ABAC 资源匹配模式';
+COMMENT ON COLUMN public.sys_permission.status IS '状态';
+COMMENT ON COLUMN public.sys_permission.remark IS '备注';
+COMMENT ON COLUMN public.sys_permission.create_at IS '创建时间';
+COMMENT ON COLUMN public.sys_permission.update_at IS '修改时间';
+COMMENT ON TABLE public.sys_permission IS '平台权限目录';
+COMMENT ON COLUMN public.sys_permission.perm_code IS '权限码（全局唯一）';
+COMMENT ON COLUMN public.sys_permission.perm_type IS '权限类型：menu/api/data/feature';
+COMMENT ON COLUMN public.sys_permission.menu_id IS '逻辑引用 sys_menu.id（menu 型权限）';
 
 CREATE TABLE IF NOT EXISTS public.sys_role_permission (
   id            UUID NOT NULL,
@@ -93,6 +104,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_role_permission_role_perm
   ON public.sys_role_permission (role_id, permission_id);
 CREATE INDEX IF NOT EXISTS ix_sys_role_permission_role_id ON public.sys_role_permission (role_id);
 CREATE INDEX IF NOT EXISTS ix_sys_role_permission_permission_id ON public.sys_role_permission (permission_id);
+COMMENT ON COLUMN public.sys_role_permission.id IS '主键';
+COMMENT ON COLUMN public.sys_role_permission.role_id IS '角色 id';
+COMMENT ON COLUMN public.sys_role_permission.permission_id IS '权限 id';
+COMMENT ON TABLE public.sys_role_permission IS '角色与权限关联';
 
 CREATE TABLE IF NOT EXISTS public.sys_tenant_entitlement (
   id                 UUID         NOT NULL,
@@ -107,6 +122,14 @@ CREATE TABLE IF NOT EXISTS public.sys_tenant_entitlement (
 CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_tenant_entitlement_tenant_feature
   ON public.sys_tenant_entitlement (tenant_id, feature_code);
 CREATE INDEX IF NOT EXISTS ix_sys_tenant_entitlement_tenant_id ON public.sys_tenant_entitlement (tenant_id);
+COMMENT ON COLUMN public.sys_tenant_entitlement.id IS '主键';
+COMMENT ON COLUMN public.sys_tenant_entitlement.tenant_id IS '所属 tenant';
+COMMENT ON COLUMN public.sys_tenant_entitlement.feature_code IS '功能模块码';
+COMMENT ON COLUMN public.sys_tenant_entitlement.enabled IS '是否启用';
+COMMENT ON COLUMN public.sys_tenant_entitlement.granted_by_user_id IS '授权人用户 id';
+COMMENT ON COLUMN public.sys_tenant_entitlement.create_at IS '创建时间';
+COMMENT ON COLUMN public.sys_tenant_entitlement.update_at IS '修改时间';
+COMMENT ON TABLE public.sys_tenant_entitlement IS '租户功能开通（超管授权）';
 
 CREATE TABLE IF NOT EXISTS public.sys_user_grant (
   id                  UUID         NOT NULL,
@@ -129,6 +152,18 @@ CREATE INDEX IF NOT EXISTS ix_sys_user_grant_scope_type_id
 CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_user_grant_user_role_scope
   ON public.sys_user_grant (user_id, grant_type, role_id, scope_type, scope_id)
   WHERE grant_type = 'role' AND role_id IS NOT NULL;
+COMMENT ON COLUMN public.sys_user_grant.id IS '主键';
+COMMENT ON COLUMN public.sys_user_grant.user_id IS '用户 id';
+COMMENT ON COLUMN public.sys_user_grant.role_id IS '逻辑引用 sys_role.id';
+COMMENT ON COLUMN public.sys_user_grant.permission_id IS '逻辑引用 sys_permission.id';
+COMMENT ON COLUMN public.sys_user_grant.scope_type IS '授权范围类型：platform/tenant/workspace';
+COMMENT ON COLUMN public.sys_user_grant.scope_id IS '授权范围 id（tenant/workspace）';
+COMMENT ON COLUMN public.sys_user_grant.granted_by_user_id IS '授权人用户 id';
+COMMENT ON COLUMN public.sys_user_grant.status IS '状态';
+COMMENT ON COLUMN public.sys_user_grant.create_at IS '创建时间';
+COMMENT ON COLUMN public.sys_user_grant.update_at IS '修改时间';
+COMMENT ON TABLE public.sys_user_grant IS '用户授权 grant（RBAC+ABAC）';
+COMMENT ON COLUMN public.sys_user_grant.grant_type IS 'role | direct_permission | tenant_admin';
 
 CREATE TABLE IF NOT EXISTS refresh_tokens (
   id         UUID         NOT NULL,
@@ -141,6 +176,13 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ix_refresh_tokens_jti ON refresh_tokens (jti);
 CREATE INDEX IF NOT EXISTS ix_refresh_tokens_user_id ON refresh_tokens (user_id);
+COMMENT ON TABLE public.refresh_tokens IS '刷新令牌会话';
+COMMENT ON COLUMN public.refresh_tokens.id IS '主键';
+COMMENT ON COLUMN public.refresh_tokens.user_id IS '用户 id';
+COMMENT ON COLUMN public.refresh_tokens.jti IS '刷新令牌唯一 id';
+COMMENT ON COLUMN public.refresh_tokens.expires_at IS '过期时间';
+COMMENT ON COLUMN public.refresh_tokens.revoked_at IS '撤销时间';
+COMMENT ON COLUMN public.refresh_tokens.created_at IS '创建时间';
 
 CREATE TABLE IF NOT EXISTS sys_tenant_user (
   id        UUID         NOT NULL,
@@ -152,6 +194,11 @@ CREATE TABLE IF NOT EXISTS sys_tenant_user (
 );
 CREATE INDEX IF NOT EXISTS ix_sys_tenant_user_tenant_id ON sys_tenant_user (tenant_id);
 CREATE INDEX IF NOT EXISTS ix_sys_tenant_user_user_id ON sys_tenant_user (user_id);
+COMMENT ON TABLE public.sys_tenant_user IS '用户与租户成员关系';
+COMMENT ON COLUMN public.sys_tenant_user.id IS '主键';
+COMMENT ON COLUMN public.sys_tenant_user.user_id IS '用户 id';
+COMMENT ON COLUMN public.sys_tenant_user.tenant_id IS '所属 tenant';
+COMMENT ON COLUMN public.sys_tenant_user.role IS '租户成员角色 admin/member';
 
 CREATE TABLE IF NOT EXISTS sys_workspaces (
   id        UUID         NOT NULL,
@@ -170,6 +217,11 @@ COMMENT ON COLUMN public.sys_workspaces.status IS 'true=正常 false=停用';
 COMMENT ON COLUMN public.sys_workspaces.remark IS '备注';
 COMMENT ON COLUMN public.sys_workspaces.create_at IS '创建时间';
 COMMENT ON COLUMN public.sys_workspaces.update_at IS '修改时间';
+COMMENT ON TABLE public.sys_workspaces IS '工作空间';
+COMMENT ON COLUMN public.sys_workspaces.id IS '主键';
+COMMENT ON COLUMN public.sys_workspaces.tenant_id IS '所属 tenant';
+COMMENT ON COLUMN public.sys_workspaces."name" IS '工作空间名称';
+COMMENT ON COLUMN public.sys_workspaces.slug IS '工作空间标识（租户内唯一）';
 
 CREATE TABLE IF NOT EXISTS sys_workspace_user (
   id           UUID            NOT NULL,
@@ -182,6 +234,11 @@ CREATE TABLE IF NOT EXISTS sys_workspace_user (
 CREATE INDEX IF NOT EXISTS ix_sys_workspace_user_user_id ON sys_workspace_user (user_id);
 CREATE INDEX IF NOT EXISTS ix_sys_workspace_user_workspace_id ON sys_workspace_user (workspace_id);
 
+COMMENT ON TABLE public.sys_workspace_user IS '用户与工作空间成员关系';
+COMMENT ON COLUMN public.sys_workspace_user.id IS '主键';
+COMMENT ON COLUMN public.sys_workspace_user.user_id IS '用户 id';
+COMMENT ON COLUMN public.sys_workspace_user.workspace_id IS '所属 workspace';
+COMMENT ON COLUMN public.sys_workspace_user.role IS '工作空间成员角色 admin/member';
 
 CREATE TABLE IF NOT EXISTS public.sys_ocr_tool (
   id UUID NOT NULL,
@@ -212,6 +269,8 @@ COMMENT ON COLUMN public.sys_ocr_tool.api_key IS 'api key';
 COMMENT ON COLUMN public.sys_ocr_tool.remark IS '备注';
 COMMENT ON COLUMN public.sys_ocr_tool.create_at IS '创建日期';
 COMMENT ON COLUMN public.sys_ocr_tool.update_at IS '更新日期';
+COMMENT ON COLUMN public.sys_ocr_tool.ocr_type IS 'OCR 引擎类型';
+COMMENT ON COLUMN public.sys_ocr_tool.ocr_config IS 'OCR 配置 JSON';
 
 CREATE TABLE IF NOT EXISTS public.agent_mcp_client (
   id UUID NOT NULL,
@@ -236,6 +295,14 @@ COMMENT ON COLUMN public.agent_mcp_client.workspace_id IS '工作空间 id';
 COMMENT ON COLUMN public.agent_mcp_client.transport IS 'STDIO | SSE | STREAMABLE_HTTP';
 COMMENT ON COLUMN public.agent_mcp_client.config IS '非敏感连接配置 JSON';
 COMMENT ON COLUMN public.agent_mcp_client.secrets IS '敏感配置 JSON（env/headers）';
+COMMENT ON COLUMN public.agent_mcp_client.id IS '主键';
+COMMENT ON COLUMN public.agent_mcp_client."name" IS '名称';
+COMMENT ON COLUMN public.agent_mcp_client.enabled IS '是否启用';
+COMMENT ON COLUMN public.agent_mcp_client.remark IS '备注';
+COMMENT ON COLUMN public.agent_mcp_client.last_test_at IS '最近连通测试时间';
+COMMENT ON COLUMN public.agent_mcp_client.last_test_ok IS '最近连通测试是否成功';
+COMMENT ON COLUMN public.agent_mcp_client.create_at IS '创建时间';
+COMMENT ON COLUMN public.agent_mcp_client.update_at IS '修改时间';
 
 CREATE TABLE IF NOT EXISTS public.agent_mcp_server (
   id UUID NOT NULL,
@@ -256,6 +323,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_mcp_server_slug ON agent_mcp_server (
 COMMENT ON TABLE public.agent_mcp_server IS 'MCP 服务端暴露配置（工作区隔离）';
 COMMENT ON COLUMN public.agent_mcp_server.slug IS '对外 URL 路径段，全局唯一';
 COMMENT ON COLUMN public.agent_mcp_server.exposure IS '暴露范围 JSON（builtin_skills/mcp_client_ids）';
+COMMENT ON COLUMN public.agent_mcp_server.id IS '主键';
+COMMENT ON COLUMN public.agent_mcp_server.workspace_id IS '所属 workspace';
+COMMENT ON COLUMN public.agent_mcp_server."name" IS '名称';
+COMMENT ON COLUMN public.agent_mcp_server.enabled IS '是否启用';
+COMMENT ON COLUMN public.agent_mcp_server.auth_type IS '认证类型';
+COMMENT ON COLUMN public.agent_mcp_server.auth_secret IS '认证密钥（加密存储）';
+COMMENT ON COLUMN public.agent_mcp_server.remark IS '备注';
+COMMENT ON COLUMN public.agent_mcp_server.create_at IS '创建时间';
+COMMENT ON COLUMN public.agent_mcp_server.update_at IS '修改时间';
 
 CREATE TABLE public.sys_dict (
      id uuid NOT NULL,
@@ -325,10 +401,25 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_menu_menu_key
 COMMENT ON TABLE public.sys_menu IS '系统菜单（全局）';
 COMMENT ON COLUMN public.sys_menu.parent_id IS '父菜单 id；NULL 为根';
 COMMENT ON COLUMN public.sys_menu.menu_type IS 'M目录 C菜单 F按钮';
+COMMENT ON COLUMN public.sys_menu.remark IS '备注';
+COMMENT ON COLUMN public.sys_menu.create_at IS '创建时间';
+COMMENT ON COLUMN public.sys_menu.update_at IS '修改时间';
+COMMENT ON COLUMN public.sys_menu.id IS '主键';
+COMMENT ON COLUMN public.sys_menu.menu_name IS '菜单名称';
+COMMENT ON COLUMN public.sys_menu.i18n_key IS 'i18n 键';
+COMMENT ON COLUMN public.sys_menu.menu_key IS '侧栏稳定键';
+COMMENT ON COLUMN public.sys_menu.order_num IS '显示顺序';
+COMMENT ON COLUMN public.sys_menu.path IS '路由地址';
+COMMENT ON COLUMN public.sys_menu.perms IS '权限标识';
+COMMENT ON COLUMN public.sys_menu.icon IS 'Ant Design 图标名';
+COMMENT ON COLUMN public.sys_menu.visible IS '是否在侧栏显示';
+COMMENT ON COLUMN public.sys_menu.status IS '是否启用';
+COMMENT ON COLUMN public.sys_menu.is_external IS '是否外链';
 
 CREATE TABLE IF NOT EXISTS public.sys_role (
   id            UUID         NOT NULL,
-  workspace_id  UUID         NOT NULL,
+  tenant_id     UUID         NOT NULL,
+  workspace_id  UUID         NULL,
   role_name     VARCHAR(64)  NOT NULL,
   role_key      VARCHAR(64)  NOT NULL,
   role_sort     INT          NOT NULL DEFAULT 0,
@@ -338,25 +429,22 @@ CREATE TABLE IF NOT EXISTS public.sys_role (
   update_at     TIMESTAMPTZ  NULL,
   CONSTRAINT sys_role_pk PRIMARY KEY (id)
 );
-CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_role_workspace_role_key
-  ON public.sys_role (workspace_id, role_key);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_role_tenant_role_key
+  ON public.sys_role (tenant_id, role_key);
+CREATE INDEX IF NOT EXISTS ix_sys_role_tenant_id ON public.sys_role (tenant_id);
 CREATE INDEX IF NOT EXISTS ix_sys_role_workspace_id ON public.sys_role (workspace_id);
 CREATE INDEX IF NOT EXISTS ix_sys_role_role_sort ON public.sys_role (role_sort);
-COMMENT ON TABLE public.sys_role IS '工作空间角色';
-COMMENT ON COLUMN public.sys_role.workspace_id IS '所属 workspace';
-COMMENT ON COLUMN public.sys_role.role_key IS '权限字符；workspace 内唯一';
-
-CREATE TABLE IF NOT EXISTS public.sys_role_menu (
-  id       UUID NOT NULL,
-  role_id  UUID NOT NULL,
-  menu_id  UUID NOT NULL,
-  CONSTRAINT sys_role_menu_pk PRIMARY KEY (id)
-);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_role_menu_role_menu
-  ON public.sys_role_menu (role_id, menu_id);
-CREATE INDEX IF NOT EXISTS ix_sys_role_menu_role_id ON public.sys_role_menu (role_id);
-CREATE INDEX IF NOT EXISTS ix_sys_role_menu_menu_id ON public.sys_role_menu (menu_id);
-COMMENT ON TABLE public.sys_role_menu IS '角色菜单权限关联';
+COMMENT ON TABLE public.sys_role IS '租户作用域角色';
+COMMENT ON COLUMN public.sys_role.id IS '主键';
+COMMENT ON COLUMN public.sys_role.tenant_id IS '所属 tenant';
+COMMENT ON COLUMN public.sys_role.workspace_id IS '所属 workspace；NULL 表示 tenant 内通用角色';
+COMMENT ON COLUMN public.sys_role.role_name IS '角色名称';
+COMMENT ON COLUMN public.sys_role.role_key IS '权限字符；tenant 内唯一';
+COMMENT ON COLUMN public.sys_role.role_sort IS '显示顺序';
+COMMENT ON COLUMN public.sys_role.status IS '是否启用';
+COMMENT ON COLUMN public.sys_role.remark IS '备注';
+COMMENT ON COLUMN public.sys_role.create_at IS '创建时间';
+COMMENT ON COLUMN public.sys_role.update_at IS '修改时间';
 
 CREATE TABLE public.sys_models (
 	id uuid NOT NULL,
@@ -680,6 +768,7 @@ COMMENT ON COLUMN public.agent_session.meta_json IS '扩展元数据(JSONB)';
 COMMENT ON COLUMN public.agent_session.usage_json IS '会话累计 token 用量(JSONB，含 by_phase)';
 COMMENT ON COLUMN public.agent_session.created_at IS '创建时间';
 COMMENT ON COLUMN public.agent_session.updated_at IS '更新时间';
+COMMENT ON COLUMN public.agent_session.summary_text IS '会话摘要';
 
 CREATE TABLE IF NOT EXISTS public.agent_run (
   id uuid NOT NULL,
@@ -772,6 +861,16 @@ CREATE INDEX IF NOT EXISTS ix_agent_message_attachment_message_id ON public.agen
 COMMENT ON TABLE public.agent_message_attachment IS 'Agent 对话消息附件元数据（不含 download_url）';
 COMMENT ON COLUMN public.agent_message_attachment.storage_kind IS '上传时快照: S3 / LOCAL / DEFAULT_LOCAL';
 COMMENT ON COLUMN public.agent_message_attachment.kind IS 'image | file';
+COMMENT ON COLUMN public.agent_message_attachment.id IS '主键';
+COMMENT ON COLUMN public.agent_message_attachment.workspace_id IS '工作空间 id';
+COMMENT ON COLUMN public.agent_message_attachment.session_id IS '会话 id';
+COMMENT ON COLUMN public.agent_message_attachment.message_id IS '消息 id';
+COMMENT ON COLUMN public.agent_message_attachment.object_key IS '对象存储键';
+COMMENT ON COLUMN public.agent_message_attachment.file_name IS '原始文件名';
+COMMENT ON COLUMN public.agent_message_attachment.content_type IS 'MIME 类型';
+COMMENT ON COLUMN public.agent_message_attachment.size IS '文件大小（字节）';
+COMMENT ON COLUMN public.agent_message_attachment.created_by IS '上传用户 id';
+COMMENT ON COLUMN public.agent_message_attachment.created_at IS '创建时间';
 
 CREATE TABLE IF NOT EXISTS public.agent_plan (
   id uuid NOT NULL,
@@ -783,6 +882,11 @@ CREATE TABLE IF NOT EXISTS public.agent_plan (
 );
 CREATE INDEX IF NOT EXISTS ix_agent_plan_run_id ON public.agent_plan (run_id);
 COMMENT ON TABLE public.agent_plan IS '单次 run 的结构化计划';
+COMMENT ON COLUMN public.agent_plan.id IS '主键';
+COMMENT ON COLUMN public.agent_plan.run_id IS '所属 run';
+COMMENT ON COLUMN public.agent_plan.steps_json IS '计划步骤 JSON';
+COMMENT ON COLUMN public.agent_plan.status IS '计划状态';
+COMMENT ON COLUMN public.agent_plan.created_at IS '创建时间';
 
 CREATE TABLE IF NOT EXISTS public.agent_long_term_memory (
   id uuid NOT NULL,
@@ -801,6 +905,16 @@ CREATE INDEX IF NOT EXISTS ix_agent_ltm_workspace_id ON public.agent_long_term_m
 CREATE INDEX IF NOT EXISTS ix_agent_ltm_session_id ON public.agent_long_term_memory (session_id);
 CREATE INDEX IF NOT EXISTS ix_agent_ltm_workspace_session ON public.agent_long_term_memory (workspace_id, session_id);
 COMMENT ON TABLE public.agent_long_term_memory IS '长期记忆（SQL 检索）';
+COMMENT ON COLUMN public.agent_long_term_memory.id IS '主键';
+COMMENT ON COLUMN public.agent_long_term_memory.workspace_id IS '工作空间 id';
+COMMENT ON COLUMN public.agent_long_term_memory.session_id IS '会话 id（可空表示全局）';
+COMMENT ON COLUMN public.agent_long_term_memory.kind IS '记忆种类';
+COMMENT ON COLUMN public.agent_long_term_memory.key IS '记忆键';
+COMMENT ON COLUMN public.agent_long_term_memory.content IS '记忆内容';
+COMMENT ON COLUMN public.agent_long_term_memory.tags IS '标签 JSON';
+COMMENT ON COLUMN public.agent_long_term_memory.source_run_id IS '写入来源 run';
+COMMENT ON COLUMN public.agent_long_term_memory.created_at IS '创建时间';
+COMMENT ON COLUMN public.agent_long_term_memory.expires_at IS '过期时间';
 
 CREATE TABLE IF NOT EXISTS public.agent_memory_profile (
   id uuid NOT NULL,
@@ -819,7 +933,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_memory_profile_workspace_null_session
   ON public.agent_memory_profile (workspace_id) WHERE session_id IS NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_memory_profile_workspace_session
   ON public.agent_memory_profile (workspace_id, session_id) WHERE session_id IS NOT NULL;
-COMMENT ON TABLE public.agent_memory_profile IS 'Agent 持久人物画像（mem0 模式；工作区/会话级）';
+COMMENT ON TABLE public.agent_memory_profile IS 'Agent 持久人物画像';
+COMMENT ON COLUMN public.agent_memory_profile.id IS '主键';
+COMMENT ON COLUMN public.agent_memory_profile.workspace_id IS '工作空间 id';
+COMMENT ON COLUMN public.agent_memory_profile.session_id IS '会话 id（NULL 为工作区级）';
+COMMENT ON COLUMN public.agent_memory_profile.profile_text IS '画像文本';
+COMMENT ON COLUMN public.agent_memory_profile.updated_by IS '最后更新用户 id';
+COMMENT ON COLUMN public.agent_memory_profile.updated_at IS '更新时间';
 
 CREATE TABLE IF NOT EXISTS public.agent_run_node (
   id uuid NOT NULL,
@@ -882,6 +1002,13 @@ CREATE INDEX IF NOT EXISTS ix_checkpoints_create_at ON public.checkpoints (creat
 COMMENT ON TABLE public.checkpoints IS 'LangGraph checkpoint 主表';
 COMMENT ON COLUMN public.checkpoints.create_at IS '行创建时间（清理依据）';
 COMMENT ON COLUMN public.checkpoints.update_at IS '行最后更新时间';
+COMMENT ON COLUMN public.checkpoints.thread_id IS 'LangGraph 线程 id';
+COMMENT ON COLUMN public.checkpoints.checkpoint_ns IS 'checkpoint 命名空间';
+COMMENT ON COLUMN public.checkpoints.checkpoint_id IS 'checkpoint id';
+COMMENT ON COLUMN public.checkpoints.parent_checkpoint_id IS '父 checkpoint id';
+COMMENT ON COLUMN public.checkpoints."type" IS '类型';
+COMMENT ON COLUMN public.checkpoints.checkpoint IS 'checkpoint 快照';
+COMMENT ON COLUMN public.checkpoints.metadata IS '元数据 JSON';
 
 CREATE TABLE IF NOT EXISTS public.checkpoint_blobs (
   thread_id text NOT NULL,
@@ -899,6 +1026,12 @@ CREATE INDEX IF NOT EXISTS ix_checkpoint_blobs_create_at ON public.checkpoint_bl
 COMMENT ON TABLE public.checkpoint_blobs IS 'LangGraph checkpoint blob 分片';
 COMMENT ON COLUMN public.checkpoint_blobs.create_at IS '行创建时间（清理依据）';
 COMMENT ON COLUMN public.checkpoint_blobs.update_at IS '行最后更新时间';
+COMMENT ON COLUMN public.checkpoint_blobs.thread_id IS 'LangGraph 线程 id';
+COMMENT ON COLUMN public.checkpoint_blobs.checkpoint_ns IS 'checkpoint 命名空间';
+COMMENT ON COLUMN public.checkpoint_blobs.channel IS '通道名';
+COMMENT ON COLUMN public.checkpoint_blobs.version IS '版本';
+COMMENT ON COLUMN public.checkpoint_blobs."type" IS '类型';
+COMMENT ON COLUMN public.checkpoint_blobs.blob IS '二进制载荷';
 
 CREATE TABLE IF NOT EXISTS public.checkpoint_writes (
   thread_id text NOT NULL,
@@ -923,6 +1056,15 @@ COMMENT ON COLUMN public.checkpoint_writes.update_at IS '行最后更新时间';
 -- ---------------------------------------------------------------------------
 -- Document translation（文档翻译）：任务与段落（与 ORM 一致，无库级外键）
 -- ---------------------------------------------------------------------------
+COMMENT ON COLUMN public.checkpoint_writes.thread_id IS 'LangGraph 线程 id';
+COMMENT ON COLUMN public.checkpoint_writes.checkpoint_ns IS 'checkpoint 命名空间';
+COMMENT ON COLUMN public.checkpoint_writes.checkpoint_id IS 'checkpoint id';
+COMMENT ON COLUMN public.checkpoint_writes.task_id IS '任务 id';
+COMMENT ON COLUMN public.checkpoint_writes.task_path IS '任务路径';
+COMMENT ON COLUMN public.checkpoint_writes.idx IS '写入序号';
+COMMENT ON COLUMN public.checkpoint_writes.channel IS '通道名';
+COMMENT ON COLUMN public.checkpoint_writes."type" IS '类型';
+COMMENT ON COLUMN public.checkpoint_writes.blob IS '二进制载荷';
 
 CREATE TABLE IF NOT EXISTS public.doc_translate_job (
   id uuid NOT NULL,
@@ -1029,6 +1171,26 @@ CREATE TABLE IF NOT EXISTS public.dataset (
   PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS ix_dataset_workspace_id ON public.dataset (workspace_id);
+COMMENT ON TABLE public.dataset IS '知识库';
+COMMENT ON COLUMN public.dataset.id IS '主键';
+COMMENT ON COLUMN public.dataset.workspace_id IS '所属 workspace';
+COMMENT ON COLUMN public.dataset."name" IS '名称';
+COMMENT ON COLUMN public.dataset.description IS '描述';
+COMMENT ON COLUMN public.dataset.provider IS '供应商标识';
+COMMENT ON COLUMN public.dataset.permission IS '可见性权限';
+COMMENT ON COLUMN public.dataset.data_source_type IS '数据源类型';
+COMMENT ON COLUMN public.dataset.indexing_technique IS '索引技术';
+COMMENT ON COLUMN public.dataset.index_struct IS '索引结构 JSON';
+COMMENT ON COLUMN public.dataset.embedding_model IS '嵌入模型名';
+COMMENT ON COLUMN public.dataset.embedding_model_provider IS '嵌入模型供应商';
+COMMENT ON COLUMN public.dataset.keyword_number IS '关键词数量上限';
+COMMENT ON COLUMN public.dataset.collection_binding_id IS '向量集合绑定 id';
+COMMENT ON COLUMN public.dataset.retrieval_model IS '检索模型配置 JSON';
+COMMENT ON COLUMN public.dataset.chunk_structure IS '分段结构';
+COMMENT ON COLUMN public.dataset.created_by IS '创建人用户 id';
+COMMENT ON COLUMN public.dataset.updated_by IS '最后更新人';
+COMMENT ON COLUMN public.dataset.create_at IS '创建时间';
+COMMENT ON COLUMN public.dataset.update_at IS '修改时间';
 
 CREATE TABLE IF NOT EXISTS public.dataset_process_rule (
   id uuid NOT NULL,
@@ -1040,6 +1202,13 @@ CREATE TABLE IF NOT EXISTS public.dataset_process_rule (
   PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS ix_dataset_process_rule_dataset_id ON public.dataset_process_rule (dataset_id);
+COMMENT ON TABLE public.dataset_process_rule IS '知识库分段规则';
+COMMENT ON COLUMN public.dataset_process_rule.id IS '主键';
+COMMENT ON COLUMN public.dataset_process_rule.dataset_id IS '知识库 id';
+COMMENT ON COLUMN public.dataset_process_rule.mode IS '模式';
+COMMENT ON COLUMN public.dataset_process_rule.rules IS '规则 JSON';
+COMMENT ON COLUMN public.dataset_process_rule.created_by IS '创建人用户 id';
+COMMENT ON COLUMN public.dataset_process_rule.create_at IS '创建时间';
 
 CREATE TABLE IF NOT EXISTS public.dataset_upload_file (
   id uuid NOT NULL,
@@ -1054,6 +1223,16 @@ CREATE TABLE IF NOT EXISTS public.dataset_upload_file (
   PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS ix_dataset_upload_file_workspace_id ON public.dataset_upload_file (workspace_id);
+COMMENT ON TABLE public.dataset_upload_file IS '知识库上传文件';
+COMMENT ON COLUMN public.dataset_upload_file.id IS '主键';
+COMMENT ON COLUMN public.dataset_upload_file.workspace_id IS '所属 workspace';
+COMMENT ON COLUMN public.dataset_upload_file.storage_key IS '存储键';
+COMMENT ON COLUMN public.dataset_upload_file."name" IS '名称';
+COMMENT ON COLUMN public.dataset_upload_file.size IS '大小（字节）';
+COMMENT ON COLUMN public.dataset_upload_file.extension IS '文件扩展名';
+COMMENT ON COLUMN public.dataset_upload_file.mime_type IS 'MIME 类型';
+COMMENT ON COLUMN public.dataset_upload_file.created_by IS '创建人用户 id';
+COMMENT ON COLUMN public.dataset_upload_file.create_at IS '创建时间';
 
 CREATE TABLE IF NOT EXISTS public.dataset_document (
   id uuid NOT NULL,
@@ -1091,6 +1270,38 @@ CREATE TABLE IF NOT EXISTS public.dataset_document (
 );
 CREATE INDEX IF NOT EXISTS ix_dataset_document_dataset_id ON public.dataset_document (dataset_id);
 CREATE INDEX IF NOT EXISTS ix_dataset_document_workspace_id ON public.dataset_document (workspace_id);
+COMMENT ON TABLE public.dataset_document IS '知识库文档';
+COMMENT ON COLUMN public.dataset_document.id IS '主键';
+COMMENT ON COLUMN public.dataset_document.workspace_id IS '所属 workspace';
+COMMENT ON COLUMN public.dataset_document.dataset_id IS '知识库 id';
+COMMENT ON COLUMN public.dataset_document.position IS '排序位置';
+COMMENT ON COLUMN public.dataset_document.data_source_type IS 'data_source_type 字段';
+COMMENT ON COLUMN public.dataset_document.data_source_info IS 'data_source_info 字段';
+COMMENT ON COLUMN public.dataset_document.dataset_process_rule_id IS '分段规则 id';
+COMMENT ON COLUMN public.dataset_document.batch IS '导入批次号';
+COMMENT ON COLUMN public.dataset_document."name" IS '名称';
+COMMENT ON COLUMN public.dataset_document.created_from IS '创建来源';
+COMMENT ON COLUMN public.dataset_document.created_by IS '创建人用户 id';
+COMMENT ON COLUMN public.dataset_document.file_id IS '文件 id';
+COMMENT ON COLUMN public.dataset_document.word_count IS '字数';
+COMMENT ON COLUMN public.dataset_document.indexing_status IS '索引状态';
+COMMENT ON COLUMN public.dataset_document.enabled IS '是否启用';
+COMMENT ON COLUMN public.dataset_document.archived IS '是否归档';
+COMMENT ON COLUMN public.dataset_document.is_paused IS '是否暂停';
+COMMENT ON COLUMN public.dataset_document.doc_form IS '文档形式';
+COMMENT ON COLUMN public.dataset_document.doc_type IS '文档类型';
+COMMENT ON COLUMN public.dataset_document.doc_language IS '文档语言';
+COMMENT ON COLUMN public.dataset_document.error IS '错误信息';
+COMMENT ON COLUMN public.dataset_document.tokens IS 'token 数';
+COMMENT ON COLUMN public.dataset_document.indexing_latency IS '索引耗时（秒）';
+COMMENT ON COLUMN public.dataset_document.processing_started_at IS '处理开始时间';
+COMMENT ON COLUMN public.dataset_document.parsing_completed_at IS '解析完成时间';
+COMMENT ON COLUMN public.dataset_document.cleaning_completed_at IS '清洗完成时间';
+COMMENT ON COLUMN public.dataset_document.splitting_completed_at IS '切分完成时间';
+COMMENT ON COLUMN public.dataset_document.completed_at IS '处理完成时间';
+COMMENT ON COLUMN public.dataset_document.stopped_at IS '停止时间';
+COMMENT ON COLUMN public.dataset_document.create_at IS '创建时间';
+COMMENT ON COLUMN public.dataset_document.update_at IS '修改时间';
 
 CREATE TABLE IF NOT EXISTS public.dataset_document_segment (
   id uuid NOT NULL,
@@ -1116,6 +1327,26 @@ CREATE TABLE IF NOT EXISTS public.dataset_document_segment (
 );
 CREATE INDEX IF NOT EXISTS ix_dataset_document_segment_dataset_id ON public.dataset_document_segment (dataset_id);
 CREATE INDEX IF NOT EXISTS ix_dataset_document_segment_document_id ON public.dataset_document_segment (document_id);
+COMMENT ON TABLE public.dataset_document_segment IS '知识库文档分段';
+COMMENT ON COLUMN public.dataset_document_segment.id IS '主键';
+COMMENT ON COLUMN public.dataset_document_segment.workspace_id IS '所属 workspace';
+COMMENT ON COLUMN public.dataset_document_segment.dataset_id IS '知识库 id';
+COMMENT ON COLUMN public.dataset_document_segment.document_id IS '文档 id';
+COMMENT ON COLUMN public.dataset_document_segment.position IS '排序位置';
+COMMENT ON COLUMN public.dataset_document_segment.content IS '内容';
+COMMENT ON COLUMN public.dataset_document_segment.answer IS '问答对答案';
+COMMENT ON COLUMN public.dataset_document_segment.word_count IS '字数';
+COMMENT ON COLUMN public.dataset_document_segment.tokens IS 'token 数';
+COMMENT ON COLUMN public.dataset_document_segment.keywords IS '关键词';
+COMMENT ON COLUMN public.dataset_document_segment.index_node_id IS '向量索引节点 id';
+COMMENT ON COLUMN public.dataset_document_segment.index_node_hash IS '向量索引节点哈希';
+COMMENT ON COLUMN public.dataset_document_segment.hit_count IS '命中次数';
+COMMENT ON COLUMN public.dataset_document_segment.enabled IS '是否启用';
+COMMENT ON COLUMN public.dataset_document_segment.status IS '状态';
+COMMENT ON COLUMN public.dataset_document_segment.error IS '错误信息';
+COMMENT ON COLUMN public.dataset_document_segment.created_by IS '创建人用户 id';
+COMMENT ON COLUMN public.dataset_document_segment.create_at IS '创建时间';
+COMMENT ON COLUMN public.dataset_document_segment.update_at IS '修改时间';
 
 CREATE TABLE IF NOT EXISTS public.dataset_child_chunk (
   id uuid NOT NULL,
@@ -1135,6 +1366,21 @@ CREATE TABLE IF NOT EXISTS public.dataset_child_chunk (
   PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS ix_dataset_child_chunk_segment_id ON public.dataset_child_chunk (segment_id);
+COMMENT ON TABLE public.dataset_child_chunk IS '子块（父子分段）';
+COMMENT ON COLUMN public.dataset_child_chunk.id IS '主键';
+COMMENT ON COLUMN public.dataset_child_chunk.workspace_id IS '所属 workspace';
+COMMENT ON COLUMN public.dataset_child_chunk.dataset_id IS '知识库 id';
+COMMENT ON COLUMN public.dataset_child_chunk.document_id IS '文档 id';
+COMMENT ON COLUMN public.dataset_child_chunk.segment_id IS '分段 id';
+COMMENT ON COLUMN public.dataset_child_chunk.position IS '排序位置';
+COMMENT ON COLUMN public.dataset_child_chunk.content IS '内容';
+COMMENT ON COLUMN public.dataset_child_chunk.word_count IS '字数';
+COMMENT ON COLUMN public.dataset_child_chunk.index_node_id IS 'index_node_id 字段';
+COMMENT ON COLUMN public.dataset_child_chunk.index_node_hash IS 'index_node_hash 字段';
+COMMENT ON COLUMN public.dataset_child_chunk."type" IS '子块类型';
+COMMENT ON COLUMN public.dataset_child_chunk.created_by IS '创建人用户 id';
+COMMENT ON COLUMN public.dataset_child_chunk.create_at IS '创建时间';
+COMMENT ON COLUMN public.dataset_child_chunk.update_at IS '修改时间';
 
 CREATE TABLE IF NOT EXISTS public.dataset_keyword_table (
   id uuid NOT NULL,
@@ -1144,6 +1390,11 @@ CREATE TABLE IF NOT EXISTS public.dataset_keyword_table (
   PRIMARY KEY (id)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ix_dataset_keyword_table_dataset_id ON public.dataset_keyword_table (dataset_id);
+COMMENT ON TABLE public.dataset_keyword_table IS '关键词倒排表';
+COMMENT ON COLUMN public.dataset_keyword_table.id IS '主键';
+COMMENT ON COLUMN public.dataset_keyword_table.dataset_id IS '知识库 id';
+COMMENT ON COLUMN public.dataset_keyword_table.keyword_table IS '关键词表 JSON';
+COMMENT ON COLUMN public.dataset_keyword_table.data_source_type IS 'data_source_type 字段';
 
 CREATE TABLE IF NOT EXISTS public.dataset_embedding (
   id uuid NOT NULL,
@@ -1155,6 +1406,13 @@ CREATE TABLE IF NOT EXISTS public.dataset_embedding (
   PRIMARY KEY (id),
   CONSTRAINT dataset_embedding_hash_idx UNIQUE (model_name, hash, provider_name)
 );
+COMMENT ON TABLE public.dataset_embedding IS '分段向量嵌入';
+COMMENT ON COLUMN public.dataset_embedding.id IS '主键';
+COMMENT ON COLUMN public.dataset_embedding.model_name IS '模型名称';
+COMMENT ON COLUMN public.dataset_embedding.hash IS '哈希';
+COMMENT ON COLUMN public.dataset_embedding.embedding IS '向量嵌入';
+COMMENT ON COLUMN public.dataset_embedding.provider_name IS '供应商名称';
+COMMENT ON COLUMN public.dataset_embedding.create_at IS '创建时间';
 
 CREATE TABLE IF NOT EXISTS public.dataset_collection_binding (
   id uuid NOT NULL,
@@ -1166,6 +1424,13 @@ CREATE TABLE IF NOT EXISTS public.dataset_collection_binding (
   PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS ix_dataset_collection_binding_provider_model ON public.dataset_collection_binding (provider_name, model_name);
+COMMENT ON TABLE public.dataset_collection_binding IS '向量集合绑定';
+COMMENT ON COLUMN public.dataset_collection_binding.id IS '主键';
+COMMENT ON COLUMN public.dataset_collection_binding.provider_name IS '供应商名称';
+COMMENT ON COLUMN public.dataset_collection_binding.model_name IS '模型名称';
+COMMENT ON COLUMN public.dataset_collection_binding."type" IS '类型';
+COMMENT ON COLUMN public.dataset_collection_binding.collection_name IS 'collection_name 字段';
+COMMENT ON COLUMN public.dataset_collection_binding.create_at IS '创建时间';
 
 CREATE TABLE IF NOT EXISTS public.dataset_query (
   id uuid NOT NULL,
@@ -1179,3 +1444,12 @@ CREATE TABLE IF NOT EXISTS public.dataset_query (
   PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS ix_dataset_query_dataset_id ON public.dataset_query (dataset_id);
+COMMENT ON TABLE public.dataset_query IS '知识库检索查询记录';
+COMMENT ON COLUMN public.dataset_query.id IS '主键';
+COMMENT ON COLUMN public.dataset_query.dataset_id IS '知识库 id';
+COMMENT ON COLUMN public.dataset_query.content IS '内容';
+COMMENT ON COLUMN public.dataset_query.source IS '来源';
+COMMENT ON COLUMN public.dataset_query.source_app_id IS '来源应用 id';
+COMMENT ON COLUMN public.dataset_query.created_by_role IS '创建者角色';
+COMMENT ON COLUMN public.dataset_query.created_by IS '创建人用户 id';
+COMMENT ON COLUMN public.dataset_query.create_at IS '创建时间';

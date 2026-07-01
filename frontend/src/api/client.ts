@@ -55,6 +55,10 @@ export async function authFetch(url: string, init?: RequestInit): Promise<Respon
  */
 export async function publicApiJson<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers)
+  const hasBody = init?.body !== undefined
+  if (hasBody && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
+  }
   const res = await fetch(`${apiOrigin()}${path}`, {
     ...init,
     headers,

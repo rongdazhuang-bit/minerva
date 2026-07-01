@@ -8,7 +8,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api.deps import get_current_user, require_workspace_member
+from app.core.api.deps import get_current_user
+from app.rule.api.deps import require_rules_workspace
 from app.dependencies import get_db
 from app.core.domain.identity.models import User
 from app.pagination import DEFAULT_PAGE_SIZE
@@ -78,7 +79,7 @@ async def list_rule_config_prompts(
     subject_code: str | None = Query(default=None),
     document_type: str | None = Query(default=None),
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_rules_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> RuleConfigPromptListPageOut:
     """Paginate prompt rows filtered by optional facet triple."""
@@ -107,7 +108,7 @@ async def create_rule_config_prompt(
     workspace_id: uuid.UUID,
     body: RuleConfigPromptCreateIn,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_rules_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> RuleConfigPromptListItemOut:
     """Persist prompt triple referencing configured catalog model."""
@@ -131,7 +132,7 @@ async def get_rule_config_prompt(
     workspace_id: uuid.UUID,
     config_prompt_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_rules_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> RuleConfigPromptListItemOut:
     """Fetch prompt configuration row by id."""
@@ -148,7 +149,7 @@ async def patch_rule_config_prompt(
     config_prompt_id: uuid.UUID,
     body: RuleConfigPromptPatchIn,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_rules_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> RuleConfigPromptListItemOut:
     """Partially update prompts or short-circuit no-op fetch."""
@@ -177,7 +178,7 @@ async def delete_rule_config_prompt(
     workspace_id: uuid.UUID,
     config_prompt_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_rules_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> Response:
     """Delete prompt configuration."""

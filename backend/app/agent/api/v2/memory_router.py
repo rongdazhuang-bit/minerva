@@ -18,7 +18,8 @@ from app.agent.api.v2.schemas import (
 from app.agent.memory.mem0.client import get_mem0_memory, mem0_entity_filters
 from app.agent.memory.profile import repository as profile_repo
 from app.config import settings
-from app.core.api.deps import get_current_user, require_workspace_member
+from app.core.api.deps import get_current_user
+from app.agent.api.deps import require_agent_workspace
 from app.core.domain.identity.models import User
 from app.dependencies import get_db
 from app.exceptions import AppError
@@ -55,7 +56,7 @@ async def list_memory_profiles(
     workspace_id: uuid.UUID,
     session_id: uuid.UUID | None = None,
     _user: User = Depends(get_current_user),
-    _member=Depends(require_workspace_member),
+    _member=Depends(require_agent_workspace),
     db: AsyncSession = Depends(get_db),
 ) -> list[AgentMemoryProfileOut]:
     """List persistent profiles for the workspace."""
@@ -72,7 +73,7 @@ async def create_memory_profile(
     workspace_id: uuid.UUID,
     body: AgentMemoryProfileCreateIn,
     user: User = Depends(get_current_user),
-    _member=Depends(require_workspace_member),
+    _member=Depends(require_agent_workspace),
     db: AsyncSession = Depends(get_db),
 ) -> AgentMemoryProfileOut:
     """Upsert workspace or session profile."""
@@ -95,7 +96,7 @@ async def patch_memory_profile(
     profile_id: uuid.UUID,
     body: AgentMemoryProfilePatchIn,
     user: User = Depends(get_current_user),
-    _member=Depends(require_workspace_member),
+    _member=Depends(require_agent_workspace),
     db: AsyncSession = Depends(get_db),
 ) -> AgentMemoryProfileOut:
     """Update profile text."""
@@ -118,7 +119,7 @@ async def delete_memory_profile(
     workspace_id: uuid.UUID,
     profile_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _member=Depends(require_workspace_member),
+    _member=Depends(require_agent_workspace),
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete one profile row."""
@@ -138,7 +139,7 @@ async def list_mem0_memories(
     session_id: uuid.UUID,
     limit: int = Query(default=50, ge=1, le=200),
     _user: User = Depends(get_current_user),
-    _member=Depends(require_workspace_member),
+    _member=Depends(require_agent_workspace),
 ) -> AgentMem0MemoryListOut:
     """List mem0 memories for a session."""
 
@@ -181,7 +182,7 @@ async def delete_mem0_memory(
     workspace_id: uuid.UUID,
     memory_id: str,
     _user: User = Depends(get_current_user),
-    _member=Depends(require_workspace_member),
+    _member=Depends(require_agent_workspace),
 ) -> None:
     """Delete one mem0 memory by id."""
 

@@ -8,7 +8,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api.deps import get_current_user, require_workspace_member
+from app.core.api.deps import get_current_user
+from app.sys.tool.ocr.api.deps import require_ocr_workspace
 from app.dependencies import get_db
 from app.core.domain.identity.models import User
 from app.sys.tool.ocr.api.schemas import (
@@ -116,7 +117,7 @@ def _to_patch_dict(body: OcrToolPatchIn) -> dict[str, Any]:
 async def list_ocr_tools(
     workspace_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_ocr_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> list[OcrToolListItemOut]:
     rows = await list_tools(session, workspace_id=workspace_id)
@@ -128,7 +129,7 @@ async def create_ocr_tool(
     workspace_id: uuid.UUID,
     body: OcrToolCreateIn,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_ocr_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> OcrToolDetailOut:
     ocr_type = body.ocr_type.strip() if body.ocr_type else None
@@ -156,7 +157,7 @@ async def get_ocr_tool(
     workspace_id: uuid.UUID,
     tool_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_ocr_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> OcrToolDetailOut:
     row = await get_tool(session, workspace_id=workspace_id, tool_id=tool_id)
@@ -169,7 +170,7 @@ async def patch_ocr_tool(
     tool_id: uuid.UUID,
     body: OcrToolPatchIn,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_ocr_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> OcrToolDetailOut:
     patch = _to_patch_dict(body)
@@ -190,7 +191,7 @@ async def remove_ocr_tool(
     workspace_id: uuid.UUID,
     tool_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_ocr_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> Response:
     await delete_tool(session, workspace_id=workspace_id, tool_id=tool_id)

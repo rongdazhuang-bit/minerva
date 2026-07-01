@@ -31,6 +31,7 @@ import {
 } from '@/api/roles'
 import { ApiError } from '@/api/client'
 import { useAuth } from '@/app/AuthContext'
+import { PermGuard } from '@/components/PermGuard'
 import { notifyMenuNavRefresh } from '@/app/menuNavRefresh'
 import { showAppError, useAppMessage } from '@/app/useAppMessage'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
@@ -60,7 +61,7 @@ function toListParams(values: FilterFormValues): SysRoleListParams {
 export function RolesPage() {
   const { t } = useTranslation()
   const messageApi = useAppMessage()
-  const { workspaceId, isWorkspaceManager } = useAuth()
+  const { workspaceId } = useAuth()
   const [filterForm] = Form.useForm<FilterFormValues>()
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
@@ -221,8 +222,8 @@ export function RolesPage() {
         key: 'actions',
         width: 88,
         fixed: 'right',
-        render: (_, row) =>
-          isWorkspaceManager ? (
+        render: (_, row) => (
+          <PermGuard perm="tenant:role:manage">
             <Space size={2}>
               <Tooltip title={t('roles.edit')}>
                 <Button
@@ -251,10 +252,11 @@ export function RolesPage() {
                 </span>
               </Tooltip>
             </Space>
-          ) : null,
+          </PermGuard>
+        ),
       },
     ],
-    [t, isWorkspaceManager, openEdit, handleDelete],
+    [t, openEdit, handleDelete],
   )
 
   if (forbidden) {
@@ -301,11 +303,11 @@ export function RolesPage() {
                 >
                   {t('roles.reset')}
                 </Button>
-                {isWorkspaceManager ? (
+                <PermGuard perm="tenant:role:manage">
                   <Button type="primary" icon={<PlusOutlined />} onClick={() => void openCreate()}>
                     {t('roles.add')}
                   </Button>
-                ) : null}
+                </PermGuard>
               </Space>
             </Form.Item>
           </Form>

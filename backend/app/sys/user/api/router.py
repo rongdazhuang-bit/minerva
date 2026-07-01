@@ -12,7 +12,6 @@ from app.core.api.deps import (
     require_workspace_member,
 )
 from app.core.domain.identity.models import MembershipRole, User
-from app.core.domain.identity.services import is_super_admin_user
 from app.dependencies import get_db
 from app.pagination import DEFAULT_PAGE_SIZE
 from app.sys.dict.api.schemas import SysDictItemNodeOut
@@ -60,7 +59,7 @@ async def list_users(
 ) -> SysUserListPageOut:
     """List workspace members with optional filters."""
 
-    actor_is_super = await is_super_admin_user(session, user_id=actor.id)
+    actor_is_super = actor.is_super_admin
     items, total = await svc.list_users_page(
         session,
         workspace_id=workspace_id,
@@ -115,7 +114,10 @@ async def get_user_capabilities(
     """Return form capability flags for the current actor."""
 
     data = await svc.get_actor_capabilities(
-        session, workspace_id=workspace_id, actor_user_id=actor.id
+        session,
+        workspace_id=workspace_id,
+        actor_user_id=actor.id,
+        actor_is_super_admin=actor.is_super_admin,
     )
     return SysUserCapabilitiesOut.model_validate(data)
 
@@ -164,7 +166,7 @@ async def get_user(
 ) -> SysUserListItemOut:
     """Return one workspace member detail."""
 
-    actor_is_super = await is_super_admin_user(session, user_id=actor.id)
+    actor_is_super = actor.is_super_admin
     data = await svc.get_user_detail(
         session,
         workspace_id=workspace_id,
@@ -213,7 +215,7 @@ async def patch_user(
     """Update workspace member profile and roles."""
 
     patch = body.model_dump(exclude_unset=True)
-    actor_is_super = await is_super_admin_user(session, user_id=actor.id)
+    actor_is_super = actor.is_super_admin
     membership_role = None
     if "membership_role" in patch:
         membership_role = MembershipRole(patch["membership_role"])
@@ -277,5 +279,6 @@ async def delete_user_account(
         workspace_id=workspace_id,
         user_id=user_id,
         actor_user_id=actor.id,
+        actor_is_super_admin=actor.is_super_admin,
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)

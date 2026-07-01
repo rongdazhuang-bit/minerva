@@ -18,7 +18,7 @@ from app.agent.api.v2.schemas import (
 )
 from app.agent.infrastructure.skill_loader import invalidate_skill_cache
 from app.agent.service.skill_files_service import SkillFilesService
-from app.core.api.deps import require_tenant_owner_or_admin
+from app.agent.api.deps import require_skills_tenant_manager
 from app.exceptions import AppError
 
 router = APIRouter(prefix="/skills-mgmt", tags=["agent-skills-mgmt"])
@@ -63,7 +63,7 @@ def _invalidate_after_binary_write(rel: str) -> None:
 @router.get("/registry", response_model=SkillRegistryOut)
 async def get_skill_registry(
     workspace_id: uuid.UUID,
-    _workspace: uuid.UUID = Depends(require_tenant_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_skills_tenant_manager),
 ) -> SkillRegistryOut:
     """List indexed skills with descriptions and on-disk file counts."""
 
@@ -85,7 +85,7 @@ async def get_skill_registry(
 async def get_skill_file_tree(
     workspace_id: uuid.UUID,
     skill_id: str,
-    _workspace: uuid.UUID = Depends(require_tenant_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_skills_tenant_manager),
 ) -> list[SkillFileTreeNodeOut]:
     """Return the recursive file tree for one skill directory."""
 
@@ -98,7 +98,7 @@ async def get_skill_file_tree(
 async def read_skill_file(
     workspace_id: uuid.UUID,
     path: str = Query(..., min_length=1),
-    _workspace: uuid.UUID = Depends(require_tenant_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_skills_tenant_manager),
 ) -> SkillFileContentOut:
     """Read one UTF-8 text file under the global skills root."""
 
@@ -113,7 +113,7 @@ async def write_skill_file(
     workspace_id: uuid.UUID,
     body: SkillFileWriteIn,
     path: str = Query(..., min_length=1),
-    _workspace: uuid.UUID = Depends(require_tenant_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_skills_tenant_manager),
 ) -> SkillWriteResultOut:
     """Save ``.md`` / ``.py`` / ``.json`` and invalidate skill caches."""
 
@@ -127,7 +127,7 @@ async def write_skill_file(
 async def upload_skill_package(
     workspace_id: uuid.UUID,
     file: UploadFile = File(...),
-    _workspace: uuid.UUID = Depends(require_tenant_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_skills_tenant_manager),
 ) -> dict[str, str]:
     """Install one zip skill package whose archive root is a single directory."""
 
@@ -142,7 +142,7 @@ async def upload_skill_file(
     workspace_id: uuid.UUID,
     path: str = Query(..., min_length=1, description="Target directory relative to skills root."),
     file: UploadFile = File(...),
-    _workspace: uuid.UUID = Depends(require_tenant_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_skills_tenant_manager),
 ) -> SkillWriteResultOut:
     """Upload one file into an existing skill directory."""
 
@@ -181,7 +181,7 @@ async def upload_skill_file(
 async def download_skill_file(
     workspace_id: uuid.UUID,
     path: str = Query(..., min_length=1),
-    _workspace: uuid.UUID = Depends(require_tenant_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_skills_tenant_manager),
 ) -> FileResponse:
     """Download one file from the global skills root."""
 
@@ -196,7 +196,7 @@ async def download_skill_file(
 async def delete_skill_path(
     workspace_id: uuid.UUID,
     path: str = Query(..., min_length=1),
-    _workspace: uuid.UUID = Depends(require_tenant_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_skills_tenant_manager),
 ) -> Response:
     """Delete one file or directory under the skills root."""
 
@@ -209,7 +209,7 @@ async def delete_skill_path(
 async def delete_skill_package(
     workspace_id: uuid.UUID,
     skill_id: str,
-    _workspace: uuid.UUID = Depends(require_tenant_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_skills_tenant_manager),
 ) -> Response:
     """Delete an entire skill package directory."""
 

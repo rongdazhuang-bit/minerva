@@ -104,4 +104,5 @@ class SysUserCapabilitiesOut(BaseModel):
     can_edit_membership_role: bool
     assignable_membership_roles: list[str]
     can_pick_tenant_workspace: bool
+    is_tenant_admin: bool = False
     default_tenant_id: uuid.UUID | None = None

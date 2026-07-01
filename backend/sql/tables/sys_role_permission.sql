@@ -11,4 +11,8 @@ CREATE INDEX IF NOT EXISTS ix_sys_role_permission_role_id
   ON public.sys_role_permission (role_id);
 CREATE INDEX IF NOT EXISTS ix_sys_role_permission_permission_id
   ON public.sys_role_permission (permission_id);
-COMMENT ON TABLE public.sys_role_permission IS 'Role to permission mapping (app-enforced)';
+
+COMMENT ON TABLE public.sys_role_permission IS '角色与权限关联';
+COMMENT ON COLUMN public.sys_role_permission.id IS '主键';
+COMMENT ON COLUMN public.sys_role_permission.role_id IS '角色 id';
+COMMENT ON COLUMN public.sys_role_permission.permission_id IS '权限 id';

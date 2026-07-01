@@ -8,11 +8,9 @@ from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core.api.deps import (
-    get_current_user,
-    require_workspace_member,
-    require_workspace_owner_or_admin,
-)
+from app.core.api.deps import get_current_user
+from app.mcp.api.deps import require_agent_workspace
+from app.core.security.permission_deps import require_workspace_manage
 from app.core.domain.identity.models import MembershipRole, User
 from app.core.domain.identity.services import find_workspace_role_for_user
 from app.dependencies import get_db
@@ -104,7 +102,7 @@ def _server_detail(row: SysMcpServer) -> McpServerDetailOut:
 async def get_runtime_status(
     workspace_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_agent_workspace),
 ) -> McpRuntimeStatusOut:
     return McpRuntimeStatusOut(
         client_enabled=settings.mcp_client_enabled,
@@ -116,7 +114,7 @@ async def get_runtime_status(
 async def list_mcp_clients(
     workspace_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_agent_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> list[McpClientListItemOut]:
     rows = await client_svc.list_clients(session, workspace_id=workspace_id)
@@ -128,7 +126,7 @@ async def get_mcp_client(
     workspace_id: uuid.UUID,
     client_id: uuid.UUID,
     user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_agent_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> McpClientDetailOut:
     row = await client_svc.get_client(
@@ -146,7 +144,7 @@ async def test_mcp_client(
     workspace_id: uuid.UUID,
     body: McpClientTestIn,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_workspace_manage),
 ) -> McpClientTestOut:
     result = await client_svc.test_client_connection(
         transport=body.transport,
@@ -166,7 +164,7 @@ async def create_mcp_client(
     workspace_id: uuid.UUID,
     body: McpClientCreateIn,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_workspace_manage),
     session: AsyncSession = Depends(get_db),
 ) -> McpClientDetailOut:
     row = await client_svc.create_client(
@@ -188,7 +186,7 @@ async def patch_mcp_client(
     client_id: uuid.UUID,
     body: McpClientPatchIn,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_workspace_manage),
     session: AsyncSession = Depends(get_db),
 ) -> McpClientDetailOut:
     row = await client_svc.update_client(
@@ -210,7 +208,7 @@ async def delete_mcp_client(
     workspace_id: uuid.UUID,
     client_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_workspace_manage),
     session: AsyncSession = Depends(get_db),
 ) -> Response:
     await client_svc.delete_client(
@@ -224,7 +222,7 @@ async def list_mcp_client_tools(
     workspace_id: uuid.UUID,
     client_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_agent_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> McpListToolsOut:
     return await client_svc.list_client_tools(
@@ -242,7 +240,7 @@ async def call_mcp_client_tool(
     tool_name: str,
     body: McpCallToolIn,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_agent_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> McpCallToolOut:
     return await client_svc.call_client_tool(
@@ -258,7 +256,7 @@ async def call_mcp_client_tool(
 async def list_mcp_servers(
     workspace_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_agent_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> list[McpServerListItemOut]:
     rows = await server_svc.list_servers(session, workspace_id=workspace_id)
@@ -270,7 +268,7 @@ async def get_mcp_server(
     workspace_id: uuid.UUID,
     server_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_agent_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> McpServerDetailOut:
     row = await server_svc.get_server(
@@ -287,7 +285,7 @@ async def create_mcp_server(
     workspace_id: uuid.UUID,
     body: McpServerCreateIn,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_workspace_manage),
     session: AsyncSession = Depends(get_db),
 ) -> McpServerDetailOut:
     row = await server_svc.create_server(
@@ -310,7 +308,7 @@ async def patch_mcp_server(
     server_id: uuid.UUID,
     body: McpServerPatchIn,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_workspace_manage),
     session: AsyncSession = Depends(get_db),
 ) -> McpServerDetailOut:
     row = await server_svc.update_server(
@@ -333,7 +331,7 @@ async def delete_mcp_server(
     workspace_id: uuid.UUID,
     server_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_workspace_manage),
     session: AsyncSession = Depends(get_db),
 ) -> Response:
     await server_svc.delete_server(

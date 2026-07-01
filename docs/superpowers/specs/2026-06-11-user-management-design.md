@@ -10,6 +10,8 @@
 
 **包路径说明**：Python 包名为 `app.sys`；业务代码使用 `from app.sys.user...` 等完整限定导入。`User` ORM 仍位于 `app.core.domain.identity.models`。
 
+**权限网关（Supersede 部分）**：本 spec 中 `owner` 成员角色、`sys_user_role` 绑定与 `require_workspace_owner_or_admin` 写鉴权约定，已由 [2026-07-01-unified-permission-gateway-design.md](./2026-07-01-unified-permission-gateway-design.md) 替代；角色绑定改用 `sys_user_grant`，鉴权以 `PermissionGateway` 为准。
+
 ---
 
 ## 1. 目标与成功标准

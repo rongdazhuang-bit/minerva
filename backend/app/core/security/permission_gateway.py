@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
-from app.core.domain.identity.models import MembershipRole
+from app.core.domain.identity.models import MembershipRole, Workspace
 from app.core.domain.identity.services import find_workspace_for_user
 from app.core.security.permission_codes import (
     TENANT_ADMIN_IMPLICIT_PERMS,
@@ -126,7 +126,13 @@ async def require_data_scope_membership(
     if not await find_workspace_for_user(
         session, user_id=ctx.user_id, workspace_id=workspace_id
     ):
-        raise AppError("auth.forbidden", "Not a member of this workspace", 403)
+        from app.core.domain.authorization.repository import is_tenant_admin
+
+        ws = await session.get(Workspace, workspace_id)
+        if ws is None or not await is_tenant_admin(
+            session, user_id=ctx.user_id, tenant_id=ws.tenant_id
+        ):
+            raise AppError("auth.forbidden", "Not a member of this workspace", 403)
 
     if tenant_id is not None:
         ok = await workspace_belongs_to_tenant(

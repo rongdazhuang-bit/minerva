@@ -10,7 +10,8 @@ from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api.deps import get_current_user, require_workspace_member
+from app.core.api.deps import get_current_user
+from app.translate.api.deps import require_translate_workspace
 from app.core.domain.identity.models import User
 from app.dependencies import get_db
 from app.exceptions import AppError
@@ -71,7 +72,7 @@ async def create_translate_job(
     model_id: uuid.UUID = Form(...),
     file: UploadFile = File(...),
     user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_translate_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DocTranslateJobCreateOut:
     """Upload a document and enqueue translation."""
@@ -97,7 +98,7 @@ async def list_translate_jobs(
     status: str | None = Query(default=None),
     create_at_start: datetime | None = Query(default=None),
     create_at_end: datetime | None = Query(default=None),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_translate_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DocTranslateJobListOut:
     """List translation jobs with offset pagination and optional filters."""
@@ -120,7 +121,7 @@ async def list_translate_jobs(
 async def get_translate_job(
     workspace_id: uuid.UUID,
     job_id: uuid.UUID,
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_translate_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DocTranslateJobDetailOut:
     """Return one job for polling progress."""
@@ -156,7 +157,7 @@ async def get_translate_job(
 async def get_translate_job_layout_pages_endpoint(
     workspace_id: uuid.UUID,
     job_id: uuid.UUID,
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_translate_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> OcrLayoutPagesOut:
     """Return per-page layout blocks and bilingual markdown for preview."""
@@ -171,7 +172,7 @@ async def list_translate_job_segments(
     workspace_id: uuid.UUID,
     job_id: uuid.UUID,
     group_by: Literal["page", "label", "none"] = Query(default="page"),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_translate_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> DocTranslateSegmentListOut:
     """Return paragraph pairs for side-by-side comparison."""
@@ -223,7 +224,7 @@ async def list_translate_job_segments(
 async def download_translate_result(
     workspace_id: uuid.UUID,
     job_id: uuid.UUID,
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_translate_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     """Redirect to a presigned URL for the translated file."""
@@ -246,7 +247,7 @@ async def download_translate_result(
 async def delete_translate_job(
     workspace_id: uuid.UUID,
     job_id: uuid.UUID,
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_translate_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete job, segments, and S3 objects."""

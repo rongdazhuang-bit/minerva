@@ -1,20 +1,42 @@
-"""Async queries for sys_role and sys_role_menu."""
+"""Async queries for tenant-scoped sys_role and sys_role_permission."""
 
 from __future__ import annotations
 
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.sys.role.domain.db.models import SysRole, SysRoleMenu
+from app.core.domain.authorization.models import SysPermission, SysRolePermission
+from app.core.domain.identity.models import Workspace
+from app.sys.role.domain.db.models import SysRole
 
 
 def _role_list_order():
     """Sort roles by display order then creation time."""
 
     return (SysRole.role_sort.asc(), SysRole.create_at.desc())
+
+
+def _roles_in_workspace_filter(*, workspace_id: uuid.UUID, tenant_id: uuid.UUID):
+    """Match tenant-wide or workspace-specific roles."""
+
+    return (
+        SysRole.tenant_id == tenant_id,
+        or_(SysRole.workspace_id.is_(None), SysRole.workspace_id == workspace_id),
+    )
+
+
+async def get_tenant_id_for_workspace(
+    session: AsyncSession, *, workspace_id: uuid.UUID
+) -> uuid.UUID | None:
+    """Return tenant id for a workspace row."""
+
+    result = await session.execute(
+        select(Workspace.tenant_id).where(Workspace.id == workspace_id)
+    )
+    return result.scalar_one_or_none()
 
 
 async def count_roles_for_workspace(
@@ -25,10 +47,15 @@ async def count_roles_for_workspace(
     status: bool | None = None,
     role_key: str | None = None,
 ) -> int:
-    """Count roles in a workspace matching optional filters."""
+    """Count roles visible in a workspace."""
 
+    tenant_id = await get_tenant_id_for_workspace(
+        session, workspace_id=workspace_id
+    )
+    if tenant_id is None:
+        return 0
     stmt = select(func.count()).select_from(SysRole).where(
-        SysRole.workspace_id == workspace_id
+        *_roles_in_workspace_filter(workspace_id=workspace_id, tenant_id=tenant_id)
     )
     if role_name:
         stmt = stmt.where(SysRole.role_name.ilike(f"%{role_name.strip()}%"))
@@ -50,11 +77,16 @@ async def list_roles_for_workspace_page(
     status: bool | None = None,
     role_key: str | None = None,
 ) -> Sequence[SysRole]:
-    """Return one page of roles for a workspace."""
+    """Return one page of roles visible in a workspace."""
 
+    tenant_id = await get_tenant_id_for_workspace(
+        session, workspace_id=workspace_id
+    )
+    if tenant_id is None:
+        return []
     stmt = (
         select(SysRole)
-        .where(SysRole.workspace_id == workspace_id)
+        .where(*_roles_in_workspace_filter(workspace_id=workspace_id, tenant_id=tenant_id))
         .order_by(*_role_list_order())
         .limit(limit)
         .offset(offset)
@@ -83,12 +115,34 @@ async def get_role_for_workspace(
     workspace_id: uuid.UUID,
     role_id: uuid.UUID,
 ) -> SysRole | None:
-    """Load a role only when it belongs to the given workspace."""
+    """Load a role when it is visible in the given workspace."""
+
+    tenant_id = await get_tenant_id_for_workspace(
+        session, workspace_id=workspace_id
+    )
+    if tenant_id is None:
+        return None
+    result = await session.execute(
+        select(SysRole).where(
+            SysRole.id == role_id,
+            *_roles_in_workspace_filter(workspace_id=workspace_id, tenant_id=tenant_id),
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def get_role_for_tenant(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    role_id: uuid.UUID,
+) -> SysRole | None:
+    """Load a role when it belongs to a tenant."""
 
     result = await session.execute(
         select(SysRole).where(
             SysRole.id == role_id,
-            SysRole.workspace_id == workspace_id,
+            SysRole.tenant_id == tenant_id,
         )
     )
     return result.scalar_one_or_none()
@@ -114,10 +168,16 @@ async def delete_role(session: AsyncSession, role_id: uuid.UUID) -> None:
 async def list_menu_ids_for_role(
     session: AsyncSession, role_id: uuid.UUID
 ) -> list[uuid.UUID]:
-    """Return menu ids linked to a role."""
+    """Return menu ids linked to a role via sys_role_permission."""
 
     result = await session.execute(
-        select(SysRoleMenu.menu_id).where(SysRoleMenu.role_id == role_id)
+        select(SysPermission.menu_id)
+        .select_from(SysRolePermission)
+        .join(SysPermission, SysPermission.id == SysRolePermission.permission_id)
+        .where(
+            SysRolePermission.role_id == role_id,
+            SysPermission.menu_id.is_not(None),
+        )
     )
     return list(result.scalars().all())
 
@@ -130,17 +190,24 @@ async def list_menu_ids_for_roles(
     if not role_ids:
         return []
     result = await session.execute(
-        select(SysRoleMenu.menu_id)
-        .where(SysRoleMenu.role_id.in_(role_ids))
+        select(SysPermission.menu_id)
+        .select_from(SysRolePermission)
+        .join(SysPermission, SysPermission.id == SysRolePermission.permission_id)
+        .where(
+            SysRolePermission.role_id.in_(role_ids),
+            SysPermission.menu_id.is_not(None),
+        )
         .distinct()
     )
     return list(result.scalars().all())
 
 
-async def delete_role_menus(session: AsyncSession, role_id: uuid.UUID) -> None:
-    """Remove all menu links for a role."""
+async def delete_role_permissions(session: AsyncSession, role_id: uuid.UUID) -> None:
+    """Remove all permission links for a role."""
 
-    await session.execute(delete(SysRoleMenu).where(SysRoleMenu.role_id == role_id))
+    await session.execute(
+        delete(SysRolePermission).where(SysRolePermission.role_id == role_id)
+    )
     await session.flush()
 
 
@@ -150,9 +217,28 @@ async def replace_role_menus(
     role_id: uuid.UUID,
     menu_ids: list[uuid.UUID],
 ) -> None:
-    """Replace all menu links for a role with the given id list."""
+    """Replace role permissions derived from menu ids."""
 
-    await delete_role_menus(session, role_id=role_id)
+    await delete_role_permissions(session, role_id=role_id)
+    if not menu_ids:
+        return
+    result = await session.execute(
+        select(SysPermission.id, SysPermission.menu_id).where(
+            SysPermission.menu_id.in_(menu_ids)
+        )
+    )
+    by_menu = {row.menu_id: row.id for row in result.all()}
+    missing = [mid for mid in menu_ids if mid not in by_menu]
+    if missing:
+        from app.exceptions import AppError
+
+        raise AppError(
+            "role.invalid_menu_ids",
+            "One or more menu ids have no permission catalog entry",
+            400,
+        )
     for menu_id in menu_ids:
-        session.add(SysRoleMenu(role_id=role_id, menu_id=menu_id))
+        session.add(
+            SysRolePermission(role_id=role_id, permission_id=by_menu[menu_id])
+        )
     await session.flush()

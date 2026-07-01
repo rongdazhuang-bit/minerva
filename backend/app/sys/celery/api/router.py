@@ -9,11 +9,8 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api.deps import (
-    get_current_user,
-    require_workspace_member,
-    require_workspace_owner_or_admin,
-)
+from app.core.api.deps import get_current_user, require_workspace_member
+from app.core.security.permission_deps import require_workspace_manage
 from app.dependencies import get_db
 from app.core.domain.identity.models import User
 from app.pagination import DEFAULT_PAGE_SIZE
@@ -156,7 +153,7 @@ async def create_celery_job(
     workspace_id: uuid.UUID,
     body: CeleryJobCreateIn,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_workspace_manage),
     session: AsyncSession = Depends(get_db),
 ) -> CeleryJobDetailOut:
     """Create one celery job row in workspace scope."""
@@ -175,7 +172,7 @@ async def patch_celery_job(
     job_id: uuid.UUID,
     body: CeleryJobPatchIn,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_workspace_manage),
     session: AsyncSession = Depends(get_db),
 ) -> CeleryJobDetailOut:
     """Patch one celery job and return refreshed detail."""
@@ -202,7 +199,7 @@ async def delete_celery_job(
     workspace_id: uuid.UUID,
     job_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_workspace_manage),
     session: AsyncSession = Depends(get_db),
 ) -> Response:
     """Delete one celery job row."""
@@ -220,7 +217,7 @@ async def stop_celery_job(
     workspace_id: uuid.UUID,
     job_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_workspace_manage),
     session: AsyncSession = Depends(get_db),
 ) -> CeleryJobDetailOut:
     """Disable one celery job by setting ``enabled`` to false."""
@@ -238,7 +235,7 @@ async def start_celery_job(
     workspace_id: uuid.UUID,
     job_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_workspace_manage),
     session: AsyncSession = Depends(get_db),
 ) -> CeleryJobDetailOut:
     """Enable one celery job by setting ``enabled`` to true."""
@@ -259,7 +256,7 @@ async def run_celery_job_now(
     workspace_id: uuid.UUID,
     job_id: uuid.UUID,
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_owner_or_admin),
+    _workspace: uuid.UUID = Depends(require_workspace_manage),
     session: AsyncSession = Depends(get_db),
 ) -> CeleryJobRunNowAcceptedOut:
     """Enqueue one celery job immediately and return accepted task id."""

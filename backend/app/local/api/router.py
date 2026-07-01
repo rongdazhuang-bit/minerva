@@ -11,7 +11,8 @@ from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api.deps import bearer, get_current_user, require_workspace_member
+from app.core.api.deps import bearer, get_current_user
+from app.local.api.deps import require_file_storage_workspace
 from app.dependencies import get_db
 from app.core.domain.identity.models import User
 from app.exceptions import AppError
@@ -41,7 +42,7 @@ async def upload_workspace_local_file(
     module_prefix: str = Query(min_length=1),
     file: UploadFile | None = File(default=None),
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_file_storage_workspace),
     service: LocalFileService = Depends(get_local_file_service),
 ) -> LocalFileUploadOut:
     """Upload one file to workspace local storage."""
@@ -72,7 +73,7 @@ async def list_workspace_local_files(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_file_storage_workspace),
     service: LocalFileService = Depends(get_local_file_service),
 ) -> LocalFileListOut:
     """List workspace local files under one optional module prefix."""
@@ -116,7 +117,9 @@ async def download_workspace_local_file(
         return _proxy_streaming_response(proxied, object_key)
 
     user = await get_current_user(cred=cred, session=session)
-    await require_workspace_member(workspace_id=workspace_id, user=user, session=session)
+    await require_file_storage_workspace(
+        workspace_id=workspace_id, user=user, cred=cred, session=session
+    )
 
     if mode == LocalDownloadMode.redirect:
         redirect = await service.get_download_redirect(
@@ -134,7 +137,7 @@ async def delete_workspace_local_file(
     workspace_id: uuid.UUID,
     object_key: str = Query(min_length=1),
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_file_storage_workspace),
     service: LocalFileService = Depends(get_local_file_service),
 ) -> Response:
     """Delete one local object key from workspace storage."""

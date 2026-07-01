@@ -10,16 +10,14 @@ from typing import Any
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.domain.authorization import repository as auth_repo
 from app.core.domain.identity.models import (
     MembershipRole,
     TenantMembership,
     User,
     WorkspaceMembership,
 )
-from app.core.domain.identity.services import (
-    find_workspace_role_for_user,
-    is_super_admin_user,
-)
+from app.core.domain.identity.services import find_workspace_role_for_user
 from app.core.infrastructure.security.password import hash_password
 from app.exceptions import AppError
 from app.sys.dict.api.schemas import SysDictItemNodeOut
@@ -44,11 +42,12 @@ def resolve_assignable_membership_roles(
     *,
     actor_workspace_role: MembershipRole | None,
     actor_is_super_admin: bool,
+    actor_is_tenant_admin: bool,
     actor_has_workspace_membership: bool,
 ) -> list[str]:
     """Return membership_role values the actor may assign in a workspace."""
 
-    if actor_is_super_admin:
+    if actor_is_super_admin or actor_is_tenant_admin:
         return list(_ALL_MEMBERSHIP_ROLES)
     if actor_workspace_role == MembershipRole.admin:
         return [MembershipRole.admin.value, MembershipRole.member.value]
@@ -59,11 +58,12 @@ def can_edit_membership_role(
     *,
     actor_workspace_role: MembershipRole | None,
     actor_is_super_admin: bool,
+    actor_is_tenant_admin: bool,
     actor_has_workspace_membership: bool,
 ) -> bool:
     """True when the actor may change membership_role on create or patch."""
 
-    if actor_is_super_admin:
+    if actor_is_super_admin or actor_is_tenant_admin:
         return True
     return actor_workspace_role == MembershipRole.admin
 
@@ -267,7 +267,12 @@ async def _build_list_row(
     """Assemble one list/detail row with roles and permissions."""
 
     roles = await repo.list_roles_for_user_in_workspace(
-        session, workspace_id=workspace_id, user_id=user.id
+        session,
+        workspace_id=workspace_id,
+        user_id=user.id,
+        tenant_id=await repo.get_tenant_id_for_workspace(
+            session, workspace_id=workspace_id
+        ),
     )
     department_name = await _resolve_department_name(
         session,
@@ -413,12 +418,21 @@ async def get_user_detail(
     )
 
 
+async def _actor_is_super_admin(
+    session: AsyncSession, *, actor_user_id: uuid.UUID
+) -> bool:
+    """Return whether the actor row has platform super-admin flag."""
+
+    actor = await session.get(User, actor_user_id)
+    return actor is not None and bool(actor.is_super_admin)
+
+
 async def _require_super_admin_actor(
     session: AsyncSession, *, actor_user_id: uuid.UUID
 ) -> None:
     """Raise when the actor is not a platform super administrator."""
 
-    if not await is_super_admin_user(session, user_id=actor_user_id):
+    if not await _actor_is_super_admin(session, actor_user_id=actor_user_id):
         raise AppError("auth.forbidden", "Super admin required", 403)
 
 
@@ -483,10 +497,23 @@ async def get_actor_capabilities(
     *,
     workspace_id: uuid.UUID,
     actor_user_id: uuid.UUID,
+    actor_is_super_admin: bool | None = None,
 ) -> dict[str, object]:
     """Build form capability flags for the actor in a target workspace."""
 
-    actor_is_super = await is_super_admin_user(session, user_id=actor_user_id)
+    actor_is_super = (
+        actor_is_super_admin
+        if actor_is_super_admin is not None
+        else await _actor_is_super_admin(session, actor_user_id=actor_user_id)
+    )
+    tenant_id = await repo.get_tenant_id_for_workspace(
+        session, workspace_id=workspace_id
+    )
+    actor_is_tenant_admin = False
+    if tenant_id is not None:
+        actor_is_tenant_admin = await auth_repo.is_tenant_admin(
+            session, user_id=actor_user_id, tenant_id=tenant_id
+        )
     actor_role = await find_workspace_role_for_user(
         session, user_id=actor_user_id, workspace_id=workspace_id
     )
@@ -494,6 +521,7 @@ async def get_actor_capabilities(
     assignable = resolve_assignable_membership_roles(
         actor_workspace_role=actor_role,
         actor_is_super_admin=actor_is_super,
+        actor_is_tenant_admin=actor_is_tenant_admin,
         actor_has_workspace_membership=has_membership,
     )
     default_tenant_id = None
@@ -507,10 +535,12 @@ async def get_actor_capabilities(
         "can_edit_membership_role": can_edit_membership_role(
             actor_workspace_role=actor_role,
             actor_is_super_admin=actor_is_super,
+            actor_is_tenant_admin=actor_is_tenant_admin,
             actor_has_workspace_membership=has_membership,
         ),
         "assignable_membership_roles": assignable,
         "can_pick_tenant_workspace": actor_is_super,
+        "is_tenant_admin": actor_is_tenant_admin,
         "default_tenant_id": default_tenant_id,
     }
 
@@ -616,11 +646,12 @@ async def create_user(
             role=membership_role,
         ),
     )
-    await repo.replace_user_roles_in_workspace(
+    await auth_repo.replace_role_grants_in_workspace(
         session,
         workspace_id=workspace_id,
         user_id=user.id,
         role_ids=role_ids,
+        granted_by_user_id=actor_user_id,
     )
     await _commit_or_conflict(session)
     await session.refresh(user)
@@ -720,11 +751,12 @@ async def update_user(
         await _validate_role_ids(
             session, workspace_id=workspace_id, role_ids=role_ids
         )
-        await repo.replace_user_roles_in_workspace(
+        await auth_repo.replace_role_grants_in_workspace(
             session,
             workspace_id=workspace_id,
             user_id=user.id,
             role_ids=role_ids,
+            granted_by_user_id=actor_user_id,
         )
     user.update_at = _utc_now()
     await _commit_or_conflict(session)
@@ -755,7 +787,7 @@ async def remove_membership(
     tenant_id = await repo.get_tenant_id_for_workspace(
         session, workspace_id=workspace_id
     )
-    await repo.delete_user_roles_in_workspace(
+    await auth_repo.delete_role_grants_in_workspace(
         session, workspace_id=workspace_id, user_id=user_id
     )
     await repo.delete_membership(
@@ -778,12 +810,17 @@ async def delete_user_account(
     workspace_id: uuid.UUID,
     user_id: uuid.UUID,
     actor_user_id: uuid.UUID,
+    actor_is_super_admin: bool | None = None,
 ) -> None:
     """Hard-delete a user account when permitted."""
 
     _reject_self_target(actor_user_id=actor_user_id, target_user_id=user_id)
     await _require_member(session, workspace_id=workspace_id, user_id=user_id)
-    actor_is_super = await is_super_admin_user(session, user_id=actor_user_id)
+    actor_is_super = (
+        actor_is_super_admin
+        if actor_is_super_admin is not None
+        else await _actor_is_super_admin(session, actor_user_id=actor_user_id)
+    )
     allowed = await _compute_can_hard_delete(
         session,
         actor_is_super_admin=actor_is_super,
@@ -796,7 +833,7 @@ async def delete_user_account(
             "Not allowed to delete this user account",
             403,
         )
-    await repo.delete_all_user_roles(session, user_id=user_id)
+    await auth_repo.delete_all_grants_for_user(session, user_id=user_id)
     await repo.delete_all_tenant_memberships(session, user_id=user_id)
     await repo.delete_all_memberships(session, user_id=user_id)
     await repo.delete_refresh_tokens(session, user_id=user_id)

@@ -20,6 +20,7 @@ import {
   type SkillRegistryItem,
 } from '@/api/agentSkillsMgmt'
 import { useAuth } from '@/app/AuthContext'
+import { useCanManageTenantSkills } from '@/components/PermGuard'
 import { showAppError, useAppMessage } from '@/app/useAppMessage'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
 import './AgentSkillsPage.css'
@@ -31,7 +32,8 @@ export function AgentSkillsListPage() {
   const { t } = useTranslation()
   const messageApi = useAppMessage()
   const navigate = useNavigate()
-  const { workspaceId, canManageTenantSkills } = useAuth()
+  const { workspaceId } = useAuth()
+  const canManageTenantSkills = useCanManageTenantSkills()
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [skills, setSkills] = useState<SkillRegistryItem[]>([])

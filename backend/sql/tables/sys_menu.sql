@@ -22,6 +22,7 @@ CREATE INDEX IF NOT EXISTS ix_sys_menu_parent_id ON public.sys_menu (parent_id);
 CREATE INDEX IF NOT EXISTS ix_sys_menu_menu_type ON public.sys_menu (menu_type);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_sys_menu_menu_key
   ON public.sys_menu (menu_key) WHERE menu_key IS NOT NULL;
+
 COMMENT ON TABLE public.sys_menu IS '系统菜单（全局）';
 COMMENT ON COLUMN public.sys_menu.id IS '主键';
 COMMENT ON COLUMN public.sys_menu.parent_id IS '父菜单 id；NULL 为根';
@@ -36,3 +37,6 @@ COMMENT ON COLUMN public.sys_menu.icon IS 'Ant Design 图标名';
 COMMENT ON COLUMN public.sys_menu.visible IS '是否在侧栏显示';
 COMMENT ON COLUMN public.sys_menu.status IS '是否启用';
 COMMENT ON COLUMN public.sys_menu.is_external IS '是否外链';
+COMMENT ON COLUMN public.sys_menu.remark IS '备注';
+COMMENT ON COLUMN public.sys_menu.create_at IS '创建时间';
+COMMENT ON COLUMN public.sys_menu.update_at IS '修改时间';

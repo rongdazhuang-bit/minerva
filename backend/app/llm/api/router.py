@@ -8,7 +8,8 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api.deps import get_current_user, require_workspace_member
+from app.core.api.deps import get_current_user
+from app.llm.api.deps import require_agent_workspace
 from app.core.domain.identity.models import User
 from app.dependencies import get_db
 from app.llm.api.schemas import ChatCompletionRequest, EmbeddingRequest, RerankRequest
@@ -34,7 +35,7 @@ async def create_chat_completion(
     body: ChatCompletionRequest,
     session: AsyncSession = Depends(get_db),
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_agent_workspace),
 ):
     """Proxy chat completion via model_id with optional SSE streaming."""
 
@@ -84,7 +85,7 @@ async def create_embedding(
     body: EmbeddingRequest,
     session: AsyncSession = Depends(get_db),
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_agent_workspace),
 ):
     """Proxy embedding call via model_id."""
 
@@ -107,7 +108,7 @@ async def create_rerank(
     body: RerankRequest,
     session: AsyncSession = Depends(get_db),
     _user: User = Depends(get_current_user),
-    _workspace: uuid.UUID = Depends(require_workspace_member),
+    _workspace: uuid.UUID = Depends(require_agent_workspace),
 ):
     """Proxy rerank call via model_id."""
 

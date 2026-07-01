@@ -14,6 +14,8 @@ function settingsLeafTitle(pathname: string, t: (k: string) => string): string |
   if (pathname.startsWith('/app/settings/menus')) return t('settings.menuConfig')
   if (pathname.startsWith('/app/settings/users')) return t('settings.users')
   if (pathname.startsWith('/app/settings/roles')) return t('settings.roles')
+  if (pathname.startsWith('/app/settings/grants')) return t('settings.grants')
+  if (pathname.startsWith('/app/settings/permissions')) return t('settings.permissions')
   if (pathname.startsWith('/app/settings/tenants')) return t('settings.tenants')
   if (pathname.startsWith('/app/settings/dictionary')) return t('settings.dictionary')
   return null

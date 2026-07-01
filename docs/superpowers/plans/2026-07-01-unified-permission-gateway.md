@@ -325,11 +325,12 @@ git commit -m "feat(auth): P0 unified permission gateway foundation"
 - Modify: `backend/app/sys/role/api/router.py`
 - Create: `backend/app/sys/tenant/api/grant_router.py`（或合入 tenant router）
 
-- [ ] **Step 1: GET/POST/DELETE grants**
-- [ ] **Step 2: 角色写鉴权改 tenant admin**
-- [ ] **Step 3: UsersPage / RolesPage 对齐**
+- [x] **Step 1: GET/POST/DELETE grants**
+- [x] **Step 2: 角色写鉴权改 tenant admin**
+- [x] **Step 3: UsersPage / RolesPage 对齐**
+- [x] **Step 4: PermissionsPage / GrantsPage + 路由/i18n**
 
-- [ ] **Step 4: Commit P2**
+- [ ] **Step 5: Commit P2**
 
 ---
 
@@ -356,9 +357,10 @@ git commit -m "feat(auth): P0 unified permission gateway foundation"
 
 ### Task 17: 清理散落 is_super_admin + spec 回填
 
-- [ ] **Step 1: grep 替换为 gateway**
-- [ ] **Step 2: 更新 spec §11 实现对照 + 状态「已实现」**
-- [ ] **Step 3: Commit P3**
+- [x] **Step 1: 删除 `require_tenant_owner_or_admin` / `is_any_tenant_owner_or_admin`**
+- [x] **Step 2: `PermGuard` hooks + grant service 测试**
+- [ ] **Step 3: 更新 spec §11 实现对照 + 状态「已实现」**
+- [ ] **Step 4: Commit P3**
 
 ---
 

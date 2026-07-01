@@ -7,6 +7,8 @@
 
 **包路径说明**：Python 包名为 `app.sys`；业务代码使用 `from app.sys.role...` 等完整限定导入。
 
+**权限网关（Supersede 部分）**：本 spec 中 workspace 隔离的 `sys_role`、`sys_role_menu` 与 owner 写鉴权约定，已由 [2026-07-01-unified-permission-gateway-design.md](./2026-07-01-unified-permission-gateway-design.md) 替代；角色为 tenant 作用域，权限关联改用 `sys_role_permission` + `sys_user_grant`。
+
 ---
 
 ## 1. 目标与成功标准

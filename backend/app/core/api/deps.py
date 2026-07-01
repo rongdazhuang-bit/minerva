@@ -10,12 +10,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
-from app.core.domain.identity.models import MembershipRole, User, Workspace
-from app.core.domain.identity.services import (
-    find_tenant_role_for_user,
-    find_workspace_for_user,
-    find_workspace_role_for_user,
-)
+from app.core.domain.identity.models import User, Workspace
 from app.exceptions import AppError
 from app.core.infrastructure.security.jwt_tokens import decode_token
 
@@ -77,70 +72,34 @@ async def get_current_workspace_id(
 async def require_workspace_member(
     workspace_id: uuid.UUID,
     user: User = Depends(get_current_user),
+    cred: HTTPAuthorizationCredentials | None = Depends(bearer),
     session: AsyncSession = Depends(get_db),
 ) -> uuid.UUID:
-    """Use on routes that declare path param `workspace_id`; membership is checked."""
-    if user.is_super_admin:
-        ws = await session.get(Workspace, workspace_id)
-        if ws is None:
-            raise AppError("auth.forbidden", "Workspace not found", 403)
-        return workspace_id
-    if not await find_workspace_for_user(session, user_id=user.id, workspace_id=workspace_id):
-        raise AppError("auth.forbidden", "Not a member of this workspace", 403)
-    return workspace_id
+    """Use on routes that declare path param ``workspace_id``; delegates to gateway."""
+
+    ws = await session.get(Workspace, workspace_id)
+    if ws is None:
+        raise AppError("auth.forbidden", "Workspace not found", 403)
+    from app.core.security.permission_deps import require_data_scope
+
+    return await require_data_scope(
+        workspace_id, user=user, cred=cred, session=session
+    )
 
 
 async def require_workspace_owner_or_admin(
     workspace_id: uuid.UUID,
     user: User = Depends(get_current_user),
+    cred: HTTPAuthorizationCredentials | None = Depends(bearer),
     session: AsyncSession = Depends(get_db),
 ) -> uuid.UUID:
-    """Ensure ``user`` is workspace admin (or platform super-admin)."""
+    """Ensure workspace admin (or super-admin); delegates to PermissionGateway."""
 
-    if user.is_super_admin:
-        ws = await session.get(Workspace, workspace_id)
-        if ws is None:
-            raise AppError("auth.forbidden", "Workspace not found", 403)
-        return workspace_id
-    role = await find_workspace_role_for_user(
-        session, user_id=user.id, workspace_id=workspace_id
-    )
-    if role is None:
-        raise AppError("auth.forbidden", "Not a member of this workspace", 403)
-    if role != MembershipRole.admin:
-        raise AppError("auth.forbidden", "Only workspace admin can manage this resource", 403)
-    return workspace_id
-
-
-async def require_tenant_owner_or_admin(
-    workspace_id: uuid.UUID,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_db),
-) -> uuid.UUID:
-    """Ensure user is tenant admin (membership or grant) for the workspace's tenant."""
-
-    if user.is_super_admin:
-        ws = await session.get(Workspace, workspace_id)
-        if ws is None:
-            raise AppError("auth.forbidden", "Workspace not found", 403)
-        return workspace_id
-    if not await find_workspace_for_user(
-        session, user_id=user.id, workspace_id=workspace_id
-    ):
-        raise AppError("auth.forbidden", "Not a member of this workspace", 403)
     ws = await session.get(Workspace, workspace_id)
     if ws is None:
         raise AppError("auth.forbidden", "Workspace not found", 403)
-    role = await find_tenant_role_for_user(
-        session, user_id=user.id, tenant_id=ws.tenant_id
-    )
-    if role is None:
-        raise AppError("auth.forbidden", "Not a member of this tenant", 403)
-    if role != MembershipRole.admin:
-        from app.core.domain.authorization.repository import is_tenant_admin
+    from app.core.security.permission_deps import require_workspace_manage
 
-        if not await is_tenant_admin(
-            session, user_id=user.id, tenant_id=ws.tenant_id
-        ):
-            raise AppError("skills.forbidden", "Only tenant admin can manage skills", 403)
-    return workspace_id
+    return await require_workspace_manage(
+        workspace_id, user=user, cred=cred, session=session
+    )
