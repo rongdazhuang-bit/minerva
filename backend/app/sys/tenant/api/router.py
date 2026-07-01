@@ -16,11 +16,13 @@ from app.sys.tenant.api.schemas import (
     SysTenantAdminsOut,
     SysTenantAdminsPutIn,
     SysTenantCreateIn,
-    SysTenantEntitlementsOut,
-    SysTenantEntitlementsPutIn,
+    SysTenantPermissionsOut,
+    SysTenantPermissionsPutIn,
     SysTenantListPageOut,
     SysTenantOut,
     SysTenantPatchIn,
+    SysTenantUserListOut,
+    SysTenantUserOptionOut,
     SysUserGrantCreateIn,
     SysUserGrantListPageOut,
     SysUserGrantOut,
@@ -29,7 +31,8 @@ from app.sys.tenant.api.schemas import (
     SysWorkspaceOut,
     SysWorkspacePatchIn,
 )
-from app.sys.tenant.service import entitlement_service as entitlement_svc
+from app.sys.tenant.infrastructure import repository as repo
+from app.sys.tenant.service import tenant_permission_service as permission_svc
 from app.sys.tenant.service import grant_service as grant_svc
 from app.sys.tenant.service import tenant_service as svc
 
@@ -96,6 +99,24 @@ async def create_tenant(
 
     row = await svc.create_tenant(session, _create_payload(body))
     return _tenant_out(row)
+
+
+@router.get("/meta/user-options", response_model=SysTenantUserListOut)
+async def list_platform_user_options(
+    session: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_super_admin),
+) -> SysTenantUserListOut:
+    """Return active platform users for tenant admin picker on create form."""
+
+    rows = await repo.list_platform_users_for_picker(session)
+    return SysTenantUserListOut(
+        items=[
+            SysTenantUserOptionOut(
+                id=u.id, nickname=u.nickname, email=u.email, status=u.status
+            )
+            for u in rows
+        ]
+    )
 
 
 @router.get("/{tenant_id}", response_model=SysTenantOut)
@@ -233,34 +254,34 @@ async def delete_workspace(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.get("/{tenant_id}/entitlements", response_model=SysTenantEntitlementsOut)
-async def get_tenant_entitlements(
+@router.get("/{tenant_id}/permissions", response_model=SysTenantPermissionsOut)
+async def get_tenant_permissions(
     tenant_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
     _admin: User = Depends(require_super_admin),
-) -> SysTenantEntitlementsOut:
-    """Return enabled feature entitlements for a tenant."""
+) -> SysTenantPermissionsOut:
+    """Return enabled menu permissions for a tenant."""
 
-    codes = await entitlement_svc.list_entitlements(session, tenant_id=tenant_id)
-    return SysTenantEntitlementsOut(feature_codes=codes)
+    menu_ids = await permission_svc.list_tenant_menu_ids(session, tenant_id=tenant_id)
+    return SysTenantPermissionsOut(menu_ids=menu_ids)
 
 
-@router.put("/{tenant_id}/entitlements", response_model=SysTenantEntitlementsOut)
-async def put_tenant_entitlements(
+@router.put("/{tenant_id}/permissions", response_model=SysTenantPermissionsOut)
+async def put_tenant_permissions(
     tenant_id: uuid.UUID,
-    body: SysTenantEntitlementsPutIn,
+    body: SysTenantPermissionsPutIn,
     session: AsyncSession = Depends(get_db),
     admin: User = Depends(require_super_admin),
-) -> SysTenantEntitlementsOut:
-    """Replace tenant feature entitlements."""
+) -> SysTenantPermissionsOut:
+    """Replace tenant menu permissions."""
 
-    codes = await entitlement_svc.replace_entitlements(
+    menu_ids = await permission_svc.replace_tenant_permissions(
         session,
         tenant_id=tenant_id,
-        feature_codes=body.feature_codes,
-        granted_by_user_id=admin.id,
+        menu_ids=body.menu_ids,
+        create_by=admin.id,
     )
-    return SysTenantEntitlementsOut(feature_codes=codes)
+    return SysTenantPermissionsOut(menu_ids=menu_ids)
 
 
 @router.get("/{tenant_id}/admins", response_model=SysTenantAdminsOut)
@@ -271,7 +292,7 @@ async def get_tenant_admins(
 ) -> SysTenantAdminsOut:
     """Return tenant administrator user ids."""
 
-    user_ids = await entitlement_svc.list_tenant_admin_user_ids(
+    user_ids = await permission_svc.list_tenant_admin_user_ids(
         session, tenant_id=tenant_id
     )
     return SysTenantAdminsOut(user_ids=user_ids)
@@ -286,13 +307,33 @@ async def put_tenant_admins(
 ) -> SysTenantAdminsOut:
     """Replace tenant administrator grants."""
 
-    user_ids = await entitlement_svc.replace_tenant_admins(
+    user_ids = await permission_svc.replace_tenant_admins(
         session,
         tenant_id=tenant_id,
         user_ids=body.user_ids,
         granted_by_user_id=admin.id,
     )
     return SysTenantAdminsOut(user_ids=user_ids)
+
+
+@router.get("/{tenant_id}/users", response_model=SysTenantUserListOut)
+async def list_tenant_users_for_form(
+    tenant_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_super_admin),
+) -> SysTenantUserListOut:
+    """Return tenant members for admin grant and picker forms."""
+
+    await svc.get_tenant(session, tenant_id=tenant_id)
+    rows = await repo.list_tenant_users(session, tenant_id=tenant_id)
+    return SysTenantUserListOut(
+        items=[
+            SysTenantUserOptionOut(
+                id=u.id, nickname=u.nickname, email=u.email, status=u.status
+            )
+            for u in rows
+        ]
+    )
 
 
 @router.get("/{tenant_id}/grants", response_model=SysUserGrantListPageOut)

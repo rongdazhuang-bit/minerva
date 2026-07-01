@@ -1,5 +1,6 @@
 import { loginApi } from '@/api/auth'
 import { ApiError } from '@/api/client'
+import { STORAGE_REMEMBER_EMAIL } from '@/api/tokenSession'
 import { useAuth } from '@/app/AuthContext'
 import { useAppMessage } from '@/app/useAppMessage'
 import { AuthCaptchaField } from '@/features/auth/AuthCaptchaField'
@@ -14,7 +15,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import './AuthPage.css'
 
-const RE_MEMBER = 'minerva_remember_email'
+const RE_MEMBER = STORAGE_REMEMBER_EMAIL
 
 type LoginFormValues = {
   email: string
@@ -93,7 +94,7 @@ function LoginPageCard({ tone }: { tone: AuthTone }) {
               localStorage.removeItem(RE_MEMBER)
             }
             const o = await loginApi(email, password, captchaId, captchaCode)
-            setTokens(o.access_token, o.refresh_token)
+            setTokens(o.access_token, o.refresh_token, String(email).trim())
             void messageApi.success('OK')
             void nav('/app/overview')
           } catch (e) {

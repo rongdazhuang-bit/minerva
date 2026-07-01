@@ -10,8 +10,10 @@ export type AuthCaptchaScope = 'login' | 'register'
 
 /** Authorization summary from GET /auth/me/authorization. */
 export type AuthorizationSummary = {
+  email: string
   is_super_admin: boolean
   tenant_id: string | null
+  tenant_name: string | null
   workspace_id: string | null
   workspace_role: string | null
   tenant_role: string | null

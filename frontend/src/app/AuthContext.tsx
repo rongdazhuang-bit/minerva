@@ -13,10 +13,13 @@ import {
 import { fetchAuthorization } from '@/api/auth'
 import {
   STORAGE_ACCESS,
+  STORAGE_LOGIN_ACCOUNT,
   STORAGE_REFRESH,
   cancelProactiveRefresh,
   clearStoredTokens,
+  getStoredLoginAccount,
   scheduleProactiveRefresh,
+  setStoredLoginAccount,
   setStoredTokens,
   subscribeTokensUpdated,
 } from '@/api/tokenSession'
@@ -93,6 +96,10 @@ type AuthValue = {
   refreshToken: string | null
   /** Authenticated user id from JWT ``sub`` claim. */
   userId: string | null
+  /** Login account (email) from authorization API. */
+  accountEmail: string | null
+  /** Active tenant display name from authorization API. */
+  tenantName: string | null
   workspaceId: string | null
   workspaceRole: string | null
   /** Tenant role from JWT ``trole`` claim (null when absent or legacy token). */
@@ -111,7 +118,7 @@ type AuthValue = {
   permissions: ReadonlySet<string>
   hasPerm: (code: string) => boolean
   isAuthenticated: boolean
-  setTokens: (a: string, r: string) => void
+  setTokens: (a: string, r: string, accountEmail?: string) => void
   clear: () => void
 }
 
@@ -128,6 +135,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const initial = readTokensFromStorage()
   const [accessToken, setAccess] = useState<string | null>(initial.access)
   const [refreshToken, setRefresh] = useState<string | null>(initial.refresh)
+  const [loginAccount, setLoginAccount] = useState<string | null>(() =>
+    initial.access ? getStoredLoginAccount() : null,
+  )
 
   const syncFromStorage = useCallback(() => {
     const { access, refresh } = readTokensFromStorage()
@@ -151,6 +161,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelProactiveRefresh()
     }
   }, [syncFromStorage])
+
+  /** Backfill login account for sessions created before persistence was added. */
+  useEffect(() => {
+    if (!accessToken) {
+      setLoginAccount(null)
+      return
+    }
+    if (localStorage.getItem(STORAGE_LOGIN_ACCOUNT)) {
+      setLoginAccount(getStoredLoginAccount())
+      return
+    }
+    const remembered = getStoredLoginAccount()
+    if (remembered) {
+      setStoredLoginAccount(remembered)
+      setLoginAccount(remembered)
+    }
+  }, [accessToken])
 
   const userId = useMemo(
     () => readUserIdFromToken(accessToken),
@@ -180,14 +207,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     staleTime: 60_000,
   })
 
+  useEffect(() => {
+    const email = authzQuery.data?.email?.trim()
+    if (email) {
+      setStoredLoginAccount(email)
+      setLoginAccount(email)
+    }
+  }, [authzQuery.data?.email])
+
   const isWorkspaceAdmin = useMemo(() => {
     const r = workspaceRole?.toLowerCase()
     return r === 'admin'
   }, [workspaceRole])
 
+  const accountEmail = useMemo(() => {
+    const fromApi = authzQuery.data?.email?.trim()
+    if (fromApi) return fromApi
+    if (!accessToken) return null
+    return loginAccount
+  }, [authzQuery.data?.email, accessToken, loginAccount])
   const isSuperAdmin = isSuperAdminFromToken || Boolean(authzQuery.data?.is_super_admin)
   const isTenantAdmin = Boolean(authzQuery.data?.is_tenant_admin)
   const tenantId = authzQuery.data?.tenant_id ?? null
+  const tenantName = authzQuery.data?.tenant_name?.trim() || null
   const tenantFeatures = useMemo(
     () => new Set(authzQuery.data?.tenant_features ?? []),
     [authzQuery.data?.tenant_features],
@@ -213,8 +255,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [isSuperAdmin, isTenantAdmin, isWorkspaceAdmin, permissions],
   )
 
-  const setTokens = useCallback((a: string, r: string) => {
+  const setTokens = useCallback((a: string, r: string, account?: string) => {
     setStoredTokens(a, r)
+    const email = account?.trim()
+    if (email) {
+      setStoredLoginAccount(email)
+      setLoginAccount(email)
+    }
     setAccess(a)
     setRefresh(r)
     scheduleProactiveRefresh()
@@ -225,6 +272,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearStoredTokens()
     setAccess(null)
     setRefresh(null)
+    setLoginAccount(null)
   }, [])
 
   const value = useMemo(
@@ -232,6 +280,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       accessToken,
       refreshToken,
       userId,
+      accountEmail,
+      tenantName,
       workspaceId,
       workspaceRole,
       tenantRole,
@@ -250,6 +300,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       accessToken,
       refreshToken,
       userId,
+      accountEmail,
+      tenantName,
       workspaceId,
       workspaceRole,
       tenantRole,

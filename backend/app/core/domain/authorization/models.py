@@ -79,15 +79,15 @@ class SysRolePermission(Base):
     )
 
 
-class SysTenantEntitlement(Base):
-    """Feature module enabled for one tenant by platform super admin."""
+class SysTenantPermission(Base):
+    """Menu nodes enabled for one tenant by platform super admin."""
 
-    __tablename__ = "sys_tenant_entitlement"
+    __tablename__ = "sys_tenant_permission"
     __table_args__ = (
         UniqueConstraint(
             "tenant_id",
-            "feature_code",
-            name="uq_sys_tenant_entitlement_tenant_feature",
+            "menu_id",
+            name="uq_sys_tenant_permission_tenant_menu",
         ),
     )
 
@@ -97,11 +97,13 @@ class SysTenantEntitlement(Base):
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), index=True, nullable=False
     )
-    feature_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    menu_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), index=True, nullable=False
+    )
     enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=sa.true()
     )
-    granted_by_user_id: Mapped[uuid.UUID] = mapped_column(
+    create_by: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), nullable=False
     )
     create_at: Mapped[datetime | None] = mapped_column(

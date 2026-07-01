@@ -33,11 +33,12 @@ import {
   type SysTenantListItem,
   type SysTenantListParams,
 } from '@/api/tenants'
+import { putTenantAdmins, putTenantPermissions } from '@/api/tenantPermissions'
 import { ApiError } from '@/api/client'
 import { showAppError, useAppMessage } from '@/app/useAppMessage'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
-import { TenantFormDrawer, type TenantFormValues } from './TenantFormDrawer'
-import { TenantEntitlementDrawer } from './TenantEntitlementDrawer'
+import { TenantFormDrawer, type TenantCreatePermissions, type TenantFormValues } from './TenantFormDrawer'
+import { TenantPermissionDrawer } from './TenantPermissionDrawer'
 import { WorkspaceDrawer } from './WorkspaceDrawer'
 import './TenantsPage.css'
 
@@ -73,11 +74,12 @@ export function TenantsPage() {
   const [drawerTitle, setDrawerTitle] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [drawerMode, setDrawerMode] = useState<'create' | 'edit'>('create')
   const [initialForm, setInitialForm] = useState<TenantFormValues | null>(null)
   const [workspaceDrawerOpen, setWorkspaceDrawerOpen] = useState(false)
   const [workspaceTenant, setWorkspaceTenant] = useState<SysTenantListItem | null>(null)
-  const [entitlementOpen, setEntitlementOpen] = useState(false)
-  const [entitlementTenant, setEntitlementTenant] = useState<SysTenantListItem | null>(null)
+  const [permissionOpen, setPermissionOpen] = useState(false)
+  const [permissionTenant, setPermissionTenant] = useState<SysTenantListItem | null>(null)
 
   const listQuery = useQuery({
     queryKey: ['tenants', page, pageSize, filters, refreshTick],
@@ -101,6 +103,7 @@ export function TenantsPage() {
 
   const openCreate = useCallback(() => {
     setEditingId(null)
+    setDrawerMode('create')
     setInitialForm({
       name: '',
       slug: '',
@@ -116,6 +119,7 @@ export function TenantsPage() {
       try {
         const detail = await getTenant(row.id)
         setEditingId(row.id)
+        setDrawerMode('edit')
         setInitialForm({
           name: detail.name,
           slug: detail.slug,
@@ -136,20 +140,24 @@ export function TenantsPage() {
     setWorkspaceDrawerOpen(true)
   }, [])
 
-  const openEntitlements = useCallback((row: SysTenantListItem) => {
-    setEntitlementTenant(row)
-    setEntitlementOpen(true)
+  const openPermissions = useCallback((row: SysTenantListItem) => {
+    setPermissionTenant(row)
+    setPermissionOpen(true)
   }, [])
 
   const handleSubmit = useCallback(
-    async (body: SysTenantCreateBody) => {
+    async (body: SysTenantCreateBody, permissions: TenantCreatePermissions) => {
       setSubmitting(true)
       try {
         if (editingId) {
           await patchTenant(editingId, body)
+          await putTenantPermissions(editingId, permissions.menu_ids)
+          await putTenantAdmins(editingId, permissions.admin_user_ids)
           messageApi.success(t('tenants.updateSuccess'))
         } else {
-          await createTenant(body)
+          const created = await createTenant(body)
+          await putTenantPermissions(created.id, permissions.menu_ids)
+          await putTenantAdmins(created.id, permissions.admin_user_ids)
           messageApi.success(t('tenants.createSuccess'))
         }
         setDrawerOpen(false)
@@ -205,7 +213,7 @@ export function TenantsPage() {
       {
         title: t('tenants.actions'),
         key: 'actions',
-        width: 120,
+        width: 140,
         fixed: 'right',
         render: (_, row) => (
           <Space size={2}>
@@ -216,6 +224,24 @@ export function TenantsPage() {
                 icon={<EditOutlined />}
                 onClick={() => void openEdit(row)}
                 aria-label={t('tenants.edit')}
+              />
+            </Tooltip>
+            <Tooltip title={t('tenants.workspaces')}>
+              <Button
+                type="text"
+                size="small"
+                icon={<ApartmentOutlined />}
+                onClick={() => openWorkspaces(row)}
+                aria-label={t('tenants.workspaces')}
+              />
+            </Tooltip>
+            <Tooltip title={t('tenants.entitlements')}>
+              <Button
+                type="text"
+                size="small"
+                icon={<SafetyCertificateOutlined />}
+                onClick={() => openPermissions(row)}
+                aria-label={t('tenants.entitlements')}
               />
             </Tooltip>
             <Tooltip title={t('tenants.delete')}>
@@ -235,29 +261,11 @@ export function TenantsPage() {
                 </Popconfirm>
               </span>
             </Tooltip>
-            <Tooltip title={t('tenants.workspaces')}>
-              <Button
-                type="text"
-                size="small"
-                icon={<ApartmentOutlined />}
-                onClick={() => openWorkspaces(row)}
-                aria-label={t('tenants.workspaces')}
-              />
-            </Tooltip>
-            <Tooltip title={t('tenants.entitlements')}>
-              <Button
-                type="text"
-                size="small"
-                icon={<SafetyCertificateOutlined />}
-                onClick={() => openEntitlements(row)}
-                aria-label={t('tenants.entitlements')}
-              />
-            </Tooltip>
           </Space>
         ),
       },
     ],
-    [t, openWorkspaces, openEdit, handleDelete],
+    [t, openWorkspaces, openPermissions, openEdit, handleDelete],
   )
 
   if (forbidden) {
@@ -353,6 +361,8 @@ export function TenantsPage() {
       <TenantFormDrawer
         open={drawerOpen}
         title={drawerTitle}
+        mode={drawerMode}
+        tenantId={editingId}
         submitting={submitting}
         initial={initialForm}
         onClose={() => setDrawerOpen(false)}
@@ -366,12 +376,12 @@ export function TenantsPage() {
           setWorkspaceTenant(null)
         }}
       />
-      <TenantEntitlementDrawer
-        open={entitlementOpen}
-        tenant={entitlementTenant}
+      <TenantPermissionDrawer
+        open={permissionOpen}
+        tenant={permissionTenant}
         onClose={() => {
-          setEntitlementOpen(false)
-          setEntitlementTenant(null)
+          setPermissionOpen(false)
+          setPermissionTenant(null)
         }}
         onSaved={reloadList}
       />

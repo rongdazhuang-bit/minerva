@@ -4,6 +4,10 @@ import { API_PATH_PREFIX, apiOrigin, AUTH_API_FETCH_TIMEOUT_MS } from '@/api/con
 
 export const STORAGE_ACCESS = 'access_token'
 export const STORAGE_REFRESH = 'refresh_token'
+/** Persisted login account (email) for shell display; cleared on logout. */
+export const STORAGE_LOGIN_ACCOUNT = 'minerva_login_account'
+/** Optional remember-me email on login form. */
+export const STORAGE_REMEMBER_EMAIL = 'minerva_remember_email'
 
 /** 在 access 过期前多少秒触发主动 refresh。 */
 export const REFRESH_BUFFER_SEC = 120
@@ -35,7 +39,22 @@ export function setStoredTokens(access: string, refresh: string): void {
 export function clearStoredTokens(): void {
   localStorage.removeItem(STORAGE_ACCESS)
   localStorage.removeItem(STORAGE_REFRESH)
+  localStorage.removeItem(STORAGE_LOGIN_ACCOUNT)
   emitTokensUpdated()
+}
+
+/** Read persisted login account for shell display. */
+export function getStoredLoginAccount(): string | null {
+  const v = localStorage.getItem(STORAGE_LOGIN_ACCOUNT)?.trim()
+  if (v) return v
+  const remembered = localStorage.getItem(STORAGE_REMEMBER_EMAIL)?.trim()
+  return remembered || null
+}
+
+/** Persist login account (email) for shell display. */
+export function setStoredLoginAccount(email: string): void {
+  const s = email.trim()
+  if (s) localStorage.setItem(STORAGE_LOGIN_ACCOUNT, s)
 }
 
 function readAccessExp(access: string): number | null {

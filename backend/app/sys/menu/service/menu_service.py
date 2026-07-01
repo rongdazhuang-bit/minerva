@@ -10,6 +10,7 @@ from typing import Any
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.domain.authorization.repository import load_enabled_tenant_menu_ids
 from app.core.domain.identity.models import User, Workspace
 from app.exceptions import AppError
 from app.sys.menu.api.schemas import SysMenuNodeOut
@@ -231,7 +232,21 @@ async def list_nav_tree_for_user(
     nav_rows = filter_nav_rows(rows)
     if ctx.is_super_admin:
         return build_menu_tree(nav_rows)
-    return build_menu_tree(filter_rows_by_menu_ids(nav_rows, set(ctx.menu_ids)))
+
+    tenant_menu_ids: set[uuid.UUID] = set()
+    if tenant_id is not None:
+        tenant_menu_ids = set(
+            await load_enabled_tenant_menu_ids(session, tenant_id=tenant_id)
+        )
+
+    role_expanded = expand_allowed_nav_menu_ids(nav_rows, set(ctx.menu_ids))
+    if tenant_id is not None and tenant_menu_ids:
+        tenant_expanded = expand_allowed_nav_menu_ids(nav_rows, tenant_menu_ids)
+        allowed = role_expanded & tenant_expanded
+    else:
+        allowed = role_expanded
+
+    return build_menu_tree(filter_rows_by_menu_ids(nav_rows, allowed))
 
 
 async def create_menu(session: AsyncSession, data: dict[str, Any]) -> SysMenu:

@@ -14,25 +14,41 @@ from app.core.domain.authorization.models import (
     GrantType,
     SysPermission,
     SysRolePermission,
-    SysTenantEntitlement,
+    SysTenantPermission,
     SysUserGrant,
 )
+from app.core.security.permission_codes import derive_tenant_features_from_menu_keys
 from app.sys.menu.domain.db.models import SysMenu
 from app.sys.role.infrastructure import repository as role_repo
+
+
+async def load_enabled_tenant_menu_ids(
+    session: AsyncSession, *, tenant_id: uuid.UUID
+) -> list[uuid.UUID]:
+    """Return enabled menu_id values for a tenant."""
+
+    r = await session.execute(
+        select(SysTenantPermission.menu_id).where(
+            SysTenantPermission.tenant_id == tenant_id,
+            SysTenantPermission.enabled.is_(True),
+        )
+    )
+    return list(r.scalars().all())
 
 
 async def load_enabled_tenant_features(
     session: AsyncSession, *, tenant_id: uuid.UUID
 ) -> list[str]:
-    """Return enabled feature_code values for a tenant."""
+    """Return derived feature_code values from tenant menu permissions."""
 
+    menu_ids = await load_enabled_tenant_menu_ids(session, tenant_id=tenant_id)
+    if not menu_ids:
+        return []
     r = await session.execute(
-        select(SysTenantEntitlement.feature_code).where(
-            SysTenantEntitlement.tenant_id == tenant_id,
-            SysTenantEntitlement.enabled.is_(True),
-        )
+        select(SysMenu.menu_key).where(SysMenu.id.in_(menu_ids))
     )
-    return list(r.scalars().all())
+    keys = [k for k in r.scalars().all() if k]
+    return sorted(derive_tenant_features_from_menu_keys(keys))
 
 
 async def is_tenant_admin(

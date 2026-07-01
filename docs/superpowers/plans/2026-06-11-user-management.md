@@ -10,6 +10,8 @@
 
 **设计文档：** `docs/superpowers/specs/2026-06-11-user-management-design.md`
 
+> **状态：已实现（2026-06-11）。** 用户角色绑定已于 2026-07-01 迁移至 `sys_user_grant`（见 [unified-permission-gateway plan](./2026-07-01-unified-permission-gateway.md)）；下文 Task 1–2 中 `sys_user_role` 描述为历史记录，应用层不再引用。
+
 ---
 
 ## File Structure
@@ -722,7 +724,7 @@ Expected: 无 TS 错误
 | Spec 要求 | Task |
 |-----------|------|
 | sys_user 扩展字段 | Task 1–2 |
-| sys_user_role | Task 1–2 |
+| 用户-角色 grant（`sys_user_grant`） | Task 1–2（初版 schema）；gateway P2/P3 迁移 |
 | workspace 列表/CRUD API | Task 3–7 |
 | 邮箱拒绝创建 / 手机唯一 | Task 4 |
 | department 在 sys_user + workspace 校验 | Task 4 |

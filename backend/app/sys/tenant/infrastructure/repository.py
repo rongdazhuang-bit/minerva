@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.domain.identity.models import (
     Tenant,
     TenantMembership,
+    User,
     Workspace,
     WorkspaceMembership,
 )
@@ -56,6 +57,34 @@ async def get_tenant(session: AsyncSession, *, tenant_id: uuid.UUID) -> Tenant |
     """Load tenant by primary key."""
 
     return await session.get(Tenant, tenant_id)
+
+
+async def list_tenant_users(
+    session: AsyncSession, *, tenant_id: uuid.UUID
+) -> list[User]:
+    """Return tenant members ordered by nickname then email."""
+
+    r = await session.execute(
+        select(User)
+        .join(TenantMembership, TenantMembership.user_id == User.id)
+        .where(TenantMembership.tenant_id == tenant_id)
+        .order_by(User.nickname.asc(), User.email.asc())
+    )
+    return list(r.scalars().all())
+
+
+async def list_platform_users_for_picker(
+    session: AsyncSession, *, limit: int = 500
+) -> list[User]:
+    """Return active platform users for tenant admin picker on create form."""
+
+    r = await session.execute(
+        select(User)
+        .where(User.status.is_(True))
+        .order_by(User.nickname.asc(), User.email.asc())
+        .limit(limit)
+    )
+    return list(r.scalars().all())
 
 
 async def count_workspaces_page(

@@ -241,8 +241,8 @@ i18n：在 `zh-CN.json` / `en.json` 补充 `roles.*` 键。
 
 | 项 | 后续占位 |
 |------|----------|
-| `sys_user_role` 用户-角色绑定 | **已实现**；见 [2026-06-11-user-management-design.md](./2026-06-11-user-management-design.md) |
-| 侧栏 `GET /sys/menus/nav` 按角色过滤 | **已实现**；`menu_service.list_nav_tree_for_user` 按 `sys_user_role` + `sys_role_menu` 过滤 |
+| 用户-角色绑定（`sys_user_grant`） | **已实现**；见 [2026-06-11-user-management-design.md](./2026-06-11-user-management-design.md) §9 |
+| 侧栏 `GET /sys/menus/nav` 按角色过滤 | **已实现**；`menu_service.list_nav_tree_for_user` 按 `sys_user_grant` + `sys_role_permission` 过滤 |
 | 前端按钮权限指令（F 类型 perms） | 菜单关联已入库，指令后续实现 |
 | **tenant 级**角色隔离 | 不在本期（本期仅 workspace 级） |
 | `SYS_ROLES` 字典与 `role_key` 展示映射 | 明确不做 |

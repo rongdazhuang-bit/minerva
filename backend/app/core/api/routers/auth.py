@@ -92,8 +92,10 @@ class TokenOut(BaseModel):
 class AuthorizationOut(BaseModel):
     """Effective permissions summary for the authenticated user."""
 
+    email: str
     is_super_admin: bool
     tenant_id: uuid.UUID | None = None
+    tenant_name: str | None = None
     workspace_id: uuid.UUID | None = None
     workspace_role: str | None = None
     tenant_role: str | None = None
@@ -294,9 +296,16 @@ async def me_authorization(
             }
         )
     perms = sorted(ctx.permissions) if "*" not in ctx.permissions else ["*"]
+    tenant_name: str | None = None
+    if ctx.tenant_id is not None:
+        tenant = await session.get(Tenant, ctx.tenant_id)
+        if tenant is not None:
+            tenant_name = tenant.name
     return AuthorizationOut(
+        email=user.email,
         is_super_admin=ctx.is_super_admin,
         tenant_id=ctx.tenant_id,
+        tenant_name=tenant_name,
         workspace_id=ctx.workspace_id,
         workspace_role=ctx.workspace_role.value if ctx.workspace_role else None,
         tenant_role=ctx.tenant_role.value if ctx.tenant_role else None,

@@ -1,4 +1,5 @@
 -- 已有库增量：sys_users 档案扩展 + sys_user_role（无库级外键）
+-- 注：sys_user_role 为历史表；P2 回填 sys_user_grant 后由 P3 DROP。应用层不再读写本表。
 
 ALTER TABLE public.sys_users ADD COLUMN IF NOT EXISTS nickname VARCHAR(64);
 ALTER TABLE public.sys_users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);

@@ -351,7 +351,7 @@ git commit -m "feat(auth): P0 unified permission gateway foundation"
 
 - [ ] **Step 1: 从 sys_role_menu 导入 sys_role_permission**
 - [ ] **Step 2: role_service 写 role_permission**
-- [ ] **Step 3: 删除 sys_user_role / sys_role_menu 表（patch）**
+- [x] **Step 3: 删除 sys_user_role / sys_role_menu 表（patch）** — `2026-07-01-unified-permission-gateway-p3.sql`
 
 ---
 

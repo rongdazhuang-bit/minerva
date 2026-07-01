@@ -7,6 +7,13 @@
   min-height: 0;
 }
 
+.minerva-app-layout .ant-layout-header {
+  height: auto;
+  min-height: 56px;
+  line-height: 1.2;
+  overflow: visible;
+}
+
 .minerva-app-layout .ant-layout-sider .ant-layout-sider-children {
   min-height: 0;
   display: flex;

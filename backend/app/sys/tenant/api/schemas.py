@@ -91,16 +91,16 @@ class SysWorkspaceListPageOut(BaseModel):
     page_size: int
 
 
-class SysTenantEntitlementsOut(BaseModel):
-    """Enabled feature codes for one tenant."""
+class SysTenantPermissionsOut(BaseModel):
+    """Enabled menu ids for one tenant."""
 
-    feature_codes: list[str]
+    menu_ids: list[uuid.UUID]
 
 
-class SysTenantEntitlementsPutIn(BaseModel):
-    """Replace tenant feature entitlements."""
+class SysTenantPermissionsPutIn(BaseModel):
+    """Replace tenant menu permissions."""
 
-    feature_codes: list[str]
+    menu_ids: list[uuid.UUID]
 
 
 class SysTenantAdminsOut(BaseModel):
@@ -113,6 +113,21 @@ class SysTenantAdminsPutIn(BaseModel):
     """Replace tenant administrator grants."""
 
     user_ids: list[uuid.UUID]
+
+
+class SysTenantUserOptionOut(BaseModel):
+    """One tenant member for admin form pickers."""
+
+    id: uuid.UUID
+    nickname: str
+    email: str
+    status: bool
+
+
+class SysTenantUserListOut(BaseModel):
+    """All tenant members for grant/admin forms."""
+
+    items: list[SysTenantUserOptionOut]
 
 
 class SysUserGrantOut(BaseModel):

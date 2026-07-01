@@ -34,14 +34,25 @@ const siderStyle: CSSProperties = {
   overflow: 'hidden',
 }
 
-const brandBase: CSSProperties = {
+const brandTitle: CSSProperties = {
   color: 'var(--minerva-primary, #38bdf8)',
   fontSize: 18,
   fontWeight: 600,
   fontFamily: "'Fraunces', Georgia, serif",
   letterSpacing: 0.04,
-  lineHeight: '56px',
+  lineHeight: 1.2,
   whiteSpace: 'nowrap',
+}
+
+const brandAccount: CSSProperties = {
+  color: 'var(--minerva-ink-muted, #94a3b8)',
+  fontSize: 12,
+  fontWeight: 400,
+  lineHeight: 1.2,
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  maxWidth: 'min(280px, 40vw)',
 }
 
 const headerStyle: CSSProperties = {
@@ -54,7 +65,9 @@ const headerStyle: CSSProperties = {
   background: 'var(--minerva-surface, #1b2838)',
   borderBottom: '1px solid var(--minerva-border, #2d3f55)',
   paddingInline: 20,
-  height: 56,
+  minHeight: 56,
+  height: 'auto',
+  paddingBlock: 8,
   lineHeight: 1,
   overflow: 'visible',
   zIndex: 20,
@@ -159,7 +172,7 @@ export function AppLayout() {
   const { t } = useTranslation()
   const nav = useNavigate()
   const { pathname } = useLocation()
-  const { clear, workspaceId } = useAuth()
+  const { clear, workspaceId, accountEmail, tenantName } = useAuth()
   const { data: navMenus = [], isFetched: navMenusFetched } = useNavMenus()
   const { data: agentConfig, isFetched: agentConfigFetched } = useQuery({
     queryKey: ['agent-v2-config', workspaceId],
@@ -240,6 +253,12 @@ export function AppLayout() {
     return true
   }, [pathname])
 
+  const brandSubtitle = useMemo(() => {
+    if (!accountEmail) return null
+    if (tenantName) return `${accountEmail} · ${tenantName}`
+    return accountEmail
+  }, [accountEmail, tenantName])
+
   const onLogout = useCallback(() => {
     clear()
     void nav('/login')
@@ -267,7 +286,22 @@ export function AppLayout() {
       }}
     >
       <Header style={headerStyle}>
-        <div style={brandBase}>{t('appName')}</div>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            gap: 2,
+            minWidth: 0,
+          }}
+        >
+          <div style={brandTitle}>{t('appName')}</div>
+          {brandSubtitle ? (
+            <div style={brandAccount} title={brandSubtitle}>
+              {brandSubtitle}
+            </div>
+          ) : null}
+        </div>
         <AppHeaderToolbar onLogout={onLogout} />
       </Header>
 

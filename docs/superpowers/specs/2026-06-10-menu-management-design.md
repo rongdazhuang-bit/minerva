@@ -314,11 +314,11 @@ i18n：在 `zh-CN.json` / `en.json` 补充菜单管理相关键。
 | 建表/种子 SQL | `backend/sql/tables/sys_menu.sql`、`backend/sql/seeds/sys_menu_seed.sql` | 31 条种子 |
 | 管理页 | `frontend/src/features/settings/menu-config/MenuConfigPage.tsx` | Popconfirm 级联删除 |
 | 动态侧栏 | `frontend/src/app/layout/AppLayout.tsx` + `buildSiderMenuItems.tsx` | `agents-memory` 客户端过滤 |
-| 侧栏按角色过滤 | `menu_service.list_nav_tree_for_user` + `GET /sys/menus/nav` | JWT `wid` + `sys_user_role` + `sys_role_menu`；超管不过滤 |
+| 侧栏按角色过滤 | `menu_service.list_nav_tree_for_user` + `GET /sys/menus/nav` | JWT `wid` + `sys_user_grant` + `sys_role_permission`；超管不过滤 |
 | 侧栏刷新 | `frontend/src/app/menuNavRefresh.ts` | CRUD 后 `notifyMenuNavRefresh()` |
 | SQL patch | `backend/sql/patches/2026-06-10-sys-menu.sql` | 已有库增量建表 |
 | `menu_key` 冲突 | `menu_service._commit_or_conflict` | 409 `menu.conflict` |
 | 后端测试 | `test_menu_tree.py`、`test_menu_service.py`、`test_menu_api.py`、`test_menu_tenant_auth.py` | nav 过滤、级联删、鉴权 |
 | 开发代理 | `frontend/vite.config.ts` → `^/sys` 须代理到 FastAPI | 未配置时 `/sys/menus/nav` 不会到后端，侧栏恒空 |
 | 空表种子 | `menu_seed.bootstrap_sys_menu_seed`（dev 启动）+ `sql/seeds/sys_menu_seed.sql` | 亦可用 `scripts/apply_menu_bootstrap.py` |
-| 角色与菜单授权 | [2026-06-11-role-management-design.md](./2026-06-11-role-management-design.md) | workspace 级 `sys_role` + `sys_role_menu`；全局 `sys_menu` 定义不变 |
+| 角色与菜单授权 | [2026-06-11-role-management-design.md](./2026-06-11-role-management-design.md) | workspace 级 `sys_role` + `sys_role_permission`；全局 `sys_menu` 定义不变 |

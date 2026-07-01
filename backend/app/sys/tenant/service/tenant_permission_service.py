@@ -1,18 +1,17 @@
-"""Tenant entitlement and tenant-admin grant management."""
+"""Tenant menu permission and tenant-admin grant management."""
 
 from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import Any
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.domain.authorization.models import GrantScopeType, GrantType, SysTenantEntitlement, SysUserGrant
+from app.core.domain.authorization.models import GrantScopeType, GrantType, SysTenantPermission, SysUserGrant
 from app.core.domain.identity.models import User
-from app.core.security.permission_codes import FEATURE_CODES
 from app.exceptions import AppError
+from app.sys.menu.domain.db.models import SysMenu
 from app.sys.tenant.service import tenant_service as tenant_svc
 
 
@@ -22,56 +21,61 @@ def _utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-async def list_entitlements(
+async def list_tenant_menu_ids(
     session: AsyncSession, *, tenant_id: uuid.UUID
-) -> list[str]:
-    """Return enabled feature codes for a tenant."""
+) -> list[uuid.UUID]:
+    """Return enabled menu ids assigned to a tenant."""
 
     await tenant_svc.get_tenant(session, tenant_id=tenant_id)
     r = await session.execute(
-        select(SysTenantEntitlement.feature_code).where(
-            SysTenantEntitlement.tenant_id == tenant_id,
-            SysTenantEntitlement.enabled.is_(True),
+        select(SysTenantPermission.menu_id).where(
+            SysTenantPermission.tenant_id == tenant_id,
+            SysTenantPermission.enabled.is_(True),
         )
     )
     return list(r.scalars().all())
 
 
-async def replace_entitlements(
+async def replace_tenant_permissions(
     session: AsyncSession,
     *,
     tenant_id: uuid.UUID,
-    feature_codes: list[str],
-    granted_by_user_id: uuid.UUID,
-) -> list[str]:
-    """Replace tenant feature entitlements with the given enabled codes."""
+    menu_ids: list[uuid.UUID],
+    create_by: uuid.UUID,
+) -> list[uuid.UUID]:
+    """Replace tenant menu permissions with the given menu ids."""
 
     await tenant_svc.get_tenant(session, tenant_id=tenant_id)
-    invalid = [c for c in feature_codes if c not in FEATURE_CODES]
-    if invalid:
-        raise AppError(
-            "tenant.invalid_feature",
-            f"Unknown feature codes: {', '.join(invalid)}",
-            400,
+    unique_ids = list(dict.fromkeys(menu_ids))
+    if unique_ids:
+        r = await session.execute(
+            select(SysMenu.id).where(SysMenu.id.in_(unique_ids))
         )
+        found = set(r.scalars().all())
+        invalid = [str(m) for m in unique_ids if m not in found]
+        if invalid:
+            raise AppError(
+                "tenant.invalid_menu",
+                f"Unknown menu ids: {', '.join(invalid)}",
+                400,
+            )
     await session.execute(
-        delete(SysTenantEntitlement).where(SysTenantEntitlement.tenant_id == tenant_id)
+        delete(SysTenantPermission).where(SysTenantPermission.tenant_id == tenant_id)
     )
     now = _utc_now()
-    unique_codes = sorted(set(feature_codes))
-    for code in unique_codes:
+    for mid in unique_ids:
         session.add(
-            SysTenantEntitlement(
+            SysTenantPermission(
                 tenant_id=tenant_id,
-                feature_code=code,
+                menu_id=mid,
                 enabled=True,
-                granted_by_user_id=granted_by_user_id,
+                create_by=create_by,
                 create_at=now,
                 update_at=now,
             )
         )
     await session.commit()
-    return unique_codes
+    return unique_ids
 
 
 async def list_tenant_admin_user_ids(

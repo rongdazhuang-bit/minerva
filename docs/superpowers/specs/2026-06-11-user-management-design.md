@@ -2,7 +2,7 @@
 
 **日期**：2026-06-11  
 **状态**：已实现（2026-06-11）  
-**范围**：按 **workspace** 隔离的用户成员管理；扩展 `sys_user` 档案字段；新建 `sys_user_role` 多角色绑定；设置页「用户管理」列表 + 右侧 Drawer（部门树选、多角色、成员资格）。  
+**范围**：按 **workspace** 隔离的用户成员管理；扩展 `sys_user` 档案字段；多角色绑定（现由 `sys_user_grant` 承载；初版设计为 `sys_user_role`，P3 已废弃）；设置页「用户管理」列表 + 右侧 Drawer（部门树选、多角色、成员资格）。  
 **依赖**：
 - workspace 级角色 `sys_role`，见 [2026-06-11-role-management-design.md](./2026-06-11-role-management-design.md)
 - workspace 级字典 `SYS_DEPARTMENT`，见字典模块 `app/sys/dict`
@@ -20,12 +20,12 @@
 - **用户账号**：`sys_user` 为**全局**账号；`email` **全局唯一**；新建时邮箱已存在则**拒绝**（不邀请）。
 - **档案字段**（全局，存 `sys_user`）：`nickname`、`phone`（选填、填写则全局唯一）、`status`（全局启用/停用，false 禁止登录）、`remark`、`department_item_id`（可选，逻辑引用 `sys_dict_item.id`）、`update_at`。
 - **成员资格**：`sys_workspace_user.role`（`owner` / `admin` / `member`），与业务角色 `sys_role` **并存**。
-- **多角色**：`sys_user_role(user_id, role_id)`，0~N 个；`role_id` 须属于当前 workspace。
+- **多角色**：workspace 作用域 `sys_user_grant`（`grant_type=role`），0~N 个；`role_id` 须属于当前 workspace。
 - **部门**：字典 `dict_code = 'SYS_DEPARTMENT'`（workspace 级）；表单 **TreeSelect**；存 `sys_user.department_item_id`；保存时校验字典项属于**当前 workspace** 的 `SYS_DEPARTMENT`。
 - **密码**：创建必填（≥8 位）；编辑可选，留空不修改。
 - **删除**：
-  - **移出工作空间**：删 membership + 该 workspace 下 `sys_user_role`；保留 `sys_user`。
-  - **删除账号**：硬删 `sys_user` 及全部 membership、`sys_user_role`、`refresh_tokens`；**平台超管**始终可执行；**workspace owner/admin** 仅当用户**仅有当前 workspace 一条 membership** 时可执行。
+  - **移出工作空间**：删 membership + 该 workspace 下 role grant；保留 `sys_user`。
+  - **删除账号**：硬删 `sys_user` 及全部 membership、grant、`refresh_tokens`；**平台超管**始终可执行；**workspace owner/admin** 仅当用户**仅有当前 workspace 一条 membership** 时可执行。
 - **鉴权**（对齐角色模块）：
   - **读**：workspace **成员**（`require_workspace_member`）
   - **写**：workspace **owner/admin**（`require_workspace_owner_or_admin`）
@@ -76,7 +76,9 @@
 
 用户管理中的 **成员资格** 即读写此表的 `role` 字段。
 
-### 2.4 表 `sys_user_role`（新建）
+### 2.4 表 `sys_user_role`（历史设计，P3 已废弃）
+
+> **现网**：用户-角色绑定见 `sys_user_grant`（[2026-07-01-unified-permission-gateway-design.md](./2026-07-01-unified-permission-gateway-design.md)）。下列 DDL 仅作初版 spec 归档。
 
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
@@ -98,13 +100,13 @@
 2. `INSERT INTO sys_user`
 3. `INSERT INTO sys_workspace_user`（`role` 与请求一致）
 4. `INSERT INTO sys_tenant_user`（`tenant_id` 取自当前 workspace 所属租户，`role` 与 workspace membership 一致）
-5. 写入 `sys_user_role` 关联
+5. 写入 workspace 作用域 `sys_user_grant`（`grant_type=role`）
 
 **移出工作空间**（`DELETE /workspaces/{workspace_id}/users/{user_id}/membership`）同一事务内：
 
 1. 操作者不得为目标用户本人，否则 **403** `user.cannot_delete_self`
 2. 校验用户为当前 workspace 成员，否则 **404**
-3. `DELETE FROM sys_user_role WHERE user_id = ? AND role_id IN (SELECT id FROM sys_role WHERE workspace_id = ?)`
+3. 删除该 workspace 下 role grant（`auth_repo.delete_role_grants_in_workspace`）
 4. `DELETE FROM sys_workspace_user WHERE user_id = ? AND workspace_id = ?`
 5. 若该用户在当前 workspace 所属 tenant 下已无其它 workspace membership，则 `DELETE FROM sys_tenant_user WHERE user_id = ? AND tenant_id = ?`
 
@@ -112,7 +114,7 @@
 
 1. 操作者不得为目标用户本人，否则 **403** `user.cannot_delete_self`
 2. 校验权限（§3.1）；否则 **403** `user.delete_forbidden`
-3. `DELETE FROM sys_user_role WHERE user_id = ?`
+3. 删除该用户全部 grant（`auth_repo.delete_all_grants_for_user`）
 4. `DELETE FROM sys_tenant_user WHERE user_id = ?`
 5. `DELETE FROM sys_workspace_user WHERE user_id = ?`
 6. `DELETE FROM refresh_tokens WHERE user_id = ?`
@@ -127,16 +129,17 @@
 ### 2.6 ORM 与启动建表
 
 - 扩展 `backend/app/core/domain/identity/models.py` → `User` 增加新列
-- 新建 `backend/app/sys/user/domain/db/models.py` → `SysUserRole`（或置于 identity models，以实现时仓库惯例为准）
-- 在 `app/core/infrastructure/db/bootstrap.py` 的 `_import_models()` 中注册 `SysUserRole`
+- 用户-角色绑定：`backend/app/core/domain/authorization/models.py` → `SysUserGrant`
+- 在 `app/core/infrastructure/db/bootstrap.py` 的 `_import_models()` 中注册 `SysUserGrant`
 
 ### 2.7 SQL 文件
 
 | 文件 | 说明 |
 |------|------|
-| `backend/sql/tables/sys_user_role.sql` | 建表、索引、COMMENT |
-| `backend/sql/patches/2026-06-11-sys-user-mgmt.sql` | ALTER `sys_user` 增列 + 建 `sys_user_role` |
-| `backend/sql/schema_postgresql.sql` | 合并上述定义 |
+| `backend/sql/tables/sys_user_grant.sql` | 建表、索引、COMMENT |
+| `backend/sql/patches/2026-06-11-sys-user-mgmt.sql` | ALTER `sys_user` 增列（历史 patch，含已废弃 `sys_user_role`） |
+| `backend/sql/patches/2026-07-01-unified-permission-gateway-p2.sql` | 自 `sys_user_role` 回填 `sys_user_grant` |
+| `backend/sql/patches/2026-07-01-unified-permission-gateway-p3.sql` | DROP `sys_user_role` |
 
 ### 2.8 字典 `SYS_DEPARTMENT`
 
@@ -225,7 +228,7 @@ app/sys/user/
 ### 3.3 业务规则
 
 1. **创建**：`email` 全局已存在 → `409 user.email_taken`；`phone` 非空且已占用 → `409 user.phone_taken`；`password` 长度 < 8 → `400 user.weak_password`
-2. **创建事务**：INSERT `sys_user` → INSERT `sys_workspace_user` → INSERT `sys_user_role`（可为空）
+2. **创建事务**：INSERT `sys_user` → INSERT `sys_workspace_user` → INSERT `sys_tenant_user` → workspace role grant（可为空）
 3. **更新**：目标用户非当前 workspace 成员 → `404 user.not_found`；`email` 不可改
 4. **`role_ids`**：须全部属于当前 workspace 且对应 `sys_role.status = true`；否则 `400 user.role_invalid`
 5. **`department_item_id`**：非 null 时须属于当前 workspace 的 `SYS_DEPARTMENT`；否则 `400 user.department_invalid`；null 表示清空部门
@@ -405,7 +408,7 @@ i18n：补充 `users.*`（`zh-CN.json` / `en.json`）；移除或保留 `placeho
 - 邮箱/手机号全局唯一冲突 → 409
 - 非成员 / 非本 workspace 用户 → 404
 - `department_item_id` / `role_ids` 校验 → 400
-- 移出 workspace 后仅清除该 workspace 的 `sys_user_role`
+- 移出 workspace 后仅清除该 workspace 的 role grant
 - 硬删：超管成功；owner/admin 对多 workspace 用户 → 403
 - `status=false` 用户无法登录
 - member 写 → 403
@@ -423,7 +426,7 @@ i18n：补充 `users.*`（`zh-CN.json` / `en.json`）；移除或保留 `placeho
 
 ## 7. 与角色管理 spec 的关系
 
-- [2026-06-11-role-management-design.md](./2026-06-11-role-management-design.md) §5 曾将 `sys_user_role` 标为范围外；**本 spec 为正式设计**。实现后应回填角色 spec：将 `sys_user_role` 移至已实现，并更新 `UsersPage` 占位说明。
+- [2026-06-11-role-management-design.md](./2026-06-11-role-management-design.md) §5 曾将用户-角色绑定标为范围外；**本 spec 为正式设计**。实现后应回填角色 spec，并更新 `UsersPage` 占位说明。
 
 ---
 
@@ -434,16 +437,17 @@ i18n：补充 `users.*`（`zh-CN.json` / `en.json`）；移除或保留 `placeho
 | 2026-06-11 | 初稿：workspace 级用户管理；方案 1；`department_item_id` 在 `sys_user`；全局 status/phone；双删除策略；A+B 硬删权限 |
 | 2026-06-11 | 增补 §4.4：列表/Drawer/滚动条/Popconfirm/分页对齐 RolesPage、RoleFormDrawer 等项目标准 |
 | 2026-06-11 | 实现完成 |
+| 2026-07-01 | 角色绑定迁至 `sys_user_grant`；`sys_user_role` 由 P3 patch 删除；§9 实现对照更新 |
 
 ---
 
-## 9. 实现对照（以代码为准，2026-06-11）
+## 9. 实现对照（以代码为准，2026-07-01）
 
 | spec 条目 | 当前代码位置 | 备注 |
 |-----------|--------------|------|
 | `sys_user` 扩展 | `backend/app/core/domain/identity/models.py` | nickname/phone/status/remark/department_item_id/update_at |
-| `sys_user_role` ORM | `backend/app/sys/user/domain/db/models.py` | |
-| 建表 SQL | `backend/sql/tables/sys_user_role.sql`、patch `2026-06-11-sys-user-mgmt.sql` | |
+| 用户-角色 grant | `backend/app/core/domain/authorization/models.py` → `SysUserGrant` | `auth_repo.replace_role_grants_in_workspace` 等 |
+| 建表 SQL | `backend/sql/tables/sys_user_grant.sql`、P2/P3 patch | 勿再引用 `sys_user_role.sql`（已删除） |
 | user service | `backend/app/sys/user/service/user_service.py` | 校验、硬删权限、meta |
 | API 路由 | `backend/app/sys/user/api/router.py` | 前缀 `/workspaces/{workspace_id}/users` |
 | 登录 status | `backend/app/core/domain/identity/services.py` | `authenticate_user` |

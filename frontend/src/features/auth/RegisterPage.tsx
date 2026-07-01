@@ -78,7 +78,7 @@ function RegisterPageCard({ tone }: { tone: AuthTone }) {
           setSubmitting(true)
           try {
             const o = await registerApi(email, password, captchaId, captchaCode)
-            setTokens(o.access_token, o.refresh_token)
+            setTokens(o.access_token, o.refresh_token, String(email).trim())
             void messageApi.success('OK')
             void nav('/app/overview')
           } catch (e) {

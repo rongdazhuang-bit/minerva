@@ -124,7 +124,7 @@
 - **`membership_role` 校验**：
   1. 须在 `assignable_membership_roles` 内，否则 **400** `user.membership_role_forbidden`。
   2. `can_edit_membership_role=false` 时若 body 含非 `member` 的 `membership_role` → **400**。
-- **事务**：与现网一致 — `sys_user` → `sys_workspace_user` → `sys_tenant_user`（`tenant_id` = workspace.tenant_id）→ `sys_user_role`。
+- **事务**：与现网一致 — `sys_user` → `sys_workspace_user` → `sys_tenant_user`（`tenant_id` = workspace.tenant_id）→ workspace 作用域 `sys_user_grant`（`grant_type=role`）。
 - **部门 / `role_ids`**：校验针对路径 `workspace_id`。
 
 ### 3.4 更新 `PATCH /workspaces/{workspace_id}/users/{user_id}`
