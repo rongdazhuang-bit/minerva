@@ -37,6 +37,25 @@ export type SysUserCapabilities = {
   can_pick_tenant_workspace: boolean
   is_tenant_admin: boolean
   default_tenant_id: string | null
+  can_pick_tenant?: boolean
+  can_pick_workspace?: boolean
+  fixed_tenant_id?: string | null
+  fixed_tenant_name?: string | null
+}
+
+/** Platform-level list/form scope capabilities from JWT context. */
+export type SysUserListCapabilities = {
+  is_super_admin: boolean
+  is_tenant_admin: boolean
+  can_pick_tenant: boolean
+  can_pick_workspace: boolean
+  fixed_tenant_id: string | null
+  fixed_tenant_name: string | null
+  default_filter_tenant_id: string | null
+  default_filter_workspace_id: string | null
+  actor_workspace_role: string | null
+  can_edit_membership_role: boolean
+  assignable_membership_roles: string[]
 }
 
 /** Assignable role option. */
@@ -62,6 +81,8 @@ export type SysUserListItem = {
   role_names: string[]
   tenant_id?: string | null
   workspace_id?: string | null
+  tenant_name?: string | null
+  workspace_name?: string | null
   created_at: string
   update_at: string | null
   can_hard_delete: boolean
@@ -83,6 +104,7 @@ export type SysUserListParams = {
   status?: boolean
   membership_role?: string
   role_id?: string
+  workspace_id?: string
   page?: number
   page_size?: number
 }
@@ -115,6 +137,7 @@ function buildQuery(params: SysUserListParams): string {
     q.set('membership_role', params.membership_role.trim())
   }
   if (params.role_id?.trim()) q.set('role_id', params.role_id.trim())
+  if (params.workspace_id?.trim()) q.set('workspace_id', params.workspace_id.trim())
   if (params.page != null) q.set('page', String(params.page))
   if (params.page_size != null) q.set('page_size', String(params.page_size))
   const s = q.toString()
@@ -182,6 +205,21 @@ export function listUserDepartmentTree(workspaceId: string) {
 export function listUserAssignableRoles(workspaceId: string) {
   return apiJson<SysUserRoleOption[]>(
     `/workspaces/${workspaceId}/users/meta/roles`,
+  )
+}
+
+/** Load platform list/form scope capability flags. */
+export function getUserListCapabilities() {
+  return apiJson<SysUserListCapabilities>('/sys/users/meta/capabilities')
+}
+
+/** List workspace members under a tenant with optional workspace filter. */
+export function listTenantWorkspaceUsers(
+  tenantId: string,
+  params: SysUserListParams = {},
+) {
+  return apiJson<SysUserListPage>(
+    `/sys/tenants/${tenantId}/workspace-users${buildQuery(params)}`,
   )
 }
 

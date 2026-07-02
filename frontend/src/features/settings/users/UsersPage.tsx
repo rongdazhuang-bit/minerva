@@ -15,31 +15,38 @@ import {
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useQuery } from '@tanstack/react-query'
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   createUser,
   deleteUserAccount,
   getUser,
+  getUserListCapabilities,
+  listTenantWorkspaceUsers,
   listUserAssignableRoles,
   listUsers,
   patchUser,
   removeUserMembership,
   type SysUserCreateBody,
+  type SysUserListCapabilities,
   type SysUserListItem,
   type SysUserListParams,
   type SysUserPatchBody,
 } from '@/api/users'
-import { ApiError } from '@/api/client'
 import {
-  replaceWorkspaceRoleGrants,
-} from '@/api/grants'
+  listTenants,
+  listWorkspaces,
+  type SysTenantListItem,
+  type SysWorkspaceListItem,
+} from '@/api/tenants'
+import { ApiError } from '@/api/client'
+import { replaceWorkspaceRoleGrants } from '@/api/grants'
 import { useAuth } from '@/app/AuthContext'
 import { PermGuard, useCanManageUsers } from '@/components/PermGuard'
 import { notifyMenuNavRefresh } from '@/app/menuNavRefresh'
 import { resolveApiErrorMessage, showAppError, useAppMessage } from '@/app/useAppMessage'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
-import { UserFormDrawer, type UserFormValues } from './UserFormDrawer'
+import { UserFormDrawer, type UserFormValues, type UserScope } from './UserFormDrawer'
 import './UsersPage.css'
 
 /** Horizontal scroll width for the users table. */
@@ -68,8 +75,7 @@ function toListParams(values: FilterFormValues): SysUserListParams {
     email: values.email?.trim() || undefined,
     nickname: values.nickname?.trim() || undefined,
     phone: values.phone?.trim() || undefined,
-    status:
-      values.status == null ? undefined : values.status === 'true',
+    status: values.status == null ? undefined : values.status === 'true',
     membership_role: values.membership_role || undefined,
     role_id: values.role_id || undefined,
   }
@@ -79,9 +85,11 @@ function toListParams(values: FilterFormValues): SysUserListParams {
 export function UsersPage() {
   const { t } = useTranslation()
   const messageApi = useAppMessage()
-  const { workspaceId, userId, isSuperAdmin, isTenantAdmin, isWorkspaceAdmin, tenantId } = useAuth()
+  const { workspaceId, userId, isSuperAdmin, isTenantAdmin, isWorkspaceAdmin, tenantId } =
+    useAuth()
   const canManageUsers = useCanManageUsers()
-  const useGrantApiForRoles = Boolean(tenantId) && (isSuperAdmin || isTenantAdmin || isWorkspaceAdmin)
+  const useGrantApiForRoles =
+    Boolean(tenantId) && (isSuperAdmin || isTenantAdmin || isWorkspaceAdmin)
   const tableWrapRef = useRef<HTMLDivElement | null>(null)
   const [tableBodyScrollY, setTableBodyScrollY] = useState(320)
   const [filterForm] = Form.useForm<FilterFormValues>()
@@ -90,24 +98,118 @@ export function UsersPage() {
   const [filters, setFilters] = useState<SysUserListParams>({})
   const [refreshTick, setRefreshTick] = useState(0)
   const [forbidden, setForbidden] = useState(false)
+  const [capabilities, setCapabilities] = useState<SysUserListCapabilities | null>(null)
+  const [filterTenantId, setFilterTenantId] = useState<string | null>(null)
+  const [filterWorkspaceId, setFilterWorkspaceId] = useState<string | null>(null)
+  const [tenants, setTenants] = useState<SysTenantListItem[]>([])
+  const [filterWorkspaces, setFilterWorkspaces] = useState<SysWorkspaceListItem[]>([])
+  const [formWorkspaces, setFormWorkspaces] = useState<SysWorkspaceListItem[]>([])
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerTitle, setDrawerTitle] = useState('')
   const [drawerMode, setDrawerMode] = useState<'create' | 'edit'>('create')
   const [submitting, setSubmitting] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingWorkspaceId, setEditingWorkspaceId] = useState<string | null>(null)
   const [initialForm, setInitialForm] = useState<UserFormValues | null>(null)
+  const [initialScope, setInitialScope] = useState<UserScope | null>(null)
+
+  useEffect(() => {
+    void getUserListCapabilities().then((caps) => {
+      setCapabilities(caps)
+      setFilterTenantId(caps.default_filter_tenant_id)
+      setFilterWorkspaceId(caps.default_filter_workspace_id)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!capabilities?.can_pick_tenant) return
+    void listTenants({ page_size: 100 }).then((page) => {
+      setTenants(page.items)
+    })
+  }, [capabilities?.can_pick_tenant])
+
+  const loadFilterWorkspaces = useCallback(async (tenantIdForList: string) => {
+    const page = await listWorkspaces(tenantIdForList, { page_size: 100 })
+    setFilterWorkspaces(page.items)
+    return page.items
+  }, [])
+
+  const loadFormWorkspaces = useCallback(async (tenantIdForForm: string) => {
+    const page = await listWorkspaces(tenantIdForForm, { page_size: 100 })
+    setFormWorkspaces(page.items)
+    return page.items
+  }, [])
+
+  useEffect(() => {
+    if (!capabilities?.can_pick_workspace) return
+    const tid = filterTenantId ?? capabilities.fixed_tenant_id
+    if (!tid) {
+      setFilterWorkspaces([])
+      return
+    }
+    void loadFilterWorkspaces(tid)
+  }, [capabilities, filterTenantId, loadFilterWorkspaces])
+
+  useEffect(() => {
+    if (!capabilities?.can_pick_workspace || filterWorkspaces.length === 0) return
+    if (
+      filterWorkspaceId != null &&
+      filterWorkspaces.some((w) => w.id === filterWorkspaceId)
+    ) {
+      return
+    }
+    const preferred =
+      capabilities.default_filter_workspace_id &&
+      filterWorkspaces.some((w) => w.id === capabilities.default_filter_workspace_id)
+        ? capabilities.default_filter_workspace_id
+        : filterWorkspaces[0].id
+    setFilterWorkspaceId(preferred)
+  }, [capabilities, filterWorkspaces, filterWorkspaceId])
+
+  const effectiveTenantId = useMemo(() => {
+    if (!capabilities) return null
+    if (capabilities.can_pick_tenant) return filterTenantId
+    return capabilities.fixed_tenant_id ?? tenantId
+  }, [capabilities, filterTenantId, tenantId])
+
+  const effectiveWorkspaceId = useMemo(() => {
+    if (!capabilities) return null
+    if (capabilities.can_pick_workspace) return filterWorkspaceId
+    return workspaceId
+  }, [capabilities, filterWorkspaceId, workspaceId])
 
   const rolesMetaQuery = useQuery({
-    queryKey: ['users-meta-roles', workspaceId],
-    queryFn: () => listUserAssignableRoles(workspaceId!),
-    enabled: Boolean(workspaceId),
+    queryKey: ['users-meta-roles', effectiveWorkspaceId ?? workspaceId],
+    queryFn: () => listUserAssignableRoles((effectiveWorkspaceId ?? workspaceId)!),
+    enabled: Boolean(effectiveWorkspaceId ?? workspaceId),
   })
 
   const listQuery = useQuery({
-    queryKey: ['users', workspaceId, page, pageSize, filters, refreshTick],
+    queryKey: [
+      'users',
+      effectiveTenantId,
+      effectiveWorkspaceId,
+      page,
+      pageSize,
+      filters,
+      refreshTick,
+      capabilities?.can_pick_workspace,
+    ],
     queryFn: async () => {
       setForbidden(false)
       try {
+        if (
+          capabilities?.can_pick_workspace &&
+          effectiveTenantId &&
+          effectiveWorkspaceId
+        ) {
+          return await listTenantWorkspaceUsers(effectiveTenantId, {
+            ...filters,
+            workspace_id: effectiveWorkspaceId,
+            page,
+            page_size: pageSize,
+          })
+        }
         return await listUsers(workspaceId!, { ...filters, page, page_size: pageSize })
       } catch (e) {
         if (e instanceof ApiError && e.code === 'auth.forbidden') {
@@ -117,7 +219,11 @@ export function UsersPage() {
         throw e
       }
     },
-    enabled: Boolean(workspaceId),
+    enabled: capabilities
+      ? capabilities.can_pick_workspace
+        ? Boolean(effectiveTenantId && effectiveWorkspaceId)
+        : Boolean(workspaceId)
+      : false,
   })
 
   const reloadList = useCallback(() => {
@@ -137,9 +243,31 @@ export function UsersPage() {
     return () => ro.disconnect()
   }, [forbidden, listQuery.isLoading])
 
-  const openCreate = useCallback(() => {
+  const handleFilterTenantChange = useCallback((value: string | null) => {
+    setFilterTenantId(value)
+    setFilterWorkspaceId(null)
+    setPage(1)
+  }, [])
+
+  const handleFormTenantChange = useCallback(
+    async (tid: string) => {
+      await loadFormWorkspaces(tid)
+    },
+    [loadFormWorkspaces],
+  )
+
+  const openCreate = useCallback(async () => {
     setDrawerMode('create')
     setEditingId(null)
+    setEditingWorkspaceId(null)
+    setInitialScope(null)
+
+    const tid = effectiveTenantId
+    const wid = effectiveWorkspaceId
+    if (tid && capabilities?.can_pick_workspace) {
+      await loadFormWorkspaces(tid)
+    }
+
     setInitialForm({
       email: '',
       password: '',
@@ -150,18 +278,32 @@ export function UsersPage() {
       membership_role: 'member',
       department_item_id: null,
       role_ids: [],
+      tenant_id: tid ?? undefined,
+      workspace_id: wid ?? undefined,
     })
     setDrawerTitle(t('users.add'))
     setDrawerOpen(true)
-  }, [t])
+  }, [t, effectiveTenantId, effectiveWorkspaceId, capabilities, loadFormWorkspaces])
 
   const openEdit = useCallback(
     async (row: SysUserListItem) => {
-      if (!workspaceId) return
+      const rowWorkspaceId = row.workspace_id ?? workspaceId
+      if (!rowWorkspaceId) return
       try {
-        const detail = await getUser(workspaceId, row.id)
+        const detail = await getUser(rowWorkspaceId, row.id)
         setDrawerMode('edit')
         setEditingId(detail.id)
+        setEditingWorkspaceId(rowWorkspaceId)
+        if (row.tenant_id && row.workspace_id) {
+          setInitialScope({
+            tenant_id: row.tenant_id,
+            tenant_name: row.tenant_name ?? '',
+            workspace_id: row.workspace_id,
+            workspace_name: row.workspace_name ?? '',
+          })
+        } else {
+          setInitialScope(null)
+        }
         setInitialForm({
           email: detail.email,
           nickname: detail.nickname,
@@ -188,6 +330,7 @@ export function UsersPage() {
     ) => {
       if (!workspaceId) return
       const { targetWorkspaceId } = context
+      const listWorkspaceId = effectiveWorkspaceId ?? workspaceId
       setSubmitting(true)
       try {
         const raw = values as SysUserCreateBody & SysUserPatchBody
@@ -198,18 +341,26 @@ export function UsersPage() {
         }
         if (drawerMode === 'create') {
           const created = await createUser(targetWorkspaceId, profile as SysUserCreateBody)
-          if (useGrantApiForRoles && roleIds.length > 0 && tenantId) {
-            await replaceWorkspaceRoleGrants(tenantId, targetWorkspaceId, created.id, roleIds)
+          const grantTenantId = effectiveTenantId ?? tenantId
+          if (useGrantApiForRoles && roleIds.length > 0 && grantTenantId) {
+            await replaceWorkspaceRoleGrants(
+              grantTenantId,
+              targetWorkspaceId,
+              created.id,
+              roleIds,
+            )
           }
-          if (targetWorkspaceId !== workspaceId) {
+          if (targetWorkspaceId !== listWorkspaceId) {
             messageApi.success(t('users.createSuccessOtherWorkspace'))
           } else {
             messageApi.success(t('users.createSuccess'))
           }
         } else if (editingId) {
-          await patchUser(workspaceId, editingId, profile as SysUserPatchBody)
-          if (useGrantApiForRoles && tenantId) {
-            await replaceWorkspaceRoleGrants(tenantId, workspaceId, editingId, roleIds)
+          const editWsId = editingWorkspaceId ?? workspaceId
+          await patchUser(editWsId, editingId, profile as SysUserPatchBody)
+          const grantTenantId = effectiveTenantId ?? tenantId
+          if (useGrantApiForRoles && grantTenantId) {
+            await replaceWorkspaceRoleGrants(grantTenantId, editWsId, editingId, roleIds)
           }
           messageApi.success(t('users.updateSuccess'))
         }
@@ -222,14 +373,27 @@ export function UsersPage() {
         setSubmitting(false)
       }
     },
-    [workspaceId, drawerMode, editingId, messageApi, t, reloadList, useGrantApiForRoles, tenantId],
+    [
+      workspaceId,
+      effectiveWorkspaceId,
+      effectiveTenantId,
+      drawerMode,
+      editingId,
+      editingWorkspaceId,
+      messageApi,
+      t,
+      reloadList,
+      useGrantApiForRoles,
+      tenantId,
+    ],
   )
 
   const handleRemoveMembership = useCallback(
     async (row: SysUserListItem) => {
-      if (!workspaceId) return
+      const rowWorkspaceId = row.workspace_id ?? workspaceId
+      if (!rowWorkspaceId) return
       try {
-        await removeUserMembership(workspaceId, row.id)
+        await removeUserMembership(rowWorkspaceId, row.id)
         messageApi.success(t('users.removeSuccess'))
         reloadList()
       } catch (e) {
@@ -241,9 +405,10 @@ export function UsersPage() {
 
   const handleDeleteAccount = useCallback(
     async (row: SysUserListItem) => {
-      if (!workspaceId) return
+      const rowWorkspaceId = row.workspace_id ?? workspaceId
+      if (!rowWorkspaceId) return
       try {
-        await deleteUserAccount(workspaceId, row.id)
+        await deleteUserAccount(rowWorkspaceId, row.id)
         messageApi.success(t('users.deleteAccountSuccess'))
         reloadList()
       } catch (e) {
@@ -326,36 +491,36 @@ export function UsersPage() {
           return (
             <PermGuard perm="tenant:member:manage">
               <Space size="small">
-              <Tooltip title={t('users.edit')}>
-                <Button
-                  type="link"
-                  size="small"
-                  icon={<EditOutlined />}
-                  onClick={() => void openEdit(row)}
-                />
-              </Tooltip>
-              {!isSelf ? (
-                <Popconfirm
-                  title={t('users.removeMembershipConfirm', { name: row.nickname })}
-                  description={t('users.removeMembershipDesc')}
-                  onConfirm={() => void handleRemoveMembership(row)}
-                >
-                  <Tooltip title={t('users.removeMembership')}>
-                    <Button type="link" size="small" icon={<UserDeleteOutlined />} />
-                  </Tooltip>
-                </Popconfirm>
-              ) : null}
-              {!isSelf && row.can_hard_delete ? (
-                <Popconfirm
-                  title={t('users.deleteAccountConfirm', { name: row.nickname })}
-                  description={t('users.deleteAccountDesc')}
-                  onConfirm={() => void handleDeleteAccount(row)}
-                >
-                  <Tooltip title={t('users.deleteAccount')}>
-                    <Button type="link" size="small" danger icon={<DeleteOutlined />} />
-                  </Tooltip>
-                </Popconfirm>
-              ) : null}
+                <Tooltip title={t('users.edit')}>
+                  <Button
+                    type="link"
+                    size="small"
+                    icon={<EditOutlined />}
+                    onClick={() => void openEdit(row)}
+                  />
+                </Tooltip>
+                {!isSelf ? (
+                  <Popconfirm
+                    title={t('users.removeMembershipConfirm', { name: row.nickname })}
+                    description={t('users.removeMembershipDesc')}
+                    onConfirm={() => void handleRemoveMembership(row)}
+                  >
+                    <Tooltip title={t('users.removeMembership')}>
+                      <Button type="link" size="small" icon={<UserDeleteOutlined />} />
+                    </Tooltip>
+                  </Popconfirm>
+                ) : null}
+                {!isSelf && row.can_hard_delete ? (
+                  <Popconfirm
+                    title={t('users.deleteAccountConfirm', { name: row.nickname })}
+                    description={t('users.deleteAccountDesc')}
+                    onConfirm={() => void handleDeleteAccount(row)}
+                  >
+                    <Tooltip title={t('users.deleteAccount')}>
+                      <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+                    </Tooltip>
+                  </Popconfirm>
+                ) : null}
               </Space>
             </PermGuard>
           )
@@ -387,6 +552,9 @@ export function UsersPage() {
     )
   }
 
+  const showScopeFilters =
+    capabilities?.can_pick_tenant === true || capabilities?.can_pick_workspace === true
+
   return (
     <div className="minerva-users-page">
       <Card className="minerva-users-page__card" bordered={false}>
@@ -399,6 +567,48 @@ export function UsersPage() {
               setPage(1)
             }}
           >
+            {showScopeFilters ? (
+              <>
+                {capabilities?.can_pick_tenant ? (
+                  <Form.Item>
+                    <Select
+                      allowClear={false}
+                      placeholder={t('users.tenantPlaceholder')}
+                      style={{ width: 160 }}
+                      value={filterTenantId ?? undefined}
+                      onChange={(value) => handleFilterTenantChange(value ?? null)}
+                      options={tenants.map((row) => ({
+                        value: row.id,
+                        label: row.name,
+                      }))}
+                    />
+                  </Form.Item>
+                ) : capabilities?.fixed_tenant_name ? (
+                  <Form.Item>
+                    <Tag>{capabilities.fixed_tenant_name}</Tag>
+                  </Form.Item>
+                ) : null}
+                {capabilities?.can_pick_workspace ? (
+                  <Form.Item>
+                    <Select
+                      allowClear={false}
+                      placeholder={t('users.workspacePlaceholder')}
+                      style={{ width: 160 }}
+                      value={filterWorkspaceId ?? undefined}
+                      disabled={capabilities.can_pick_tenant && !filterTenantId}
+                      onChange={(value) => {
+                        setFilterWorkspaceId(value ?? null)
+                        setPage(1)
+                      }}
+                      options={filterWorkspaces.map((row) => ({
+                        value: row.id,
+                        label: row.name,
+                      }))}
+                    />
+                  </Form.Item>
+                ) : null}
+              </>
+            ) : null}
             <Form.Item name="email">
               <Input allowClear placeholder={t('users.emailPlaceholder')} style={{ width: 160 }} />
             </Form.Item>
@@ -454,13 +664,19 @@ export function UsersPage() {
                   onClick={() => {
                     filterForm.resetFields()
                     setFilters({})
+                    setFilterTenantId(capabilities?.default_filter_tenant_id ?? null)
+                    setFilterWorkspaceId(capabilities?.default_filter_workspace_id ?? null)
                     setPage(1)
                   }}
                 >
                   {t('users.reset')}
                 </Button>
                 <PermGuard perm="tenant:member:manage">
-                  <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+                  <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={() => void openCreate()}
+                  >
                     {t('users.add')}
                   </Button>
                 </PermGuard>
@@ -483,7 +699,7 @@ export function UsersPage() {
         <div ref={tableWrapRef} className="minerva-users-page__table-wrap">
           <Table<SysUserListItem>
             className="minerva-card-table-scroll-ocr"
-            rowKey="id"
+            rowKey={(row) => `${row.id}-${row.workspace_id ?? ''}`}
             loading={listQuery.isLoading}
             columns={columns}
             dataSource={listQuery.data?.items ?? []}
@@ -507,8 +723,13 @@ export function UsersPage() {
         title={drawerTitle}
         submitting={submitting}
         mode={drawerMode}
-        pageWorkspaceId={workspaceId}
+        listCapabilities={capabilities}
+        pageWorkspaceId={effectiveWorkspaceId ?? workspaceId}
         initial={initialForm}
+        initialScope={initialScope}
+        tenants={tenants}
+        workspaces={formWorkspaces.length > 0 ? formWorkspaces : filterWorkspaces}
+        onTenantChange={handleFormTenantChange}
         onClose={() => setDrawerOpen(false)}
         onSubmit={handleSubmit}
       />

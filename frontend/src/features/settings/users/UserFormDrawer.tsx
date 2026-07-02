@@ -1,4 +1,4 @@
-import { Alert, Button, Drawer, Form, Input, Radio, Select, Space, TreeSelect } from 'antd'
+import { Alert, Button, Drawer, Form, Input, Radio, Select, Space, Tag, TreeSelect } from 'antd'
 import type { TreeSelectProps } from 'antd'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -6,16 +6,13 @@ import type {
   SysUserCapabilities,
   SysUserCreateBody,
   SysUserDepartmentNode,
+  SysUserListCapabilities,
   SysUserRoleOption,
-  SysUserTenantOption,
-  SysUserWorkspaceOption,
 } from '@/api/users'
 import {
   getUserCapabilities,
   listUserAssignableRoles,
   listUserDepartmentTree,
-  listUserFormTenants,
-  listUserFormWorkspaces,
 } from '@/api/users'
 
 /** Form values for create/edit user drawer. */
@@ -33,6 +30,14 @@ export type UserFormValues = {
   workspace_id?: string
 }
 
+/** Read-only scope shown when editing a user. */
+export type UserScope = {
+  tenant_id: string
+  tenant_name: string
+  workspace_id: string
+  workspace_name: string
+}
+
 type SubmitContext = {
   targetWorkspaceId: string
 }
@@ -42,8 +47,13 @@ type Props = {
   title: string
   submitting: boolean
   mode: 'create' | 'edit'
+  listCapabilities: SysUserListCapabilities | null
   pageWorkspaceId: string | null
   initial?: UserFormValues | null
+  initialScope?: UserScope | null
+  tenants?: { id: string; name: string }[]
+  workspaces?: { id: string; name: string }[]
+  onTenantChange?: (tenantId: string) => void
   onClose: () => void
   onSubmit: (
     values: SysUserCreateBody | Record<string, unknown>,
@@ -60,9 +70,7 @@ function buildDepartmentTreeData(
     value: n.id,
     key: n.id,
     children:
-      n.children?.length > 0
-        ? buildDepartmentTreeData(n.children)
-        : undefined,
+      n.children?.length > 0 ? buildDepartmentTreeData(n.children) : undefined,
   }))
 }
 
@@ -78,8 +86,13 @@ export function UserFormDrawer({
   title,
   submitting,
   mode,
+  listCapabilities,
   pageWorkspaceId,
   initial,
+  initialScope,
+  tenants = [],
+  workspaces = [],
+  onTenantChange,
   onClose,
   onSubmit,
 }: Props) {
@@ -87,22 +100,37 @@ export function UserFormDrawer({
   const [form] = Form.useForm<UserFormValues>()
   const [departments, setDepartments] = useState<SysUserDepartmentNode[]>([])
   const [roles, setRoles] = useState<SysUserRoleOption[]>([])
-  const [capabilities, setCapabilities] = useState<SysUserCapabilities | null>(null)
-  const [tenants, setTenants] = useState<SysUserTenantOption[]>([])
-  const [workspaces, setWorkspaces] = useState<SysUserWorkspaceOption[]>([])
-  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null)
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null)
+  const [formCapabilities, setFormCapabilities] = useState<SysUserCapabilities | null>(
+    null,
+  )
   const [metaLoading, setMetaLoading] = useState(false)
 
-  const showTenantPicker =
-    mode === 'create' && capabilities?.can_pick_tenant_workspace === true
+  const selectedTenantId = Form.useWatch('tenant_id', form)
+  const selectedWorkspaceId = Form.useWatch('workspace_id', form)
+
+  const showScopeOnCreate =
+    mode === 'create' && listCapabilities?.can_pick_workspace === true
+
+  const showScopeReadonlyOnEdit =
+    mode === 'edit' &&
+    initialScope != null &&
+    listCapabilities?.can_pick_workspace === true
 
   const effectiveWorkspaceId = useMemo(() => {
-    if (showTenantPicker) {
+    if (showScopeOnCreate) {
       return selectedWorkspaceId ?? pageWorkspaceId
     }
+    if (showScopeReadonlyOnEdit && initialScope) {
+      return initialScope.workspace_id
+    }
     return pageWorkspaceId
-  }, [mode, showTenantPicker, selectedWorkspaceId, pageWorkspaceId])
+  }, [
+    showScopeOnCreate,
+    showScopeReadonlyOnEdit,
+    selectedWorkspaceId,
+    pageWorkspaceId,
+    initialScope,
+  ])
 
   const departmentTree = useMemo(
     () => buildDepartmentTreeData(departments),
@@ -110,112 +138,11 @@ export function UserFormDrawer({
   )
 
   const membershipReadonly = useMemo(() => {
-    if (mode !== 'edit' || !capabilities?.can_edit_membership_role) return false
+    if (mode !== 'edit' || !formCapabilities?.can_edit_membership_role) return false
     const current = initial?.membership_role
     if (!current) return false
-    return !capabilities.assignable_membership_roles.includes(current)
-  }, [mode, capabilities, initial?.membership_role])
-
-  const loadWorkspacesForTenant = useCallback(
-    async (tenantId: string) => {
-      if (!pageWorkspaceId) return []
-      const rows = await listUserFormWorkspaces(pageWorkspaceId, tenantId)
-      setWorkspaces(rows)
-      return rows
-    },
-    [pageWorkspaceId],
-  )
-
-  const handleTenantChange = useCallback(
-    async (tenantId: string) => {
-      setSelectedTenantId(tenantId)
-      setSelectedWorkspaceId(null)
-      form.setFieldValue('workspace_id', undefined)
-      const rows = await loadWorkspacesForTenant(tenantId)
-      if (rows.length > 0) {
-        setSelectedWorkspaceId(rows[0].id)
-        form.setFieldValue('workspace_id', rows[0].id)
-      }
-    },
-    [form, loadWorkspacesForTenant],
-  )
-
-  useEffect(() => {
-    if (!open || !pageWorkspaceId) return
-    let cancelled = false
-
-    const boot = async () => {
-      setMetaLoading(true)
-      try {
-        const caps = await getUserCapabilities(pageWorkspaceId)
-        if (cancelled) return
-        setCapabilities(caps)
-
-        if (mode === 'create' && caps.can_pick_tenant_workspace) {
-          const tenantRows = await listUserFormTenants(pageWorkspaceId)
-          if (cancelled) return
-          setTenants(tenantRows)
-
-          const defaultTenantId = caps.default_tenant_id
-          const initialTenantId =
-            defaultTenantId &&
-            tenantRows.some((row) => row.id === defaultTenantId)
-              ? defaultTenantId
-              : tenantRows[0]?.id ?? null
-
-          if (initialTenantId) {
-            setSelectedTenantId(initialTenantId)
-            form.setFieldValue('tenant_id', initialTenantId)
-            const wsRows = await listUserFormWorkspaces(
-              pageWorkspaceId,
-              initialTenantId,
-            )
-            if (cancelled) return
-            setWorkspaces(wsRows)
-            const initialWorkspaceId = wsRows.some((row) => row.id === pageWorkspaceId)
-              ? pageWorkspaceId
-              : wsRows[0]?.id ?? null
-            if (initialWorkspaceId) {
-              setSelectedWorkspaceId(initialWorkspaceId)
-              form.setFieldValue('workspace_id', initialWorkspaceId)
-            }
-          }
-        } else {
-          setSelectedWorkspaceId(pageWorkspaceId)
-        }
-      } finally {
-        if (!cancelled) setMetaLoading(false)
-      }
-    }
-
-    void boot()
-    return () => {
-      cancelled = true
-    }
-  }, [open, pageWorkspaceId, mode, form])
-
-  useEffect(() => {
-    if (!open || !effectiveWorkspaceId) return
-    let cancelled = false
-    setMetaLoading(true)
-    void Promise.all([
-      getUserCapabilities(effectiveWorkspaceId),
-      listUserDepartmentTree(effectiveWorkspaceId),
-      listUserAssignableRoles(effectiveWorkspaceId),
-    ])
-      .then(([caps, deptRows, roleRows]) => {
-        if (cancelled) return
-        setCapabilities(caps)
-        setDepartments(deptRows)
-        setRoles(roleRows)
-      })
-      .finally(() => {
-        if (!cancelled) setMetaLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [open, effectiveWorkspaceId])
+    return !formCapabilities.assignable_membership_roles.includes(current)
+  }, [mode, formCapabilities, initial?.membership_role])
 
   useEffect(() => {
     if (!open) return
@@ -229,15 +156,51 @@ export function UserFormDrawer({
       membership_role: initial?.membership_role ?? 'member',
       department_item_id: initial?.department_item_id ?? null,
       role_ids: initial?.role_ids ?? [],
+      tenant_id:
+        mode === 'edit' && initialScope
+          ? initialScope.tenant_id
+          : initial?.tenant_id ??
+            listCapabilities?.fixed_tenant_id ??
+            undefined,
+      workspace_id:
+        mode === 'edit' && initialScope
+          ? initialScope.workspace_id
+          : initial?.workspace_id ?? undefined,
     })
-  }, [open, initial, form])
+  }, [open, initial, initialScope, listCapabilities, form, mode])
+
+  useEffect(() => {
+    if (!open || !effectiveWorkspaceId) return
+    let cancelled = false
+    setMetaLoading(true)
+    void Promise.all([
+      getUserCapabilities(effectiveWorkspaceId),
+      listUserDepartmentTree(effectiveWorkspaceId),
+      listUserAssignableRoles(effectiveWorkspaceId),
+    ])
+      .then(([caps, deptRows, roleRows]) => {
+        if (cancelled) return
+        setFormCapabilities(caps)
+        setDepartments(deptRows)
+        setRoles(roleRows)
+      })
+      .finally(() => {
+        if (!cancelled) setMetaLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [open, effectiveWorkspaceId])
 
   const handleFinish = useCallback(
     async (values: UserFormValues) => {
-      const targetWorkspaceId = effectiveWorkspaceId ?? pageWorkspaceId
+      const targetWorkspaceId =
+        mode === 'edit' && initialScope
+          ? initialScope.workspace_id
+          : (effectiveWorkspaceId ?? pageWorkspaceId)
       if (!targetWorkspaceId) return
 
-      const membershipRole = capabilities?.can_edit_membership_role
+      const membershipRole = formCapabilities?.can_edit_membership_role
         ? values.membership_role
         : 'member'
 
@@ -267,20 +230,21 @@ export function UserFormDrawer({
         department_item_id: values.department_item_id ?? null,
         role_ids: values.role_ids ?? [],
       }
-      if (!membershipReadonly && capabilities?.can_edit_membership_role) {
+      if (!membershipReadonly && formCapabilities?.can_edit_membership_role) {
         patch.membership_role = membershipRole
       }
       if (values.password?.trim()) {
         patch.password = values.password.trim()
       }
-      await onSubmit(patch, { targetWorkspaceId: pageWorkspaceId! })
+      await onSubmit(patch, { targetWorkspaceId })
     },
     [
       mode,
       onSubmit,
       effectiveWorkspaceId,
       pageWorkspaceId,
-      capabilities,
+      initialScope,
+      formCapabilities,
       membershipReadonly,
     ],
   )
@@ -305,7 +269,7 @@ export function UserFormDrawer({
         </Space>
       }
     >
-      {departments.length === 0 && !metaLoading && !showTenantPicker ? (
+      {departments.length === 0 && !metaLoading && !showScopeOnCreate ? (
         <Alert
           type="info"
           showIcon
@@ -314,6 +278,81 @@ export function UserFormDrawer({
         />
       ) : null}
       <Form form={form} layout="vertical" onFinish={handleFinish}>
+        {showScopeReadonlyOnEdit && initialScope ? (
+          <>
+            <Form.Item name="tenant_id" label={t('users.tenant')}>
+              <Select
+                disabled
+                options={[
+                  {
+                    value: initialScope.tenant_id,
+                    label: initialScope.tenant_name,
+                  },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item name="workspace_id" label={t('users.workspace')}>
+              <Select
+                disabled
+                options={[
+                  {
+                    value: initialScope.workspace_id,
+                    label: initialScope.workspace_name,
+                  },
+                ]}
+              />
+            </Form.Item>
+          </>
+        ) : null}
+        {showScopeOnCreate ? (
+          <>
+            {listCapabilities?.can_pick_tenant ? (
+              <Form.Item
+                name="tenant_id"
+                label={t('users.tenant')}
+                rules={[{ required: true, message: t('users.tenantPlaceholder') }]}
+              >
+                <Select
+                  allowClear={false}
+                  loading={metaLoading}
+                  placeholder={t('users.tenantPlaceholder')}
+                  options={tenants.map((row) => ({
+                    value: row.id,
+                    label: row.name,
+                  }))}
+                  onChange={(tenantId: string) => {
+                    form.setFieldValue('workspace_id', undefined)
+                    form.setFieldValue('role_ids', [])
+                    onTenantChange?.(tenantId)
+                  }}
+                />
+              </Form.Item>
+            ) : listCapabilities?.fixed_tenant_name ? (
+              <Form.Item label={t('users.tenant')}>
+                <Tag>{listCapabilities.fixed_tenant_name}</Tag>
+              </Form.Item>
+            ) : null}
+            <Form.Item
+              name="workspace_id"
+              label={t('users.workspace')}
+              rules={[{ required: true, message: t('users.workspacePlaceholder') }]}
+            >
+              <Select
+                allowClear={false}
+                loading={metaLoading}
+                disabled={listCapabilities?.can_pick_tenant && !selectedTenantId}
+                placeholder={t('users.workspacePlaceholder')}
+                options={workspaces.map((row) => ({
+                  value: row.id,
+                  label: row.name,
+                }))}
+                onChange={() => {
+                  form.setFieldValue('role_ids', [])
+                }}
+              />
+            </Form.Item>
+          </>
+        ) : null}
         <Form.Item
           name="email"
           label={t('users.email')}
@@ -377,48 +416,7 @@ export function UserFormDrawer({
             <Radio value={false}>{t('users.statusDisabled')}</Radio>
           </Radio.Group>
         </Form.Item>
-        {showTenantPicker ? (
-          <>
-            <Form.Item
-              name="tenant_id"
-              label={t('users.tenant')}
-              rules={[{ required: true, message: t('users.tenantPlaceholder') }]}
-            >
-              <Select
-                allowClear={false}
-                loading={metaLoading}
-                placeholder={t('users.tenantPlaceholder')}
-                options={tenants.map((row) => ({
-                  value: row.id,
-                  label: row.name,
-                }))}
-                onChange={(tenantId: string) => {
-                  void handleTenantChange(tenantId)
-                }}
-              />
-            </Form.Item>
-            <Form.Item
-              name="workspace_id"
-              label={t('users.workspace')}
-              rules={[{ required: true, message: t('users.workspacePlaceholder') }]}
-            >
-              <Select
-                allowClear={false}
-                loading={metaLoading}
-                disabled={!selectedTenantId}
-                placeholder={t('users.workspacePlaceholder')}
-                options={workspaces.map((row) => ({
-                  value: row.id,
-                  label: row.name,
-                }))}
-                onChange={(workspaceId: string) => {
-                  setSelectedWorkspaceId(workspaceId)
-                }}
-              />
-            </Form.Item>
-          </>
-        ) : null}
-        {capabilities?.can_edit_membership_role ? (
+        {formCapabilities?.can_edit_membership_role ? (
           membershipReadonly ? (
             <>
               <Alert
@@ -442,7 +440,7 @@ export function UserFormDrawer({
             >
               <Select
                 allowClear={false}
-                options={capabilities.assignable_membership_roles.map((value) => ({
+                options={formCapabilities.assignable_membership_roles.map((value) => ({
                   value,
                   label: membershipRoleLabel(value, t),
                 }))}
