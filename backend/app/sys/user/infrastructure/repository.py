@@ -64,6 +64,53 @@ def _apply_member_filters(
     return stmt
 
 
+def _apply_tenant_member_filters(
+    stmt,
+    *,
+    tenant_id: uuid.UUID,
+    workspace_id: uuid.UUID | None,
+    email: str | None,
+    nickname: str | None,
+    phone: str | None,
+    status: bool | None,
+    membership_role: MembershipRole | None,
+    role_id: uuid.UUID | None,
+):
+    """Apply list filters for tenant-scoped workspace member queries."""
+
+    stmt = stmt.where(Workspace.tenant_id == tenant_id)
+    if workspace_id is not None:
+        stmt = stmt.where(WorkspaceMembership.workspace_id == workspace_id)
+    if email:
+        stmt = stmt.where(User.email.ilike(f"%{email.strip()}%"))
+    if nickname:
+        stmt = stmt.where(User.nickname.ilike(f"%{nickname.strip()}%"))
+    if phone:
+        stmt = stmt.where(User.phone.ilike(f"%{phone.strip()}%"))
+    if status is not None:
+        stmt = stmt.where(User.status == status)
+    if membership_role is not None:
+        stmt = stmt.where(WorkspaceMembership.role == membership_role)
+    if role_id is not None:
+        scope_match = (
+            SysUserGrant.scope_id == WorkspaceMembership.workspace_id
+            if workspace_id is None
+            else SysUserGrant.scope_id == workspace_id
+        )
+        stmt = stmt.where(
+            User.id.in_(
+                select(SysUserGrant.user_id).where(
+                    SysUserGrant.role_id == role_id,
+                    SysUserGrant.grant_type == GrantType.role.value,
+                    SysUserGrant.scope_type == GrantScopeType.workspace.value,
+                    scope_match,
+                    SysUserGrant.status.is_(True),
+                )
+            )
+        )
+    return stmt
+
+
 async def count_workspace_members(
     session: AsyncSession,
     *,
@@ -136,6 +183,78 @@ async def list_workspace_members_page(
         membership_role=membership_role,
         role_id=role_id,
     )
+    result = await session.execute(stmt)
+    return result.all()
+
+
+async def count_tenant_workspace_members(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    workspace_id: uuid.UUID | None = None,
+    email: str | None = None,
+    nickname: str | None = None,
+    phone: str | None = None,
+    status: bool | None = None,
+    membership_role: MembershipRole | None = None,
+    role_id: uuid.UUID | None = None,
+) -> int:
+    """Count workspace members under one tenant with optional workspace filter."""
+
+    stmt = (
+        select(func.count())
+        .select_from(User)
+        .join(WorkspaceMembership, WorkspaceMembership.user_id == User.id)
+        .join(Workspace, Workspace.id == WorkspaceMembership.workspace_id)
+    )
+    stmt = _apply_tenant_member_filters(
+        stmt,
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
+        email=email,
+        nickname=nickname,
+        phone=phone,
+        status=status,
+        membership_role=membership_role,
+        role_id=role_id,
+    )
+    result = await session.execute(stmt)
+    return int(result.scalar_one() or 0)
+
+
+async def list_tenant_workspace_members_page(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    workspace_id: uuid.UUID | None,
+    limit: int,
+    offset: int,
+    email: str | None = None,
+    nickname: str | None = None,
+    phone: str | None = None,
+    status: bool | None = None,
+    membership_role: MembershipRole | None = None,
+    role_id: uuid.UUID | None = None,
+) -> Sequence[tuple[User, WorkspaceMembership, Workspace]]:
+    """Return one page of tenant-scoped workspace members."""
+
+    stmt = (
+        select(User, WorkspaceMembership, Workspace)
+        .join(WorkspaceMembership, WorkspaceMembership.user_id == User.id)
+        .join(Workspace, Workspace.id == WorkspaceMembership.workspace_id)
+    )
+    stmt = _apply_tenant_member_filters(
+        stmt,
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
+        email=email,
+        nickname=nickname,
+        phone=phone,
+        status=status,
+        membership_role=membership_role,
+        role_id=role_id,
+    )
+    stmt = stmt.order_by(*_member_list_order()).limit(limit).offset(offset)
     result = await session.execute(stmt)
     return result.all()
 
