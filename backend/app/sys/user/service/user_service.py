@@ -526,6 +526,61 @@ def build_user_list_capabilities(
     }
 
 
+async def get_user_list_capabilities(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    is_super_admin: bool,
+    jwt_tenant_id: uuid.UUID | None,
+    jwt_workspace_id: uuid.UUID | None,
+) -> dict[str, object]:
+    """Resolve platform user list/form capabilities from JWT tenant and workspace."""
+
+    from app.core.domain.identity.models import Tenant
+
+    is_ta = False
+    tenant_name = None
+    if jwt_tenant_id is not None:
+        is_ta = await auth_repo.is_tenant_admin(
+            session, user_id=user_id, tenant_id=jwt_tenant_id
+        )
+        tenant = await session.get(Tenant, jwt_tenant_id)
+        tenant_name = tenant.name if tenant else None
+
+    actor_role = None
+    assignable: list[str] = [MembershipRole.member.value]
+    can_edit = False
+    if jwt_workspace_id is not None:
+        ws_role = await find_workspace_role_for_user(
+            session, user_id=user_id, workspace_id=jwt_workspace_id
+        )
+        has_membership = ws_role is not None
+        assignable = resolve_assignable_membership_roles(
+            actor_workspace_role=ws_role,
+            actor_is_super_admin=is_super_admin,
+            actor_is_tenant_admin=is_ta,
+            actor_has_workspace_membership=has_membership,
+        )
+        can_edit = can_edit_membership_role(
+            actor_workspace_role=ws_role,
+            actor_is_super_admin=is_super_admin,
+            actor_is_tenant_admin=is_ta,
+            actor_has_workspace_membership=has_membership,
+        )
+        actor_role = ws_role.value if ws_role else None
+
+    return build_user_list_capabilities(
+        is_super_admin=is_super_admin,
+        is_tenant_admin=is_ta,
+        jwt_tenant_id=jwt_tenant_id,
+        jwt_tenant_name=tenant_name,
+        jwt_workspace_id=jwt_workspace_id,
+        actor_workspace_role=actor_role,
+        assignable_membership_roles=assignable,
+        can_edit_membership_role=can_edit,
+    )
+
+
 async def get_actor_capabilities(
     session: AsyncSession,
     *,

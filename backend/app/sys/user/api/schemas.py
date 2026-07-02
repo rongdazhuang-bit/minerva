@@ -54,6 +54,8 @@ class SysUserListItemOut(BaseModel):
     role_names: list[str]
     tenant_id: uuid.UUID | None = None
     workspace_id: uuid.UUID | None = None
+    tenant_name: str | None = None
+    workspace_name: str | None = None
     created_at: datetime
     update_at: datetime | None
     can_hard_delete: bool
@@ -106,3 +108,23 @@ class SysUserCapabilitiesOut(BaseModel):
     can_pick_tenant_workspace: bool
     is_tenant_admin: bool = False
     default_tenant_id: uuid.UUID | None = None
+    can_pick_tenant: bool = False
+    can_pick_workspace: bool = False
+    fixed_tenant_id: uuid.UUID | None = None
+    fixed_tenant_name: str | None = None
+
+
+class SysUserListCapabilitiesOut(BaseModel):
+    """Platform-level list/form scope capabilities from JWT context."""
+
+    is_super_admin: bool
+    is_tenant_admin: bool
+    can_pick_tenant: bool
+    can_pick_workspace: bool
+    fixed_tenant_id: uuid.UUID | None = None
+    fixed_tenant_name: str | None = None
+    default_filter_tenant_id: uuid.UUID | None = None
+    default_filter_workspace_id: uuid.UUID | None = None
+    actor_workspace_role: str | None
+    can_edit_membership_role: bool
+    assignable_membership_roles: list[str]

@@ -9,6 +9,7 @@ from app.sys.dict.api.router import router as dicts_router
 from app.sys.menu.api.router import router as menus_router
 from app.sys.role.api.router import platform_router as roles_platform_router
 from app.sys.role.api.router import tenant_router as roles_tenant_router
+from app.sys.user.api.platform_router import router as users_platform_router
 from app.sys.user.api.router import router as users_router
 from app.sys.tenant.api.router import router as tenants_router
 from app.sys.file_storage.api.router import router as file_storages_router
@@ -41,6 +42,7 @@ api.include_router(dicts_router)
 api.include_router(menus_router)
 api.include_router(roles_platform_router)
 api.include_router(roles_tenant_router)
+api.include_router(users_platform_router)
 api.include_router(users_router)
 api.include_router(tenants_router)
 api.include_router(rule_base_router)
