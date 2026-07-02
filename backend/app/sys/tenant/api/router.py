@@ -168,7 +168,7 @@ async def list_workspaces(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
     session: AsyncSession = Depends(get_db),
-    _admin: User = Depends(require_super_admin),
+    _admin: User = Depends(require_tenant_admin),
 ) -> SysWorkspaceListPageOut:
     """Return paginated workspaces under a tenant."""
 
