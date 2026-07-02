@@ -123,14 +123,20 @@ export function RoleFormDrawer({
       role_sort: initial?.role_sort ?? 0,
       status: initial?.status ?? true,
       remark: initial?.remark ?? null,
-      tenant_id: initial?.tenant_id ?? capabilities?.fixed_tenant_id ?? undefined,
-      workspace_id: initial?.workspace_id ?? undefined,
+      tenant_id:
+        mode === 'edit' && initialScope
+          ? initialScope.tenant_id
+          : initial?.tenant_id ?? capabilities?.fixed_tenant_id ?? undefined,
+      workspace_id:
+        mode === 'edit' && initialScope
+          ? initialScope.workspace_id
+          : initial?.workspace_id ?? undefined,
     })
     setCheckedKeys(initialMenuIds ?? [])
     setExpandedKeys([])
     setExpandAll(false)
     setCheckStrictly(false)
-  }, [open, initial, initialMenuIds, capabilities, form])
+  }, [open, initial, initialMenuIds, capabilities, form, mode, initialScope])
 
   useEffect(() => {
     setExpandedKeys(expandAll ? allKeys : [])
@@ -185,11 +191,30 @@ export function RoleFormDrawer({
     >
       <Form form={form} layout="vertical" onFinish={handleFinish}>
         {mode === 'edit' && initialScope ? (
-          <Form.Item label={t('roles.scope')}>
-            <span>
-              {initialScope.tenant_name} &gt; {initialScope.workspace_name}
-            </span>
-          </Form.Item>
+          <>
+            <Form.Item name="tenant_id" label={t('roles.tenant')}>
+              <Select
+                disabled
+                options={[
+                  {
+                    value: initialScope.tenant_id,
+                    label: initialScope.tenant_name,
+                  },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item name="workspace_id" label={t('roles.workspace')}>
+              <Select
+                disabled
+                options={[
+                  {
+                    value: initialScope.workspace_id,
+                    label: initialScope.workspace_name,
+                  },
+                ]}
+              />
+            </Form.Item>
+          </>
         ) : null}
         {mode === 'create' ? (
           <>
