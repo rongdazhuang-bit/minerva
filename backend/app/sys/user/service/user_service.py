@@ -492,6 +492,40 @@ async def list_workspace_meta_for_user_form(
     ]
 
 
+def build_user_list_capabilities(
+    *,
+    is_super_admin: bool,
+    is_tenant_admin: bool,
+    jwt_tenant_id: uuid.UUID | None,
+    jwt_tenant_name: str | None,
+    jwt_workspace_id: uuid.UUID | None,
+    actor_workspace_role: str | None,
+    assignable_membership_roles: list[str],
+    can_edit_membership_role: bool,
+) -> dict[str, object]:
+    """Build list/form scope capability flags (platform-level, JWT-driven)."""
+
+    can_pick_tenant = is_super_admin
+    can_pick_workspace = is_super_admin or is_tenant_admin
+    fixed_tenant_id = None if is_super_admin else jwt_tenant_id
+    fixed_tenant_name = None if is_super_admin else jwt_tenant_name
+    return {
+        "is_super_admin": is_super_admin,
+        "is_tenant_admin": is_tenant_admin,
+        "can_pick_tenant": can_pick_tenant,
+        "can_pick_workspace": can_pick_workspace,
+        "fixed_tenant_id": fixed_tenant_id,
+        "fixed_tenant_name": fixed_tenant_name,
+        "default_filter_tenant_id": jwt_tenant_id,
+        "default_filter_workspace_id": jwt_workspace_id,
+        "actor_workspace_role": actor_workspace_role,
+        "can_edit_membership_role": can_edit_membership_role,
+        "assignable_membership_roles": assignable_membership_roles,
+        "can_pick_tenant_workspace": can_pick_tenant,
+        "default_tenant_id": jwt_tenant_id if is_super_admin else None,
+    }
+
+
 async def get_actor_capabilities(
     session: AsyncSession,
     *,
