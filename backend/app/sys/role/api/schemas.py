@@ -1,4 +1,4 @@
-"""Pydantic schemas for workspace-scoped role APIs."""
+"""Pydantic schemas for tenant-scoped role APIs."""
 
 from __future__ import annotations
 
@@ -9,8 +9,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class SysRoleCreateIn(BaseModel):
-    """Body for creating a workspace role."""
+    """Body for creating a role under a tenant workspace."""
 
+    workspace_id: uuid.UUID
     role_name: str = Field(min_length=1, max_length=64)
     role_key: str = Field(min_length=1, max_length=64)
     role_sort: int = 0
@@ -31,12 +32,15 @@ class SysRolePatchIn(BaseModel):
 
 
 class SysRoleListItemOut(BaseModel):
-    """List-row projection for a workspace role."""
+    """List-row projection for a workspace role with tenant/workspace labels."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    tenant_id: uuid.UUID
+    tenant_name: str
     workspace_id: uuid.UUID
+    workspace_name: str
     role_name: str
     role_key: str
     role_sort: int
@@ -59,3 +63,16 @@ class SysRoleListPageOut(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class SysRoleCapabilitiesOut(BaseModel):
+    """Frontend flags for role list filters and create-form scope pickers."""
+
+    is_super_admin: bool
+    is_tenant_admin: bool
+    can_pick_tenant: bool
+    can_pick_workspace: bool
+    fixed_tenant_id: uuid.UUID | None = None
+    fixed_tenant_name: str | None = None
+    default_filter_tenant_id: uuid.UUID | None = None
+    default_filter_workspace_id: uuid.UUID | None = None
