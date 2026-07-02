@@ -1,9 +1,21 @@
-import { Button, Checkbox, Drawer, Form, Input, InputNumber, Radio, Space, Tree } from 'antd'
+import {
+  Button,
+  Checkbox,
+  Drawer,
+  Form,
+  Input,
+  InputNumber,
+  Radio,
+  Select,
+  Space,
+  Tag,
+  Tree,
+} from 'antd'
 import type { DataNode } from 'antd/es/tree'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { SysMenuNode } from '@/api/menus'
-import type { SysRoleCreateBody } from '@/api/roles'
+import type { SysRoleCapabilities, SysRoleCreateBody, SysRolePatchBody } from '@/api/roles'
 
 /** Form values for create/edit role drawer. */
 export type RoleFormValues = {
@@ -12,17 +24,37 @@ export type RoleFormValues = {
   role_sort?: number | null
   status?: boolean
   remark?: string | null
+  tenant_id?: string
+  workspace_id?: string
+}
+
+/** Read-only scope shown when editing a role. */
+export type RoleScope = {
+  tenant_id: string
+  tenant_name: string
+  workspace_id: string
+  workspace_name: string
 }
 
 type Props = {
   open: boolean
   title: string
   submitting: boolean
+  mode: 'create' | 'edit'
+  capabilities: SysRoleCapabilities | null
   menuTree: SysMenuNode[]
   initial?: RoleFormValues | null
   initialMenuIds?: string[]
+  initialScope?: RoleScope | null
+  tenants?: { id: string; name: string }[]
+  workspaces?: { id: string; name: string }[]
+  onTenantChange?: (tenantId: string) => void
+  metaLoading?: boolean
   onClose: () => void
-  onSubmit: (values: SysRoleCreateBody) => Promise<void>
+  onSubmit: (
+    values: SysRoleCreateBody | SysRolePatchBody,
+    context?: { tenantId?: string },
+  ) => Promise<void>
 }
 
 /** Collect all node keys from a menu tree. */
@@ -53,14 +85,21 @@ function buildTreeData(nodes: SysMenuNode[]): DataNode[] {
   })
 }
 
-/** Right drawer for creating or editing a workspace role and menu permissions. */
+/** Right drawer for creating or editing a tenant-scoped role and menu permissions. */
 export function RoleFormDrawer({
   open,
   title,
   submitting,
+  mode,
+  capabilities,
   menuTree,
   initial,
   initialMenuIds,
+  initialScope,
+  tenants = [],
+  workspaces = [],
+  onTenantChange,
+  metaLoading = false,
   onClose,
   onSubmit,
 }: Props) {
@@ -74,6 +113,8 @@ export function RoleFormDrawer({
   const treeData = useMemo(() => buildTreeData(menuTree), [menuTree])
   const allKeys = useMemo(() => collectAllKeys(menuTree), [menuTree])
 
+  const selectedTenantId = Form.useWatch('tenant_id', form)
+
   useEffect(() => {
     if (!open) return
     form.setFieldsValue({
@@ -82,12 +123,14 @@ export function RoleFormDrawer({
       role_sort: initial?.role_sort ?? 0,
       status: initial?.status ?? true,
       remark: initial?.remark ?? null,
+      tenant_id: initial?.tenant_id ?? capabilities?.fixed_tenant_id ?? undefined,
+      workspace_id: initial?.workspace_id ?? undefined,
     })
     setCheckedKeys(initialMenuIds ?? [])
     setExpandedKeys([])
     setExpandAll(false)
     setCheckStrictly(false)
-  }, [open, initial, initialMenuIds, form])
+  }, [open, initial, initialMenuIds, capabilities, form])
 
   useEffect(() => {
     setExpandedKeys(expandAll ? allKeys : [])
@@ -95,16 +138,32 @@ export function RoleFormDrawer({
 
   const handleFinish = useCallback(
     async (values: RoleFormValues) => {
-      await onSubmit({
+      const base = {
         role_name: values.role_name.trim(),
         role_key: values.role_key.trim(),
         role_sort: values.role_sort ?? 0,
         status: values.status ?? true,
         remark: values.remark?.trim() || null,
         menu_ids: checkedKeys,
-      })
+      }
+      if (mode === 'create') {
+        await onSubmit(
+          {
+            ...base,
+            workspace_id: values.workspace_id!,
+          },
+          {
+            tenantId:
+              values.tenant_id ??
+              capabilities?.fixed_tenant_id ??
+              undefined,
+          },
+        )
+        return
+      }
+      await onSubmit(base)
     },
-    [checkedKeys, onSubmit],
+    [checkedKeys, mode, onSubmit, capabilities?.fixed_tenant_id],
   )
 
   return (
@@ -125,6 +184,58 @@ export function RoleFormDrawer({
       }
     >
       <Form form={form} layout="vertical" onFinish={handleFinish}>
+        {mode === 'edit' && initialScope ? (
+          <Form.Item label={t('roles.scope')}>
+            <span>
+              {initialScope.tenant_name} &gt; {initialScope.workspace_name}
+            </span>
+          </Form.Item>
+        ) : null}
+        {mode === 'create' ? (
+          <>
+            {capabilities?.can_pick_tenant ? (
+              <Form.Item
+                name="tenant_id"
+                label={t('roles.tenant')}
+                rules={[{ required: true, message: t('roles.tenant') }]}
+              >
+                <Select
+                  allowClear={false}
+                  loading={metaLoading}
+                  placeholder={t('roles.tenant')}
+                  options={tenants.map((row) => ({
+                    value: row.id,
+                    label: row.name,
+                  }))}
+                  onChange={(tenantId: string) => {
+                    form.setFieldValue('workspace_id', undefined)
+                    onTenantChange?.(tenantId)
+                  }}
+                />
+              </Form.Item>
+            ) : capabilities?.fixed_tenant_name ? (
+              <Form.Item label={t('roles.tenant')}>
+                <Tag>{capabilities.fixed_tenant_name}</Tag>
+              </Form.Item>
+            ) : null}
+            <Form.Item
+              name="workspace_id"
+              label={t('roles.workspace')}
+              rules={[{ required: true, message: t('roles.workspaceRequired') }]}
+            >
+              <Select
+                allowClear={false}
+                loading={metaLoading}
+                disabled={capabilities?.can_pick_tenant && !selectedTenantId}
+                placeholder={t('roles.workspace')}
+                options={workspaces.map((row) => ({
+                  value: row.id,
+                  label: row.name,
+                }))}
+              />
+            </Form.Item>
+          </>
+        ) : null}
         <Form.Item
           name="role_name"
           label={t('roles.roleName')}

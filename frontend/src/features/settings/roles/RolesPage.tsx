@@ -15,27 +15,37 @@ import {
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useQuery } from '@tanstack/react-query'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { SysMenuNode } from '@/api/menus'
 import {
   createRole,
   deleteRole,
   getRole,
+  getRoleCapabilities,
   listRoleMenuTree,
-  listRoles,
+  listRolesForTenant,
+  listRolesPlatform,
   patchRole,
+  type SysRoleCapabilities,
   type SysRoleCreateBody,
   type SysRoleListItem,
   type SysRoleListParams,
+  type SysRolePatchBody,
 } from '@/api/roles'
+import {
+  listTenants,
+  listWorkspaces,
+  type SysTenantListItem,
+  type SysWorkspaceListItem,
+} from '@/api/tenants'
 import { ApiError } from '@/api/client'
 import { useAuth } from '@/app/AuthContext'
 import { PermGuard } from '@/components/PermGuard'
 import { notifyMenuNavRefresh } from '@/app/menuNavRefresh'
 import { showAppError, useAppMessage } from '@/app/useAppMessage'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
-import { RoleFormDrawer, type RoleFormValues } from './RoleFormDrawer'
+import { RoleFormDrawer, type RoleFormValues, type RoleScope } from './RoleFormDrawer'
 import './RolesPage.css'
 
 type FilterFormValues = {
@@ -57,31 +67,115 @@ function toListParams(values: FilterFormValues): SysRoleListParams {
   }
 }
 
-/** Workspace role management list with filters and permission drawer. */
+/** Tenant-scoped role management list with filters and permission drawer. */
 export function RolesPage() {
   const { t } = useTranslation()
   const messageApi = useAppMessage()
-  const { workspaceId } = useAuth()
+  const { tenantId, workspaceId } = useAuth()
   const [filterForm] = Form.useForm<FilterFormValues>()
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [filters, setFilters] = useState<SysRoleListParams>({})
   const [refreshTick, setRefreshTick] = useState(0)
   const [forbidden, setForbidden] = useState(false)
+  const [capabilities, setCapabilities] = useState<SysRoleCapabilities | null>(null)
+  const [filterTenantId, setFilterTenantId] = useState<string | null>(null)
+  const [filterWorkspaceId, setFilterWorkspaceId] = useState<string | null>(null)
+  const [tenants, setTenants] = useState<SysTenantListItem[]>([])
+  const [filterWorkspaces, setFilterWorkspaces] = useState<SysWorkspaceListItem[]>([])
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerTitle, setDrawerTitle] = useState('')
+  const [drawerMode, setDrawerMode] = useState<'create' | 'edit'>('create')
   const [submitting, setSubmitting] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingTenantId, setEditingTenantId] = useState<string | null>(null)
   const [initialForm, setInitialForm] = useState<RoleFormValues | null>(null)
+  const [initialScope, setInitialScope] = useState<RoleScope | null>(null)
   const [initialMenuIds, setInitialMenuIds] = useState<string[]>([])
   const [menuTree, setMenuTree] = useState<SysMenuNode[]>([])
+  const [createTenantId, setCreateTenantId] = useState<string | null>(null)
+  const [createWorkspaces, setCreateWorkspaces] = useState<SysWorkspaceListItem[]>([])
+  const [metaLoading, setMetaLoading] = useState(false)
+
+  useEffect(() => {
+    void getRoleCapabilities().then((caps) => {
+      setCapabilities(caps)
+      setFilterTenantId(caps.default_filter_tenant_id)
+      setFilterWorkspaceId(caps.default_filter_workspace_id)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!capabilities?.can_pick_tenant) return
+    void listTenants({ page_size: 100 }).then((page) => {
+      setTenants(page.items)
+    })
+  }, [capabilities?.can_pick_tenant])
+
+  const loadFilterWorkspaces = useCallback(async (tenantIdForList: string) => {
+    const page = await listWorkspaces(tenantIdForList, { page_size: 100 })
+    setFilterWorkspaces(page.items)
+    return page.items
+  }, [])
+
+  useEffect(() => {
+    if (!capabilities?.can_pick_workspace) return
+    const tid = filterTenantId ?? capabilities.fixed_tenant_id
+    if (!tid) {
+      setFilterWorkspaces([])
+      return
+    }
+    void loadFilterWorkspaces(tid)
+  }, [capabilities, filterTenantId, loadFilterWorkspaces])
+
+  const effectiveTenantId = useMemo(() => {
+    if (!capabilities) return null
+    if (capabilities.can_pick_tenant) {
+      return filterTenantId
+    }
+    return capabilities.fixed_tenant_id ?? tenantId
+  }, [capabilities, filterTenantId, tenantId])
+
+  const effectiveWorkspaceId = useMemo(() => {
+    if (!capabilities) return null
+    if (capabilities.can_pick_workspace) {
+      return filterWorkspaceId
+    }
+    return workspaceId
+  }, [capabilities, filterWorkspaceId, workspaceId])
+
+  const listEnabled = useMemo(() => {
+    if (!capabilities) return false
+    if (capabilities.can_pick_tenant || capabilities.can_pick_workspace) return true
+    return Boolean(tenantId && workspaceId)
+  }, [capabilities, tenantId, workspaceId])
 
   const listQuery = useQuery({
-    queryKey: ['roles', workspaceId, page, pageSize, filters, refreshTick],
+    queryKey: [
+      'roles',
+      effectiveTenantId,
+      effectiveWorkspaceId,
+      page,
+      pageSize,
+      filters,
+      refreshTick,
+      capabilities?.can_pick_tenant,
+    ],
     queryFn: async () => {
       setForbidden(false)
       try {
-        return await listRoles(workspaceId!, { ...filters, page, page_size: pageSize })
+        const params: SysRoleListParams = {
+          ...filters,
+          page,
+          page_size: pageSize,
+          workspace_id: effectiveWorkspaceId ?? undefined,
+        }
+        if (capabilities?.can_pick_tenant && !effectiveTenantId) {
+          return await listRolesPlatform({ ...params, tenant_id: undefined })
+        }
+        const tid = effectiveTenantId ?? capabilities?.fixed_tenant_id ?? tenantId
+        if (!tid) throw new Error('tenant required')
+        return await listRolesForTenant(tid, params)
       } catch (e) {
         if (e instanceof ApiError && e.code === 'auth.forbidden') {
           setForbidden(true)
@@ -90,7 +184,7 @@ export function RolesPage() {
         throw e
       }
     },
-    enabled: Boolean(workspaceId),
+    enabled: listEnabled,
   })
 
   const reloadList = useCallback(() => {
@@ -98,39 +192,94 @@ export function RolesPage() {
   }, [])
 
   const loadMenuTree = useCallback(async () => {
-    if (!workspaceId) return []
-    const tree = await listRoleMenuTree(workspaceId)
+    const tree = await listRoleMenuTree()
     setMenuTree(tree)
     return tree
-  }, [workspaceId])
+  }, [])
+
+  const loadCreateWorkspaces = useCallback(async (tenantIdForCreate: string) => {
+    const page = await listWorkspaces(tenantIdForCreate, { page_size: 100 })
+    setCreateWorkspaces(page.items)
+    return page.items
+  }, [])
+
+  const handleCreateTenantChange = useCallback(
+    async (tid: string) => {
+      setCreateTenantId(tid)
+      await loadCreateWorkspaces(tid)
+    },
+    [loadCreateWorkspaces],
+  )
 
   const openCreate = useCallback(async () => {
-    if (!workspaceId) return
+    setMetaLoading(true)
     try {
       await loadMenuTree()
+      setDrawerMode('create')
       setEditingId(null)
+      setEditingTenantId(null)
+      setInitialScope(null)
+
+      let initialTenantId: string | null = null
+      if (capabilities?.can_pick_tenant) {
+        const tenantRows =
+          tenants.length > 0 ? tenants : (await listTenants({ page_size: 100 })).items
+        if (tenantRows.length > 0 && tenants.length === 0) {
+          setTenants(tenantRows)
+        }
+        initialTenantId = tenantRows[0]?.id ?? null
+      } else {
+        initialTenantId = capabilities?.fixed_tenant_id ?? tenantId
+      }
+
+      setCreateTenantId(initialTenantId)
+      let wsRows: SysWorkspaceListItem[] = []
+      if (initialTenantId) {
+        wsRows = await loadCreateWorkspaces(initialTenantId)
+      }
+
       setInitialForm({
         role_name: '',
         role_key: '',
         role_sort: 0,
         status: true,
         remark: null,
+        tenant_id: initialTenantId ?? undefined,
+        workspace_id: wsRows[0]?.id,
       })
       setInitialMenuIds([])
       setDrawerTitle(t('roles.add'))
       setDrawerOpen(true)
     } catch (e) {
       showAppError(messageApi, t, e)
+    } finally {
+      setMetaLoading(false)
     }
-  }, [workspaceId, loadMenuTree, t, messageApi])
+  }, [
+    loadMenuTree,
+    capabilities,
+    tenants,
+    tenantId,
+    loadCreateWorkspaces,
+    t,
+    messageApi,
+  ])
 
   const openEdit = useCallback(
     async (row: SysRoleListItem) => {
-      if (!workspaceId) return
+      setMetaLoading(true)
       try {
         await loadMenuTree()
-        const detail = await getRole(workspaceId, row.id)
+        const detail = await getRole(row.tenant_id, row.id)
+        setDrawerMode('edit')
         setEditingId(row.id)
+        setEditingTenantId(row.tenant_id)
+        setInitialScope({
+          tenant_id: row.tenant_id,
+          tenant_name: row.tenant_name,
+          workspace_id: row.workspace_id,
+          workspace_name: row.workspace_name,
+        })
         setInitialForm({
           role_name: detail.role_name,
           role_key: detail.role_key,
@@ -143,21 +292,31 @@ export function RolesPage() {
         setDrawerOpen(true)
       } catch (e) {
         showAppError(messageApi, t, e)
+      } finally {
+        setMetaLoading(false)
       }
     },
-    [workspaceId, loadMenuTree, t, messageApi],
+    [loadMenuTree, t, messageApi],
   )
 
   const handleSubmit = useCallback(
-    async (body: SysRoleCreateBody) => {
-      if (!workspaceId) return
+    async (
+      body: SysRoleCreateBody | SysRolePatchBody,
+      context?: { tenantId?: string },
+    ) => {
       setSubmitting(true)
       try {
-        if (editingId) {
-          await patchRole(workspaceId, editingId, body)
+        if (drawerMode === 'edit' && editingId && editingTenantId) {
+          await patchRole(editingTenantId, editingId, body)
           messageApi.success(t('roles.updateSuccess'))
         } else {
-          await createRole(workspaceId, body)
+          const tid =
+            context?.tenantId ??
+            createTenantId ??
+            capabilities?.fixed_tenant_id ??
+            tenantId
+          if (!tid) return
+          await createRole(tid, body as SysRoleCreateBody)
           messageApi.success(t('roles.createSuccess'))
         }
         setDrawerOpen(false)
@@ -169,25 +328,50 @@ export function RolesPage() {
         setSubmitting(false)
       }
     },
-    [workspaceId, editingId, messageApi, t, reloadList],
+    [
+      drawerMode,
+      editingId,
+      editingTenantId,
+      createTenantId,
+      capabilities,
+      tenantId,
+      messageApi,
+      t,
+      reloadList,
+    ],
   )
 
   const handleDelete = useCallback(
     async (row: SysRoleListItem) => {
-      if (!workspaceId) return
       try {
-        await deleteRole(workspaceId, row.id)
+        await deleteRole(row.tenant_id, row.id)
         messageApi.success(t('roles.deleteSuccess'))
         reloadList()
       } catch (e) {
         showAppError(messageApi, t, e)
       }
     },
-    [workspaceId, messageApi, t, reloadList],
+    [messageApi, t, reloadList],
+  )
+
+  const handleFilterTenantChange = useCallback(
+    (value: string | null) => {
+      setFilterTenantId(value)
+      setFilterWorkspaceId(null)
+      setPage(1)
+    },
+    [],
   )
 
   const columns: ColumnsType<SysRoleListItem> = useMemo(
     () => [
+      { title: t('roles.tenant'), dataIndex: 'tenant_name', width: 140, ellipsis: true },
+      {
+        title: t('roles.workspace'),
+        dataIndex: 'workspace_name',
+        width: 140,
+        ellipsis: true,
+      },
       { title: t('roles.name'), dataIndex: 'role_name', width: 160 },
       {
         title: t('roles.roleKey'),
@@ -263,6 +447,9 @@ export function RolesPage() {
     return <Result status="403" title={t('roles.forbiddenTitle')} subTitle={t('roles.forbiddenDesc')} />
   }
 
+  const showScopeFilters =
+    capabilities?.can_pick_tenant === true || capabilities?.can_pick_workspace === true
+
   return (
     <div className="minerva-roles-page">
       <Card className="minerva-roles-page__card" bordered={false}>
@@ -275,6 +462,48 @@ export function RolesPage() {
               setPage(1)
             }}
           >
+            {showScopeFilters ? (
+              <>
+                {capabilities?.can_pick_tenant ? (
+                  <Form.Item>
+                    <Select
+                      allowClear
+                      placeholder={t('roles.allTenants')}
+                      style={{ width: 160 }}
+                      value={filterTenantId ?? undefined}
+                      onChange={(value) => handleFilterTenantChange(value ?? null)}
+                      options={tenants.map((row) => ({
+                        value: row.id,
+                        label: row.name,
+                      }))}
+                    />
+                  </Form.Item>
+                ) : capabilities?.fixed_tenant_name ? (
+                  <Form.Item>
+                    <Tag>{capabilities.fixed_tenant_name}</Tag>
+                  </Form.Item>
+                ) : null}
+                {capabilities?.can_pick_workspace ? (
+                  <Form.Item>
+                    <Select
+                      allowClear
+                      placeholder={t('roles.allWorkspaces')}
+                      style={{ width: 160 }}
+                      value={filterWorkspaceId ?? undefined}
+                      disabled={capabilities.can_pick_tenant && !filterTenantId}
+                      onChange={(value) => {
+                        setFilterWorkspaceId(value ?? null)
+                        setPage(1)
+                      }}
+                      options={filterWorkspaces.map((row) => ({
+                        value: row.id,
+                        label: row.name,
+                      }))}
+                    />
+                  </Form.Item>
+                ) : null}
+              </>
+            ) : null}
             <Form.Item name="role_name">
               <Input allowClear placeholder={t('roles.roleNamePlaceholder')} style={{ width: 160 }} />
             </Form.Item>
@@ -298,6 +527,8 @@ export function RolesPage() {
                   onClick={() => {
                     filterForm.resetFields()
                     setFilters({})
+                    setFilterTenantId(capabilities?.default_filter_tenant_id ?? null)
+                    setFilterWorkspaceId(capabilities?.default_filter_workspace_id ?? null)
                     setPage(1)
                   }}
                 >
@@ -331,7 +562,7 @@ export function RolesPage() {
             loading={listQuery.isLoading}
             columns={columns}
             dataSource={listQuery.data?.items ?? []}
-            scroll={{ x: 980 }}
+            scroll={{ x: 1180 }}
             pagination={{
               current: page,
               pageSize,
@@ -349,9 +580,16 @@ export function RolesPage() {
         open={drawerOpen}
         title={drawerTitle}
         submitting={submitting}
+        mode={drawerMode}
+        capabilities={capabilities}
         menuTree={menuTree}
         initial={initialForm}
         initialMenuIds={initialMenuIds}
+        initialScope={initialScope}
+        tenants={tenants}
+        workspaces={createWorkspaces}
+        onTenantChange={(tid) => void handleCreateTenantChange(tid)}
+        metaLoading={metaLoading}
         onClose={() => setDrawerOpen(false)}
         onSubmit={handleSubmit}
       />

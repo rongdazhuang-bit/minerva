@@ -1,10 +1,25 @@
 import { apiJson } from '@/api/client'
 import type { SysMenuNode } from '@/api/menus'
 
-/** Workspace role list row. */
+/** Frontend flags for role list filters and create-form scope pickers. */
+export type SysRoleCapabilities = {
+  is_super_admin: boolean
+  is_tenant_admin: boolean
+  can_pick_tenant: boolean
+  can_pick_workspace: boolean
+  fixed_tenant_id: string | null
+  fixed_tenant_name: string | null
+  default_filter_tenant_id: string | null
+  default_filter_workspace_id: string | null
+}
+
+/** Tenant-scoped role list row. */
 export type SysRoleListItem = {
   id: string
+  tenant_id: string
+  tenant_name: string
   workspace_id: string
+  workspace_name: string
   role_name: string
   role_key: string
   role_sort: number
@@ -29,6 +44,8 @@ export type SysRoleListPage = {
 
 /** Query params for role list. */
 export type SysRoleListParams = {
+  tenant_id?: string
+  workspace_id?: string
   role_name?: string
   status?: boolean
   role_key?: string
@@ -38,6 +55,7 @@ export type SysRoleListParams = {
 
 /** Create role request body. */
 export type SysRoleCreateBody = {
+  workspace_id: string
   role_name: string
   role_key: string
   role_sort?: number
@@ -47,10 +65,12 @@ export type SysRoleCreateBody = {
 }
 
 /** Patch role request body. */
-export type SysRolePatchBody = Partial<SysRoleCreateBody>
+export type SysRolePatchBody = Partial<Omit<SysRoleCreateBody, 'workspace_id'>>
 
 function buildQuery(params: SysRoleListParams): string {
   const q = new URLSearchParams()
+  if (params.tenant_id) q.set('tenant_id', params.tenant_id)
+  if (params.workspace_id) q.set('workspace_id', params.workspace_id)
   if (params.role_name?.trim()) q.set('role_name', params.role_name.trim())
   if (params.status !== undefined) q.set('status', String(params.status))
   if (params.role_key?.trim()) q.set('role_key', params.role_key.trim())
@@ -60,46 +80,52 @@ function buildQuery(params: SysRoleListParams): string {
   return s ? `?${s}` : ''
 }
 
-/** List roles in a workspace with optional filters. */
-export function listRoles(workspaceId: string, params: SysRoleListParams = {}) {
+/** Load role page capabilities for filters and create-form scope. */
+export function getRoleCapabilities() {
+  return apiJson<SysRoleCapabilities>('/sys/roles/meta/capabilities')
+}
+
+/** List roles across tenants (super admin only). */
+export function listRolesPlatform(params: SysRoleListParams = {}) {
+  return apiJson<SysRoleListPage>(`/sys/roles${buildQuery(params)}`)
+}
+
+/** List roles within one tenant with optional workspace filter. */
+export function listRolesForTenant(tenantId: string, params: SysRoleListParams = {}) {
   return apiJson<SysRoleListPage>(
-    `/workspaces/${workspaceId}/roles${buildQuery(params)}`,
+    `/sys/tenants/${tenantId}/roles${buildQuery(params)}`,
   )
 }
 
 /** Load menu tree for role permission assignment. */
-export function listRoleMenuTree(workspaceId: string) {
-  return apiJson<SysMenuNode[]>(`/workspaces/${workspaceId}/roles/menu-tree`)
+export function listRoleMenuTree() {
+  return apiJson<SysMenuNode[]>('/sys/roles/menu-tree')
 }
 
 /** Load one role with menu ids. */
-export function getRole(workspaceId: string, roleId: string) {
-  return apiJson<SysRoleDetail>(`/workspaces/${workspaceId}/roles/${roleId}`)
+export function getRole(tenantId: string, roleId: string) {
+  return apiJson<SysRoleDetail>(`/sys/tenants/${tenantId}/roles/${roleId}`)
 }
 
-/** Create a workspace role. */
-export function createRole(workspaceId: string, body: SysRoleCreateBody) {
-  return apiJson<SysRoleDetail>(`/workspaces/${workspaceId}/roles`, {
+/** Create a role under a tenant workspace. */
+export function createRole(tenantId: string, body: SysRoleCreateBody) {
+  return apiJson<SysRoleDetail>(`/sys/tenants/${tenantId}/roles`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
 }
 
-/** Partially update a workspace role. */
-export function patchRole(
-  workspaceId: string,
-  roleId: string,
-  body: SysRolePatchBody,
-) {
-  return apiJson<SysRoleDetail>(`/workspaces/${workspaceId}/roles/${roleId}`, {
+/** Partially update a tenant-scoped role. */
+export function patchRole(tenantId: string, roleId: string, body: SysRolePatchBody) {
+  return apiJson<SysRoleDetail>(`/sys/tenants/${tenantId}/roles/${roleId}`, {
     method: 'PATCH',
     body: JSON.stringify(body),
   })
 }
 
-/** Delete a workspace role. */
-export function deleteRole(workspaceId: string, roleId: string) {
-  return apiJson<void>(`/workspaces/${workspaceId}/roles/${roleId}`, {
+/** Delete a tenant-scoped role. */
+export function deleteRole(tenantId: string, roleId: string) {
+  return apiJson<void>(`/sys/tenants/${tenantId}/roles/${roleId}`, {
     method: 'DELETE',
   })
 }
