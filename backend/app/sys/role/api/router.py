@@ -117,6 +117,20 @@ async def list_roles_platform(
     )
 
 
+@tenant_router.get("/menu-tree", response_model=list[SysMenuNodeOut])
+async def list_role_menu_tree_for_tenant(
+    tenant_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+    _viewer: uuid.UUID = Depends(require_tenant_role_viewer),
+) -> list[SysMenuNodeOut]:
+    """Return tenant-scoped menu tree for role permission assignment."""
+
+    return await svc.list_menu_tree_for_tenant_role_assignment(
+        session,
+        tenant_id=tenant_id,
+    )
+
+
 @tenant_router.get("", response_model=SysRoleListPageOut)
 async def list_roles_for_tenant(
     tenant_id: uuid.UUID,

@@ -133,3 +133,77 @@ async def replace_tenant_admins(
         )
     await session.commit()
     return unique_ids
+
+
+async def is_user_tenant_admin(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> bool:
+    """Return whether the user holds an active tenant_admin grant."""
+
+    await tenant_svc.get_tenant(session, tenant_id=tenant_id)
+    r = await session.execute(
+        select(SysUserGrant.id).where(
+            SysUserGrant.user_id == user_id,
+            SysUserGrant.grant_type == GrantType.tenant_admin.value,
+            SysUserGrant.scope_type == GrantScopeType.tenant.value,
+            SysUserGrant.scope_id == tenant_id,
+            SysUserGrant.status.is_(True),
+        )
+    )
+    return r.scalar_one_or_none() is not None
+
+
+async def set_user_tenant_admin(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    user_id: uuid.UUID,
+    enabled: bool,
+    granted_by_user_id: uuid.UUID,
+) -> bool:
+    """Enable or disable tenant_admin grant for one user."""
+
+    await tenant_svc.get_tenant(session, tenant_id=tenant_id)
+    user = await session.get(User, user_id)
+    if user is None:
+        raise AppError("user.not_found", "User not found", 404)
+
+    r = await session.execute(
+        select(SysUserGrant).where(
+            SysUserGrant.user_id == user_id,
+            SysUserGrant.grant_type == GrantType.tenant_admin.value,
+            SysUserGrant.scope_type == GrantScopeType.tenant.value,
+            SysUserGrant.scope_id == tenant_id,
+        )
+    )
+    row = r.scalar_one_or_none()
+    now = _utc_now()
+
+    if enabled:
+        if row is None:
+            session.add(
+                SysUserGrant(
+                    user_id=user_id,
+                    grant_type=GrantType.tenant_admin.value,
+                    scope_type=GrantScopeType.tenant.value,
+                    scope_id=tenant_id,
+                    granted_by_user_id=granted_by_user_id,
+                    status=True,
+                    create_at=now,
+                    update_at=now,
+                )
+            )
+        else:
+            row.status = True
+            row.granted_by_user_id = granted_by_user_id
+            row.update_at = now
+        await session.commit()
+        return True
+
+    if row is not None:
+        await session.delete(row)
+        await session.commit()
+    return False

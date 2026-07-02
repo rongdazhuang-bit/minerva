@@ -1,4 +1,5 @@
 import {
+  Alert,
   Button,
   Checkbox,
   Drawer,
@@ -12,7 +13,7 @@ import {
   Tree,
 } from 'antd'
 import type { DataNode } from 'antd/es/tree'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { SysMenuNode } from '@/api/menus'
 import type { SysRoleCapabilities, SysRoleCreateBody, SysRolePatchBody } from '@/api/roles'
@@ -43,6 +44,7 @@ type Props = {
   mode: 'create' | 'edit'
   capabilities: SysRoleCapabilities | null
   menuTree: SysMenuNode[]
+  menuTreeHint?: string | null
   initial?: RoleFormValues | null
   initialMenuIds?: string[]
   initialScope?: RoleScope | null
@@ -93,6 +95,7 @@ export function RoleFormDrawer({
   mode,
   capabilities,
   menuTree,
+  menuTreeHint,
   initial,
   initialMenuIds,
   initialScope,
@@ -109,6 +112,7 @@ export function RoleFormDrawer({
   const [expandedKeys, setExpandedKeys] = useState<string[]>([])
   const [expandAll, setExpandAll] = useState(false)
   const [checkStrictly, setCheckStrictly] = useState(false)
+  const prevAllKeysRef = useRef('')
 
   const treeData = useMemo(() => buildTreeData(menuTree), [menuTree])
   const allKeys = useMemo(() => collectAllKeys(menuTree), [menuTree])
@@ -141,6 +145,22 @@ export function RoleFormDrawer({
   useEffect(() => {
     setExpandedKeys(expandAll ? allKeys : [])
   }, [expandAll, allKeys])
+
+  useEffect(() => {
+    if (!open) {
+      prevAllKeysRef.current = ''
+      return
+    }
+    const key = allKeys.join(',')
+    if (!prevAllKeysRef.current) {
+      prevAllKeysRef.current = key
+      return
+    }
+    if (prevAllKeysRef.current === key) return
+    prevAllKeysRef.current = key
+    const valid = new Set(allKeys)
+    setCheckedKeys((prev) => prev.filter((id) => valid.has(id)))
+  }, [allKeys, open])
 
   const handleFinish = useCallback(
     async (values: RoleFormValues) => {
@@ -290,6 +310,9 @@ export function RoleFormDrawer({
         </Form.Item>
         <Form.Item label={t('roles.menuPermissions')}>
           <Space direction="vertical" style={{ width: '100%' }} size="small">
+            {menuTree.length === 0 && menuTreeHint ? (
+              <Alert type="info" showIcon message={menuTreeHint} />
+            ) : null}
             <Space wrap>
               <Checkbox checked={expandAll} onChange={(e) => setExpandAll(e.target.checked)}>
                 {t('roles.expandCollapse')}

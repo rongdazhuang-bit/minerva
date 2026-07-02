@@ -157,7 +157,6 @@ export function TenantsPage() {
         } else {
           const created = await createTenant(body)
           await putTenantPermissions(created.id, permissions.menu_ids)
-          await putTenantAdmins(created.id, permissions.admin_user_ids)
           messageApi.success(t('tenants.createSuccess'))
         }
         setDrawerOpen(false)

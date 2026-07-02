@@ -23,7 +23,7 @@ import {
   deleteRole,
   getRole,
   getRoleCapabilities,
-  listRoleMenuTree,
+  listRoleMenuTreeForTenant,
   listRolesForTenant,
   listRolesPlatform,
   patchRole,
@@ -33,6 +33,7 @@ import {
   type SysRoleListParams,
   type SysRolePatchBody,
 } from '@/api/roles'
+import { collectAllKeys } from '@/features/settings/tenants/menuTreeUtils'
 import {
   listTenants,
   listWorkspaces,
@@ -191,10 +192,19 @@ export function RolesPage() {
     setRefreshTick((v) => v + 1)
   }, [])
 
-  const loadMenuTree = useCallback(async () => {
-    const tree = await listRoleMenuTree()
+  const loadMenuTreeForTenant = useCallback(async (tenantIdForTree: string | null) => {
+    if (!tenantIdForTree) {
+      setMenuTree([])
+      return []
+    }
+    const tree = await listRoleMenuTreeForTenant(tenantIdForTree)
     setMenuTree(tree)
     return tree
+  }, [])
+
+  const pruneCheckedKeys = useCallback((keys: string[], tree: SysMenuNode[]) => {
+    const valid = new Set(collectAllKeys(tree))
+    return keys.filter((id) => valid.has(id))
   }, [])
 
   const loadCreateWorkspaces = useCallback(async (tenantIdForCreate: string) => {
@@ -206,15 +216,16 @@ export function RolesPage() {
   const handleCreateTenantChange = useCallback(
     async (tid: string) => {
       setCreateTenantId(tid)
+      const tree = await loadMenuTreeForTenant(tid)
+      setInitialMenuIds((prev) => pruneCheckedKeys(prev, tree))
       await loadCreateWorkspaces(tid)
     },
-    [loadCreateWorkspaces],
+    [loadCreateWorkspaces, loadMenuTreeForTenant, pruneCheckedKeys],
   )
 
   const openCreate = useCallback(async () => {
     setMetaLoading(true)
     try {
-      await loadMenuTree()
       setDrawerMode('create')
       setEditingId(null)
       setEditingTenantId(null)
@@ -233,6 +244,11 @@ export function RolesPage() {
       }
 
       setCreateTenantId(initialTenantId)
+      if (initialTenantId) {
+        await loadMenuTreeForTenant(initialTenantId)
+      } else {
+        setMenuTree([])
+      }
       let wsRows: SysWorkspaceListItem[] = []
       if (initialTenantId) {
         wsRows = await loadCreateWorkspaces(initialTenantId)
@@ -256,7 +272,7 @@ export function RolesPage() {
       setMetaLoading(false)
     }
   }, [
-    loadMenuTree,
+    loadMenuTreeForTenant,
     capabilities,
     tenants,
     tenantId,
@@ -269,7 +285,7 @@ export function RolesPage() {
     async (row: SysRoleListItem) => {
       setMetaLoading(true)
       try {
-        await loadMenuTree()
+        await loadMenuTreeForTenant(row.tenant_id)
         const detail = await getRole(row.tenant_id, row.id)
         setDrawerMode('edit')
         setEditingId(row.id)
@@ -296,7 +312,7 @@ export function RolesPage() {
         setMetaLoading(false)
       }
     },
-    [loadMenuTree, t, messageApi],
+    [loadMenuTreeForTenant, t, messageApi],
   )
 
   const handleSubmit = useCallback(
@@ -583,6 +599,9 @@ export function RolesPage() {
         mode={drawerMode}
         capabilities={capabilities}
         menuTree={menuTree}
+        menuTreeHint={
+          drawerMode === 'create' && !createTenantId ? t('roles.selectTenantForMenus') : null
+        }
         initial={initialForm}
         initialMenuIds={initialMenuIds}
         initialScope={initialScope}

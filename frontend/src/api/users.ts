@@ -33,6 +33,8 @@ export type SysUserCapabilities = {
   is_super_admin: boolean
   actor_workspace_role: string | null
   can_edit_membership_role: boolean
+  can_view_membership_role: boolean
+  can_edit_tenant_admin: boolean
   assignable_membership_roles: string[]
   can_pick_tenant_workspace: boolean
   is_tenant_admin: boolean
@@ -55,6 +57,8 @@ export type SysUserListCapabilities = {
   default_filter_workspace_id: string | null
   actor_workspace_role: string | null
   can_edit_membership_role: boolean
+  can_view_membership_role: boolean
+  can_edit_tenant_admin: boolean
   assignable_membership_roles: string[]
 }
 
@@ -241,5 +245,23 @@ export function listUserFormTenants(workspaceId: string) {
 export function listUserFormWorkspaces(workspaceId: string, tenantId: string) {
   return apiJson<SysUserWorkspaceOption[]>(
     `/workspaces/${workspaceId}/users/meta/tenants/${tenantId}/workspaces`,
+  )
+}
+
+/** Whether one user holds tenant_admin grant for a tenant. */
+export type SysTenantAdminStatus = { is_tenant_admin: boolean }
+
+/** Load tenant_admin grant status for one user. */
+export function getUserTenantAdmin(tenantId: string, userId: string) {
+  return apiJson<SysTenantAdminStatus>(
+    `/sys/tenants/${tenantId}/users/${userId}/tenant-admin`,
+  )
+}
+
+/** Enable or disable tenant_admin grant for one user. */
+export function putUserTenantAdmin(tenantId: string, userId: string, enabled: boolean) {
+  return apiJson<SysTenantAdminStatus>(
+    `/sys/tenants/${tenantId}/users/${userId}/tenant-admin`,
+    { method: 'PUT', body: JSON.stringify({ enabled }) },
   )
 }

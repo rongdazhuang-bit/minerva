@@ -22,10 +22,12 @@ import {
   deleteUserAccount,
   getUser,
   getUserListCapabilities,
+  getUserTenantAdmin,
   listTenantWorkspaceUsers,
   listUserAssignableRoles,
   listUsers,
   patchUser,
+  putUserTenantAdmin,
   removeUserMembership,
   type SysUserCreateBody,
   type SysUserListCapabilities,
@@ -104,6 +106,7 @@ export function UsersPage() {
   const [tenants, setTenants] = useState<SysTenantListItem[]>([])
   const [filterWorkspaces, setFilterWorkspaces] = useState<SysWorkspaceListItem[]>([])
   const [formWorkspaces, setFormWorkspaces] = useState<SysWorkspaceListItem[]>([])
+  const [formWorkspacesLoading, setFormWorkspacesLoading] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerTitle, setDrawerTitle] = useState('')
   const [drawerMode, setDrawerMode] = useState<'create' | 'edit'>('create')
@@ -251,7 +254,13 @@ export function UsersPage() {
 
   const handleFormTenantChange = useCallback(
     async (tid: string) => {
-      await loadFormWorkspaces(tid)
+      setFormWorkspaces([])
+      setFormWorkspacesLoading(true)
+      try {
+        await loadFormWorkspaces(tid)
+      } finally {
+        setFormWorkspacesLoading(false)
+      }
     },
     [loadFormWorkspaces],
   )
@@ -265,7 +274,14 @@ export function UsersPage() {
     const tid = effectiveTenantId
     const wid = effectiveWorkspaceId
     if (tid && capabilities?.can_pick_workspace) {
-      await loadFormWorkspaces(tid)
+      setFormWorkspacesLoading(true)
+      try {
+        await loadFormWorkspaces(tid)
+      } finally {
+        setFormWorkspacesLoading(false)
+      }
+    } else {
+      setFormWorkspaces([])
     }
 
     setInitialForm({
@@ -276,6 +292,7 @@ export function UsersPage() {
       status: true,
       remark: null,
       membership_role: 'member',
+      tenant_admin_role: 'member',
       department_item_id: null,
       role_ids: [],
       tenant_id: tid ?? undefined,
@@ -291,6 +308,13 @@ export function UsersPage() {
       if (!rowWorkspaceId) return
       try {
         const detail = await getUser(rowWorkspaceId, row.id)
+        const scopeTenantId =
+          detail.tenant_id ?? capabilities?.fixed_tenant_id ?? tenantId ?? null
+        let tenantAdminRole: 'admin' | 'member' = 'member'
+        if (capabilities?.can_edit_tenant_admin && scopeTenantId) {
+          const status = await getUserTenantAdmin(scopeTenantId, detail.id)
+          tenantAdminRole = status.is_tenant_admin ? 'admin' : 'member'
+        }
         setDrawerMode('edit')
         setEditingId(detail.id)
         setEditingWorkspaceId(rowWorkspaceId)
@@ -311,6 +335,7 @@ export function UsersPage() {
           status: detail.status,
           remark: detail.remark,
           membership_role: detail.membership_role,
+          tenant_admin_role: tenantAdminRole,
           department_item_id: detail.department_item_id,
           role_ids: detail.role_ids,
         })
@@ -320,36 +345,33 @@ export function UsersPage() {
         showAppError(messageApi, t, e)
       }
     },
-    [workspaceId, t, messageApi],
+    [workspaceId, t, messageApi, capabilities, tenantId],
   )
 
   const handleSubmit = useCallback(
     async (
       values: SysUserCreateBody | Record<string, unknown>,
-      context: { targetWorkspaceId: string },
+      context: { targetWorkspaceId: string; effectiveTenantId: string | null },
     ) => {
-      if (!workspaceId) return
-      const { targetWorkspaceId } = context
+      const { targetWorkspaceId, effectiveTenantId: formTenantId } = context
+      if (!targetWorkspaceId) return
       const listWorkspaceId = effectiveWorkspaceId ?? workspaceId
+      const scopeTenantId = formTenantId ?? effectiveTenantId ?? tenantId
       setSubmitting(true)
       try {
-        const raw = values as SysUserCreateBody & SysUserPatchBody
+        const raw = values as SysUserCreateBody &
+          SysUserPatchBody & { tenant_admin_role?: 'admin' | 'member' }
         const roleIds = raw.role_ids ?? []
+        const tenantAdminRole = raw.tenant_admin_role
         const profile = { ...raw } as SysUserCreateBody & SysUserPatchBody
+        delete (profile as Record<string, unknown>).tenant_admin_role
         if (useGrantApiForRoles) {
           delete profile.role_ids
         }
+        let savedUserId: string | null = null
         if (drawerMode === 'create') {
           const created = await createUser(targetWorkspaceId, profile as SysUserCreateBody)
-          const grantTenantId = effectiveTenantId ?? tenantId
-          if (useGrantApiForRoles && roleIds.length > 0 && grantTenantId) {
-            await replaceWorkspaceRoleGrants(
-              grantTenantId,
-              targetWorkspaceId,
-              created.id,
-              roleIds,
-            )
-          }
+          savedUserId = created.id
           if (targetWorkspaceId !== listWorkspaceId) {
             messageApi.success(t('users.createSuccessOtherWorkspace'))
           } else {
@@ -357,12 +379,40 @@ export function UsersPage() {
           }
         } else if (editingId) {
           const editWsId = editingWorkspaceId ?? workspaceId
+          if (!editWsId) return
           await patchUser(editWsId, editingId, profile as SysUserPatchBody)
-          const grantTenantId = effectiveTenantId ?? tenantId
-          if (useGrantApiForRoles && grantTenantId) {
-            await replaceWorkspaceRoleGrants(grantTenantId, editWsId, editingId, roleIds)
-          }
+          savedUserId = editingId
           messageApi.success(t('users.updateSuccess'))
+        }
+        if (
+          capabilities?.can_edit_tenant_admin &&
+          scopeTenantId &&
+          tenantAdminRole != null &&
+          savedUserId
+        ) {
+          const enabled = tenantAdminRole === 'admin'
+          const initialEnabled = initialForm?.tenant_admin_role === 'admin'
+          if (enabled !== initialEnabled) {
+            await putUserTenantAdmin(scopeTenantId, savedUserId, enabled)
+          }
+        }
+        const grantTenantId = scopeTenantId
+        if (useGrantApiForRoles && grantTenantId && savedUserId) {
+          if (drawerMode === 'create') {
+            if (roleIds.length > 0) {
+              await replaceWorkspaceRoleGrants(
+                grantTenantId,
+                targetWorkspaceId,
+                savedUserId,
+                roleIds,
+              )
+            }
+          } else if (editingId) {
+            const editWsId = editingWorkspaceId ?? workspaceId
+            if (editWsId) {
+              await replaceWorkspaceRoleGrants(grantTenantId, editWsId, savedUserId, roleIds)
+            }
+          }
         }
         setDrawerOpen(false)
         reloadList()
@@ -385,6 +435,8 @@ export function UsersPage() {
       reloadList,
       useGrantApiForRoles,
       tenantId,
+      capabilities,
+      initialForm?.tenant_admin_role,
     ],
   )
 
@@ -728,7 +780,8 @@ export function UsersPage() {
         initial={initialForm}
         initialScope={initialScope}
         tenants={tenants}
-        workspaces={formWorkspaces.length > 0 ? formWorkspaces : filterWorkspaces}
+        workspaces={formWorkspaces}
+        workspacesLoading={formWorkspacesLoading}
         onTenantChange={handleFormTenantChange}
         onClose={() => setDrawerOpen(false)}
         onSubmit={handleSubmit}

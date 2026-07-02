@@ -5,7 +5,6 @@ import type { SysMenuNode } from '@/api/menus'
 import {
   getTenantAdmins,
   getTenantPermissions,
-  listPlatformUserOptions,
   listTenantPermissionMenuTree,
   listTenantUsers,
 } from '@/api/tenantPermissions'
@@ -94,18 +93,11 @@ export function TenantFormDrawer({
               buildTenantAdminSelectOptions(users.items, admins.user_ids, orphanLabel),
             )
           })
-        : Promise.all([listTenantPermissionMenuTree(), listPlatformUserOptions()]).then(
-            ([tree, users]) => {
-              if (cancelled) return
-              setMenuTree(tree)
-              setUserOptions(
-                users.items.map((u) => ({
-                  value: u.id,
-                  label: `${u.nickname} (${u.email})`,
-                })),
-              )
-            },
-          )
+        : listTenantPermissionMenuTree().then((tree) => {
+            if (cancelled) return
+            setMenuTree(tree)
+            setUserOptions([])
+          })
 
     loadPromise
       .catch((e) => showAppError(messageApi, t, e))
@@ -181,11 +173,8 @@ export function TenantFormDrawer({
           checkedKeys={checkedKeys}
           onCheckedKeysChange={setCheckedKeys}
           userOptions={userOptions}
-          adminsHint={
-            mode === 'create'
-              ? t('permissions.adminsHintCreate')
-              : t('permissions.adminsHint')
-          }
+          showAdmins={mode === 'edit'}
+          adminsHint={t('permissions.adminsHint')}
         />
         <Form.Item name="remark" label={t('tenants.remark')}>
           <Input.TextArea allowClear rows={3} placeholder={t('tenants.remarkPlaceholder')} />

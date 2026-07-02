@@ -10,6 +10,8 @@ type Props = {
   onCheckedKeysChange: (keys: string[]) => void
   userOptions: { value: string; label: string }[]
   adminsHint?: string
+  /** When false, hide tenant administrator multi-select (e.g. create mode). */
+  showAdmins?: boolean
 }
 
 /** Shared menu tree and tenant administrator fields for tenant permission UI. */
@@ -19,6 +21,7 @@ export function TenantPermissionFields({
   onCheckedKeysChange,
   userOptions,
   adminsHint,
+  showAdmins = true,
 }: Props) {
   const { t } = useTranslation()
   const [expandedKeys, setExpandedKeys] = useState<string[]>([])
@@ -83,21 +86,23 @@ export function TenantPermissionFields({
           </div>
         </Space>
       </Form.Item>
-      <Form.Item
-        name="admin_user_ids"
-        label={t('permissions.adminsLabel')}
-        extra={adminsHint ?? t('permissions.adminsHint')}
-      >
-        <Select
-          mode="multiple"
-          showSearch
-          allowClear
-          optionFilterProp="label"
-          placeholder={t('permissions.adminsPlaceholder')}
-          notFoundContent={t('permissions.noTenantUsers')}
-          options={userOptions}
-        />
-      </Form.Item>
+      {showAdmins ? (
+        <Form.Item
+          name="admin_user_ids"
+          label={t('permissions.adminsLabel')}
+          extra={adminsHint ?? t('permissions.adminsHint')}
+        >
+          <Select
+            mode="multiple"
+            showSearch
+            allowClear
+            optionFilterProp="label"
+            placeholder={t('permissions.adminsPlaceholder')}
+            notFoundContent={t('permissions.noTenantUsers')}
+            options={userOptions}
+          />
+        </Form.Item>
+      ) : null}
     </>
   )
 }

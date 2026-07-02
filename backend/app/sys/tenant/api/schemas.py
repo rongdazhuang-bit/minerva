@@ -115,6 +115,18 @@ class SysTenantAdminsPutIn(BaseModel):
     user_ids: list[uuid.UUID]
 
 
+class SysTenantAdminStatusOut(BaseModel):
+    """Whether one user is tenant administrator for a tenant."""
+
+    is_tenant_admin: bool
+
+
+class SysTenantAdminPutIn(BaseModel):
+    """Enable or disable tenant_admin grant for one user."""
+
+    enabled: bool
+
+
 class SysTenantUserOptionOut(BaseModel):
     """One tenant member for admin form pickers."""
 

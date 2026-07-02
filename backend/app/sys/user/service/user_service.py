@@ -54,6 +54,20 @@ def resolve_assignable_membership_roles(
     return []
 
 
+def can_view_membership_role(
+    *,
+    actor_workspace_role: MembershipRole | None,
+    actor_is_super_admin: bool,
+    actor_is_tenant_admin: bool,
+    actor_has_workspace_membership: bool,
+) -> bool:
+    """True when membership_role should appear on the user form."""
+
+    if actor_is_super_admin or actor_is_tenant_admin:
+        return True
+    return actor_workspace_role == MembershipRole.admin
+
+
 def can_edit_membership_role(
     *,
     actor_workspace_role: MembershipRole | None,
@@ -63,9 +77,7 @@ def can_edit_membership_role(
 ) -> bool:
     """True when the actor may change membership_role on create or patch."""
 
-    if actor_is_super_admin or actor_is_tenant_admin:
-        return True
-    return actor_workspace_role == MembershipRole.admin
+    return actor_is_super_admin or actor_is_tenant_admin
 
 
 def assert_membership_role_assignable(
@@ -585,6 +597,7 @@ def build_user_list_capabilities(
     actor_workspace_role: str | None,
     assignable_membership_roles: list[str],
     can_edit_membership_role: bool,
+    can_view_membership_role: bool,
 ) -> dict[str, object]:
     """Build list/form scope capability flags (platform-level, JWT-driven)."""
 
@@ -603,6 +616,8 @@ def build_user_list_capabilities(
         "default_filter_workspace_id": jwt_workspace_id,
         "actor_workspace_role": actor_workspace_role,
         "can_edit_membership_role": can_edit_membership_role,
+        "can_view_membership_role": can_view_membership_role,
+        "can_edit_tenant_admin": is_super_admin,
         "assignable_membership_roles": assignable_membership_roles,
         "can_pick_tenant_workspace": can_pick_tenant,
         "default_tenant_id": jwt_tenant_id if is_super_admin else None,
@@ -631,8 +646,10 @@ async def get_user_list_capabilities(
         tenant_name = tenant.name if tenant else None
 
     actor_role = None
+    ws_role: MembershipRole | None = None
     assignable: list[str] = [MembershipRole.member.value]
     can_edit = False
+    can_view = False
     if jwt_workspace_id is not None:
         ws_role = await find_workspace_role_for_user(
             session, user_id=user_id, workspace_id=jwt_workspace_id
@@ -650,7 +667,16 @@ async def get_user_list_capabilities(
             actor_is_tenant_admin=is_ta,
             actor_has_workspace_membership=has_membership,
         )
+        can_view = can_view_membership_role(
+            actor_workspace_role=ws_role,
+            actor_is_super_admin=is_super_admin,
+            actor_is_tenant_admin=is_ta,
+            actor_has_workspace_membership=has_membership,
+        )
         actor_role = ws_role.value if ws_role else None
+    elif is_super_admin or is_ta:
+        can_view = True
+        can_edit = is_super_admin or is_ta
 
     return build_user_list_capabilities(
         is_super_admin=is_super_admin,
@@ -661,6 +687,7 @@ async def get_user_list_capabilities(
         actor_workspace_role=actor_role,
         assignable_membership_roles=assignable,
         can_edit_membership_role=can_edit,
+        can_view_membership_role=can_view,
     )
 
 
@@ -708,6 +735,12 @@ async def get_actor_capabilities(
         actor_is_tenant_admin=actor_is_tenant_admin,
         actor_has_workspace_membership=has_membership,
     )
+    can_view = can_view_membership_role(
+        actor_workspace_role=actor_role,
+        actor_is_super_admin=actor_is_super,
+        actor_is_tenant_admin=actor_is_tenant_admin,
+        actor_has_workspace_membership=has_membership,
+    )
     base = build_user_list_capabilities(
         is_super_admin=actor_is_super,
         is_tenant_admin=actor_is_tenant_admin,
@@ -717,11 +750,14 @@ async def get_actor_capabilities(
         actor_workspace_role=actor_role.value if actor_role else None,
         assignable_membership_roles=assignable,
         can_edit_membership_role=can_edit,
+        can_view_membership_role=can_view,
     )
     return {
         "is_super_admin": base["is_super_admin"],
         "actor_workspace_role": base["actor_workspace_role"],
         "can_edit_membership_role": base["can_edit_membership_role"],
+        "can_view_membership_role": base["can_view_membership_role"],
+        "can_edit_tenant_admin": base["can_edit_tenant_admin"],
         "assignable_membership_roles": base["assignable_membership_roles"],
         "can_pick_tenant_workspace": base["can_pick_tenant"],
         "is_tenant_admin": base["is_tenant_admin"],

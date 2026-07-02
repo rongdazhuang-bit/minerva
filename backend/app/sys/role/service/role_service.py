@@ -15,6 +15,7 @@ from app.sys.menu.infrastructure import repository as menu_repo
 from app.sys.menu.service import menu_service as menu_svc
 from app.sys.role.domain.db.models import SysRole
 from app.sys.role.infrastructure import repository as repo
+from app.sys.tenant.service.tenant_permission_service import list_tenant_menu_ids
 
 
 def _utc_now() -> datetime:
@@ -62,6 +63,113 @@ async def _validate_menu_ids(session: AsyncSession, menu_ids: list[uuid.UUID]) -
             "One or more menu ids do not exist",
             400,
         )
+
+
+def collect_menu_display_ids(
+    *,
+    authorized_ids: list[uuid.UUID],
+    tree_nodes: list[SysMenuNodeOut],
+) -> set[uuid.UUID]:
+    """Return authorized menu ids plus all ancestor ids for tree display."""
+
+    by_id: dict[uuid.UUID, SysMenuNodeOut] = {}
+
+    def walk(nodes: list[SysMenuNodeOut]) -> None:
+        for node in nodes:
+            by_id[node.id] = node
+            if node.children:
+                walk(node.children)
+
+    walk(tree_nodes)
+    authorized_set = set(authorized_ids)
+    display: set[uuid.UUID] = set()
+    for mid in authorized_set:
+        cur = by_id.get(mid)
+        while cur is not None:
+            display.add(cur.id)
+            cur = by_id.get(cur.parent_id) if cur.parent_id else None
+    return display
+
+
+def prune_menu_tree(
+    nodes: list[SysMenuNodeOut],
+    *,
+    allowed_ids: set[uuid.UUID],
+) -> list[SysMenuNodeOut]:
+    """Keep nodes in allowed_ids, preserving hierarchy."""
+
+    def walk(items: list[SysMenuNodeOut]) -> list[SysMenuNodeOut]:
+        out: list[SysMenuNodeOut] = []
+        for node in items:
+            children = walk(node.children) if node.children else []
+            if node.id in allowed_ids or children:
+                out.append(node.model_copy(update={"children": children}))
+        return out
+
+    return walk(nodes)
+
+
+def filter_menu_ids_to_tenant_authorized(
+    *,
+    menu_ids: list[uuid.UUID],
+    authorized_ids: set[uuid.UUID],
+) -> list[uuid.UUID]:
+    """Drop menu ids outside tenant authorization before persistence."""
+
+    return [mid for mid in menu_ids if mid in authorized_ids]
+
+
+def resolve_menu_ids_for_tenant_persist(
+    *,
+    menu_ids: list[uuid.UUID],
+    authorized_ids: set[uuid.UUID],
+    display_ids: set[uuid.UUID],
+) -> list[uuid.UUID]:
+    """Reject ids outside the tenant display tree; strip ancestor-only ids."""
+
+    outside = [str(mid) for mid in menu_ids if mid not in display_ids]
+    if outside:
+        raise AppError(
+            "role.menu_not_in_tenant",
+            f"Menu ids not in tenant menu tree: {', '.join(outside)}",
+            400,
+        )
+    return filter_menu_ids_to_tenant_authorized(
+        menu_ids=menu_ids,
+        authorized_ids=authorized_ids,
+    )
+
+
+async def _validate_menu_ids_in_tenant(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    menu_ids: list[uuid.UUID],
+) -> list[uuid.UUID]:
+    """Ensure menu ids exist globally and persist only tenant-authorized ids."""
+
+    if not menu_ids:
+        return []
+    await _validate_menu_ids(session, menu_ids)
+    authorized_list = await list_tenant_menu_ids(session, tenant_id=tenant_id)
+    authorized = set(authorized_list)
+    if not authorized:
+        raise AppError(
+            "role.menu_not_in_tenant",
+            "Menu ids not in tenant menu tree: "
+            + ", ".join(str(mid) for mid in menu_ids),
+            400,
+        )
+    full_tree = await list_menu_tree_for_role_assignment(session)
+    display_ids = collect_menu_display_ids(
+        authorized_ids=authorized_list,
+        tree_nodes=full_tree,
+    )
+    return resolve_menu_ids_for_tenant_persist(
+        menu_ids=menu_ids,
+        authorized_ids=authorized,
+        display_ids=display_ids,
+    )
 
 
 async def _require_role(
@@ -212,6 +320,24 @@ async def list_menu_tree_for_role_assignment(
     return await menu_svc.list_menu_tree(session)
 
 
+async def list_menu_tree_for_tenant_role_assignment(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+) -> list[SysMenuNodeOut]:
+    """Return menu tree limited to tenant-authorized menus plus ancestors."""
+
+    authorized_ids = await list_tenant_menu_ids(session, tenant_id=tenant_id)
+    if not authorized_ids:
+        return []
+    full_tree = await list_menu_tree_for_role_assignment(session)
+    display_ids = collect_menu_display_ids(
+        authorized_ids=authorized_ids,
+        tree_nodes=full_tree,
+    )
+    return prune_menu_tree(full_tree, allowed_ids=display_ids)
+
+
 def build_role_capabilities(
     *,
     is_super_admin: bool,
@@ -315,7 +441,11 @@ async def create_role_for_tenant(
         session, tenant_id=tenant_id, workspace_id=workspace_id
     )
     menu_ids: list[uuid.UUID] = list(data.get("menu_ids") or [])
-    await _validate_menu_ids(session, menu_ids)
+    menu_ids = await _validate_menu_ids_in_tenant(
+        session,
+        tenant_id=tenant_id,
+        menu_ids=menu_ids,
+    )
     now = _utc_now()
     row = SysRole(
         tenant_id=tenant_id,
@@ -378,6 +508,12 @@ async def update_role_for_tenant(
     )
     if row is None:
         raise AppError("role.not_found", "Role not found", 404)
+    if "menu_ids" in patch and patch["menu_ids"] is not None:
+        patch["menu_ids"] = await _validate_menu_ids_in_tenant(
+            session,
+            tenant_id=tenant_id,
+            menu_ids=list(patch["menu_ids"]),
+        )
     return await update_role(
         session,
         workspace_id=row.workspace_id,

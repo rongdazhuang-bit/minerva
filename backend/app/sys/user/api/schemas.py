@@ -104,6 +104,8 @@ class SysUserCapabilitiesOut(BaseModel):
     is_super_admin: bool
     actor_workspace_role: str | None
     can_edit_membership_role: bool
+    can_view_membership_role: bool = False
+    can_edit_tenant_admin: bool = False
     assignable_membership_roles: list[str]
     can_pick_tenant_workspace: bool
     is_tenant_admin: bool = False
@@ -127,4 +129,6 @@ class SysUserListCapabilitiesOut(BaseModel):
     default_filter_workspace_id: uuid.UUID | None = None
     actor_workspace_role: str | None
     can_edit_membership_role: bool
+    can_view_membership_role: bool = False
+    can_edit_tenant_admin: bool = False
     assignable_membership_roles: list[str]

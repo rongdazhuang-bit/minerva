@@ -102,6 +102,11 @@ export function listRoleMenuTree() {
   return apiJson<SysMenuNode[]>('/sys/roles/menu-tree')
 }
 
+/** Load tenant-scoped menu tree for role permission picker. */
+export function listRoleMenuTreeForTenant(tenantId: string) {
+  return apiJson<SysMenuNode[]>(`/sys/tenants/${tenantId}/roles/menu-tree`)
+}
+
 /** Load one role with menu ids. */
 export function getRole(tenantId: string, roleId: string) {
   return apiJson<SysRoleDetail>(`/sys/tenants/${tenantId}/roles/${roleId}`)

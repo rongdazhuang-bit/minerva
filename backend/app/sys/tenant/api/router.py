@@ -13,6 +13,8 @@ from app.dependencies import get_db
 from app.pagination import DEFAULT_PAGE_SIZE
 from app.sys.tenant.api.deps import require_grant_manager, require_super_admin, require_tenant_admin
 from app.sys.tenant.api.schemas import (
+    SysTenantAdminPutIn,
+    SysTenantAdminStatusOut,
     SysTenantAdminsOut,
     SysTenantAdminsPutIn,
     SysTenantCreateIn,
@@ -317,6 +319,47 @@ async def put_tenant_admins(
         granted_by_user_id=admin.id,
     )
     return SysTenantAdminsOut(user_ids=user_ids)
+
+
+@router.get(
+    "/{tenant_id}/users/{user_id}/tenant-admin",
+    response_model=SysTenantAdminStatusOut,
+)
+async def get_user_tenant_admin(
+    tenant_id: uuid.UUID,
+    user_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_super_admin),
+) -> SysTenantAdminStatusOut:
+    """Return whether one user is tenant administrator."""
+
+    is_admin = await permission_svc.is_user_tenant_admin(
+        session, tenant_id=tenant_id, user_id=user_id
+    )
+    return SysTenantAdminStatusOut(is_tenant_admin=is_admin)
+
+
+@router.put(
+    "/{tenant_id}/users/{user_id}/tenant-admin",
+    response_model=SysTenantAdminStatusOut,
+)
+async def put_user_tenant_admin(
+    tenant_id: uuid.UUID,
+    user_id: uuid.UUID,
+    body: SysTenantAdminPutIn,
+    session: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_super_admin),
+) -> SysTenantAdminStatusOut:
+    """Enable or disable tenant_admin grant for one user."""
+
+    is_admin = await permission_svc.set_user_tenant_admin(
+        session,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        enabled=body.enabled,
+        granted_by_user_id=admin.id,
+    )
+    return SysTenantAdminStatusOut(is_tenant_admin=is_admin)
 
 
 @router.get("/{tenant_id}/workspace-users", response_model=SysUserListPageOut)
