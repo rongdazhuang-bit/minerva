@@ -1,7 +1,7 @@
 # 角色管理：租户域 API 与授权优化 — 设计说明
 
 **日期**：2026-07-02  
-**状态**：待实现  
+**状态**：已实现（2026-07-02）  
 **范围**：角色管理 API 从 workspace 路径迁移至租户域；超管/租户管理员在列表筛选与新建/编辑弹窗中按租户 → 工作空间配置角色归属；编辑时 scope 只读。  
 **依赖**：
 - [2026-06-11-role-management-design.md](./2026-06-11-role-management-design.md)（原 workspace 路由基线，本 spec supersede 其 API 路径与 UI scope 部分）
@@ -248,16 +248,16 @@ initialScope?: { tenant_id: string; tenant_name: string; workspace_id: string; w
 
 ---
 
-## 7. 实现对照（以代码为准，待回填）
+## 7. 实现对照（以代码为准）
 
 | 设计项 | 代码路径 | 状态 |
 |--------|----------|------|
-| 租户域 role router | `backend/app/sys/role/api/router.py` | 待实现 |
-| `require_tenant_role_manager` | `backend/app/sys/role/api/deps.py` | 待实现 |
-| workspace 列表鉴权放宽 | `backend/app/sys/tenant/api/router.py` | 待实现 |
-| 前端 RolesPage scope | `frontend/src/features/settings/roles/RolesPage.tsx` | 待实现 |
-| 前端 RoleFormDrawer scope | `frontend/src/features/settings/roles/RoleFormDrawer.tsx` | 待实现 |
-| API 客户端 | `frontend/src/api/roles.ts` | 待实现 |
+| 租户域 role router | `backend/app/sys/role/api/router.py`（`platform_router` `/sys/roles` + `tenant_router` `/sys/tenants/{tenant_id}/roles`） | 已实现 |
+| `require_tenant_role_manager` | `backend/app/sys/role/api/deps.py`（`require_tenant_role_manager`、`require_tenant_role_viewer`） | 已实现 |
+| workspace 列表鉴权放宽 | `backend/app/sys/tenant/api/router.py`（`list_workspaces` → `Depends(require_tenant_admin)`） | 已实现 |
+| 前端 RolesPage scope | `frontend/src/features/settings/roles/RolesPage.tsx`（capabilities 筛选、`listRolesPlatform` / `listRolesForTenant`） | 已实现 |
+| 前端 RoleFormDrawer scope | `frontend/src/features/settings/roles/RoleFormDrawer.tsx`（新建级联、`initialScope` 编辑只读） | 已实现 |
+| API 客户端 | `frontend/src/api/roles.ts`（`getRoleCapabilities`、`listRolesPlatform`、`listRolesForTenant` 等） | 已实现 |
 
 ---
 
