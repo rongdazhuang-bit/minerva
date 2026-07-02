@@ -35,6 +35,9 @@ from app.sys.tenant.infrastructure import repository as repo
 from app.sys.tenant.service import tenant_permission_service as permission_svc
 from app.sys.tenant.service import grant_service as grant_svc
 from app.sys.tenant.service import tenant_service as svc
+from app.sys.user.api.common import parse_membership_role
+from app.sys.user.api.schemas import SysUserListItemOut, SysUserListPageOut
+from app.sys.user.service import user_service as user_svc
 
 router = APIRouter(prefix="/sys/tenants", tags=["tenants"])
 
@@ -314,6 +317,46 @@ async def put_tenant_admins(
         granted_by_user_id=admin.id,
     )
     return SysTenantAdminsOut(user_ids=user_ids)
+
+
+@router.get("/{tenant_id}/workspace-users", response_model=SysUserListPageOut)
+async def list_tenant_workspace_users(
+    tenant_id: uuid.UUID,
+    workspace_id: uuid.UUID | None = Query(default=None),
+    email: str | None = Query(default=None),
+    nickname: str | None = Query(default=None),
+    phone: str | None = Query(default=None),
+    status: bool | None = Query(default=None),
+    membership_role: str | None = Query(default=None),
+    role_id: uuid.UUID | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=200),
+    actor: User = Depends(require_tenant_admin),
+    session: AsyncSession = Depends(get_db),
+) -> SysUserListPageOut:
+    """List workspace members within one tenant for user management."""
+
+    await svc.get_tenant(session, tenant_id=tenant_id)
+    items, total = await user_svc.list_tenant_workspace_users_page(
+        session,
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
+        page=page,
+        page_size=page_size,
+        actor_is_super_admin=actor.is_super_admin,
+        email=email,
+        nickname=nickname,
+        phone=phone,
+        status=status,
+        membership_role=parse_membership_role(membership_role),
+        role_id=role_id,
+    )
+    return SysUserListPageOut(
+        items=[SysUserListItemOut.model_validate(i) for i in items],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
 
 
 @router.get("/{tenant_id}/users", response_model=SysTenantUserListOut)

@@ -329,13 +329,28 @@ async def _row_to_response_dict(
     row: UserListRow,
     *,
     workspace_id: uuid.UUID,
+    tenant_id: uuid.UUID | None = None,
+    tenant_name: str | None = None,
+    workspace_name: str | None = None,
 ) -> dict[str, Any]:
-    """Build API dict including tenant_id resolved from sys_workspaces."""
+    """Build API dict including tenant/workspace scope names."""
 
-    tenant_id = await repo.get_tenant_id_for_workspace(
-        session, workspace_id=workspace_id
-    )
-    return row_to_dict(row, workspace_id=workspace_id, tenant_id=tenant_id)
+    from app.core.domain.identity.models import Tenant, Workspace
+
+    if tenant_id is None:
+        tenant_id = await repo.get_tenant_id_for_workspace(
+            session, workspace_id=workspace_id
+        )
+    payload = row_to_dict(row, workspace_id=workspace_id, tenant_id=tenant_id)
+    if workspace_name is None:
+        ws = await session.get(Workspace, workspace_id)
+        workspace_name = ws.name if ws else None
+    if tenant_name is None and tenant_id is not None:
+        tenant = await session.get(Tenant, tenant_id)
+        tenant_name = tenant.name if tenant else None
+    payload["tenant_name"] = tenant_name
+    payload["workspace_name"] = workspace_name
+    return payload
 
 
 async def list_users_page(
@@ -389,6 +404,74 @@ async def list_users_page(
         items.append(
             await _row_to_response_dict(
                 session, list_row, workspace_id=workspace_id
+            )
+        )
+    return items, total
+
+
+async def list_tenant_workspace_users_page(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    workspace_id: uuid.UUID | None,
+    page: int,
+    page_size: int,
+    actor_is_super_admin: bool,
+    email: str | None = None,
+    nickname: str | None = None,
+    phone: str | None = None,
+    status: bool | None = None,
+    membership_role: MembershipRole | None = None,
+    role_id: uuid.UUID | None = None,
+) -> tuple[list[dict[str, Any]], int]:
+    """Return paginated workspace members under one tenant."""
+
+    from app.core.domain.identity.models import Tenant
+
+    total = await repo.count_tenant_workspace_members(
+        session,
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
+        email=email,
+        nickname=nickname,
+        phone=phone,
+        status=status,
+        membership_role=membership_role,
+        role_id=role_id,
+    )
+    offset = max(0, (page - 1) * page_size)
+    rows = await repo.list_tenant_workspace_members_page(
+        session,
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
+        limit=page_size,
+        offset=offset,
+        email=email,
+        nickname=nickname,
+        phone=phone,
+        status=status,
+        membership_role=membership_role,
+        role_id=role_id,
+    )
+    tenant = await session.get(Tenant, tenant_id)
+    tenant_name = tenant.name if tenant else ""
+    items: list[dict[str, Any]] = []
+    for user, membership, workspace in rows:
+        list_row = await _build_list_row(
+            session,
+            workspace_id=membership.workspace_id,
+            user=user,
+            membership=membership,
+            actor_is_super_admin=actor_is_super_admin,
+        )
+        items.append(
+            await _row_to_response_dict(
+                session,
+                list_row,
+                workspace_id=membership.workspace_id,
+                tenant_id=tenant_id,
+                tenant_name=tenant_name,
+                workspace_name=workspace.name,
             )
         )
     return items, total
