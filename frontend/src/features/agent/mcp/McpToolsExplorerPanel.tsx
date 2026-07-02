@@ -313,7 +313,7 @@ export function McpToolsExplorerPanel({ client, workspaceId }: McpToolsExplorerP
 
   return (
     <div className="minerva-mcp-tool-explorer__layout">
-      <aside className="minerva-mcp-tool-explorer__sidebar minerva-scrollbar-styled">
+      <aside className="minerva-mcp-tool-explorer__sidebar">
         <Input
           allowClear
           prefix={<SearchOutlined />}
@@ -343,9 +343,9 @@ export function McpToolsExplorerPanel({ client, workspaceId }: McpToolsExplorerP
           <Button onClick={handleClear}>{t('mcp.toolExplorer.clear', { defaultValue: 'Clear' })}</Button>
         </div>
         {listError ? <Alert type="error" showIcon message={listError} /> : null}
-        <div className="minerva-mcp-tool-explorer__tool-list-panel">
+        <div className="minerva-mcp-tool-explorer__tool-list-panel minerva-scrollbar-thin">
           <Spin spinning={loadingList}>
-            <div className="minerva-mcp-tool-explorer__tool-list minerva-scrollbar-styled">
+            <div className="minerva-mcp-tool-explorer__tool-list">
               {tools.length === 0 && !loadingList ? (
                 <Empty
                   image={Empty.PRESENTED_IMAGE_SIMPLE}

@@ -86,6 +86,34 @@
 
 
 
+.minerva-mcp-tool-explorer-modal .ant-modal-body > .minerva-mcp-tool-explorer__tabs {
+
+  flex: 1 1 auto;
+
+  min-height: 0;
+
+  height: 100%;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__tabs > .ant-tabs-content-holder,
+
+.minerva-mcp-tool-explorer__tabs > div > .ant-tabs-content-holder {
+
+  flex: 1 1 auto;
+
+  min-height: 0;
+
+  display: flex;
+
+  flex-direction: column;
+
+}
+
+
+
 .minerva-mcp-tool-explorer__layout {
 
   flex: 1;
@@ -102,9 +130,11 @@
 
 .minerva-mcp-tool-explorer__tabs {
 
-  flex: 1;
+  flex: 1 1 auto;
 
   min-height: 0;
+
+  height: 100%;
 
   display: flex;
 
@@ -116,21 +146,71 @@
 
 
 
-.minerva-mcp-tool-explorer__tabs .ant-tabs-content-holder {
+.minerva-mcp-tool-explorer__tabs > .ant-tabs-nav,
 
-  flex: 1;
+.minerva-mcp-tool-explorer__tabs > div > .ant-tabs-nav {
 
-  min-height: 0;
+  flex-shrink: 0;
+
+  margin-bottom: 0;
+
+  padding: 0 12px;
 
 }
 
 
 
-.minerva-mcp-tool-explorer__tabs .ant-tabs-content,
+.minerva-mcp-tool-explorer__tabs > div:has(.ant-tabs-content-holder) {
 
-.minerva-mcp-tool-explorer__tabs .ant-tabs-tabpane {
+  flex: 1 1 auto;
+
+  min-height: 0;
+
+  display: flex;
+
+  flex-direction: column;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__tabs > .ant-tabs-content-holder,
+
+.minerva-mcp-tool-explorer__tabs > div > .ant-tabs-content-holder,
+
+.minerva-mcp-tool-explorer__tabs .ant-tabs-content-holder {
+
+  flex: 1 1 auto;
+
+  min-height: 0;
+
+  display: flex;
+
+  flex-direction: column;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__tabs .ant-tabs-content {
+
+  flex: 1 1 auto;
+
+  min-height: 0;
 
   height: 100%;
+
+  display: flex;
+
+  flex-direction: column;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__tabs .ant-tabs-tabpane-hidden {
+
+  display: none !important;
 
 }
 
@@ -138,11 +218,33 @@
 
 .minerva-mcp-tool-explorer__tabs .ant-tabs-tabpane-active {
 
+  height: 100%;
+
   display: flex;
 
   flex-direction: column;
 
+  flex: 1 1 auto;
+
   min-height: 0;
+
+  overflow: hidden;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__tabs .minerva-mcp-tool-explorer__layout {
+
+  flex: 1 1 auto;
+
+  min-height: 0;
+
+  height: 100%;
+
+  display: flex;
+
+  overflow: hidden;
 
 }
 
@@ -154,6 +256,8 @@
 
   flex-shrink: 0;
 
+  align-self: stretch;
+
   border-right: 1px solid var(--minerva-border, #2a3f58);
 
   display: flex;
@@ -162,9 +266,21 @@
 
   min-height: 0;
 
+  height: 100%;
+
+  overflow: hidden;
+
   padding: 12px;
 
   gap: 8px;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__sidebar > :not(.minerva-mcp-tool-explorer__tool-list-panel) {
+
+  flex-shrink: 0;
 
 }
 
@@ -175,6 +291,8 @@
   display: flex;
 
   gap: 8px;
+
+  flex-shrink: 0;
 
 }
 
@@ -192,15 +310,15 @@
 
 .minerva-mcp-tool-explorer__tool-list-panel {
 
-  flex: 1;
+  flex: 1 1 auto;
 
   min-height: 0;
 
-  overflow: hidden;
+  overflow-x: hidden;
 
-  display: flex;
+  overflow-y: auto;
 
-  flex-direction: column;
+  overscroll-behavior: contain;
 
 }
 
@@ -208,27 +326,7 @@
 
 .minerva-mcp-tool-explorer__tool-list-panel > .ant-spin-nested-loading {
 
-  flex: 1;
-
-  min-height: 0;
-
-  display: flex;
-
-  flex-direction: column;
-
-}
-
-
-
-.minerva-mcp-tool-explorer__tool-list-panel .ant-spin-container {
-
-  flex: 1;
-
-  min-height: 0;
-
-  display: flex;
-
-  flex-direction: column;
+  min-height: 100%;
 
 }
 
@@ -236,11 +334,7 @@
 
 .minerva-mcp-tool-explorer__tool-list {
 
-  flex: 1;
-
-  min-height: 0;
-
-  overflow: auto;
+  display: block;
 
 }
 

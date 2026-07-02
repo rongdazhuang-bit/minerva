@@ -60,12 +60,12 @@ export function McpToolExplorerModal({
       onCancel={onClose}
       destroyOnClose
     >
-      <div className="minerva-mcp-tool-explorer__layout">
-        <Tabs
-          className="minerva-mcp-tool-explorer__tabs"
-          activeKey={activeTab}
-          onChange={(key) => setActiveTab(key as ExplorerTab)}
-          items={[
+      <Tabs
+        className="minerva-mcp-tool-explorer__tabs"
+        style={{ height: '100%' }}
+        activeKey={activeTab}
+        onChange={(key) => setActiveTab(key as ExplorerTab)}
+        items={[
             {
               key: 'resources',
               label: t('mcp.toolExplorer.tabResources', { defaultValue: 'Resources' }),
@@ -84,9 +84,8 @@ export function McpToolExplorerModal({
                 <McpToolsExplorerPanel client={client} workspaceId={workspaceId} />
               ) : null,
             },
-          ]}
-        />
-      </div>
+        ]}
+      />
     </Modal>
   )
 }
