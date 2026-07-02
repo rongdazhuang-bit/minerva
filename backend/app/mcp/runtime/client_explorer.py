@@ -13,7 +13,11 @@ from app.config import settings
 from app.core.log import get_logger
 from app.mcp.api.schemas import (
     McpCallToolOut,
+    McpListResourcesOut,
     McpListToolsOut,
+    McpReadResourceOut,
+    McpResourceContentOut,
+    McpResourceOut,
     McpToolAnnotationOut,
     McpToolOut,
 )
@@ -54,6 +58,58 @@ async def list_tools_on_session(session: ClientSession) -> McpListToolsOut:
     listed = await session.list_tools()
     tools = [map_tool_to_out(tool) for tool in listed.tools if getattr(tool, "name", None)]
     return McpListToolsOut(ok=True, tools=tools)
+
+
+def map_resource_to_out(resource: Any) -> McpResourceOut:
+    """Map MCP SDK resource to API output model."""
+
+    return McpResourceOut(
+        uri=str(getattr(resource, "uri", "") or ""),
+        name=getattr(resource, "name", None),
+        description=getattr(resource, "description", None),
+        mimeType=getattr(resource, "mimeType", None),
+    )
+
+
+async def list_resources_on_session(session: ClientSession) -> McpListResourcesOut:
+    """Call ``list_resources`` on an initialized session."""
+
+    listed = await session.list_resources()
+    resources = [
+        map_resource_to_out(item)
+        for item in listed.resources
+        if getattr(item, "uri", None)
+    ]
+    return McpListResourcesOut(ok=True, resources=resources)
+
+
+def serialize_read_resource_result(result: Any) -> McpReadResourceOut:
+    """Convert MCP ``ReadResourceResult`` to API output."""
+
+    contents: list[McpResourceContentOut] = []
+    for block in getattr(result, "contents", []) or []:
+        text = getattr(block, "text", None)
+        blob = getattr(block, "blob", None)
+        contents.append(
+            McpResourceContentOut(
+                uri=str(getattr(block, "uri", "") or ""),
+                mimeType=getattr(block, "mimeType", None),
+                text=str(text) if text is not None else None,
+                blob=str(blob) if blob is not None else None,
+            )
+        )
+    return McpReadResourceOut(ok=True, contents=contents)
+
+
+async def read_resource_on_session(
+    session: ClientSession,
+    *,
+    uri: str,
+) -> McpReadResourceOut:
+    """Call ``read_resource`` on an initialized session."""
+
+    result = await session.read_resource(uri)
+    return serialize_read_resource_result(result)
 
 
 def serialize_call_tool_result(result: Any) -> McpCallToolOut:
@@ -162,4 +218,80 @@ async def call_tool_for_client(
             ok=False,
             error_code="mcp.tool_call_failed",
             error_message=str(exc) or "MCP tool call failed",
+        )
+
+
+async def list_resources_for_client(ctx: McpExplorerContext) -> McpListResourcesOut:
+    """Open session, initialize, list resources, close."""
+
+    timeout = float(settings.mcp_connect_timeout)
+    transport_key = (ctx.transport or "").strip().upper()
+    try:
+        async with asyncio.timeout(timeout):
+            async with open_mcp_client_session(
+                transport=transport_key,
+                config=ctx.config,
+                secrets=ctx.secrets,
+            ) as session:
+                await session.initialize()
+                return await list_resources_on_session(session)
+    except TimeoutError:
+        return McpListResourcesOut(
+            ok=False,
+            resources=[],
+            error_code="mcp.client_connect_timeout",
+            error_message="MCP connection timed out",
+        )
+    except anyio.BrokenResourceError as exc:
+        return McpListResourcesOut(
+            ok=False,
+            resources=[],
+            error_code="mcp.client_stdio_failed",
+            error_message=str(exc) or "MCP stdio process failed",
+        )
+    except Exception as exc:
+        log.warn("mcp list_resources failed transport={}", transport_key, exc_info=True)
+        code = (
+            "mcp.client_stdio_failed"
+            if transport_key == "STDIO"
+            else "mcp.client_connect_failed"
+        )
+        return McpListResourcesOut(
+            ok=False,
+            resources=[],
+            error_code=code,
+            error_message=str(exc) or "MCP connection failed",
+        )
+
+
+async def read_resource_for_client(
+    ctx: McpExplorerContext,
+    *,
+    uri: str,
+) -> McpReadResourceOut:
+    """Open session, initialize, read resource, close."""
+
+    timeout = float(settings.mcp_connect_timeout)
+    transport_key = (ctx.transport or "").strip().upper()
+    try:
+        async with asyncio.timeout(timeout):
+            async with open_mcp_client_session(
+                transport=transport_key,
+                config=ctx.config,
+                secrets=ctx.secrets,
+            ) as session:
+                await session.initialize()
+                return await read_resource_on_session(session, uri=uri)
+    except TimeoutError:
+        return McpReadResourceOut(
+            ok=False,
+            error_code="mcp.client_connect_timeout",
+            error_message="MCP connection timed out",
+        )
+    except Exception as exc:
+        log.warn("mcp read_resource failed uri={}", uri, exc_info=True)
+        return McpReadResourceOut(
+            ok=False,
+            error_code="mcp.resource_read_failed",
+            error_message=str(exc) or "MCP resource read failed",
         )

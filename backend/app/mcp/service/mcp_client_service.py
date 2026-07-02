@@ -10,13 +10,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import AppError
-from app.mcp.api.schemas import McpCallToolOut, McpListToolsOut
+from app.mcp.api.schemas import McpCallToolOut, McpListResourcesOut, McpListToolsOut, McpReadResourceOut
 from app.mcp.domain.db.models import SysMcpClient
 from app.mcp.infrastructure import repository as mcp_repo
 from app.mcp.runtime.client_explorer import (
     McpExplorerContext,
     call_tool_for_client,
+    list_resources_for_client,
     list_tools_for_client,
+    read_resource_for_client,
 )
 from app.mcp.runtime.connection_tester import McpConnectionTester, McpTestResult
 from app.agent.infrastructure.skill_loader import invalidate_subagent_cache_for_workspace
@@ -313,4 +315,35 @@ async def call_client_tool(
         _explorer_context_from_row(row),
         tool_name=name,
         arguments=arguments,
+    )
+
+
+async def list_client_resources(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    client_id: uuid.UUID,
+) -> McpListResourcesOut:
+    """List MCP resources for one saved client configuration."""
+
+    row = await get_client(session, workspace_id=workspace_id, client_id=client_id)
+    return await list_resources_for_client(_explorer_context_from_row(row))
+
+
+async def read_client_resource(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    client_id: uuid.UUID,
+    uri: str,
+) -> McpReadResourceOut:
+    """Read one MCP resource for a saved client configuration."""
+
+    target_uri = (uri or "").strip()
+    if not target_uri:
+        raise AppError("mcp.invalid_resource_uri", "uri is required", 400)
+    row = await get_client(session, workspace_id=workspace_id, client_id=client_id)
+    return await read_resource_for_client(
+        _explorer_context_from_row(row),
+        uri=target_uri,
     )

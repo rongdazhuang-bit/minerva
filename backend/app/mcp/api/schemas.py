@@ -135,3 +135,45 @@ class McpCallToolOut(BaseModel):
     isError: bool = False
     error_code: str | None = None
     error_message: str | None = None
+
+
+class McpResourceOut(BaseModel):
+    """One MCP resource entry from ``list_resources``."""
+
+    uri: str
+    name: str | None = None
+    description: str | None = None
+    mimeType: str | None = None
+
+
+class McpListResourcesOut(BaseModel):
+    """Result of listing MCP resources for one client."""
+
+    ok: bool
+    resources: list[McpResourceOut] = Field(default_factory=list)
+    error_code: str | None = None
+    error_message: str | None = None
+
+
+class McpReadResourceIn(BaseModel):
+    """Body for reading one MCP resource by URI."""
+
+    uri: str
+
+
+class McpResourceContentOut(BaseModel):
+    """One content block from ``read_resource``."""
+
+    uri: str
+    mimeType: str | None = None
+    text: str | None = None
+    blob: str | None = None
+
+
+class McpReadResourceOut(BaseModel):
+    """Result of reading one MCP resource."""
+
+    ok: bool
+    contents: list[McpResourceContentOut] = Field(default_factory=list)
+    error_code: str | None = None
+    error_message: str | None = None

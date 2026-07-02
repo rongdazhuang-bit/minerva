@@ -23,7 +23,10 @@ from app.mcp.api.schemas import (
     McpClientTestOut,
     McpCallToolIn,
     McpCallToolOut,
+    McpListResourcesOut,
     McpListToolsOut,
+    McpReadResourceIn,
+    McpReadResourceOut,
     McpRuntimeStatusOut,
     McpServerCreateIn,
     McpServerDetailOut,
@@ -249,6 +252,39 @@ async def call_mcp_client_tool(
         client_id=client_id,
         tool_name=tool_name,
         arguments=body.arguments,
+    )
+
+
+@router.get("/clients/{client_id}/resources", response_model=McpListResourcesOut)
+async def list_mcp_client_resources(
+    workspace_id: uuid.UUID,
+    client_id: uuid.UUID,
+    _user: User = Depends(get_current_user),
+    _workspace: uuid.UUID = Depends(require_agent_workspace),
+    session: AsyncSession = Depends(get_db),
+) -> McpListResourcesOut:
+    return await client_svc.list_client_resources(
+        session, workspace_id=workspace_id, client_id=client_id
+    )
+
+
+@router.post(
+    "/clients/{client_id}/resources/read",
+    response_model=McpReadResourceOut,
+)
+async def read_mcp_client_resource(
+    workspace_id: uuid.UUID,
+    client_id: uuid.UUID,
+    body: McpReadResourceIn,
+    _user: User = Depends(get_current_user),
+    _workspace: uuid.UUID = Depends(require_agent_workspace),
+    session: AsyncSession = Depends(get_db),
+) -> McpReadResourceOut:
+    return await client_svc.read_client_resource(
+        session,
+        workspace_id=workspace_id,
+        client_id=client_id,
+        uri=body.uri,
     )
 
 
