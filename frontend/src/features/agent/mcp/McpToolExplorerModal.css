@@ -100,6 +100,54 @@
 
 
 
+.minerva-mcp-tool-explorer__tabs {
+
+  flex: 1;
+
+  min-height: 0;
+
+  display: flex;
+
+  flex-direction: column;
+
+  width: 100%;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__tabs .ant-tabs-content-holder {
+
+  flex: 1;
+
+  min-height: 0;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__tabs .ant-tabs-content,
+
+.minerva-mcp-tool-explorer__tabs .ant-tabs-tabpane {
+
+  height: 100%;
+
+}
+
+
+
+.minerva-mcp-tool-explorer__tabs .ant-tabs-tabpane-active {
+
+  display: flex;
+
+  flex-direction: column;
+
+  min-height: 0;
+
+}
+
+
+
 .minerva-mcp-tool-explorer__sidebar {
 
   width: 320px;

@@ -101,6 +101,34 @@ export type McpCallToolResult = {
   error_message?: string | null
 }
 
+export type McpResource = {
+  uri: string
+  name: string | null
+  description: string | null
+  mimeType: string | null
+}
+
+export type McpListResourcesResult = {
+  ok: boolean
+  resources: McpResource[]
+  error_code?: string | null
+  error_message?: string | null
+}
+
+export type McpResourceContent = {
+  uri: string
+  mimeType?: string | null
+  text?: string | null
+  blob?: string | null
+}
+
+export type McpReadResourceResult = {
+  ok: boolean
+  contents?: McpResourceContent[]
+  error_code?: string | null
+  error_message?: string | null
+}
+
 export function getMcpRuntimeStatus(workspaceId: string) {
   return apiJson<McpRuntimeStatus>(`/workspaces/${workspaceId}/mcp/runtime-status`)
 }
@@ -153,6 +181,20 @@ export function callMcpClientTool(
     {
       method: 'POST',
       body: JSON.stringify({ arguments: arguments_ }),
+    },
+  )
+}
+
+export function listMcpClientResources(workspaceId: string, clientId: string) {
+  return apiJson<McpListResourcesResult>(`/workspaces/${workspaceId}/mcp/clients/${clientId}/resources`)
+}
+
+export function readMcpClientResource(workspaceId: string, clientId: string, uri: string) {
+  return apiJson<McpReadResourceResult>(
+    `/workspaces/${workspaceId}/mcp/clients/${clientId}/resources/read`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ uri }),
     },
   )
 }

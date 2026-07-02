@@ -1,7 +1,7 @@
 # MCP 客户端资源探索器（Resource Explorer）设计说明
 
 **日期**：2026-07-02  
-**状态**：待实现  
+**状态**：已实现  
 **范围**：在现有 MCP 工具探索全屏 Modal 内增加 Resources Tab；支持 list resources、查看元数据、read resource；所有工作区成员可用。
 
 **关系**：扩展 `docs/superpowers/specs/2026-06-18-mcp-tool-explorer-design.md`；复用 `client_explorer` 短连接会话与 `open_mcp_client_session`；Tools Tab 行为不变。
@@ -358,13 +358,14 @@ readMcpClientResource(workspaceId, clientId, uri)
 
 ---
 
-## 9. 实现对照（待回填）
+## 9. 实现对照（以代码为准，2026-07-02）
 
 | 条目 | 代码位置 | 状态 |
 |------|----------|------|
-| GET list resources | `router.py` → `mcp_client_service.list_client_resources` → `client_explorer.list_resources_for_client` | 待实现 |
-| POST read resource | 同上 → `read_client_resource` → `read_resource_for_client` | 待实现 |
-| Tab + Resources UI | `McpToolExplorerModal.tsx` + `McpResourcesExplorerPanel.tsx` | 待实现 |
-| Tools 面板拆分 | `McpToolsExplorerPanel.tsx` | 待实现 |
-| API 类型 | `frontend/src/api/mcp.ts` | 待实现 |
-| 单元测试 | `backend/tests/test_mcp_client_explorer.py` | 待实现 |
+| GET list resources | `backend/app/mcp/api/router.py` → `mcp_client_service.list_client_resources` → `client_explorer.list_resources_for_client` | 已实现 |
+| POST read resource | 同上 → `read_client_resource` → `read_resource_for_client` | 已实现 |
+| Tab + Resources UI | `frontend/src/features/agent/mcp/McpToolExplorerModal.tsx` + `McpResourcesExplorerPanel.tsx` | 已实现 |
+| Tools 面板拆分 | `frontend/src/features/agent/mcp/McpToolsExplorerPanel.tsx` | 已实现 |
+| API 类型 | `frontend/src/api/mcp.ts` | 已实现 |
+| 资源列表工具 | `frontend/src/features/agent/mcp/mcpResourceListUtils.ts` | 已实现 |
+| 单元测试 | `backend/tests/test_mcp_client_explorer.py` | 已实现 |
