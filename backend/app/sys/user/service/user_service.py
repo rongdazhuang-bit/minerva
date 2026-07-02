@@ -673,6 +673,8 @@ async def get_actor_capabilities(
 ) -> dict[str, object]:
     """Build form capability flags for the actor in a target workspace."""
 
+    from app.core.domain.identity.models import Tenant
+
     actor_is_super = (
         actor_is_super_admin
         if actor_is_super_admin is not None
@@ -681,6 +683,10 @@ async def get_actor_capabilities(
     tenant_id = await repo.get_tenant_id_for_workspace(
         session, workspace_id=workspace_id
     )
+    tenant_name = None
+    if tenant_id is not None:
+        tenant = await session.get(Tenant, tenant_id)
+        tenant_name = tenant.name if tenant else None
     actor_is_tenant_admin = False
     if tenant_id is not None:
         actor_is_tenant_admin = await auth_repo.is_tenant_admin(
@@ -696,24 +702,34 @@ async def get_actor_capabilities(
         actor_is_tenant_admin=actor_is_tenant_admin,
         actor_has_workspace_membership=has_membership,
     )
-    default_tenant_id = None
-    if actor_is_super:
-        default_tenant_id = await repo.get_tenant_id_for_workspace(
-            session, workspace_id=workspace_id
-        )
+    can_edit = can_edit_membership_role(
+        actor_workspace_role=actor_role,
+        actor_is_super_admin=actor_is_super,
+        actor_is_tenant_admin=actor_is_tenant_admin,
+        actor_has_workspace_membership=has_membership,
+    )
+    base = build_user_list_capabilities(
+        is_super_admin=actor_is_super,
+        is_tenant_admin=actor_is_tenant_admin,
+        jwt_tenant_id=tenant_id,
+        jwt_tenant_name=tenant_name,
+        jwt_workspace_id=workspace_id,
+        actor_workspace_role=actor_role.value if actor_role else None,
+        assignable_membership_roles=assignable,
+        can_edit_membership_role=can_edit,
+    )
     return {
-        "is_super_admin": actor_is_super,
-        "actor_workspace_role": actor_role.value if actor_role else None,
-        "can_edit_membership_role": can_edit_membership_role(
-            actor_workspace_role=actor_role,
-            actor_is_super_admin=actor_is_super,
-            actor_is_tenant_admin=actor_is_tenant_admin,
-            actor_has_workspace_membership=has_membership,
-        ),
-        "assignable_membership_roles": assignable,
-        "can_pick_tenant_workspace": actor_is_super,
-        "is_tenant_admin": actor_is_tenant_admin,
-        "default_tenant_id": default_tenant_id,
+        "is_super_admin": base["is_super_admin"],
+        "actor_workspace_role": base["actor_workspace_role"],
+        "can_edit_membership_role": base["can_edit_membership_role"],
+        "assignable_membership_roles": base["assignable_membership_roles"],
+        "can_pick_tenant_workspace": base["can_pick_tenant"],
+        "is_tenant_admin": base["is_tenant_admin"],
+        "default_tenant_id": tenant_id if actor_is_super else None,
+        "can_pick_tenant": base["can_pick_tenant"],
+        "can_pick_workspace": base["can_pick_workspace"],
+        "fixed_tenant_id": base["fixed_tenant_id"],
+        "fixed_tenant_name": base["fixed_tenant_name"],
     }
 
 

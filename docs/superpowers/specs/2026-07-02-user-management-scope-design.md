@@ -131,7 +131,7 @@ can_pick_tenant: bool              # 超管 true
 can_pick_workspace: bool             # 超管 + 租户管理员 true
 fixed_tenant_id: uuid.UUID | None
 fixed_tenant_name: str | None
-default_filter_tenant_id: uuid.UUID | None   # 超管 null；租户管理员 = JWT tid
+default_filter_tenant_id: uuid.UUID | None   # JWT tid（超管与租户管理员均默认当前 JWT 租户）
 default_filter_workspace_id: uuid.UUID | None  # JWT wid
 # membership_role 表单字段（保留现网语义）
 actor_workspace_role: str | None

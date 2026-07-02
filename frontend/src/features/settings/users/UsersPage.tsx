@@ -294,12 +294,12 @@ export function UsersPage() {
         setDrawerMode('edit')
         setEditingId(detail.id)
         setEditingWorkspaceId(rowWorkspaceId)
-        if (row.tenant_id && row.workspace_id) {
+        if (detail.tenant_id && detail.workspace_id) {
           setInitialScope({
-            tenant_id: row.tenant_id,
-            tenant_name: row.tenant_name ?? '',
-            workspace_id: row.workspace_id,
-            workspace_name: row.workspace_name ?? '',
+            tenant_id: detail.tenant_id,
+            tenant_name: detail.tenant_name ?? row.tenant_name ?? '',
+            workspace_id: detail.workspace_id,
+            workspace_name: detail.workspace_name ?? row.workspace_name ?? '',
           })
         } else {
           setInitialScope(null)

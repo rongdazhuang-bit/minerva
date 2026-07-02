@@ -118,7 +118,7 @@ export function UserFormDrawer({
 
   const effectiveWorkspaceId = useMemo(() => {
     if (showScopeOnCreate) {
-      return selectedWorkspaceId ?? pageWorkspaceId
+      return selectedWorkspaceId ?? null
     }
     if (showScopeReadonlyOnEdit && initialScope) {
       return initialScope.workspace_id
@@ -168,6 +168,26 @@ export function UserFormDrawer({
           : initial?.workspace_id ?? undefined,
     })
   }, [open, initial, initialScope, listCapabilities, form, mode])
+
+  useEffect(() => {
+    if (!showScopeOnCreate || !open) return
+    if (selectedWorkspaceId) return
+    if (workspaces.length === 0) return
+    const preferred =
+      initial?.workspace_id && workspaces.some((w) => w.id === initial.workspace_id)
+        ? initial.workspace_id
+        : workspaces[0]?.id
+    if (preferred) {
+      form.setFieldValue('workspace_id', preferred)
+    }
+  }, [
+    showScopeOnCreate,
+    open,
+    selectedWorkspaceId,
+    workspaces,
+    initial?.workspace_id,
+    form,
+  ])
 
   useEffect(() => {
     if (!open || !effectiveWorkspaceId) return
@@ -323,6 +343,9 @@ export function UserFormDrawer({
                   onChange={(tenantId: string) => {
                     form.setFieldValue('workspace_id', undefined)
                     form.setFieldValue('role_ids', [])
+                    setDepartments([])
+                    setRoles([])
+                    setFormCapabilities(null)
                     onTenantChange?.(tenantId)
                   }}
                 />
@@ -348,6 +371,7 @@ export function UserFormDrawer({
                 }))}
                 onChange={() => {
                   form.setFieldValue('role_ids', [])
+                  setRoles([])
                 }}
               />
             </Form.Item>

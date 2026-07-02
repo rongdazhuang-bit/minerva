@@ -36,5 +36,9 @@ __pycache__/
 /backend/.env.local
 /backend/data/
 /backend/logs/
-/backend/tests/
+# Track user-scope unit tests only; ignore other local backend test files
+/backend/tests/**
+!/backend/tests/__init__.py
+!/backend/tests/sys/
+!/backend/tests/sys/**
 .minerva/
