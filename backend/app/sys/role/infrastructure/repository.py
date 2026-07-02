@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.domain.authorization.models import SysPermission, SysRolePermission
-from app.core.domain.identity.models import Workspace
+from app.core.domain.identity.models import Tenant, Workspace
+from app.exceptions import AppError
 from app.sys.role.domain.db.models import SysRole
 
 
@@ -230,8 +232,6 @@ async def replace_role_menus(
     by_menu = {row.menu_id: row.id for row in result.all()}
     missing = [mid for mid in menu_ids if mid not in by_menu]
     if missing:
-        from app.exceptions import AppError
-
         raise AppError(
             "role.invalid_menu_ids",
             "One or more menu ids have no permission catalog entry",
@@ -242,3 +242,108 @@ async def replace_role_menus(
             SysRolePermission(role_id=role_id, permission_id=by_menu[menu_id])
         )
     await session.flush()
+
+
+@dataclass(frozen=True)
+class RoleListRow:
+    """Role ORM row plus display names for list API."""
+
+    role: SysRole
+    tenant_name: str
+    workspace_name: str
+
+
+def _roles_scoped_base_stmt(
+    *,
+    tenant_id: uuid.UUID | None,
+    workspace_id: uuid.UUID | None,
+):
+    """Base SELECT for tenant/platform role lists (workspace-bound roles only)."""
+
+    stmt = (
+        select(SysRole, Tenant.name, Workspace.name)
+        .join(Tenant, Tenant.id == SysRole.tenant_id)
+        .join(Workspace, Workspace.id == SysRole.workspace_id)
+        .where(SysRole.workspace_id.is_not(None))
+    )
+    if tenant_id is not None:
+        stmt = stmt.where(SysRole.tenant_id == tenant_id)
+    if workspace_id is not None:
+        stmt = stmt.where(SysRole.workspace_id == workspace_id)
+    return stmt
+
+
+def _apply_role_list_filters(
+    stmt,
+    *,
+    role_name: str | None = None,
+    status: bool | None = None,
+    role_key: str | None = None,
+):
+    """Apply shared list filters used by scoped count and page queries."""
+
+    if role_name:
+        stmt = stmt.where(SysRole.role_name.ilike(f"%{role_name.strip()}%"))
+    if status is not None:
+        stmt = stmt.where(SysRole.status == status)
+    if role_key:
+        stmt = stmt.where(SysRole.role_key == role_key.strip())
+    return stmt
+
+
+async def validate_workspace_in_tenant(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    workspace_id: uuid.UUID,
+) -> None:
+    """Raise role.workspace_invalid when workspace missing or wrong tenant."""
+
+    ws = await session.get(Workspace, workspace_id)
+    if ws is None or ws.tenant_id != tenant_id:
+        raise AppError("role.workspace_invalid", "Workspace not found", 400)
+
+
+async def count_roles_scoped(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID | None = None,
+    workspace_id: uuid.UUID | None = None,
+    role_name: str | None = None,
+    status: bool | None = None,
+    role_key: str | None = None,
+) -> int:
+    """Count workspace-bound roles for platform or tenant scope."""
+
+    stmt = _roles_scoped_base_stmt(tenant_id=tenant_id, workspace_id=workspace_id)
+    stmt = _apply_role_list_filters(
+        stmt, role_name=role_name, status=status, role_key=role_key
+    )
+    count_stmt = select(func.count()).select_from(stmt.subquery())
+    result = await session.execute(count_stmt)
+    return int(result.scalar_one() or 0)
+
+
+async def list_roles_scoped_page(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID | None = None,
+    workspace_id: uuid.UUID | None = None,
+    limit: int,
+    offset: int,
+    role_name: str | None = None,
+    status: bool | None = None,
+    role_key: str | None = None,
+) -> Sequence[RoleListRow]:
+    """Return one page of scoped roles with tenant/workspace names."""
+
+    stmt = _roles_scoped_base_stmt(tenant_id=tenant_id, workspace_id=workspace_id)
+    stmt = _apply_role_list_filters(
+        stmt, role_name=role_name, status=status, role_key=role_key
+    )
+    stmt = stmt.order_by(*_role_list_order()).limit(limit).offset(offset)
+    result = await session.execute(stmt)
+    return [
+        RoleListRow(role=row, tenant_name=t_name, workspace_name=ws_name)
+        for row, t_name, ws_name in result.all()
+    ]
