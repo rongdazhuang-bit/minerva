@@ -7,7 +7,8 @@ from app.local.api.router import router as local_files_router
 from app.s3.api.router import router as s3_files_router
 from app.sys.dict.api.router import router as dicts_router
 from app.sys.menu.api.router import router as menus_router
-from app.sys.role.api.router import router as roles_router
+from app.sys.role.api.router import platform_router as roles_platform_router
+from app.sys.role.api.router import tenant_router as roles_tenant_router
 from app.sys.user.api.router import router as users_router
 from app.sys.tenant.api.router import router as tenants_router
 from app.sys.file_storage.api.router import router as file_storages_router
@@ -38,7 +39,8 @@ api.include_router(s3_files_router)
 api.include_router(local_files_router)
 api.include_router(dicts_router)
 api.include_router(menus_router)
-api.include_router(roles_router)
+api.include_router(roles_platform_router)
+api.include_router(roles_tenant_router)
 api.include_router(users_router)
 api.include_router(tenants_router)
 api.include_router(rule_base_router)

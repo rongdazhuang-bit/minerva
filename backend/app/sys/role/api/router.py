@@ -1,66 +1,107 @@
-"""CRUD routes for workspace-scoped sys_role and menu permissions."""
+"""Platform and tenant-scoped routes for sys_role and menu permissions."""
 
 from __future__ import annotations
 
 import uuid
-from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.api.deps import (
-    require_workspace_member,
-)
+from app.core.api.deps import bearer, get_current_user, _decode_access_payload
+from app.core.domain.identity.models import User
+from app.core.security.permission_resolver import parse_uuid_claim
 from app.dependencies import get_db
 from app.pagination import DEFAULT_PAGE_SIZE
 from app.sys.menu.api.schemas import SysMenuNodeOut
-from app.sys.role.api.deps import require_tenant_role_manager_for_workspace
+from app.sys.role.api.deps import (
+    require_super_admin,
+    require_tenant_role_manager,
+    require_tenant_role_viewer,
+)
 from app.sys.role.api.schemas import (
+    SysRoleCapabilitiesOut,
     SysRoleCreateIn,
     SysRoleDetailOut,
     SysRoleListItemOut,
     SysRoleListPageOut,
     SysRolePatchIn,
 )
-from app.sys.role.domain.db.models import SysRole
+from app.sys.role.infrastructure.repository import RoleListRow
 from app.sys.role.service import role_service as svc
 
-router = APIRouter(prefix="/workspaces/{workspace_id}/roles", tags=["roles"])
+platform_router = APIRouter(prefix="/sys/roles", tags=["roles"])
+tenant_router = APIRouter(prefix="/sys/tenants/{tenant_id}/roles", tags=["roles"])
 
 
-def _to_list_item(row: SysRole) -> SysRoleListItemOut:
-    """Project ORM row to list response schema."""
+def _row_to_list_item(row: RoleListRow) -> SysRoleListItemOut:
+    """Project scoped list row to API list item schema."""
 
-    return SysRoleListItemOut.model_validate(row)
+    r = row.role
+    return SysRoleListItemOut(
+        id=r.id,
+        tenant_id=r.tenant_id,
+        tenant_name=row.tenant_name,
+        workspace_id=r.workspace_id,
+        workspace_name=row.workspace_name,
+        role_name=r.role_name,
+        role_key=r.role_key,
+        role_sort=r.role_sort,
+        status=r.status,
+        remark=r.remark,
+        create_at=r.create_at,
+        update_at=r.update_at,
+    )
 
 
-def _create_payload(body: SysRoleCreateIn) -> dict[str, Any]:
-    """Convert create body to service dict."""
+@platform_router.get("/meta/capabilities", response_model=SysRoleCapabilitiesOut)
+async def get_role_capabilities(
+    user: User = Depends(get_current_user),
+    cred: HTTPAuthorizationCredentials | None = Depends(bearer),
+    session: AsyncSession = Depends(get_db),
+) -> SysRoleCapabilitiesOut:
+    """Return role UI capability flags derived from JWT tenant context."""
 
-    return body.model_dump()
+    tid = None
+    if cred is not None:
+        payload = _decode_access_payload(cred)
+        tid = parse_uuid_claim(payload, "tid")
+    data = await svc.get_role_capabilities(
+        session,
+        user_id=user.id,
+        is_super_admin=user.is_super_admin,
+        jwt_tenant_id=tid,
+    )
+    return SysRoleCapabilitiesOut.model_validate(data)
 
 
-def _patch_payload(body: SysRolePatchIn) -> dict[str, Any]:
-    """Convert patch body to service dict excluding unset fields."""
+@platform_router.get("/menu-tree", response_model=list[SysMenuNodeOut])
+async def list_role_menu_tree(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> list[SysMenuNodeOut]:
+    """Return full menu tree for role permission assignment."""
 
-    return body.model_dump(exclude_unset=True)
+    return await svc.list_menu_tree_for_role_assignment(session)
 
 
-@router.get("", response_model=SysRoleListPageOut)
-async def list_roles(
-    workspace_id: uuid.UUID,
+@platform_router.get("", response_model=SysRoleListPageOut)
+async def list_roles_platform(
+    tenant_id: uuid.UUID | None = Query(default=None),
+    workspace_id: uuid.UUID | None = Query(default=None),
     role_name: str | None = Query(default=None),
     status: bool | None = Query(default=None),
     role_key: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
     session: AsyncSession = Depends(get_db),
-    _member: uuid.UUID = Depends(require_workspace_member),
+    _admin: User = Depends(require_super_admin),
 ) -> SysRoleListPageOut:
-    """Return paginated roles for the current workspace."""
+    """Return paginated roles across tenants for super admins."""
 
-    rows, total = await svc.list_roles_page(
+    rows, total = await svc.list_roles_scoped_page(
         session,
+        tenant_id=tenant_id,
         workspace_id=workspace_id,
         page=page,
         page_size=page_size,
@@ -69,96 +110,119 @@ async def list_roles(
         role_key=role_key,
     )
     return SysRoleListPageOut(
-        items=[_to_list_item(r) for r in rows],
+        items=[_row_to_list_item(r) for r in rows],
         total=total,
         page=page,
         page_size=page_size,
     )
 
 
-@router.get("/menu-tree", response_model=list[SysMenuNodeOut])
-async def list_role_menu_tree(
-    workspace_id: uuid.UUID,
+@tenant_router.get("", response_model=SysRoleListPageOut)
+async def list_roles_for_tenant(
+    tenant_id: uuid.UUID,
+    workspace_id: uuid.UUID | None = Query(default=None),
+    role_name: str | None = Query(default=None),
+    status: bool | None = Query(default=None),
+    role_key: str | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
     session: AsyncSession = Depends(get_db),
-    _member: uuid.UUID = Depends(require_workspace_member),
-) -> list[SysMenuNodeOut]:
-    """Return full menu tree for role permission assignment."""
+    _viewer: uuid.UUID = Depends(require_tenant_role_viewer),
+) -> SysRoleListPageOut:
+    """Return paginated roles for one tenant."""
 
-    return await svc.list_menu_tree_for_role_assignment(session)
-
-
-@router.get("/{role_id}", response_model=SysRoleDetailOut)
-async def get_role(
-    workspace_id: uuid.UUID,
-    role_id: uuid.UUID,
-    session: AsyncSession = Depends(get_db),
-    _member: uuid.UUID = Depends(require_workspace_member),
-) -> SysRoleDetailOut:
-    """Return one role with menu ids."""
-
-    row, menu_ids = await svc.get_role_detail(
-        session, workspace_id=workspace_id, role_id=role_id
+    rows, total = await svc.list_roles_scoped_page(
+        session,
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
+        page=page,
+        page_size=page_size,
+        role_name=role_name,
+        status=status,
+        role_key=role_key,
     )
-    return SysRoleDetailOut(
-        **_to_list_item(row).model_dump(),
-        menu_ids=menu_ids,
+    return SysRoleListPageOut(
+        items=[_row_to_list_item(r) for r in rows],
+        total=total,
+        page=page,
+        page_size=page_size,
     )
 
 
-@router.post("", response_model=SysRoleDetailOut, status_code=201)
+@tenant_router.post("", response_model=SysRoleDetailOut, status_code=201)
 async def create_role(
-    workspace_id: uuid.UUID,
+    tenant_id: uuid.UUID,
     body: SysRoleCreateIn,
     session: AsyncSession = Depends(get_db),
-    _admin: uuid.UUID = Depends(require_tenant_role_manager_for_workspace),
+    _admin: uuid.UUID = Depends(require_tenant_role_manager),
 ) -> SysRoleDetailOut:
-    """Create a role in the current workspace."""
+    """Create a workspace-bound role under a tenant."""
 
-    row = await svc.create_role(
-        session, workspace_id=workspace_id, data=_create_payload(body)
+    row = await svc.create_role_for_tenant(
+        session, tenant_id=tenant_id, data=body.model_dump()
     )
-    _, menu_ids = await svc.get_role_detail(
-        session, workspace_id=workspace_id, role_id=row.id
+    detail_row, menu_ids, t_name, ws_name = await svc.get_role_detail_for_tenant(
+        session, tenant_id=tenant_id, role_id=row.id
     )
-    return SysRoleDetailOut(
-        **_to_list_item(row).model_dump(),
-        menu_ids=menu_ids,
+    base = _row_to_list_item(
+        RoleListRow(role=detail_row, tenant_name=t_name, workspace_name=ws_name)
     )
+    return SysRoleDetailOut(**base.model_dump(), menu_ids=menu_ids)
 
 
-@router.patch("/{role_id}", response_model=SysRoleDetailOut)
+@tenant_router.get("/{role_id}", response_model=SysRoleDetailOut)
+async def get_role(
+    tenant_id: uuid.UUID,
+    role_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+    _viewer: uuid.UUID = Depends(require_tenant_role_viewer),
+) -> SysRoleDetailOut:
+    """Return one tenant-scoped role with menu ids."""
+
+    row, menu_ids, t_name, ws_name = await svc.get_role_detail_for_tenant(
+        session, tenant_id=tenant_id, role_id=role_id
+    )
+    base = _row_to_list_item(
+        RoleListRow(role=row, tenant_name=t_name, workspace_name=ws_name)
+    )
+    return SysRoleDetailOut(**base.model_dump(), menu_ids=menu_ids)
+
+
+@tenant_router.patch("/{role_id}", response_model=SysRoleDetailOut)
 async def patch_role(
-    workspace_id: uuid.UUID,
+    tenant_id: uuid.UUID,
     role_id: uuid.UUID,
     body: SysRolePatchIn,
     session: AsyncSession = Depends(get_db),
-    _admin: uuid.UUID = Depends(require_tenant_role_manager_for_workspace),
+    _admin: uuid.UUID = Depends(require_tenant_role_manager),
 ) -> SysRoleDetailOut:
-    """Partially update a workspace role."""
+    """Partially update a tenant-scoped role."""
 
-    row = await svc.update_role(
+    await svc.update_role_for_tenant(
         session,
-        workspace_id=workspace_id,
+        tenant_id=tenant_id,
         role_id=role_id,
-        patch=_patch_payload(body),
+        patch=body.model_dump(exclude_unset=True),
     )
-    _, menu_ids = await svc.get_role_detail(
-        session, workspace_id=workspace_id, role_id=row.id
+    row, menu_ids, t_name, ws_name = await svc.get_role_detail_for_tenant(
+        session, tenant_id=tenant_id, role_id=role_id
     )
-    return SysRoleDetailOut(
-        **_to_list_item(row).model_dump(),
-        menu_ids=menu_ids,
+    base = _row_to_list_item(
+        RoleListRow(role=row, tenant_name=t_name, workspace_name=ws_name)
     )
+    return SysRoleDetailOut(**base.model_dump(), menu_ids=menu_ids)
 
 
-@router.delete("/{role_id}", status_code=204)
+@tenant_router.delete("/{role_id}", status_code=204)
 async def delete_role(
-    workspace_id: uuid.UUID,
+    tenant_id: uuid.UUID,
     role_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
-    _admin: uuid.UUID = Depends(require_tenant_role_manager_for_workspace),
+    _admin: uuid.UUID = Depends(require_tenant_role_manager),
 ) -> Response:
-    """Delete a role and its menu links."""
+    """Delete a tenant-scoped role and its menu links."""
 
-    await svc.delete_role(session, workspace_id=workspace_id, role_id=role_id)
+    await svc.delete_role_for_tenant(
+        session, tenant_id=tenant_id, role_id=role_id
+    )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
