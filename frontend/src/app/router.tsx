@@ -2,6 +2,8 @@
 
 import type { ReactNode } from 'react'
 import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom'
+import { Result } from 'antd'
+import { useTranslation } from 'react-i18next'
 import { AppThemedLayout } from '@/app/AppThemedLayout'
 import { AppLayout } from '@/app/layout/AppLayout'
 import { RulesFileOcrOverviewPage, RulesFileOcrTaskPage } from '@/features/file-ocr'
@@ -43,6 +45,22 @@ import { useAuth } from './AuthContext'
 function RequireAuth({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth()
   if (!isAuthenticated) return <Navigate to="/login" replace />
+  return <>{children}</>
+}
+
+/** Block platform-only settings routes for non-super-admin users. */
+function RequireSuperAdmin({ children }: { children: ReactNode }) {
+  const { t } = useTranslation()
+  const { isSuperAdmin } = useAuth()
+  if (!isSuperAdmin) {
+    return (
+      <Result
+        status="403"
+        title={t('tenants.forbiddenTitle')}
+        subTitle={t('tenants.forbiddenDesc')}
+      />
+    )
+  }
   return <>{children}</>
 }
 
@@ -131,7 +149,14 @@ const router = createBrowserRouter([
               { path: 'roles', element: <RolesPage /> },
               { path: 'grants', element: <GrantsPage /> },
               { path: 'permissions', element: <PermissionsPage /> },
-              { path: 'tenants', element: <TenantsPage /> },
+              {
+                path: 'tenants',
+                element: (
+                  <RequireSuperAdmin>
+                    <TenantsPage />
+                  </RequireSuperAdmin>
+                ),
+              },
               { path: 'dictionary', element: <DictionaryPage /> },
               { path: 'celery', element: <CeleryPage /> },
             ],

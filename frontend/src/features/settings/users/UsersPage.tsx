@@ -635,10 +635,6 @@ export function UsersPage() {
                       }))}
                     />
                   </Form.Item>
-                ) : capabilities?.fixed_tenant_name ? (
-                  <Form.Item>
-                    <Tag>{capabilities.fixed_tenant_name}</Tag>
-                  </Form.Item>
                 ) : null}
                 {capabilities?.can_pick_workspace ? (
                   <Form.Item>
@@ -661,30 +657,6 @@ export function UsersPage() {
                 ) : null}
               </>
             ) : null}
-            <Form.Item name="email">
-              <Input allowClear placeholder={t('users.emailPlaceholder')} style={{ width: 160 }} />
-            </Form.Item>
-            <Form.Item name="nickname">
-              <Input
-                allowClear
-                placeholder={t('users.nicknamePlaceholder')}
-                style={{ width: 120 }}
-              />
-            </Form.Item>
-            <Form.Item name="phone">
-              <Input allowClear placeholder={t('users.phonePlaceholder')} style={{ width: 130 }} />
-            </Form.Item>
-            <Form.Item name="status">
-              <Select
-                allowClear
-                placeholder={t('users.status')}
-                style={{ width: 110 }}
-                options={[
-                  { value: 'true', label: t('users.statusNormal') },
-                  { value: 'false', label: t('users.statusDisabled') },
-                ]}
-              />
-            </Form.Item>
             <Form.Item name="membership_role">
               <Select
                 allowClear
@@ -706,6 +678,30 @@ export function UsersPage() {
                   label: r.role_name,
                 }))}
               />
+            </Form.Item>
+            <Form.Item name="status">
+              <Select
+                allowClear
+                placeholder={t('users.status')}
+                style={{ width: 110 }}
+                options={[
+                  { value: 'true', label: t('users.statusNormal') },
+                  { value: 'false', label: t('users.statusDisabled') },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item name="email">
+              <Input allowClear placeholder={t('users.emailPlaceholder')} style={{ width: 160 }} />
+            </Form.Item>
+            <Form.Item name="nickname">
+              <Input
+                allowClear
+                placeholder={t('users.nicknamePlaceholder')}
+                style={{ width: 120 }}
+              />
+            </Form.Item>
+            <Form.Item name="phone">
+              <Input allowClear placeholder={t('users.phonePlaceholder')} style={{ width: 130 }} />
             </Form.Item>
             <Form.Item>
               <Space>

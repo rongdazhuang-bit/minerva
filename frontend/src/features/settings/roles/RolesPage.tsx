@@ -494,10 +494,6 @@ export function RolesPage() {
                       }))}
                     />
                   </Form.Item>
-                ) : capabilities?.fixed_tenant_name ? (
-                  <Form.Item>
-                    <Tag>{capabilities.fixed_tenant_name}</Tag>
-                  </Form.Item>
                 ) : null}
                 {capabilities?.can_pick_workspace ? (
                   <Form.Item>
@@ -520,9 +516,6 @@ export function RolesPage() {
                 ) : null}
               </>
             ) : null}
-            <Form.Item name="role_name">
-              <Input allowClear placeholder={t('roles.roleNamePlaceholder')} style={{ width: 160 }} />
-            </Form.Item>
             <Form.Item name="status">
               <Select
                 allowClear
@@ -533,6 +526,9 @@ export function RolesPage() {
                   { value: 'false', label: t('roles.statusDisabled') },
                 ]}
               />
+            </Form.Item>
+            <Form.Item name="role_name">
+              <Input allowClear placeholder={t('roles.roleNamePlaceholder')} style={{ width: 160 }} />
             </Form.Item>
             <Form.Item>
               <Space>

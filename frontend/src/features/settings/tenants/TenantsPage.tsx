@@ -35,6 +35,7 @@ import {
 } from '@/api/tenants'
 import { putTenantAdmins, putTenantPermissions } from '@/api/tenantPermissions'
 import { ApiError } from '@/api/client'
+import { useAuth } from '@/app/AuthContext'
 import { showAppError, useAppMessage } from '@/app/useAppMessage'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
 import { TenantFormDrawer, type TenantCreatePermissions, type TenantFormValues } from './TenantFormDrawer'
@@ -63,6 +64,7 @@ function toListParams(values: FilterFormValues): SysTenantListParams {
 /** Platform super-admin tenant management list page. */
 export function TenantsPage() {
   const { t } = useTranslation()
+  const { isSuperAdmin } = useAuth()
   const messageApi = useAppMessage()
   const [filterForm] = Form.useForm<FilterFormValues>()
   const [page, setPage] = useState(1)
@@ -95,6 +97,7 @@ export function TenantsPage() {
         throw e
       }
     },
+    enabled: isSuperAdmin,
   })
 
   const reloadList = useCallback(() => {
@@ -267,7 +270,7 @@ export function TenantsPage() {
     [t, openWorkspaces, openPermissions, openEdit, handleDelete],
   )
 
-  if (forbidden) {
+  if (!isSuperAdmin || forbidden) {
     return (
       <Result
         status="403"
