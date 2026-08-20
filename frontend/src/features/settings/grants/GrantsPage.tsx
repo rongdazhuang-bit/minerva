@@ -212,7 +212,7 @@ export function GrantsPage() {
 
   return (
     <div className="minerva-grants-page">
-      <Card className="minerva-grants-page__card" bordered={false}>
+      <Card className="minerva-grants-page__card minerva-page-shell-card" bordered={false}>
         <div className="minerva-grants-page__header">
           <Form
             form={filterForm}

@@ -359,7 +359,7 @@ export function DocumentListPage() {
   return (
     <>
       <div className="minerva-document-list-page">
-        <Card size="small" variant="borderless" className="minerva-document-list-page__card">
+        <Card size="small" variant="borderless" className="minerva-document-list-page__card minerva-page-shell-card">
           <Form
             form={form}
             layout="inline"

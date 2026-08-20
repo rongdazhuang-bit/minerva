@@ -152,7 +152,7 @@ async def build_langchain_tools_from_bundle(
             continue
         lc_name = mcp_tool_name(bundle.snapshot.name, original)
         description = getattr(mcp_tool, "description", None) or f"MCP tool {original}"
-        input_schema = getattr(mcp_tool, "inputSchema", None)
+        input_schema = getattr(mcp_tool, "input_schema", None)
         schema_dict = input_schema if isinstance(input_schema, dict) else {}
         args_schema = args_schema_from_mcp_input_schema(original, schema_dict)
         call_tool = _make_mcp_tool_coroutine(bundle.session, original)

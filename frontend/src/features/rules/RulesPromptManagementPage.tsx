@@ -322,7 +322,7 @@ export function RulesPromptManagementPage() {
 
   return (
     <div className="minerva-rules-page">
-      <Card className="minerva-rules-page__card" variant="borderless" style={{ minHeight: 0 }}>
+      <Card className="minerva-rules-page__card minerva-page-shell-card" variant="borderless" style={{ minHeight: 0 }}>
         <div className="minerva-rules-page__toolbar">
           <Cascader
             allowClear

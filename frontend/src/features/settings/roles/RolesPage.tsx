@@ -468,7 +468,7 @@ export function RolesPage() {
 
   return (
     <div className="minerva-roles-page">
-      <Card className="minerva-roles-page__card" bordered={false}>
+      <Card className="minerva-roles-page__card minerva-page-shell-card" bordered={false}>
         <div className="minerva-roles-page__header">
           <Form
             form={filterForm}

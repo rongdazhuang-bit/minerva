@@ -495,7 +495,7 @@ export function FileStoragePage() {
 
   return (
     <div className="minerva-file-storage-settings">
-      <Card size="small" variant="borderless" className="minerva-file-storage-settings__card">
+      <Card size="small" variant="borderless" className="minerva-file-storage-settings__card minerva-page-shell-card">
         <Space className="minerva-file-storage-settings__toolbar">
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
             {t('settings.fileStorageAdd')}

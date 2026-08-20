@@ -126,7 +126,7 @@ html.minerva-tone-sunshine .minerva-md .katex-error {
 .minerva-md pre.minerva-md-pre {
   margin: 0.55em 0;
   padding: 0.65em 0.85em;
-  border-radius: 8px;
+  border-radius: 4px;
   background: rgba(0, 0, 0, 0.28);
   border: 1px solid var(--minerva-border, #2a3f58);
   overflow-x: auto;
@@ -237,7 +237,7 @@ html.minerva-tone-sunshine .minerva-md-chart-title {
   margin: 0.55em 0;
   min-height: 4.75rem;
   border: 1px solid var(--minerva-border, #2a3f58);
-  border-radius: 8px;
+  border-radius: 4px;
   overflow: hidden;
 }
 
@@ -277,7 +277,7 @@ html.minerva-tone-sunshine .minerva-md-chart-title {
   margin: 0;
   padding: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   background: transparent;
   color: color-mix(in srgb, var(--minerva-ink, #e8f0f8) 92%, transparent);
   cursor: pointer;

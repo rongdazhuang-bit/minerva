@@ -34,7 +34,8 @@ export function menuPathMatches(pathname: string, menuPath: string): boolean {
   return current.startsWith(`${target}/`)
 }
 
-type MenuHit = {
+/** Menu tree hit for the current pathname (leaf + ancestor chain). */
+export type MenuHit = {
   node: SysMenuNode
   ancestors: SysMenuNode[]
 }
@@ -54,7 +55,8 @@ export function filterNavMenuNodes(
     }))
 }
 
-function findBestMenuHit(nodes: SysMenuNode[], pathname: string): MenuHit | null {
+/** Longest menu path prefix that matches pathname (after hide-filter applied by caller). */
+export function findBestMenuHit(nodes: SysMenuNode[], pathname: string): MenuHit | null {
   let best: MenuHit | null = null
   let bestPathLen = -1
 

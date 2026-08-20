@@ -132,7 +132,7 @@ export function PermissionsPage() {
 
   return (
     <div className="minerva-permissions-page">
-      <Card className="minerva-permissions-page__card" bordered={false}>
+      <Card className="minerva-permissions-page__card minerva-page-shell-card" bordered={false}>
         <div className="minerva-permissions-page__header">
           <Form
             form={filterForm}

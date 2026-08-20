@@ -1,0 +1,177 @@
+.minerva-nav-tags {
+  /* Wing radius for Chrome-style 「八」 corners where tab sides meet the strip line. */
+  --minerva-nav-tag-wing: 12px;
+  --minerva-nav-tag-strip-bg: var(--minerva-bg, #121a21);
+  --minerva-nav-tag-strip-border: var(--minerva-border, #2d3f55);
+  --minerva-nav-tag-text: var(--minerva-ink-muted, #94a3b8);
+  --minerva-nav-tag-text-hover: var(--minerva-ink, #e8f0f8);
+  --minerva-nav-tag-hover-bg: rgba(148, 163, 184, 0.12);
+  --minerva-nav-tag-active-bg: var(--minerva-surface-elevated, #243447);
+  --minerva-nav-tag-active-text: var(--minerva-primary, #38bdf8);
+  --minerva-nav-tag-divider: var(--minerva-border, #2d3f55);
+
+  flex-shrink: 0;
+  overflow: visible;
+  border-bottom: 1px solid var(--minerva-nav-tag-strip-border);
+  background: var(--minerva-nav-tag-strip-bg);
+  padding: 6px 16px 0;
+}
+
+.minerva-nav-tags__scroll {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* Hide horizontal scrollbar; overflow can still scroll via wheel/touch. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  /* Room for left/right wing shadows outside the first/last tag. */
+  padding-inline: var(--minerva-nav-tag-wing);
+  /* Sit flush on the strip border so active fill covers the divider. */
+  margin-bottom: -1px;
+}
+
+.minerva-nav-tags__scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.minerva-nav-tags__item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  position: relative;
+  z-index: 1;
+  max-width: 200px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 12px;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--minerva-nav-tag-text);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  box-shadow: none;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    border-radius 0.12s ease;
+}
+
+/* Soft divider between adjacent inactive tags (hidden next to active). */
+.minerva-nav-tags__item:not(.minerva-nav-tags__item--active)
+  + .minerva-nav-tags__item:not(.minerva-nav-tags__item--active) {
+  border-left: 1px solid var(--minerva-nav-tag-divider);
+  padding-left: 11px;
+}
+
+.minerva-nav-tags__item:hover:not(.minerva-nav-tags__item--active) {
+  background: var(--minerva-nav-tag-hover-bg);
+  border-radius: 6px 6px 0 0;
+  color: var(--minerva-nav-tag-text-hover);
+}
+
+/* Chrome-style wing corners: concave arcs joining vertical sides to the strip line. */
+.minerva-nav-tags__item::before,
+.minerva-nav-tags__item::after {
+  content: '';
+  display: block;
+  position: absolute;
+  bottom: 0;
+  width: var(--minerva-nav-tag-wing);
+  height: var(--minerva-nav-tag-wing);
+  margin: 0;
+  pointer-events: none;
+  background: transparent;
+  border-radius: 0;
+  transition: box-shadow 0.12s ease;
+}
+
+.minerva-nav-tags__item::before {
+  left: calc(-1 * var(--minerva-nav-tag-wing));
+  border-bottom-right-radius: var(--minerva-nav-tag-wing);
+  box-shadow: none;
+}
+
+.minerva-nav-tags__item::after {
+  right: calc(-1 * var(--minerva-nav-tag-wing));
+  border-bottom-left-radius: var(--minerva-nav-tag-wing);
+  box-shadow: none;
+}
+
+.minerva-nav-tags__item--active {
+  z-index: 2;
+  height: 31px;
+  min-height: 31px;
+  padding: 0 14px;
+  font-weight: 500;
+  color: var(--minerva-nav-tag-active-text);
+  background: var(--minerva-nav-tag-active-bg);
+  border-radius: var(--minerva-nav-tag-wing) var(--minerva-nav-tag-wing) 0 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+
+.minerva-nav-tags__item--active::before {
+  box-shadow:
+    calc(var(--minerva-nav-tag-wing) * 0.5)
+    calc(var(--minerva-nav-tag-wing) * 0.5)
+    0
+    calc(var(--minerva-nav-tag-wing) * 0.5)
+    var(--minerva-nav-tag-active-bg);
+}
+
+.minerva-nav-tags__item--active::after {
+  box-shadow:
+    calc(var(--minerva-nav-tag-wing) * -0.5)
+    calc(var(--minerva-nav-tag-wing) * 0.5)
+    0
+    calc(var(--minerva-nav-tag-wing) * 0.5)
+    var(--minerva-nav-tag-active-bg);
+}
+
+.minerva-nav-tags__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.minerva-nav-tags__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--minerva-nav-tag-text);
+  flex-shrink: 0;
+}
+
+.minerva-nav-tags__close:hover {
+  color: var(--minerva-nav-tag-text-hover);
+  background: rgba(148, 163, 184, 0.18);
+}
+
+html.minerva-tone-sunshine .minerva-nav-tags {
+  --minerva-nav-tag-strip-bg: var(--minerva-bg, #f8fafc);
+  --minerva-nav-tag-strip-border: var(--minerva-border, #e2e8f0);
+  --minerva-nav-tag-text: var(--minerva-ink-muted, #64748b);
+  --minerva-nav-tag-text-hover: var(--minerva-ink, #0f172a);
+  --minerva-nav-tag-hover-bg: #f1f5f9;
+  --minerva-nav-tag-active-bg: #eff6ff;
+  --minerva-nav-tag-active-text: var(--minerva-primary, #2563eb);
+  --minerva-nav-tag-divider: #e2e8f0;
+}
+
+html.minerva-tone-sunshine .minerva-nav-tags__item--active {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}

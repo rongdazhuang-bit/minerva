@@ -9,10 +9,11 @@ from dataclasses import dataclass
 from typing import Any
 
 import anyio
+import httpx2
 from mcp import ClientSession
 from mcp.client.sse import sse_client
 from mcp.client.stdio import StdioServerParameters, stdio_client
-from mcp.client.streamable_http import streamablehttp_client
+from mcp.client.streamable_http import streamable_http_client
 
 from app.config import settings
 
@@ -112,7 +113,7 @@ class McpConnectionTester:
         config: dict[str, Any],
         secrets: dict[str, Any],
     ) -> AsyncIterator[ClientSession]:
-        """Yield an initialized MCP ``ClientSession`` for one transport."""
+        """Yield an open MCP ``ClientSession`` for one transport (caller initializes)."""
 
         timeout = float(settings.mcp_connect_timeout)
         if transport == "STDIO":
@@ -149,14 +150,19 @@ class McpConnectionTester:
             return
 
         if transport == "STREAMABLE_HTTP":
-            async with streamablehttp_client(
-                url,
-                headers=headers,
-                timeout=timeout,
-            ) as streams:
-                read, write, _get_session_id = streams
-                async with ClientSession(read, write) as session:
-                    yield session
+            # mcp v2: headers/timeout live on httpx2.AsyncClient; transport yields (read, write).
+            http_client = httpx2.AsyncClient(
+                headers=headers or {},
+                timeout=httpx2.Timeout(timeout, read=300.0),
+                follow_redirects=True,
+            )
+            async with http_client:
+                async with streamable_http_client(
+                    url,
+                    http_client=http_client,
+                ) as (read, write):
+                    async with ClientSession(read, write) as session:
+                        yield session
             return
 
         raise ValueError(f"Unsupported MCP transport: {transport}")

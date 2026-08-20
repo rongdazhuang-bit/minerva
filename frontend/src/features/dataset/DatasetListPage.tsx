@@ -184,7 +184,7 @@ export function DatasetListPage() {
   return (
     <>
       <div className="minerva-dataset-list-page">
-        <Card size="small" variant="borderless" className="minerva-dataset-list-page__card">
+        <Card size="small" variant="borderless" className="minerva-dataset-list-page__card minerva-page-shell-card">
           <Form
             form={filterForm}
             layout="inline"

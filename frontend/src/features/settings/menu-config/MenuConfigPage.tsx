@@ -304,7 +304,7 @@ export function MenuConfigPage() {
 
   return (
     <div className="minerva-menu-config-page">
-      <Card size="small" variant="borderless" className="minerva-menu-config-page__card">
+      <Card size="small" variant="borderless" className="minerva-menu-config-page__card minerva-page-shell-card">
         <Space className="minerva-menu-config-page__toolbar" wrap>
           <Input
             allowClear

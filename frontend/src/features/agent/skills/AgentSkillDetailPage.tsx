@@ -261,7 +261,7 @@ export function AgentSkillDetailPage() {
 
   return (
     <div className="minerva-agent-skills-page">
-      <Card className="minerva-agent-skills-page__card" variant="borderless">
+      <Card className="minerva-agent-skills-page__card minerva-page-shell-card" variant="borderless">
         <div className="minerva-agent-skills-page__toolbar">
           <Space wrap align="center">
             <Button type="text" icon={<ArrowLeftOutlined />} onClick={goBack}>

@@ -308,6 +308,8 @@
   "layout.siderCollapse": "Collapse sidebar",
   "layout.siderExpand": "Expand sidebar",
   "layout.siderNavLoading": "Loading navigation menu",
+  "layout.navTags.label": "Open pages",
+  "layout.navTags.close": "Close {{title}}",
   "agents.title": "Agent chat",
   "agents.newChat": "New chat",
   "agents.recentChats": "Recent chats",

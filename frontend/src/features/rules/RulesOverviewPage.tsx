@@ -39,7 +39,7 @@ export function RulesOverviewPage() {
   const displayRules = useCountUp(targetRules, { enabled: hasStats })
 
   return (
-    <div className="minerva-rules-overview">
+    <div className="minerva-rules-overview minerva-page-fill">
       {err != null && (
         <Alert
           type="error"

@@ -345,7 +345,7 @@ export function CeleryPage() {
 
   return (
     <div className="minerva-celery-page">
-      <Card size="small" variant="borderless" className="minerva-celery-page__card">
+      <Card size="small" variant="borderless" className="minerva-celery-page__card minerva-page-shell-card">
         <div className="minerva-celery-page__header">
           <Form form={filterForm} layout="inline" onFinish={handleSearch}>
             <Form.Item name="name" label={t('settings.celery.filterName')}>

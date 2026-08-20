@@ -344,7 +344,7 @@
 
   padding: 10px 12px;
 
-  border-radius: 8px;
+  border-radius: 4px;
 
   cursor: pointer;
 
@@ -488,7 +488,7 @@ html.minerva-tone-sunshine .minerva-mcp-tool-explorer__highlight {
 
   padding: 12px;
 
-  border-radius: 8px;
+  border-radius: 4px;
 
   border: 1px solid var(--minerva-border, #2a3f58);
 

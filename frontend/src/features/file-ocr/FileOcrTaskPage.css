@@ -1,9 +1,8 @@
-/* 文件 OCR — 概览统计（单行平铺） */
+/* 文件 OCR — 概览统计（单行平铺）；外框由壳层 .minerva-app-main-frame 提供 */
 
 .minerva-file-ocr-overview {
   width: 100%;
   max-width: none;
-  padding-bottom: 8px;
 }
 
 .minerva-file-ocr-overview__stats-scroll {
@@ -29,7 +28,7 @@
   height: 100%;
   background: var(--minerva-surface, #1a2836) !important;
   border: 1px solid var(--minerva-border, #2a3f58) !important;
-  border-radius: 12px;
+  border-radius: var(--minerva-page-frame-radius, 4px);
   box-shadow: 0 4px 14px rgb(0 0 0 / 18%);
   overflow: hidden;
   transition:
@@ -132,7 +131,7 @@ html.minerva-tone-sunshine .minerva-file-ocr-overview__icon {
   margin-top: 18px;
   background: var(--minerva-surface, #1a2836) !important;
   border: 1px solid var(--minerva-border, #2a3f58) !important;
-  border-radius: 12px;
+  border-radius: var(--minerva-page-frame-radius, 4px);
   box-shadow: 0 4px 14px rgb(0 0 0 / 18%);
 }
 
@@ -244,7 +243,7 @@ html.minerva-tone-sunshine .minerva-file-ocr-tasks__wizard-steps .ant-steps-item
   width: 100%;
   min-height: 104px;
   border: 1px solid var(--minerva-border, #2a3f58);
-  border-radius: 12px;
+  border-radius: 4px;
   background: var(--minerva-surface, #1a2836);
   color: var(--minerva-ink, #e8f0f8);
   text-align: left;
@@ -298,7 +297,7 @@ html.minerva-tone-sunshine .minerva-file-ocr-tasks__ocr-type-card--selected {
   width: auto;
   object-fit: contain;
   object-position: center;
-  border-radius: 8px;
+  border-radius: 4px;
 }
 
 .minerva-file-ocr-tasks__ocr-type-desc {
@@ -328,15 +327,11 @@ html.minerva-tone-sunshine .minerva-file-ocr-tasks__ocr-type-card--selected {
   width: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--minerva-surface, #1a2836) !important;
-  border: 1px solid var(--minerva-border, #2a3f58) !important;
-  border-radius: 12px;
-  box-shadow: 0 6px 16px rgb(0 0 0 / 14%);
-}
-
-html.minerva-tone-sunshine .minerva-file-ocr-tasks__card {
-  background: var(--minerva-surface, #fff) !important;
-  box-shadow: 0 6px 16px rgb(15 23 42 / 8%);
+  /* Outer chrome comes from .minerva-app-main-frame; this Card is layout-only. */
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0;
 }
 
 .minerva-file-ocr-tasks__card .ant-card-body {
@@ -392,7 +387,7 @@ html.minerva-tone-sunshine .minerva-file-ocr-tasks__wizard-upload-summary {
 }
 
 .minerva-file-ocr-tasks__dragger.ant-upload-wrapper .ant-upload-drag {
-  border-radius: 12px;
+  border-radius: 4px;
 }
 
 .minerva-file-ocr-tasks__upload-rules {

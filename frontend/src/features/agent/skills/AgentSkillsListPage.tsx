@@ -185,7 +185,7 @@ export function AgentSkillsListPage() {
 
   return (
     <div className="minerva-agent-skills-page">
-      <Card className="minerva-agent-skills-page__card" variant="borderless">
+      <Card className="minerva-agent-skills-page__card minerva-page-shell-card" variant="borderless">
         <div className="minerva-agent-skills-page__toolbar">
           <Space wrap>
             <Text strong>{t('agents.skills.title', { defaultValue: '技能管理' })}</Text>

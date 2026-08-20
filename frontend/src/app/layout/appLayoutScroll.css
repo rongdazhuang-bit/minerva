@@ -33,22 +33,94 @@
   overscroll-behavior: contain;
 }
 
-/* Main: reserve space for the vertical bar (only this pane, not the sider/inner). */
+/* Main content shell: 3px inset; default no scroll (pages scroll inside the frame). */
 .minerva-app-main-scroll {
-  scrollbar-gutter: stable;
+  /* Outermost page frame corner radius (主内容区最外层圆角). */
+  --minerva-page-frame-radius: 4px;
+  /* Do not use scrollbar-gutter:stable — it permanently widens the right inset. */
+  scrollbar-gutter: auto;
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  overflow: hidden;
 }
 
-/* 记忆管理等全高页：占满主内容区，表格在页内滚动 */
-.minerva-app-main-scroll > .minerva-agent-memory-page,
-.minerva-app-main-scroll > .minerva-agent-mcp-page,
-.minerva-app-main-scroll > .minerva-agent-skills-page,
-.minerva-app-main-scroll > .minerva-menu-config-page,
-.minerva-app-main-scroll > .minerva-dataset-list-page,
-.minerva-app-main-scroll > .minerva-dataset-section-layout,
-.minerva-app-main-scroll > .translate-page--table {
+/**
+ * Default outer rounded frame wrapping all route content (Outlet).
+ * New pages should render inside this frame; avoid a second full-bleed page shell Card.
+ */
+.minerva-app-main-frame {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--minerva-page-frame-radius, 4px);
+  border: 1px solid var(--minerva-border, #2d3f55);
+  background: var(--minerva-surface, #1b2838);
+  box-sizing: border-box;
+}
+
+html.minerva-tone-sunshine .minerva-app-main-frame {
+  background: var(--minerva-surface, #ffffff);
+  border-color: var(--minerva-border, #e2e8f0);
+}
+
+/**
+ * Overview / placeholder pages: fill the shell frame and scroll inside it.
+ * Do not add another full-bleed bordered Card around these roots.
+ */
+.minerva-app-main-frame > .minerva-page-fill {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow: auto;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+/* Page-level Ant Card used only as a flex layout shell (no second outer chrome). */
+.minerva-app-main-frame [class*='__card'].ant-card.minerva-page-shell-card,
+.minerva-app-main-frame > * > .ant-card.minerva-page-shell-card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+/* Page root → primary Ant Card: unify radius for true content cards (not page shells). */
+.minerva-app-main-frame > * > .ant-card:not(.minerva-page-shell-card),
+.minerva-app-main-frame [class*='__card'].ant-card:not(.minerva-page-shell-card) {
+  border-radius: var(--minerva-page-frame-radius) !important;
+}
+
+/* Full-height feature pages: fill the shell frame; scroll inside page widgets. */
+.minerva-app-main-frame > .minerva-agent-memory-page,
+.minerva-app-main-frame > .minerva-agent-mcp-page,
+.minerva-app-main-frame > .minerva-agent-skills-page,
+.minerva-app-main-frame > .minerva-menu-config-page,
+.minerva-app-main-frame > .minerva-dataset-list-page,
+.minerva-app-main-frame > .minerva-dataset-section-layout,
+.minerva-app-main-frame > .translate-page--table,
+.minerva-app-main-frame > .minerva-file-ocr-tasks-page,
+.minerva-app-main-frame > .minerva-rules-page,
+.minerva-app-main-frame > .minerva-ocr-settings,
+.minerva-app-main-frame > .minerva-model-providers,
+.minerva-app-main-frame > .minerva-dict-settings,
+.minerva-app-main-frame > .minerva-celery-page,
+.minerva-app-main-frame > .minerva-users-page,
+.minerva-app-main-frame > .minerva-roles-page,
+.minerva-app-main-frame > .minerva-tenants-page,
+.minerva-app-main-frame > .minerva-permissions-page,
+.minerva-app-main-frame > .minerva-grants-page,
+.minerva-app-main-frame > .minerva-file-storage-settings {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Agents chat renders without .minerva-app-main-frame (bare outlet). */
+.minerva-app-main-scroll > .agents-page {
   flex: 1 1 auto;
   min-height: 0;
 }
@@ -234,7 +306,7 @@ html.minerva-tone-sunshine .agents-page .minerva-md-syntax::-webkit-scrollbar-th
  */
 .minerva-card-table-scroll-ocr .ant-table-container {
   border: 1px solid var(--minerva-border, #2a3f58);
-  border-radius: 10px;
+  border-radius: 4px;
   overflow: hidden;
 }
 

@@ -11,16 +11,14 @@
 .minerva-ocr-settings__card {
   flex: 1 1 auto;
   min-height: 0;
-  background: var(--minerva-surface, #1a2836) !important;
-  border: 1px solid var(--minerva-border, #2a3f58) !important;
-  border-radius: 12px;
-  box-shadow: 0 6px 16px rgb(0 0 0 / 14%);
+  /* Outer chrome from .minerva-app-main-frame */
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0;
+
 }
 
-html.minerva-tone-sunshine .minerva-ocr-settings__card {
-  background: var(--minerva-surface, #fff) !important;
-  box-shadow: 0 6px 16px rgb(15 23 42 / 8%);
-}
 
 .minerva-ocr-settings__toolbar {
   flex-shrink: 0;
@@ -93,7 +91,7 @@ html.minerva-tone-sunshine .minerva-ocr-settings__table .ant-table-tbody > tr:ho
   border-collapse: separate;
   border-spacing: 0;
   border: 1px solid var(--minerva-border, #2a3f58);
-  border-radius: 8px;
+  border-radius: 4px;
   overflow: hidden;
 }
 

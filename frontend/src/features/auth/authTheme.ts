@@ -183,7 +183,7 @@ export function getAppLayoutTheme(tone: AuthTone): ThemeConfig {
   const t = getAuthPageTheme(tone)
   return {
     ...t,
-    token: { ...t.token, borderRadius: 6, controlHeight: 32 },
+    token: { ...t.token, borderRadius: 4, controlHeight: 32 },
   }
 }
 

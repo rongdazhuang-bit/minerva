@@ -609,7 +609,7 @@ export function UsersPage() {
 
   return (
     <div className="minerva-users-page">
-      <Card className="minerva-users-page__card" bordered={false}>
+      <Card className="minerva-users-page__card minerva-page-shell-card" bordered={false}>
         <div className="minerva-users-page__header">
           <Form
             form={filterForm}

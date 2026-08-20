@@ -432,7 +432,7 @@ export function RulesManagementPage() {
 
   return (
     <div className="minerva-rules-page">
-      <Card className="minerva-rules-page__card" variant="borderless" style={{ minHeight: 0 }}>
+      <Card className="minerva-rules-page__card minerva-page-shell-card" variant="borderless" style={{ minHeight: 0 }}>
         <div className="minerva-rules-page__toolbar">
           <Cascader
             className="minerva-rules-page__filter minerva-rules-page__filter--cascade"

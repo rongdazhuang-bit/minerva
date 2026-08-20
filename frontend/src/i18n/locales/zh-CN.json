@@ -308,6 +308,8 @@
   "layout.siderCollapse": "收起侧栏",
   "layout.siderExpand": "展开侧栏",
   "layout.siderNavLoading": "正在加载导航菜单",
+  "layout.navTags.label": "已打开页面",
+  "layout.navTags.close": "关闭 {{title}}",
   "agents.title": "智能体对话",
   "agents.newChat": "新对话",
   "agents.recentChats": "最近对话",

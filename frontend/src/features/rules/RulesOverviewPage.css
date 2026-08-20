@@ -1,9 +1,8 @@
-/* 规则库 — 概览统计（单行平铺） */
+/* 规则库 — 概览统计（单行平铺）；外框由壳层 .minerva-app-main-frame 提供 */
 
 .minerva-rules-overview {
   width: 100%;
   max-width: none;
-  padding-bottom: 8px;
 }
 
 .minerva-rules-overview__stats-scroll {
@@ -30,7 +29,7 @@
   height: 100%;
   background: var(--minerva-surface, #1a2836) !important;
   border: 1px solid var(--minerva-border, #2a3f58) !important;
-  border-radius: 12px;
+  border-radius: var(--minerva-page-frame-radius, 4px);
   box-shadow: 0 4px 14px rgb(0 0 0 / 18%);
   overflow: hidden;
   transition:

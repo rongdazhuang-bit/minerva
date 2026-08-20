@@ -513,7 +513,7 @@ export function DictionaryPage() {
 
   return (
     <div className="minerva-dict-settings">
-      <Card size="small" variant="borderless" className="minerva-dict-settings__card">
+      <Card size="small" variant="borderless" className="minerva-dict-settings__card minerva-page-shell-card">
         <div className="minerva-dict-settings__toolbar">
           <Form
             form={filterForm}

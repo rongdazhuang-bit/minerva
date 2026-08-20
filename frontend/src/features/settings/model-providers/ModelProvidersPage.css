@@ -16,16 +16,14 @@
 .minerva-model-providers__card {
   flex: 1 1 auto;
   min-height: 0;
-  background: var(--minerva-surface, #1a2836) !important;
-  border: 1px solid var(--minerva-border, #2a3f58) !important;
-  border-radius: 12px;
-  box-shadow: 0 6px 16px rgb(0 0 0 / 14%);
+  /* Outer chrome from .minerva-app-main-frame */
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0;
+
 }
 
-html.minerva-tone-sunshine .minerva-model-providers__card {
-  background: var(--minerva-surface, #fff) !important;
-  box-shadow: 0 6px 16px rgb(15 23 42 / 8%);
-}
 
 .minerva-model-providers__card .ant-card-body {
   height: 100%;
@@ -85,7 +83,7 @@ html.minerva-tone-sunshine .minerva-model-providers__card {
 
 .minerva-model-providers__table .ant-table-container {
   border: 1px solid var(--minerva-border, #2a3f58);
-  border-radius: 10px;
+  border-radius: 4px;
   overflow: hidden;
 }
 
@@ -140,7 +138,7 @@ html.minerva-tone-sunshine .minerva-model-providers__table .ant-table-footer {
   margin: 10px 0 0 0;
   padding: 10px 12px;
   border: 1px solid var(--minerva-border, #2a3f58);
-  border-radius: 10px;
+  border-radius: 4px;
   background: rgb(0 0 0 / 18%);
   color: var(--minerva-ink, #e8f0f8);
   white-space: pre-wrap;
@@ -185,7 +183,7 @@ html.minerva-tone-sunshine .minerva-model-providers .ant-card-head-title {
 
 .minerva-model-providers .ant-collapse > .ant-collapse-item {
   border: 1px solid var(--minerva-border, #2a3f58) !important;
-  border-radius: 12px !important;
+  border-radius: 4px !important;
   margin-bottom: 10px;
   overflow: hidden;
   background: rgb(0 0 0 / 10%);

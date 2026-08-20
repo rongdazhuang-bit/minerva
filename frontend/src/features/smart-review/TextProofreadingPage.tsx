@@ -5,9 +5,11 @@ import { useTranslation } from 'react-i18next'
 export function TextProofreadingPage() {
   const { t } = useTranslation()
   return (
-    <Empty
-      description={t('placeholders.textProofreading')}
-      style={{ color: 'var(--minerva-ink)' }}
-    />
+    <div className="minerva-page-fill">
+      <Empty
+        description={t('placeholders.textProofreading')}
+        style={{ color: 'var(--minerva-ink)' }}
+      />
+    </div>
   )
 }

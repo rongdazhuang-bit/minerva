@@ -270,7 +270,7 @@ export function AgentMemoryPage() {
   if (backend === null) {
     return (
       <div className="minerva-agent-memory-page">
-        <Card className="minerva-agent-memory-page__card" loading variant="borderless" />
+        <Card className="minerva-agent-memory-page__card minerva-page-shell-card" loading variant="borderless" />
       </div>
     )
   }
@@ -278,7 +278,7 @@ export function AgentMemoryPage() {
   if (backend !== 'mem0') {
     return (
       <div className="minerva-agent-memory-page">
-        <Card className="minerva-agent-memory-page__card" variant="borderless">
+        <Card className="minerva-agent-memory-page__card minerva-page-shell-card" variant="borderless">
           <Alert
             type="info"
             showIcon
@@ -294,7 +294,7 @@ export function AgentMemoryPage() {
 
   return (
     <div className="minerva-agent-memory-page">
-      <Card className="minerva-agent-memory-page__card" variant="borderless">
+      <Card className="minerva-agent-memory-page__card minerva-page-shell-card" variant="borderless">
         <Tabs
           className="minerva-agent-memory-page__tabs"
           items={[

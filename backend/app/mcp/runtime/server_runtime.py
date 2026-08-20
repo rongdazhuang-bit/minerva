@@ -7,8 +7,14 @@ from typing import AsyncIterator
 
 import anyio
 from anyio.abc import TaskStatus
-from mcp.server.lowlevel.server import Server, request_ctx
+from mcp.server import Server, ServerRequestContext
 from mcp.server.streamable_http import StreamableHTTPServerTransport
+from mcp.types import (
+    CallToolRequestParams,
+    CallToolResult,
+    ListToolsResult,
+    PaginatedRequestParams,
+)
 
 from app.core.log import get_logger
 from app.mcp.runtime.registry import McpRuntimeRegistry
@@ -29,29 +35,43 @@ def build_mcp_server(snapshot: McpServerSnapshot, registry: McpRuntimeRegistry) 
 
     @asynccontextmanager
     async def lifespan(_server: Server) -> AsyncIterator[ExposureRuntime]:
+        """Open exposure tools for one outbound MCP connection, then tear them down."""
+
         runtime = await open_exposure_runtime(snapshot, registry)
         try:
             yield runtime
         finally:
             await close_exposure_runtime(runtime)
 
-    server = Server(f"minerva-mcp-{snapshot.slug}", lifespan=lifespan)
+    async def handle_list_tools(
+        ctx: ServerRequestContext[ExposureRuntime],
+        _params: PaginatedRequestParams | None,
+    ) -> ListToolsResult:
+        """Return tools from the connection lifespan exposure runtime."""
 
-    @server.list_tools()
-    async def list_tools() -> list:
-        runtime: ExposureRuntime = request_ctx.get().lifespan_context
-        return exposure_runtime_to_mcp_tools(runtime)
+        runtime = ctx.lifespan_context
+        return ListToolsResult(tools=exposure_runtime_to_mcp_tools(runtime))
 
-    @server.call_tool()
-    async def call_tool(name: str, arguments: dict | None) -> list:
-        runtime: ExposureRuntime = request_ctx.get().lifespan_context
-        return await call_exposed_tool(runtime, name, arguments)
+    async def handle_call_tool(
+        ctx: ServerRequestContext[ExposureRuntime],
+        params: CallToolRequestParams,
+    ) -> CallToolResult:
+        """Dispatch one tool call through the exposure runtime."""
 
-    return server
+        runtime = ctx.lifespan_context
+        content = await call_exposed_tool(runtime, params.name, params.arguments)
+        return CallToolResult(content=content, is_error=False)
+
+    return Server(
+        f"minerva-mcp-{snapshot.slug}",
+        lifespan=lifespan,
+        on_list_tools=handle_list_tools,
+        on_call_tool=handle_call_tool,
+    )
 
 
 class McpOutboundServerRuntime:
-    """Process-wide task group used by stateless Streamable HTTP MCP handlers."""
+    """Process-wide task group used by Streamable HTTP MCP handlers."""
 
     def __init__(self) -> None:
         self._task_group: anyio.abc.TaskGroup | None = None
@@ -84,6 +104,7 @@ class McpOutboundServerRuntime:
             raise RuntimeError("MCP outbound runtime is not started")
 
         server = build_mcp_server(snapshot, registry)
+        # Per-request transport (no session id) approximates former Server.run(stateless=True).
         transport = StreamableHTTPServerTransport(
             mcp_session_id=None,
             is_json_response_enabled=False,
@@ -91,6 +112,8 @@ class McpOutboundServerRuntime:
         )
 
         async def run_stateless_server(*, task_status: TaskStatus[None] = anyio.TASK_STATUS_IGNORED) -> None:
+            """Run the MCP server loop against streams owned by this HTTP request."""
+
             async with transport.connect() as streams:
                 read_stream, write_stream = streams
                 task_status.started()
@@ -99,7 +122,6 @@ class McpOutboundServerRuntime:
                         read_stream,
                         write_stream,
                         server.create_initialization_options(),
-                        stateless=True,
                     )
                 except Exception:
                     log.exception(

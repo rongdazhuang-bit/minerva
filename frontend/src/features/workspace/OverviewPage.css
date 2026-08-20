@@ -1,8 +1,7 @@
-/* 概览 — 顶部单行快捷应用入口 */
+/* 概览 — 顶部单行快捷应用入口；外框由壳层 .minerva-app-main-frame 提供 */
 
 .minerva-overview {
   width: 100%;
-  padding-top: 4px;
   --minerva-overview-bar-cursor: color-mix(in srgb, var(--minerva-link, #38bdf8) 14%, transparent);
 }
 
@@ -40,7 +39,7 @@ html.minerva-tone-sunshine .minerva-overview {
   font: inherit;
   background: var(--minerva-surface, #1a2836);
   border: 1px solid var(--minerva-border, #2a3f58);
-  border-radius: 12px;
+  border-radius: var(--minerva-page-frame-radius, 4px);
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
   transition:
     border-color 0.2s ease,
@@ -64,7 +63,7 @@ html.minerva-tone-sunshine .minerva-overview {
   justify-content: center;
   width: 40px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: 4px;
   font-size: 20px;
   color: #fff;
 }
@@ -168,7 +167,7 @@ html.minerva-tone-sunshine .minerva-overview__app-desc {
   height: 100%;
   background: var(--minerva-surface, #1a2836) !important;
   border: 1px solid var(--minerva-border, #2a3f58) !important;
-  border-radius: 12px;
+  border-radius: var(--minerva-page-frame-radius, 4px);
   box-shadow: 0 4px 14px rgb(0 0 0 / 18%);
 }
 
@@ -196,7 +195,7 @@ html.minerva-tone-sunshine .minerva-overview__app-desc {
 .minerva-overview__bar-tooltip {
   padding: 6px 10px;
   border: 1px solid var(--minerva-border, #2a3f58);
-  border-radius: 8px;
+  border-radius: 4px;
   background: var(--minerva-surface, #1a2836);
   color: var(--minerva-ink, #e8f0f8);
   font-size: 12px;

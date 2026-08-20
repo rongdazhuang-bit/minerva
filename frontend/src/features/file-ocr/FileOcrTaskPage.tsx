@@ -289,7 +289,7 @@ export function RulesFileOcrOverviewPage() {
   const displayFailed = useCountUp(stats?.failed_count ?? 0, { enabled: hasStats })
 
   return (
-    <div className="minerva-file-ocr-overview">
+    <div className="minerva-file-ocr-overview minerva-page-fill">
       {err != null && (
         <Alert
           type="error"
@@ -1081,7 +1081,12 @@ export function RulesFileOcrTaskPage() {
   return (
     <>
       <div className="minerva-file-ocr-tasks-page">
-        <Card size="small" variant="borderless" className="minerva-file-ocr-tasks__card" style={{ minHeight: 0 }}>
+        <Card
+          size="small"
+          variant="borderless"
+          className="minerva-file-ocr-tasks__card minerva-page-shell-card"
+          style={{ minHeight: 0 }}
+        >
           <Form form={filterForm} layout="inline" onFinish={onSearch} className="minerva-file-ocr-tasks__filter">
           <Form.Item name="file_name" label={t('fileOcr.tasks.filter.fileName')}>
             <Input allowClear placeholder={t('fileOcr.tasks.filter.fileNamePh')} />

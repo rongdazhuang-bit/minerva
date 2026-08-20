@@ -653,7 +653,7 @@ export function TranslatePage() {
   return (
     <>
       <div className="translate-page translate-page--table">
-        <Card size="small" variant="borderless" className="translate-page__card">
+        <Card size="small" variant="borderless" className="translate-page__card minerva-page-shell-card">
           <Form form={filterForm} layout="inline" onFinish={onSearch} className="translate-page__filter">
             <Form.Item name="file_name">
               <Input

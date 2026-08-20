@@ -387,7 +387,7 @@ export function AgentMcpPage() {
 
   return (
     <div className="minerva-agent-mcp-page">
-      <Card className="minerva-agent-mcp-page__card" variant="borderless">
+      <Card className="minerva-agent-mcp-page__card minerva-page-shell-card" variant="borderless">
         {!isWorkspaceAdmin ? (
           <Alert
             type="info"

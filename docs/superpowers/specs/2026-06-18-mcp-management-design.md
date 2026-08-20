@@ -1,10 +1,11 @@
 # MCP 连接管理（工作区隔离 + Registry 门面）设计说明
 
 **日期**：2026-06-18  
-**状态**：已批准，待实现  
+**状态**：已实现  
 **范围**：在「智能体」菜单下新增 MCP 子菜单；按 workspace 管理 MCP 客户端（连接外部 MCP Server）与 MCP 服务端（Minerva 对外暴露）配置；环境变量开关；启动时加载运行时缓存；对话时按 workspace 动态注册 MCP 客户端工具。
 
 **关系**：扩展 `docs/agent-module-design.md` 工具加载链路（`skill_loader.build_skill_react_agent`）；菜单体系见 `sys_menu` / `2026-06-10-menu-management-design.md`；CRUD 模式参考 `2026-04-24-ocr-tool-management-design.md`。
+**依赖**：后端 `mcp>=2.0.0`（Python SDK v2）。
 
 ---
 
@@ -387,6 +388,19 @@ if settings.mcp_client_enabled:
 | workspace 删除清理 MCP 表 | `tenant_service.delete_workspace` | 已实现 |
 | SSE `mcp.tools_unavailable` | `agent/domain/sse_v2.py` + Run service | 已实现 |
 | STDIO 连接超时 | `connection_tester.py` | 已实现 |
+| MCP Python SDK v2 客户端/服务端适配 | `connection_tester.py` / `client_explorer.py` / `server_runtime.py` 等 | 已实现（2026-08-20）：`streamable_http_client` + `httpx2`；SDK 字段 snake_case；lowlevel `Server(on_*)` |
+
+---
+
+## 12.1 实现对照（以代码为准，2026-08-20）
+
+| 条目 | 当前代码位置 | 备注 |
+|------|--------------|------|
+| Streamable HTTP 客户端 | `backend/app/mcp/runtime/connection_tester.py` | v2：`streamable_http_client(url, http_client=httpx2.AsyncClient(...))`，yield `(read, write)` |
+| SSE / STDIO 客户端 | 同上 | SSE 仍可直接传 `headers`/`timeout`；字段访问统一 snake_case |
+| Tool/Resource 映射 | `client_explorer.py` / `client_bridge.py` / `tool_result_text.py` | `input_schema`、`structured_content`、`is_error`、`mime_type`、`read_only_hint` 等 |
+| 对外 MCP Server | `server_runtime.py` | `Server(..., on_list_tools=, on_call_tool=)`；`ServerRequestContext.lifespan_context`；已去掉 `run(stateless=)` |
+| 依赖版本 | `backend/pyproject.toml` | `mcp>=2.0.0` |
 
 ---
 
@@ -402,3 +416,4 @@ if settings.mcp_client_enabled:
 | 客户端保存 | 必须先通过连通性 test |
 | 服务端保存 | 仅字段与引用校验，不测连通性 |
 | Agent 连接失败 | 不阻断对话 |
+| MCP Python SDK | **v2**（`mcp>=2.0.0`）；客户端 Streamable HTTP 经 `httpx2.AsyncClient`；服务端 lowlevel `on_*` handlers |

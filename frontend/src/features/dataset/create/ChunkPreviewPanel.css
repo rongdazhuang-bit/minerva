@@ -125,7 +125,7 @@
 
 .minerva-chunk-preview__segment {
   border: 1px solid var(--minerva-border);
-  border-radius: 10px;
+  border-radius: 4px;
   background: var(--minerva-surface, #fff);
   overflow: hidden;
 }

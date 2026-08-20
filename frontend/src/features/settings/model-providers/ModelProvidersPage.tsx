@@ -656,7 +656,7 @@ export function ModelProvidersPage() {
         <Alert className="minerva-model-providers__ro" type="info" showIcon message={t('settings.modelProvidersReadOnlyHint')} />
       )}
 
-      <Card size="small" variant="borderless" className="minerva-model-providers__card">
+      <Card size="small" variant="borderless" className="minerva-model-providers__card minerva-page-shell-card">
         <div className="minerva-model-providers__toolbar">
           {isWorkspaceAdmin ? (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => openCreate()} disabled={dictLoading && providerOptions.length === 0}>

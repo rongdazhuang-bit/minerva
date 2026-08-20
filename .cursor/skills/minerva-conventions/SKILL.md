@@ -4,11 +4,13 @@ description: >-
   Minerva 仓库级开发约定：(1) 数据库表设计禁止外键与 ON DELETE 级联，关联与删除在业务代码层实现；
   (2) 修 bug/改行为时先查 docs/superpowers/specs 与设计文档，改代码后再回填修订文档；
   (3) 环境变量在 app/config.py 或代码中新增/删除/更名/改默认值时，须同步 backend/.env.example 与 backend/.env.dev；
-  (4) frontend 所有二次确认统一使用 Ant Design Popconfirm，禁止 Modal.confirm 等替代。
+  (4) frontend 所有二次确认统一使用 Ant Design Popconfirm，禁止 Modal.confirm 等替代；
+  (5) frontend 主内容区：表格/卡片圆角 4px、四周边距 3px、默认整体不滚动、外层圆角框包裹 Outlet。
   Use when designing tables, writing schema/SQL/ORM, implementing delete APIs, cascading cleanup,
   changing Settings or os.getenv, fixing bugs, aligning code with specs, updating requirements/design docs after code changes,
-  or adding frontend destructive actions and confirmation UX, or writing backend log statements.
-  Triggers: 外键、级联删除、CASCADE、RESTRICT、schema、建表、删除接口、需求文档、设计文档、spec 回填、环境变量、.env、Settings、config.py、Popconfirm、二次确认、Modal.confirm、退出登录、get_logger、logging、日志.
+  or adding frontend destructive actions and confirmation UX, or writing backend log statements,
+  or changing app shell layout / page frame / card radius / main content padding.
+  Triggers: 外键、级联删除、CASCADE、RESTRICT、schema、建表、删除接口、需求文档、设计文档、spec 回填、环境变量、.env、Settings、config.py、Popconfirm、二次确认、Modal.confirm、退出登录、get_logger、logging、日志、圆角、主内容区、page-frame、borderRadius、布局.
 ---
 
 # Minerva 项目约定
@@ -202,9 +204,28 @@ description: >-
 
 ---
 
-## 6. 与其他 Skill 的关系
+## 6. frontend：主内容区布局（圆角 / 边距 / 滚动 / 外框）
+
+### 规则（硬性）
+
+1. **圆角**：表格、卡片及同类容器圆角为 **4px**（`getAppLayoutTheme` → `token.borderRadius: 4`；CSS 可用 `--minerva-page-frame-radius`）。胶囊 / 圆形 / Tag 翼角等造型除外。
+2. **边距与滚动**：右侧主体区（`.minerva-app-main-scroll`）距四周 **3px**；**默认整体不滚动**（`overflow: hidden`）。长列表/表格在页内滚动。禁止 `scrollbar-gutter: stable`。
+3. **外框**：主体区默认由 **`.minerva-app-main-frame`**（4px 圆角框）包住 `Outlet` 全部内容。概览页用 `minerva-page-fill`；全页布局 Card 用 `minerva-page-shell-card`（无第二层描边）。**例外**：`/app/agents/chat` 不套外框。
+
+### 文档与实现
+
+| 项 | 位置 |
+|----|------|
+| Cursor 规则 | `.cursor/rules/frontend-main-layout.mdc` |
+| 布局说明 | `frontend/docs/LAYOUT.md` |
+| 壳层 | `frontend/src/app/layout/AppLayout.tsx`、`appLayoutScroll.css` |
+| 主题 token | `frontend/src/features/auth/authTheme.ts` → `getAppLayoutTheme` |
+
+---
+
+## 7. 与其他 Skill 的关系
 
 - **注释与目录**：`/.cursor/skills/code-comments/SKILL.md`（类/方法注释、`app/sys/tool` 分层、分页、表单与滚动条等 UI 约定）。
-- **本 Skill**：库表无外键 + 文档驱动修改闭环 + 环境变量配置文件同步 + **二次确认 Popconfirm** + **Backend 日志 API**。
+- **本 Skill**：库表无外键 + 文档驱动修改闭环 + 环境变量配置文件同步 + **二次确认 Popconfirm** + **Backend 日志 API** + **主内容区布局**。
 
 两者同时适用时，均应遵守。

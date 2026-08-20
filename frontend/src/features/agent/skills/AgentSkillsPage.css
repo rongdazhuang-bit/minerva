@@ -15,16 +15,14 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: var(--minerva-surface, #1a2836) !important;
-  border: 1px solid var(--minerva-border, #2a3f58) !important;
-  border-radius: 12px;
-  box-shadow: 0 6px 16px rgb(0 0 0 / 14%);
+  /* Outer chrome from .minerva-app-main-frame */
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0;
+
 }
 
-html.minerva-tone-sunshine .minerva-agent-skills-page__card {
-  background: var(--minerva-surface, #fff) !important;
-  box-shadow: 0 6px 16px rgb(15 23 42 / 8%);
-}
 
 .minerva-agent-skills-page__card .ant-card-body {
   flex: 1 1 auto;
@@ -85,7 +83,7 @@ html.minerva-tone-sunshine .minerva-agent-skills-page__card {
   display: flex;
   flex-direction: column;
   border: 1px solid var(--minerva-border, #2a3f58);
-  border-radius: 8px;
+  border-radius: 4px;
   overflow: hidden;
 }
 
@@ -105,7 +103,7 @@ html.minerva-tone-sunshine .minerva-agent-skills-page__card {
   overflow: auto;
   padding: 8px;
   border: 1px solid var(--minerva-border, #2a3f58);
-  border-radius: 8px;
+  border-radius: 4px;
 }
 
 .minerva-agent-skills-page__tree-label {
@@ -190,7 +188,7 @@ html.minerva-tone-sunshine .minerva-agent-skills-page__card {
   padding: 16px;
   overflow: auto;
   border: 1px solid var(--minerva-border, #2a3f58);
-  border-radius: 8px;
+  border-radius: 4px;
 }
 
 .minerva-agent-skills-page__binary-panel {

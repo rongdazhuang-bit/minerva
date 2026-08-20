@@ -1,0 +1,39 @@
+---
+description: 应用壳右侧主内容区布局、圆角与滚动硬性约定
+alwaysApply: true
+---
+
+# 前端主内容区布局约定（硬性）
+
+适用于已登录应用壳 `frontend/src/app/layout/` 与其下页面。权威说明见 `frontend/docs/LAYOUT.md`。
+
+## 1. 表格、卡片等圆角 4px
+
+- Ant Design 应用主题 `getAppLayoutTheme` 的 `token.borderRadius` 为 **4**。
+- 页面自定义表格、卡片、面板等容器圆角统一 **4px**（可用 `--minerva-page-frame-radius`）。
+- **例外**：胶囊 `999px`、圆形 `50%`、导航 Tag「八」形翼角等刻意造型。
+
+```tsx
+// ❌ BAD — 另起一套大圆角
+<div style={{ borderRadius: 12 }} />
+
+// ✅ GOOD
+<div style={{ borderRadius: 4 }} />
+// 或 CSS：border-radius: var(--minerva-page-frame-radius, 4px);
+```
+
+## 2. 右侧主体区外边距 3px；默认整体不滚动
+
+- `.minerva-app-main-scroll` 相对 Tag 栏下沿 / 侧栏 / 右缘 / 底缘的 **padding 为 3px**。
+- **默认** `overflow: hidden`：主体区**整体**不上下、不左右滚动。
+- 长内容在**页内**（如表格 body、列表容器）滚动；禁止依赖壳层主滚动条承载页面主体。
+- **禁止**对主内容区使用 `scrollbar-gutter: stable`（会额外撑宽右侧）。
+
+## 3. 外层默认圆角框包裹全部内容
+
+- 壳层在 `Outlet` 外包一层 **`.minerva-app-main-frame`**：`border-radius: 4px` + 边框 + surface 背景。
+- 概览/占位页：根节点加 **`minerva-page-fill`**（铺满外框并页内滚动）。
+- 全页布局 Card：加 **`minerva-page-shell-card`**，透明无描边，避免与外框双重描边。
+- 新建页面：把内容放进该框内；**不要**再叠一层全幅「页面级外壳 Card」重复描边（页内分区 Card 仍可用）。
+- **例外**：`/app/agents/chat` 不套外框（页内自有 sider / 合成器圆角面板）。
+- 实现位置：`AppLayout.tsx` + `appLayoutScroll.css`。

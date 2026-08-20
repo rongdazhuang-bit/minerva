@@ -4,7 +4,17 @@
 
 - 整页（`html` / `body` / `#root`）固定视口高度，**不产生整页滚动**。
 - 由 `.minerva-spa-wrapper` 与 `.minerva-route-surface` 形成纵向 flex 链，子项 `min-height: 0` 以正确参与收缩。
-- **仅主内容区域**在内部滚动；面包屑、顶栏、侧栏等不随长内容整页被拖走。
+- 顶栏、侧栏、导航 Tag 栏固定；右侧主体在壳层内排布。
+- 主内容区上方为**多 Tag 导航栏**（侧栏打开的页面标签；同一菜单叶子只保留一个 Tag）。详见 `docs/superpowers/specs/2026-08-20-app-nav-tags-design.md`。
+
+### 右侧主体区（硬性，与 `.cursor/rules/frontend-main-layout.mdc` 一致）
+
+1. **圆角**：表格、卡片及同类容器 **4px**（`--minerva-page-frame-radius` / Ant Design `token.borderRadius`）；胶囊 / 圆形 / Tag 翼角除外。
+2. **边距与滚动**：`.minerva-app-main-scroll` 距四周 **3px**；**默认整体不滚动**（`overflow: hidden`）。长内容在页内滚动。禁止 `scrollbar-gutter: stable`。
+3. **外框**：`Outlet` 外包 `.minerva-app-main-frame`（4px 圆角 + 边框 + surface），包住页面全部组件。
+   - 概览/占位页根节点加 **`minerva-page-fill`**（铺满外框、内边距、页内滚动）。
+   - 全页布局用的 Ant `Card` 加 **`minerva-page-shell-card`**，去掉第二层描边/阴影（勿再叠全幅外壳 Card）。
+   - **例外**：`/app/agents/chat` 不套外框。
 
 ## 侧栏宽度与折叠
 

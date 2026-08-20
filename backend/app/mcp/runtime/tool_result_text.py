@@ -22,7 +22,7 @@ def prettify_json_text(text: str) -> str:
 def format_mcp_call_tool_result(result: Any) -> str:
     """Convert MCP ``CallToolResult`` to a single string for LangChain tool output."""
 
-    structured = getattr(result, "structuredContent", None)
+    structured = getattr(result, "structured_content", None)
     if structured is not None:
         return json.dumps(structured, ensure_ascii=False, indent=2)
     chunks: list[str] = []

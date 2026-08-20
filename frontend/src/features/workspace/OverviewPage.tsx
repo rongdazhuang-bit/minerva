@@ -534,7 +534,7 @@ export function OverviewPage(): ReactNode {
   const navigate = useNavigate()
 
   return (
-    <div className="minerva-overview">
+    <div className="minerva-overview minerva-page-fill">
       <div className="minerva-overview__row-scroll minerva-scrollbar-thin">
         <div className="minerva-overview__row">
           {OVERVIEW_APPS.map((item) => (

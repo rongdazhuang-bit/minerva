@@ -471,7 +471,7 @@ export function OcrSettingsPage() {
 
   return (
     <div className="minerva-ocr-settings">
-      <Card size="small" variant="borderless" className="minerva-ocr-settings__card">
+      <Card size="small" variant="borderless" className="minerva-ocr-settings__card minerva-page-shell-card">
         <Space className="minerva-ocr-settings__toolbar">
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
             {t('settings.ocrToolsAdd')}

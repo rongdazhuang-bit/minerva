@@ -61,7 +61,7 @@ export function TenantPermissionFields({
             className="minerva-scrollbar-styled"
             style={{
               border: '1px solid var(--minerva-border)',
-              borderRadius: 6,
+              borderRadius: 4,
               padding: 8,
               maxHeight: 280,
               overflow: 'auto',

@@ -282,7 +282,7 @@ export function TenantsPage() {
 
   return (
     <div className="minerva-tenants-page">
-      <Card className="minerva-tenants-page__card" bordered={false}>
+      <Card className="minerva-tenants-page__card minerva-page-shell-card" bordered={false}>
         <div className="minerva-tenants-page__header">
           <Form
             form={filterForm}

@@ -1,7 +1,8 @@
 import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons'
 import { Button, Layout, Menu } from 'antd'
-import { AppBreadcrumb } from '@/app/layout/AppBreadcrumb'
 import { AppHeaderToolbar } from '@/app/layout/AppHeaderToolbar'
+import { AppNavTags } from '@/app/layout/AppNavTags'
+import { useAppNavTags } from '@/app/layout/useAppNavTags'
 import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
@@ -99,73 +100,11 @@ const contentScrollStyle: CSSProperties = {
   minHeight: 0,
   display: 'flex',
   flexDirection: 'column',
-  overflowY: 'auto',
-  overflowX: 'hidden',
+  /* Default: shell main pane does not scroll; pages scroll inside the frame. */
+  overflow: 'hidden',
   WebkitOverflowScrolling: 'touch',
-  padding: 20,
-}
-
-/** 智能体路由：顶/底由页内承担；左缘略收紧使对话区向左靠，右缘保持 20px 与面包屑/滚动条习惯一致。 */
-function contentScrollStyleForPath(pathname: string): CSSProperties {
-  if (pathname.startsWith('/app/agents/chat')) {
-    return {
-      ...contentScrollStyle,
-      padding: '0 20px 0 10px',
-      /* 历史侧栏与主区各自滚动，避免滚轮被外层主内容区抢走 */
-      overflowY: 'hidden',
-      overflowX: 'hidden',
-    }
-  }
-  if (pathname.startsWith('/app/agents/memory')) {
-    return {
-      ...contentScrollStyle,
-      overflowY: 'hidden',
-      overflowX: 'hidden',
-    }
-  }
-  if (pathname.startsWith('/app/agents/mcp')) {
-    return {
-      ...contentScrollStyle,
-      overflowY: 'hidden',
-      overflowX: 'hidden',
-    }
-  }
-  if (pathname.startsWith('/app/agents/skills')) {
-    return {
-      ...contentScrollStyle,
-      overflowY: 'hidden',
-      overflowX: 'hidden',
-    }
-  }
-  if (pathname.startsWith('/app/settings/menus')) {
-    return {
-      ...contentScrollStyle,
-      overflowY: 'hidden',
-      overflowX: 'hidden',
-    }
-  }
-  if (pathname === '/app/dataset' || pathname === '/app/dataset/') {
-    return {
-      ...contentScrollStyle,
-      overflowY: 'hidden',
-      overflowX: 'hidden',
-    }
-  }
-  if (/^\/app\/dataset\/[^/]+/.test(pathname)) {
-    return {
-      ...contentScrollStyle,
-      overflowY: 'hidden',
-      overflowX: 'hidden',
-    }
-  }
-  if (pathname.startsWith('/app/translate')) {
-    return {
-      ...contentScrollStyle,
-      overflowY: 'hidden',
-      overflowX: 'hidden',
-    }
-  }
-  return contentScrollStyle
+  /* Outer gap between shell edges and the main frame (project rule: 3px). */
+  padding: 3,
 }
 
 export function AppLayout() {
@@ -213,11 +152,6 @@ export function AppLayout() {
     [menuNavState.selectedKey],
   )
 
-  const mainScrollStyle = useMemo(
-    () => contentScrollStyleForPath(pathname),
-    [pathname],
-  )
-
   const [menuOpenKeys, setMenuOpenKeys] = useState<string[]>([])
 
   /** 展开态用受控 openKeys；折叠态不传 openKeys，由 Menu 以浮层展示并可点击子项。 */
@@ -248,10 +182,14 @@ export function AppLayout() {
     setMenuOpenKeys(menuNavState.openKeys)
   }, [menuNavState.openKeys])
 
-  const showBreadcrumb = useMemo(() => {
-    if (pathname === '/app/overview' || pathname === '/app/overview/') return false
-    return true
-  }, [pathname])
+  const { tags, activeKey, activateTag, closeTag } = useAppNavTags({
+    pathname,
+    navMenus,
+    hideMenuKeys,
+    ready: siderNavReady,
+    t,
+    navigate: nav,
+  })
 
   const brandSubtitle = useMemo(() => {
     if (!accountEmail) return null
@@ -263,6 +201,9 @@ export function AppLayout() {
     clear()
     void nav('/login')
   }, [clear, nav])
+
+  /** Agents chat uses its own chrome panels; skip the shell outer rounded frame. */
+  const bareMainFrame = pathname.startsWith('/app/agents/chat')
 
   useLayoutEffect(() => {
     document.documentElement.classList.add('minerva-app-shell')
@@ -367,19 +308,20 @@ export function AppLayout() {
           />
         ) : null}
         <Content style={contentOuterStyle}>
-          {showBreadcrumb ? (
-            <div
-              style={{
-                flexShrink: 0,
-                padding: '12px 20px 10px',
-                borderBottom: '1px solid var(--minerva-border, #2d3f55)',
-              }}
-            >
-              <AppBreadcrumb />
-            </div>
-          ) : null}
-          <div className="minerva-app-main-scroll" style={mainScrollStyle}>
-            <Outlet />
+          <AppNavTags
+            tags={tags}
+            activeKey={activeKey}
+            onActivate={activateTag}
+            onClose={closeTag}
+          />
+          <div className="minerva-app-main-scroll" style={contentScrollStyle}>
+            {bareMainFrame ? (
+              <Outlet />
+            ) : (
+              <div className="minerva-app-main-frame">
+                <Outlet />
+              </div>
+            )}
           </div>
         </Content>
       </div>

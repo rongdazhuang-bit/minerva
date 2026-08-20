@@ -36,18 +36,18 @@ class McpExplorerContext:
 
 
 def map_tool_to_out(tool: Any) -> McpToolOut:
-    """Map MCP SDK tool to API output model."""
+    """Map MCP SDK tool to API output model (SDK snake_case → API camelCase)."""
 
     annotations = getattr(tool, "annotations", None)
     return McpToolOut(
         name=str(getattr(tool, "name", "") or ""),
         description=getattr(tool, "description", None),
-        inputSchema=getattr(tool, "inputSchema", None) or {},
+        inputSchema=getattr(tool, "input_schema", None) or {},
         annotations=McpToolAnnotationOut(
-            readOnlyHint=bool(getattr(annotations, "readOnlyHint", False)),
-            destructiveHint=bool(getattr(annotations, "destructiveHint", False)),
-            idempotentHint=bool(getattr(annotations, "idempotentHint", False)),
-            openWorldHint=bool(getattr(annotations, "openWorldHint", False)),
+            readOnlyHint=bool(getattr(annotations, "read_only_hint", False)),
+            destructiveHint=bool(getattr(annotations, "destructive_hint", False)),
+            idempotentHint=bool(getattr(annotations, "idempotent_hint", False)),
+            openWorldHint=bool(getattr(annotations, "open_world_hint", False)),
         ),
     )
 
@@ -61,13 +61,13 @@ async def list_tools_on_session(session: ClientSession) -> McpListToolsOut:
 
 
 def map_resource_to_out(resource: Any) -> McpResourceOut:
-    """Map MCP SDK resource to API output model."""
+    """Map MCP SDK resource to API output model (SDK snake_case → API camelCase)."""
 
     return McpResourceOut(
         uri=str(getattr(resource, "uri", "") or ""),
         name=getattr(resource, "name", None),
         description=getattr(resource, "description", None),
-        mimeType=getattr(resource, "mimeType", None),
+        mimeType=getattr(resource, "mime_type", None),
     )
 
 
@@ -84,7 +84,7 @@ async def list_resources_on_session(session: ClientSession) -> McpListResourcesO
 
 
 def serialize_read_resource_result(result: Any) -> McpReadResourceOut:
-    """Convert MCP ``ReadResourceResult`` to API output."""
+    """Convert MCP ``ReadResourceResult`` to API output (SDK snake_case → API camelCase)."""
 
     contents: list[McpResourceContentOut] = []
     for block in getattr(result, "contents", []) or []:
@@ -93,7 +93,7 @@ def serialize_read_resource_result(result: Any) -> McpReadResourceOut:
         contents.append(
             McpResourceContentOut(
                 uri=str(getattr(block, "uri", "") or ""),
-                mimeType=getattr(block, "mimeType", None),
+                mimeType=getattr(block, "mime_type", None),
                 text=str(text) if text is not None else None,
                 blob=str(blob) if blob is not None else None,
             )
@@ -113,7 +113,7 @@ async def read_resource_on_session(
 
 
 def serialize_call_tool_result(result: Any) -> McpCallToolOut:
-    """Convert MCP ``CallToolResult`` to API output."""
+    """Convert MCP ``CallToolResult`` to API output (SDK snake_case → API camelCase)."""
 
     content_blocks: list[dict[str, Any]] = []
     for block in getattr(result, "content", []) or []:
@@ -121,12 +121,12 @@ def serialize_call_tool_result(result: Any) -> McpCallToolOut:
         block_type = getattr(block, "type", "text")
         if text is not None:
             content_blocks.append({"type": str(block_type), "text": str(text)})
-    structured = getattr(result, "structuredContent", None)
+    structured = getattr(result, "structured_content", None)
     return McpCallToolOut(
         ok=True,
         content=content_blocks,
         structuredContent=structured if isinstance(structured, dict) else None,
-        isError=bool(getattr(result, "isError", False)),
+        isError=bool(getattr(result, "is_error", False)),
     )
 
 

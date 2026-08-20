@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next'
 export function DrawingReviewPage() {
   const { t } = useTranslation()
   return (
-    <Empty description={t('placeholders.drawingReview')} style={{ color: 'var(--minerva-ink)' }} />
+    <div className="minerva-page-fill">
+      <Empty description={t('placeholders.drawingReview')} style={{ color: 'var(--minerva-ink)' }} />
+    </div>
   )
 }

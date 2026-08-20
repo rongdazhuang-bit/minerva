@@ -14,16 +14,14 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: var(--minerva-surface, #1a2836) !important;
-  border: 1px solid var(--minerva-border, #2a3f58) !important;
-  border-radius: 12px;
-  box-shadow: 0 6px 16px rgb(0 0 0 / 14%);
+  /* Outer chrome from .minerva-app-main-frame */
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0;
+
 }
 
-html.minerva-tone-sunshine .minerva-agent-memory-page__card {
-  background: var(--minerva-surface, #fff) !important;
-  box-shadow: 0 6px 16px rgb(15 23 42 / 8%);
-}
 
 .minerva-agent-memory-page__card .ant-card-body {
   flex: 1 1 auto;

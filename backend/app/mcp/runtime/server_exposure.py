@@ -155,7 +155,7 @@ async def _collect_client_tools(
             if exposed_name in seen:
                 continue
             seen.add(exposed_name)
-            schema = getattr(mcp_tool, "inputSchema", None)
+            schema = getattr(mcp_tool, "input_schema", None)
             if not isinstance(schema, dict):
                 schema = {"type": "object", "properties": {}}
             entries.append(
@@ -206,7 +206,7 @@ def exposure_runtime_to_mcp_tools(runtime: ExposureRuntime) -> list[types.Tool]:
         types.Tool(
             name=entry.mcp_name,
             description=entry.description,
-            inputSchema=entry.input_schema,
+            input_schema=entry.input_schema,
         )
         for entry in runtime.tools
     ]

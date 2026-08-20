@@ -369,3 +369,4 @@ readMcpClientResource(workspaceId, clientId, uri)
 | API 类型 | `frontend/src/api/mcp.ts` | 已实现 |
 | 资源列表工具 | `frontend/src/features/agent/mcp/mcpResourceListUtils.ts` | 已实现 |
 | 单元测试 | `backend/tests/test_mcp_client_explorer.py` | 已实现 |
+| MCP SDK v2 字段映射 | `client_explorer.map_resource_to_out` / `serialize_read_resource_result` | 已实现（2026-08-20）：`mime_type` 等 snake_case → API camelCase |

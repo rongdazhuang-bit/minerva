@@ -1,6 +1,6 @@
-/* Kimi 风格：左侧圆角侧栏 + 主栏铺满 + 底部合成器；间距以「左侧栏顶缘距内容区顶」为唯一尺度 */
+/* Kimi 风格：左侧圆角侧栏 + 主栏铺满 + 底部合成器；对话页不套壳层 .minerva-app-main-frame */
 .agents-page {
-  /* 与面包屑下沿至左侧栏顶缘的视觉间距一致，页内底、栏间距、侧栏内边距等同值 */
+  /* 圆角面板内边距、栏间距等；外框由页内 sider / composer 自行承担 */
   --agents-chrome-inset: 10px;
   display: flex;
   flex: 1;
@@ -9,7 +9,7 @@
   height: 100%;
   overflow: hidden;
   gap: 6px;
-  padding: var(--agents-chrome-inset) 0;
+  padding: 0;
   color: var(--minerva-ink, #e8f0f8);
 }
 
@@ -18,7 +18,7 @@
   flex-shrink: 0;
   box-sizing: border-box;
   border: 1px solid var(--minerva-border, #2d3f55);
-  border-radius: 16px;
+  border-radius: var(--minerva-page-frame-radius, 4px);
   padding: var(--agents-chrome-inset);
   display: flex;
   flex-direction: column;
@@ -73,7 +73,7 @@
   display: flex;
   align-items: stretch;
   gap: 0;
-  border-radius: 8px;
+  border-radius: 4px;
 }
 
 .agents-page__session-row:hover {
@@ -99,7 +99,7 @@
   box-sizing: border-box;
   padding: 8px 10px;
   border: none;
-  border-radius: 8px;
+  border-radius: 4px;
   background: transparent;
   color: var(--minerva-ink, #e8f0f8);
   text-align: left;
@@ -270,7 +270,7 @@
   margin: 0;
   box-sizing: border-box;
   border: 1px solid var(--minerva-border, #2d3f55);
-  border-radius: 16px;
+  border-radius: var(--minerva-page-frame-radius, 4px);
   padding: 12px 14px 10px;
   background: var(--minerva-surface, #1b2838);
 }
@@ -286,7 +286,7 @@
   max-height: 220px;
   overflow-y: auto;
   border: 1px solid var(--minerva-border, #2d3f55);
-  border-radius: 10px;
+  border-radius: 4px;
   background: var(--minerva-surface, #1b2838);
   z-index: 20;
 }
@@ -345,7 +345,7 @@
   line-height: 1.5715;
   color: var(--minerva-accent, #6eb6ff);
   background: rgb(110 182 255 / 0.14);
-  border-radius: 6px;
+  border-radius: 4px;
   white-space: nowrap;
   user-select: none;
 }
@@ -402,7 +402,7 @@ html.minerva-tone-sunshine .agents-page__composer-input::-webkit-scrollbar-thumb
 .agents-page__skill-menu {
   margin-bottom: 8px;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: 4px;
   background: var(--minerva-surface-raised, rgba(255, 255, 255, 0.04));
   max-height: 200px;
   overflow-y: auto;
@@ -434,7 +434,7 @@ html.minerva-tone-sunshine .agents-page__composer-input::-webkit-scrollbar-thumb
   margin: 0;
   padding: 8px 10px;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   background: transparent;
   color: var(--minerva-ink, #e8f0f8);
   font: inherit;
@@ -472,7 +472,7 @@ html.minerva-tone-sunshine .agents-page__composer-input::-webkit-scrollbar-thumb
   flex-shrink: 0;
   padding: 4px 10px;
   border: 1px solid rgb(148 163 184 / 0.35);
-  border-radius: var(--ant-border-radius, 6px);
+  border-radius: var(--ant-border-radius, 4px);
   background: transparent;
   color: var(--minerva-ink-muted, #94a3b8);
   font-size: 12px;
@@ -703,7 +703,7 @@ html.minerva-tone-sunshine .agents-page__process::-webkit-scrollbar-thumb:hover 
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: 4px;
   border: 1px solid rgb(148 163 184 / 0.35);
 }
 
@@ -732,7 +732,7 @@ html.minerva-tone-sunshine .agents-page__process::-webkit-scrollbar-thumb:hover 
   gap: 6px;
   margin: 4px 8px 4px 0;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: 4px;
   background: var(--agents-surface-muted, rgba(0, 0, 0, 0.04));
   font-size: 13px;
 }
