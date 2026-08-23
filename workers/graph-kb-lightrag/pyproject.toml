@@ -15,8 +15,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Real LightRAG: Minerva uses PG storages only (asyncpg + pgvector); avoid full offline-storage extra.
 engine = [
-  "lightrag-hku",
+  "lightrag-hku==1.5.6",
+  "asyncpg>=0.31,<1",
+  "pgvector>=0.4.2,<1",
 ]
 dev = [
   "pytest>=8.0",

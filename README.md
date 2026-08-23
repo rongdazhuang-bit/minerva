@@ -255,14 +255,31 @@ bash scripts/run-celery.sh local worker
 
 ### 独立引擎 Worker
 
-主 API **不** import GraphRAG / LightRAG SDK；通过 HTTP 调用独立进程（`GraphEngineClient`）。
+主 API **不** import GraphRAG / LightRAG SDK；通过 HTTP 调用独立进程（`GraphEngineClient`）。两套引擎装在**各自 Worker 的独立 venv**，避免与主后端依赖冲突。
 
 | Worker | 脚本 | 默认地址 |
 |--------|------|----------|
 | LightRAG | `scripts/run-graph-kb-lightrag-worker.cmd` | `http://127.0.0.1:8101` |
 | GraphRAG | `scripts/run-graph-kb-graphrag-worker.cmd` | `http://127.0.0.1:8102` |
 
-Worker 侧可用 `GRAPH_KB_WORKER_FAKE=1` 跳过真实引擎 SDK（内存假实现，便于无 GPU/无 SDK 的本地与 CI）。存储隔离按 `(workspace_id, graph_id)`；LightRAG workspace 字符串 / GraphRAG 根目录**只在 Worker 内拼接**。
+**安装真实引擎依赖**（各 Worker 目录下创建 `.venv` 并安装 `.[dev,engine]`）：
+
+```bash
+# 仓库根目录 — 安装 LightRAG + GraphRAG 两个 Worker
+bash scripts/install-graph-kb-workers.sh
+scripts\install-graph-kb-workers.cmd
+
+# 仅安装其中一个
+MINERVA_GRAPH_KB_WORKERS=lightrag bash scripts/install-graph-kb-workers.sh
+set MINERVA_GRAPH_KB_WORKERS=lightrag && scripts\install-graph-kb-workers.cmd
+```
+
+| Worker | 引擎包（pinned） | 说明 |
+|--------|------------------|------|
+| LightRAG | `lightrag-hku==1.5.6` + `asyncpg` / `pgvector` | PG 存储后端（KV / 向量 / 图 / doc status） |
+| GraphRAG | `graphrag==3.1.2` + `pandas` / `pyarrow` | 含 CLI `graphrag index` 与 parquet 导出读取 |
+
+Worker 侧可用 `GRAPH_KB_WORKER_FAKE=1` 跳过真实引擎 SDK（内存假实现，便于无 GPU/无 SDK 的本地与 CI）。**未设置 fake 时**，启动脚本要求已执行上述 install（使用 `workers/graph-kb-*/.venv`）。存储隔离按 `(workspace_id, graph_id)`；LightRAG workspace 字符串 / GraphRAG 根目录**只在 Worker 内拼接**。
 
 ### 环境变量（节选）
 
