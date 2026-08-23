@@ -3,29 +3,45 @@
 import { Tabs } from 'antd'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { GraphKbDocumentsPage } from '@/features/graph-kb/documents/GraphKbDocumentsPage'
+import { GraphKbGraphPage } from '@/features/graph-kb/graph/GraphKbGraphPage'
+import { GraphKbQaPage } from '@/features/graph-kb/qa/GraphKbQaPage'
+import { GraphKbSettingsPage } from '@/features/graph-kb/settings/GraphKbSettingsPage'
+import { GraphKbProvider } from '@/features/graph-kb/shared/GraphKbContext'
+import { GraphKbSummariesPage } from '@/features/graph-kb/summaries/GraphKbSummariesPage'
 import './GraphKbSectionLayout.css'
 
-const TAB_KEYS = ['documents', 'graph', 'summaries', 'qa', 'settings'] as const
+export const GRAPH_KB_DETAIL_TABS = ['documents', 'graph', 'summaries', 'qa', 'settings'] as const
 
-/** Resolve the active tab from the last path segment after graphId. */
-function tabFromPath(pathname: string): (typeof TAB_KEYS)[number] {
-  const segments = pathname.split('/').filter(Boolean)
-  const lastSegment = segments[segments.length - 1]
-  if (lastSegment && (TAB_KEYS as readonly string[]).includes(lastSegment)) {
-    return lastSegment as (typeof TAB_KEYS)[number]
-  }
-  return 'documents'
+export type GraphKbDetailTab = (typeof GRAPH_KB_DETAIL_TABS)[number]
+
+export type GraphKbSectionLayoutProps = {
+  graphId: string
+  activeTab: GraphKbDetailTab
+  onTabChange: (tab: GraphKbDetailTab) => void
 }
 
-/** Shell for `/app/graph-kb/:graphId/*` sub-routes. */
-export function GraphKbSectionLayout() {
-  const { t } = useTranslation()
-  const { graphId = '' } = useParams()
-  const navigate = useNavigate()
-  const location = useLocation()
+/** Renders the active tab panel for the graph KB detail shell. */
+function GraphKbDetailTabPanel({ tab }: { tab: GraphKbDetailTab }) {
+  switch (tab) {
+    case 'documents':
+      return <GraphKbDocumentsPage />
+    case 'graph':
+      return <GraphKbGraphPage />
+    case 'summaries':
+      return <GraphKbSummariesPage />
+    case 'qa':
+      return <GraphKbQaPage />
+    case 'settings':
+      return <GraphKbSettingsPage />
+    default:
+      return <GraphKbDocumentsPage />
+  }
+}
 
-  const activeKey = useMemo(() => tabFromPath(location.pathname), [location.pathname])
+/** Tabbed shell for graph KB detail inside the fullscreen modal. */
+export function GraphKbSectionLayout({ graphId, activeTab, onTabChange }: GraphKbSectionLayoutProps) {
+  const { t } = useTranslation()
 
   const tabItems = useMemo(
     () => [
@@ -43,19 +59,21 @@ export function GraphKbSectionLayout() {
   }
 
   return (
-    <div className="minerva-graph-kb-section-layout">
-      <div className="minerva-graph-kb-section-layout__tabs">
-        <Tabs
-          activeKey={activeKey}
-          items={tabItems}
-          onChange={(key) => {
-            navigate(`/app/graph-kb/${graphId}/${key}`)
-          }}
-        />
+    <GraphKbProvider graphId={graphId}>
+      <div className="minerva-graph-kb-section-layout">
+        <div className="minerva-graph-kb-section-layout__tabs">
+          <Tabs
+            activeKey={activeTab}
+            items={tabItems}
+            onChange={(key) => {
+              onTabChange(key as GraphKbDetailTab)
+            }}
+          />
+        </div>
+        <div className="minerva-graph-kb-section-layout__body minerva-scrollbar-styled">
+          <GraphKbDetailTabPanel tab={activeTab} />
+        </div>
       </div>
-      <div className="minerva-graph-kb-section-layout__body minerva-scrollbar-styled">
-        <Outlet />
-      </div>
-    </div>
+    </GraphKbProvider>
   )
 }

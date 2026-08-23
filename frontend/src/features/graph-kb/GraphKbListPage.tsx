@@ -6,9 +6,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button, Card, Empty, Form, Input, Popconfirm, Select, Space, Table, Tag, Tooltip, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/app/AuthContext'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
 import {
@@ -17,6 +17,11 @@ import {
   type GraphKbListParams,
   type GraphKbOut,
 } from '@/features/graph-kb/api/graphKb'
+import { GraphKbCreateModal } from '@/features/graph-kb/create/GraphKbCreateModal'
+import {
+  GraphKbDetailModal,
+  type GraphKbDetailTab,
+} from '@/features/graph-kb/detail/GraphKbDetailModal'
 import { indexingStatusColor } from '@/features/graph-kb/shared/graphKbForm'
 import './GraphKbListPage.css'
 
@@ -40,16 +45,30 @@ function toListParams(
   return params
 }
 
+/** Parses a detail tab key from URL search params. */
+function parseDetailTab(value: string | null): GraphKbDetailTab {
+  if (value === 'graph' || value === 'summaries' || value === 'qa' || value === 'settings') {
+    return value
+  }
+  return 'documents'
+}
+
 /** GraphKB list page at `/app/graph-kb`. */
 export function GraphKbListPage() {
   const { t } = useTranslation()
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { workspaceId, isWorkspaceAdmin, isSuperAdmin, userId } = useAuth()
   const canFilterMine = isWorkspaceAdmin || isSuperAdmin
   const [filterForm] = Form.useForm<FilterFormValues>()
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<GraphKbListParams>({ page: 1, page_size: DEFAULT_PAGE_SIZE })
+  /** Whether the fullscreen create modal is open. */
+  const [createOpen, setCreateOpen] = useState(false)
+  /** Graph id for the fullscreen detail modal; null when closed. */
+  const [detailGraphId, setDetailGraphId] = useState<string | null>(null)
+  /** Tab shown when opening the detail modal from the list or after create. */
+  const [detailTab, setDetailTab] = useState<GraphKbDetailTab>('documents')
   const tableWrapRef = useRef<HTMLDivElement | null>(null)
   /** Computed Ant Design Table body `scroll.y` from the flex table region height. */
   const [tableBodyScrollY, setTableBodyScrollY] = useState(420)
@@ -85,6 +104,34 @@ export function GraphKbListPage() {
     setFilters({ page: 1, page_size: DEFAULT_PAGE_SIZE })
   }, [filterForm])
 
+  const openDetail = useCallback((graphId: string, tab: GraphKbDetailTab = 'documents') => {
+    setDetailGraphId(graphId)
+    setDetailTab(tab)
+  }, [])
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams(searchParams)
+    let changed = false
+
+    if (nextParams.get('create') === '1') {
+      setCreateOpen(true)
+      nextParams.delete('create')
+      changed = true
+    }
+
+    const graphId = nextParams.get('graphId')
+    if (graphId) {
+      openDetail(graphId, parseDetailTab(nextParams.get('tab')))
+      nextParams.delete('graphId')
+      nextParams.delete('tab')
+      changed = true
+    }
+
+    if (changed) {
+      setSearchParams(nextParams, { replace: true })
+    }
+  }, [openDetail, searchParams, setSearchParams])
+
   useLayoutEffect(() => {
     const wrap = tableWrapRef.current
     if (wrap == null) return
@@ -99,7 +146,7 @@ export function GraphKbListPage() {
     return () => {
       ro.disconnect()
     }
-  }, [workspaceId, listQ.data?.items?.length, page])
+  }, [workspaceId, createOpen, detailGraphId, listQ.data?.items?.length, page])
 
   const columns: ColumnsType<GraphKbOut> = useMemo(
     () => [
@@ -108,7 +155,7 @@ export function GraphKbListPage() {
         dataIndex: 'name',
         key: 'name',
         render: (name: string, row) => (
-          <Button type="link" style={{ padding: 0 }} onClick={() => navigate(`/app/graph-kb/${row.id}/documents`)}>
+          <Button type="link" style={{ padding: 0 }} onClick={() => openDetail(row.id)}>
             {name}
           </Button>
         ),
@@ -179,7 +226,7 @@ export function GraphKbListPage() {
         },
       },
     ],
-    [deleteM, isSuperAdmin, isWorkspaceAdmin, navigate, t, userId],
+    [deleteM, isSuperAdmin, isWorkspaceAdmin, openDetail, t, userId],
   )
 
   if (!workspaceId) {
@@ -187,6 +234,7 @@ export function GraphKbListPage() {
   }
 
   return (
+    <>
     <div className="minerva-graph-kb-list-page">
       <Card size="small" variant="borderless" className="minerva-graph-kb-list-page__card minerva-page-shell-card">
         <Form
@@ -217,7 +265,7 @@ export function GraphKbListPage() {
                 {t('rules.search')}
               </Button>
               <Button onClick={onReset}>{t('rules.resetFilter')}</Button>
-              <Button type="dashed" icon={<FileAddOutlined />} onClick={() => navigate('/app/graph-kb/create')}>
+              <Button type="dashed" icon={<FileAddOutlined />} onClick={() => setCreateOpen(true)}>
                 {t('graphKb.list.create')}
               </Button>
             </Space>
@@ -248,5 +296,23 @@ export function GraphKbListPage() {
         </div>
       </Card>
     </div>
+
+    <GraphKbCreateModal
+      open={createOpen}
+      onClose={() => setCreateOpen(false)}
+      onSuccess={(graphId) => {
+        setCreateOpen(false)
+        void queryClient.invalidateQueries({ queryKey: ['graph-kbs', workspaceId] })
+        openDetail(graphId)
+      }}
+    />
+
+    <GraphKbDetailModal
+      open={detailGraphId != null}
+      graphId={detailGraphId}
+      initialTab={detailTab}
+      onClose={() => setDetailGraphId(null)}
+    />
+    </>
   )
 }

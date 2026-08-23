@@ -5,7 +5,7 @@ import { Card, Empty, Spin, Tree, Typography } from 'antd'
 import type { DataNode } from 'antd/es/tree'
 import { useCallback, useMemo, useState, type Key } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useParams } from 'react-router-dom'
+import { useGraphKbId } from '@/features/graph-kb/shared/GraphKbContext'
 import { useAuth } from '@/app/AuthContext'
 import {
   getGraphKbGraphView,
@@ -73,7 +73,7 @@ export function buildSummaryTree(
 export function GraphKbSummariesPage() {
   const { t } = useTranslation()
   const { workspaceId } = useAuth()
-  const { graphId = '' } = useParams()
+  const graphId = useGraphKbId()
   /** Selected community projection id (graph-view community_id). */
   const [selectedId, setSelectedId] = useState<string | null>(null)
   /** Canvas query: community click, or hops=2 after a node click. */

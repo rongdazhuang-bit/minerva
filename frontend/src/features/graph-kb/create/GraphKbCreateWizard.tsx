@@ -1,10 +1,9 @@
-/** Create an empty graph knowledge base, then open its documents tab. */
+/** Single-step create form inside the fullscreen modal wizard shell. */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button, Card, Empty, Form, Space, Typography, message } from 'antd'
+import { Button, Form, Space, Typography, message } from 'antd'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
 import { listModelProviders } from '@/api/modelProviders'
 import { useAuth } from '@/app/AuthContext'
 import { createGraphKb } from '@/features/graph-kb/api/graphKb'
@@ -16,12 +15,16 @@ import {
   listWorkspaceMemberOptions,
   type GraphKbFormValues,
 } from '@/features/graph-kb/shared/graphKbForm'
-import './GraphKbCreatePage.css'
+import './GraphKbCreateWizard.css'
 
-/** Standalone create page at `/app/graph-kb/create`. */
-export function GraphKbCreatePage() {
+export type GraphKbCreateWizardProps = {
+  onCancel: () => void
+  onSuccess: (graphId: string) => void
+}
+
+/** Renders the graph KB create form with header, scroll body, and footer actions. */
+export function GraphKbCreateWizard({ onCancel, onSuccess }: GraphKbCreateWizardProps) {
   const { t } = useTranslation()
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { workspaceId } = useAuth()
   const [form] = Form.useForm<GraphKbFormValues>()
@@ -80,49 +83,48 @@ export function GraphKbCreatePage() {
     onSuccess: (row) => {
       message.success(t('graphKb.create.success'))
       void queryClient.invalidateQueries({ queryKey: ['graph-kbs', workspaceId] })
-      navigate(`/app/graph-kb/${row.id}/documents`)
+      onSuccess(row.id)
     },
     onError: (err: Error) => message.error(err.message),
   })
 
   if (!workspaceId) {
-    return (
-      <div className="minerva-page-fill">
-        <Empty description={t('settings.ocrNoWorkspace')} style={{ color: 'var(--minerva-ink)' }} />
-      </div>
-    )
+    return null
   }
 
   return (
-    <div className="minerva-page-fill">
-      <Card variant="borderless" className="minerva-page-shell-card">
-        <div className="minerva-graph-kb-create-page">
-          <Typography.Title level={4}>{t('graphKb.page.create')}</Typography.Title>
-          <Form
-            form={form}
-            layout="vertical"
-            initialValues={{ engine: ENGINE_LIGHTRAG, permission: PERMISSION_ONLY_ME }}
-            onFinish={(values) => createM.mutate(values)}
-          >
-            <GraphKbMetaFields
-              modelsLoading={modelsQ.isLoading}
-              usersLoading={usersQ.isLoading}
-              chatOptions={chatOptions}
-              embeddingOptions={embeddingOptions}
-              userOptions={usersQ.data ?? []}
-              permission={permission}
-            />
-            <div className="minerva-graph-kb-create-page__actions">
-              <Space>
-                <Button onClick={() => navigate('/app/graph-kb')}>{t('common.cancel')}</Button>
-                <Button type="primary" htmlType="submit" loading={createM.isPending}>
-                  {t('graphKb.create.submit')}
-                </Button>
-              </Space>
-            </div>
-          </Form>
+    <Form
+      form={form}
+      layout="vertical"
+      className="minerva-graph-kb-create-wizard"
+      initialValues={{ engine: ENGINE_LIGHTRAG, permission: PERMISSION_ONLY_ME }}
+      onFinish={(values) => createM.mutate(values)}
+    >
+      <div className="minerva-graph-kb-create-wizard__header">
+        <Typography.Title level={4}>{t('graphKb.page.create')}</Typography.Title>
+      </div>
+
+      <div className="minerva-graph-kb-create-wizard__body minerva-scrollbar-thin">
+        <div className="minerva-graph-kb-create-wizard__body-inner">
+          <GraphKbMetaFields
+            modelsLoading={modelsQ.isLoading}
+            usersLoading={usersQ.isLoading}
+            chatOptions={chatOptions}
+            embeddingOptions={embeddingOptions}
+            userOptions={usersQ.data ?? []}
+            permission={permission}
+          />
         </div>
-      </Card>
-    </div>
+      </div>
+
+      <div className="minerva-graph-kb-create-wizard__footer">
+        <Button onClick={onCancel}>{t('common.cancel')}</Button>
+        <Space>
+          <Button type="primary" htmlType="submit" loading={createM.isPending}>
+            {t('graphKb.create.submit')}
+          </Button>
+        </Space>
+      </div>
+    </Form>
   )
 }

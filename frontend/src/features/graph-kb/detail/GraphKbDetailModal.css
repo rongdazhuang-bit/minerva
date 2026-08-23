@@ -1,0 +1,64 @@
+/** Fullscreen host for graph knowledge base detail tabs. */
+.minerva-graph-kb-detail-modal.ant-modal-wrap {
+  overflow: hidden;
+}
+
+.minerva-graph-kb-detail-modal .ant-modal {
+  top: 0 !important;
+  display: flex;
+  flex-direction: column;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.minerva-graph-kb-detail-modal .ant-modal-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  max-height: 100dvh;
+  padding: 0;
+  border-radius: 0;
+}
+
+.minerva-graph-kb-detail-modal .ant-modal-header {
+  position: absolute;
+  inset: 0 0 auto auto;
+  z-index: 10;
+  flex-shrink: 0;
+  margin-bottom: 0;
+  padding: 16px 20px;
+  border-bottom: none;
+  background: transparent;
+  pointer-events: none;
+}
+
+.minerva-graph-kb-detail-modal .ant-modal-close {
+  pointer-events: auto;
+  top: 16px;
+  inset-inline-end: 20px;
+}
+
+.minerva-graph-kb-detail-modal .ant-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-graph-kb-detail-modal .minerva-graph-kb-section-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+.minerva-graph-kb-detail-modal .minerva-graph-kb-section-layout__tabs {
+  padding: 8px 56px 0 16px;
+}

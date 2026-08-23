@@ -5,8 +5,8 @@ import { Card, Descriptions, Empty, Form, Input, Table, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useParams } from 'react-router-dom'
 import { useAuth } from '@/app/AuthContext'
+import { useGraphKbId } from '@/features/graph-kb/shared/GraphKbContext'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
 import {
   getGraphKbGraphView,
@@ -38,7 +38,7 @@ type SeedView = {
 export function GraphKbGraphPage() {
   const { t } = useTranslation()
   const { workspaceId } = useAuth()
-  const { graphId = '' } = useParams()
+  const graphId = useGraphKbId()
   const [filterForm] = Form.useForm<EntityFilterValues>()
   const [entityPage, setEntityPage] = useState(1)
   const [relationPage, setRelationPage] = useState(1)

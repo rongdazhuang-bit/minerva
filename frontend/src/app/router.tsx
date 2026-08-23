@@ -19,13 +19,7 @@ import { TranslatePage } from '@/features/translate'
 import { DatasetListPage, DatasetSectionLayout, DocumentListPage, DatasetSettingsPage, HitTestingPage } from '@/features/dataset'
 import {
   GraphKbListPage,
-  GraphKbCreatePage,
-  GraphKbSectionLayout,
-  GraphKbDocumentsPage,
-  GraphKbGraphPage,
-  GraphKbSummariesPage,
-  GraphKbQaPage,
-  GraphKbSettingsPage,
+  GraphKbDetailRedirect,
 } from '@/features/graph-kb'
 import { OverviewPage } from '@/features/workspace/OverviewPage'
 import { DrawingReviewPage, TextProofreadingPage, TextReviewByTextPage } from '@/features/smart-review'
@@ -116,19 +110,11 @@ const router = createBrowserRouter([
           { path: 'graph-kb', element: <GraphKbListPage /> },
           {
             path: 'graph-kb/create',
-            element: <GraphKbCreatePage />,
+            element: <Navigate to="/app/graph-kb?create=1" replace />,
           },
           {
-            path: 'graph-kb/:graphId',
-            element: <GraphKbSectionLayout />,
-            children: [
-              { index: true, element: <Navigate to="documents" replace /> },
-              { path: 'documents', element: <GraphKbDocumentsPage /> },
-              { path: 'graph', element: <GraphKbGraphPage /> },
-              { path: 'summaries', element: <GraphKbSummariesPage /> },
-              { path: 'qa', element: <GraphKbQaPage /> },
-              { path: 'settings', element: <GraphKbSettingsPage /> },
-            ],
+            path: 'graph-kb/:graphId/*',
+            element: <GraphKbDetailRedirect />,
           },
           {
             path: 'smart-review',

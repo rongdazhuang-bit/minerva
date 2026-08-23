@@ -4,9 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button, Empty, Form, Spin, message } from 'antd'
 import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useParams } from 'react-router-dom'
 import { listModelProviders } from '@/api/modelProviders'
 import { useAuth } from '@/app/AuthContext'
+import { useGraphKbId } from '@/features/graph-kb/shared/GraphKbContext'
 import { getGraphKb, patchGraphKb } from '@/features/graph-kb/api/graphKb'
 import { GraphKbMetaFields } from '@/features/graph-kb/shared/GraphKbMetaFields'
 import {
@@ -22,7 +22,7 @@ import './GraphKbSettingsPage.css'
 export function GraphKbSettingsPage() {
   const { t } = useTranslation()
   const { workspaceId } = useAuth()
-  const { graphId = '' } = useParams()
+  const graphId = useGraphKbId()
   const queryClient = useQueryClient()
   const [form] = Form.useForm<GraphKbFormValues>()
   const permission = Form.useWatch('permission', form)

@@ -21,8 +21,8 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useParams } from 'react-router-dom'
 import { useAuth } from '@/app/AuthContext'
+import { useGraphKbId } from '@/features/graph-kb/shared/GraphKbContext'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
 import {
   deleteGraphKbDocument,
@@ -55,7 +55,7 @@ type TextImportValues = {
 export function GraphKbDocumentsPage() {
   const { t } = useTranslation()
   const { workspaceId } = useAuth()
-  const { graphId = '' } = useParams()
+  const graphId = useGraphKbId()
   const queryClient = useQueryClient()
   const [textForm] = Form.useForm<TextImportValues>()
   const [page, setPage] = useState(1)

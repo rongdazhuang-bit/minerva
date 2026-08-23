@@ -1,0 +1,47 @@
+/** Create wizard shell — flex column matching knowledge-base create layout. */
+
+.minerva-graph-kb-create-wizard {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.minerva-graph-kb-create-wizard__header {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  padding: 20px 56px 16px;
+  border-bottom: 1px solid var(--minerva-border, rgba(255, 255, 255, 0.12));
+}
+
+html.minerva-tone-sunshine .minerva-graph-kb-create-wizard__header {
+  border-bottom-color: var(--minerva-border, rgba(0, 0, 0, 0.08));
+}
+
+.minerva-graph-kb-create-wizard__header .ant-typography {
+  margin: 0;
+  max-width: 720px;
+  width: 100%;
+}
+
+.minerva-graph-kb-create-wizard__body {
+  flex: 1 1 auto;
+  min-height: 320px;
+  overflow: auto;
+}
+
+.minerva-graph-kb-create-wizard__body-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.minerva-graph-kb-create-wizard__footer {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-top: 1px solid var(--minerva-border);
+}

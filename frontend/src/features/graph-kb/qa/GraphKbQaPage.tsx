@@ -4,7 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { Button, Card, Empty, Form, Input, InputNumber, Select, Spin, Typography, message } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useParams } from 'react-router-dom'
+import { useGraphKbId } from '@/features/graph-kb/shared/GraphKbContext'
 import { useAuth } from '@/app/AuthContext'
 import { DEFAULT_PAGE_SIZE } from '@/constants/pagination'
 import {
@@ -38,7 +38,7 @@ export function qaModesForEngine(engine: string | undefined): readonly string[] 
 export function GraphKbQaPage() {
   const { t } = useTranslation()
   const { workspaceId } = useAuth()
-  const { graphId = '' } = useParams()
+  const graphId = useGraphKbId()
   const [form] = Form.useForm<QaFormValues>()
   /** Latest answer shown in the result pane (live query or history). */
   const [result, setResult] = useState<GraphKbQueryOut | null>(null)
