@@ -1,0 +1,1 @@
+"""GraphKB domain layer."""

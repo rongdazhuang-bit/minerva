@@ -823,6 +823,55 @@ class Settings(BaseSettings):
         default="",
         validation_alias=AliasChoices("DATASET_WEAVIATE_API_KEY", "dataset_weaviate_api_key"),
     )
+    graph_kb_data: str = Field(
+        default="",
+        description="GraphRAG 数据根目录；空则使用 <cwd>/data/graph_kb。",
+        validation_alias=AliasChoices("GRAPH_KB_DATA", "graph_kb_data"),
+    )
+    graph_kb_lightrag_database_url: str = Field(
+        default="",
+        description="LightRAG 专用 pgvector 连接串；禁止复用 MEM0_* 配置。",
+        validation_alias=AliasChoices(
+            "GRAPH_KB_LIGHTRAG_DATABASE_URL",
+            "graph_kb_lightrag_database_url",
+        ),
+    )
+    graph_kb_job_timeout_seconds: int = Field(
+        default=7200,
+        ge=60,
+        le=86400,
+        description="GraphKB 索引/清理 Celery 任务超时（秒）。",
+        validation_alias=AliasChoices(
+            "GRAPH_KB_JOB_TIMEOUT_SECONDS",
+            "graph_kb_job_timeout_seconds",
+        ),
+    )
+    graph_kb_inline_text_max_chars: int = Field(
+        default=20000,
+        ge=1,
+        le=1_000_000,
+        description="GraphKB 内联纯文本最大字符数。",
+        validation_alias=AliasChoices(
+            "GRAPH_KB_INLINE_TEXT_MAX_CHARS",
+            "graph_kb_inline_text_max_chars",
+        ),
+    )
+    graph_kb_lightrag_worker_url: str = Field(
+        default="http://127.0.0.1:8101",
+        description="LightRAG 独立 worker HTTP 基址。",
+        validation_alias=AliasChoices(
+            "GRAPH_KB_LIGHTRAG_WORKER_URL",
+            "graph_kb_lightrag_worker_url",
+        ),
+    )
+    graph_kb_graphrag_worker_url: str = Field(
+        default="http://127.0.0.1:8102",
+        description="GraphRAG 独立 worker HTTP 基址。",
+        validation_alias=AliasChoices(
+            "GRAPH_KB_GRAPHRAG_WORKER_URL",
+            "graph_kb_graphrag_worker_url",
+        ),
+    )
     amap_web_service_key: str = Field(
         default="",
         description="高德 Web 服务 API Key（IP 定位、行政区域、天气查询）。",
@@ -866,6 +915,12 @@ class Settings(BaseSettings):
                     "MEM0_GRAPH_ENABLED=true requires MEM0_NEO4J_PASSWORD"
                 )
         return self
+
+    def resolve_graph_kb_data(self) -> Path:
+        """Return GraphRAG data root; default ``<cwd>/data/graph_kb`` when unset."""
+
+        raw = (self.graph_kb_data or "").strip()
+        return Path(raw) if raw else Path.cwd() / "data" / "graph_kb"
 
 
 def resolve_agent_files_root() -> Path:

@@ -16,6 +16,7 @@ FEATURE_SKILLS = "feature:skills"
 FEATURE_TRANSLATE = "feature:translate"
 FEATURE_RULES = "feature:rules"
 FEATURE_FILE_STORAGE = "feature:file_storage"
+FEATURE_GRAPH_KB = "feature:graph_kb"
 
 FEATURE_CODES: frozenset[str] = frozenset(
     {
@@ -26,6 +27,7 @@ FEATURE_CODES: frozenset[str] = frozenset(
         FEATURE_TRANSLATE,
         FEATURE_RULES,
         FEATURE_FILE_STORAGE,
+        FEATURE_GRAPH_KB,
     }
 )
 
@@ -54,6 +56,8 @@ def menu_key_to_feature(menu_key: str | None) -> str | None:
         return FEATURE_RULES
     if menu_key == "settings-file-storage":
         return FEATURE_FILE_STORAGE
+    if menu_key == "sub-graph-kb" or fnmatch.fnmatch(menu_key, "graph-kb-*"):
+        return FEATURE_GRAPH_KB
     return None
 
 
