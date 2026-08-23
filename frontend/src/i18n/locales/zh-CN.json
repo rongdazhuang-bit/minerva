@@ -101,6 +101,7 @@
   "graphKb.field.permissionRequired": "请选择权限",
   "graphKb.field.members": "成员",
   "graphKb.field.membersPh": "选择可访问的成员",
+  "graphKb.field.unknownUser": "未知用户",
   "graphKb.field.llm": "对话模型",
   "graphKb.field.llmPh": "可选 CHAT 模型",
   "graphKb.field.embedding": "Embedding 模型",

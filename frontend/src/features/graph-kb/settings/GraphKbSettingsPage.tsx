@@ -11,6 +11,7 @@ import { getGraphKb, patchGraphKb } from '@/features/graph-kb/api/graphKb'
 import { GraphKbMetaFields } from '@/features/graph-kb/shared/GraphKbMetaFields'
 import {
   listWorkspaceMemberOptions,
+  mergeMemberSelectOptions,
   parseModelKey,
   toModelKey,
   type GraphKbFormValues,
@@ -66,6 +67,16 @@ export function GraphKbSettingsPage() {
     [modelsQ.data],
   )
 
+  const userOptions = useMemo(
+    () =>
+      mergeMemberSelectOptions(
+        usersQ.data ?? [],
+        detailQ.data?.member_user_ids,
+        t('graphKb.field.unknownUser'),
+      ),
+    [detailQ.data?.member_user_ids, t, usersQ.data],
+  )
+
   useEffect(() => {
     const row = detailQ.data
     if (!row) return
@@ -117,7 +128,7 @@ export function GraphKbSettingsPage() {
             usersLoading={usersQ.isLoading}
             chatOptions={chatOptions}
             embeddingOptions={embeddingOptions}
-            userOptions={usersQ.data ?? []}
+            userOptions={userOptions}
             permission={permission}
           />
           <div className="minerva-graph-kb-settings-page__actions">

@@ -101,6 +101,7 @@
   "graphKb.field.permissionRequired": "Please select a permission",
   "graphKb.field.members": "Members",
   "graphKb.field.membersPh": "Select members who can access",
+  "graphKb.field.unknownUser": "Unknown user",
   "graphKb.field.llm": "Chat model",
   "graphKb.field.llmPh": "Optional CHAT model",
   "graphKb.field.embedding": "Embedding model",

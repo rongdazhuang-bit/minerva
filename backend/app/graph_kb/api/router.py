@@ -11,6 +11,7 @@ from app.core.api.deps import get_current_user
 from app.core.domain.identity.models import User
 from app.dependencies import get_db
 from app.graph_kb.api.deps import require_graph_kb_workspace
+from app.graph_kb.api.presenters import graph_kb_out_list, graph_kb_out_one
 from app.graph_kb.api.schemas import (
     GraphKbCreateIn,
     GraphKbDocumentDeleteOut,
@@ -33,8 +34,6 @@ from app.graph_kb.api.schemas import (
     GraphKbSummaryListPageOut,
     GraphKbSummaryOut,
 )
-from app.graph_kb.domain.db.models import GraphKb
-from app.graph_kb.infrastructure import repository as repo
 from app.graph_kb.service import deletion_service
 from app.graph_kb.service import document_service as doc_svc
 from app.graph_kb.service import graph_service as graph_svc
@@ -45,21 +44,6 @@ from app.graph_kb.service.actor import actor_from_user
 from app.pagination import DEFAULT_PAGE_SIZE
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/graph-kbs", tags=["graph-kbs"])
-
-
-async def _graph_out(
-    session: AsyncSession,
-    *,
-    workspace_id: uuid.UUID,
-    row: GraphKb,
-) -> GraphKbOut:
-    """Build ``GraphKbOut`` including current member user ids."""
-
-    member_ids = await repo.list_member_user_ids(
-        session, workspace_id=workspace_id, graph_id=row.id
-    )
-    payload = GraphKbOut.model_validate(row)
-    return payload.model_copy(update={"member_user_ids": sorted(member_ids, key=str)})
 
 
 @router.get("", response_model=GraphKbListPageOut)
@@ -85,7 +69,7 @@ async def list_graph_kbs(
         name=name,
         mine_only=mine_only,
     )
-    items = [GraphKbOut.model_validate(row) for row in rows]
+    items = await graph_kb_out_list(session, workspace_id=workspace_id, rows=rows)
     return GraphKbListPageOut(items=items, total=total, page=page, page_size=page_size)
 
 
@@ -122,7 +106,7 @@ async def create_graph_kb(
         )
     await session.commit()
     await session.refresh(row)
-    return await _graph_out(session, workspace_id=workspace_id, row=row)
+    return await graph_kb_out_one(session, workspace_id=workspace_id, row=row)
 
 
 @router.get("/{graph_id}", response_model=GraphKbOut)
@@ -139,7 +123,7 @@ async def get_graph_kb(
     row = await graph_svc.get_graph_for_view(
         session, workspace_id=workspace_id, graph_id=graph_id, actor=actor
     )
-    return await _graph_out(session, workspace_id=workspace_id, row=row)
+    return await graph_kb_out_one(session, workspace_id=workspace_id, row=row)
 
 
 @router.patch("/{graph_id}", response_model=GraphKbOut)
@@ -173,7 +157,7 @@ async def patch_graph_kb(
         )
     await session.commit()
     await session.refresh(row)
-    return await _graph_out(session, workspace_id=workspace_id, row=row)
+    return await graph_kb_out_one(session, workspace_id=workspace_id, row=row)
 
 
 @router.delete("/{graph_id}", status_code=204)

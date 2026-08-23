@@ -104,3 +104,21 @@ export async function listWorkspaceMemberOptions(workspaceId: string): Promise<S
     label: row.nickname?.trim() ? `${row.nickname} (${row.email})` : row.email,
   }))
 }
+
+/**
+ * Include orphan member ids (deleted/disabled users) so Select shows a readable label.
+ */
+export function mergeMemberSelectOptions(
+  workspaceOptions: SelectOption[],
+  memberUserIds: string[] | undefined,
+  unknownLabel: string,
+): SelectOption[] {
+  const known = new Set(workspaceOptions.map((option) => option.value))
+  const merged = [...workspaceOptions]
+  for (const userId of memberUserIds ?? []) {
+    if (!known.has(userId)) {
+      merged.push({ value: userId, label: unknownLabel })
+    }
+  }
+  return merged
+}

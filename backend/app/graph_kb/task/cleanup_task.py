@@ -12,7 +12,7 @@ from celery import Task, shared_task
 from app.core.infrastructure.db.session import async_session_factory, engine
 from app.core.log import get_logger
 from app.graph_kb.domain.constants import GRAPH_KB_CLEANUP_TASK_NAME
-from app.graph_kb.service.cleanup_service import run_cleanup_job
+from app.graph_kb.service.cleanup_service import flush_pending_cleanups, run_cleanup_job
 
 log = get_logger(__name__)
 
@@ -38,12 +38,20 @@ def _run_async(workspace_id: str, graph_id: str, engine_name: str) -> dict[str, 
     return asyncio.run(_runner())
 
 
-@shared_task(bind=True, name=GRAPH_KB_CLEANUP_TASK_NAME, queue="graph_kb")
+@shared_task(
+    bind=True,
+    name=GRAPH_KB_CLEANUP_TASK_NAME,
+    queue="graph_kb",
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 3},
+)
 def graph_kb_cleanup_task(
     self: Task, workspace_id: str, graph_id: str, engine: str
 ) -> dict[str, Any]:
     """Delete Worker namespace and local files after graph SQL rows are gone."""
 
+    flush_pending_cleanups()
     log.info(
         "graph_kb.cleanup start graph_id={} engine={} task_id={}",
         graph_id,
