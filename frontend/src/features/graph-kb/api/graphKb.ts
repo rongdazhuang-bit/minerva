@@ -207,6 +207,12 @@ export type PageParams = {
   page_size?: number
 }
 
+/** Entity list query: pagination plus optional name / type filters. */
+export type GraphKbEntityListParams = PageParams & {
+  name?: string
+  entity_type?: string
+}
+
 /** Build `/workspaces/{id}/graph-kbs{suffix}` path. */
 function graphKbPath(workspaceId: string, suffix = '') {
   return `/workspaces/${workspaceId}/graph-kbs${suffix}`
@@ -358,9 +364,15 @@ export function getGraphKbJob(workspaceId: string, graphId: string, jobId: strin
   return apiJson<GraphKbJobOut>(graphKbPath(workspaceId, `/${graphId}/jobs/${jobId}`))
 }
 
-/** List entity projections. */
-export function listGraphKbEntities(workspaceId: string, graphId: string, params?: PageParams) {
+/** List entity projections (optional name / type filters). */
+export function listGraphKbEntities(
+  workspaceId: string,
+  graphId: string,
+  params?: GraphKbEntityListParams,
+) {
   const sp = withPageParams(params)
+  if (params?.name?.trim()) sp.set('name', params.name.trim())
+  if (params?.entity_type?.trim()) sp.set('entity_type', params.entity_type.trim())
   return apiJson<GraphKbEntityListPageOut>(
     graphKbPath(workspaceId, `/${graphId}/entities?${sp.toString()}`),
   )

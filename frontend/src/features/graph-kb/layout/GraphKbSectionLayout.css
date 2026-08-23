@@ -21,11 +21,17 @@
   flex-direction: column;
 }
 
-.minerva-graph-kb-section-layout__body:has(.minerva-graph-kb-documents-page) {
+.minerva-graph-kb-section-layout__body:has(.minerva-graph-kb-documents-page),
+.minerva-graph-kb-section-layout__body:has(.minerva-graph-kb-graph-page),
+.minerva-graph-kb-section-layout__body:has(.minerva-graph-kb-summaries-page),
+.minerva-graph-kb-section-layout__body:has(.minerva-graph-kb-qa-page) {
   overflow: hidden;
 }
 
-.minerva-graph-kb-section-layout__body:has(.minerva-graph-kb-documents-page) > * {
+.minerva-graph-kb-section-layout__body:has(.minerva-graph-kb-documents-page) > *,
+.minerva-graph-kb-section-layout__body:has(.minerva-graph-kb-graph-page) > *,
+.minerva-graph-kb-section-layout__body:has(.minerva-graph-kb-summaries-page) > *,
+.minerva-graph-kb-section-layout__body:has(.minerva-graph-kb-qa-page) > * {
   flex: 1;
   min-height: 0;
   min-width: 0;

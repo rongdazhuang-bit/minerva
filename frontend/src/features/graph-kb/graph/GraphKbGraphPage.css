@@ -1,0 +1,102 @@
+/* Graph tab: fill detail body; tables and canvas scroll in-pane. */
+.minerva-graph-kb-graph-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  color: var(--minerva-ink, #e8f0f8);
+}
+
+.minerva-graph-kb-graph-page__card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-graph-kb-graph-page__card .ant-card-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-graph-kb-graph-page__empty {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.minerva-graph-kb-graph-page__split {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 12px;
+}
+
+.minerva-graph-kb-graph-page__tables {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-graph-kb-graph-page__filter {
+  flex-shrink: 0;
+  margin-bottom: 8px;
+  row-gap: 8px;
+}
+
+.minerva-graph-kb-graph-page__section {
+  flex-shrink: 0;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.minerva-graph-kb-graph-page__table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.minerva-graph-kb-graph-page__table {
+  width: 100%;
+}
+
+.minerva-graph-kb-graph-page__table .ant-table {
+  width: 100% !important;
+}
+
+.minerva-graph-kb-graph-page__row--active td {
+  background: color-mix(in srgb, var(--minerva-primary, #38bdf8) 16%, transparent) !important;
+}
+
+.minerva-graph-kb-graph-page__canvas-col {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.minerva-graph-kb-graph-page__canvas-col .minerva-graph-kb-canvas {
+  flex: 1;
+}
+
+.minerva-graph-kb-graph-page__detail {
+  flex-shrink: 0;
+  max-height: 140px;
+  overflow: auto;
+}
+
+@media (max-width: 900px) {
+  .minerva-graph-kb-graph-page__split {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) minmax(220px, 1fr);
+  }
+}

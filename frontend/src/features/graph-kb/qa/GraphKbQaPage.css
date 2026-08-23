@@ -1,0 +1,108 @@
+/* Q&A tab: query form + history on the left, answer on the right. */
+.minerva-graph-kb-qa-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  color: var(--minerva-ink, #e8f0f8);
+}
+
+.minerva-graph-kb-qa-page__card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-graph-kb-qa-page__card .ant-card-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-graph-kb-qa-page__empty {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.minerva-graph-kb-qa-page__split {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(260px, 380px) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.minerva-graph-kb-qa-page__left,
+.minerva-graph-kb-qa-page__right {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-graph-kb-qa-page__right {
+  overflow: auto;
+  border: 1px solid var(--minerva-border, #2d3f55);
+  border-radius: var(--minerva-page-frame-radius, 4px);
+  padding: 12px;
+}
+
+.minerva-graph-kb-qa-page__section {
+  display: block;
+  margin: 12px 0 8px;
+  font-weight: 500;
+}
+
+.minerva-graph-kb-qa-page__history {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.minerva-graph-kb-qa-page__history-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border: 1px solid transparent;
+  border-radius: var(--minerva-page-frame-radius, 4px);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.minerva-graph-kb-qa-page__history-item:hover,
+.minerva-graph-kb-qa-page__history-item--active {
+  background: color-mix(in srgb, var(--minerva-primary, #38bdf8) 12%, transparent);
+}
+
+.minerva-graph-kb-qa-page__history-q {
+  margin-bottom: 0 !important;
+}
+
+.minerva-graph-kb-qa-page__answer {
+  margin-bottom: 0;
+}
+
+.minerva-graph-kb-qa-page__citation {
+  margin: 0 0 8px;
+  padding: 8px;
+  border-radius: var(--minerva-page-frame-radius, 4px);
+  border: 1px solid var(--minerva-border, #2d3f55);
+  overflow: auto;
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .minerva-graph-kb-qa-page__split {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) minmax(180px, 1fr);
+  }
+}
