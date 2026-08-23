@@ -239,6 +239,51 @@ pytest tests/ -k dataset -q
 
 可选全链路集成测试（需 DB、pgvector、Celery Worker、`EMBEDDINGS` 模型）：设置 `RUN_DATASET_INTEGRATION=1` 后运行 `tests/test_dataset_integration.py`。
 
+## 七、知识图谱（GraphKB / GraphRAG · LightRAG）
+
+独立于 Dataset 的知识图谱模块。前端菜单「知识图谱」，路由 `/app/graph-kb`（列表 / 创建 / 文档 / 图浏览 / 摘要 / 问答 / 设置）。后端：`backend/app/graph_kb/`；权限码 `feature:graph_kb`。
+
+### Celery 队列 `graph_kb`
+
+索引与引擎 namespace 清理走 Celery 队列 **`graph_kb`**（`run-celery` 默认 `MINERVA_CELERY_QUEUES` 已含 `default,dataset,graph_kb`）。未消费该队列时，索引任务会一直处于排队/进行中。
+
+```bash
+# 仓库根目录
+scripts\run-celery.cmd local worker
+bash scripts/run-celery.sh local worker
+```
+
+### 独立引擎 Worker
+
+主 API **不** import GraphRAG / LightRAG SDK；通过 HTTP 调用独立进程（`GraphEngineClient`）。
+
+| Worker | 脚本 | 默认地址 |
+|--------|------|----------|
+| LightRAG | `scripts/run-graph-kb-lightrag-worker.cmd` | `http://127.0.0.1:8101` |
+| GraphRAG | `scripts/run-graph-kb-graphrag-worker.cmd` | `http://127.0.0.1:8102` |
+
+Worker 侧可用 `GRAPH_KB_WORKER_FAKE=1` 跳过真实引擎 SDK（内存假实现，便于无 GPU/无 SDK 的本地与 CI）。存储隔离按 `(workspace_id, graph_id)`；LightRAG workspace 字符串 / GraphRAG 根目录**只在 Worker 内拼接**。
+
+### 环境变量（节选）
+
+| 变量 | 说明 |
+|------|------|
+| `GRAPH_KB_ENGINE_CLIENT` | `http`（默认，调独立 Worker）/ `fake`（进程内 Fake，**单元测试推荐**） |
+| `GRAPH_KB_LIGHTRAG_WORKER_URL` | LightRAG Worker 基址（默认 `http://127.0.0.1:8101`） |
+| `GRAPH_KB_GRAPHRAG_WORKER_URL` | GraphRAG Worker 基址（默认 `http://127.0.0.1:8102`） |
+| `GRAPH_KB_LIGHTRAG_DATABASE_URL` | LightRAG 专用库；**禁止**复用 `MEM0_*` |
+| `GRAPH_KB_DATA` | GraphRAG 数据根目录；空则 `<cwd>/data/graph_kb` |
+| `GRAPH_KB_JOB_TIMEOUT_SECONDS` | 索引/清理 Celery 超时（默认 7200） |
+
+### 测试
+
+```bash
+cd backend
+# 推荐：进程内 Fake，无需启动 Worker
+set GRAPH_KB_ENGINE_CLIENT=fake   # PowerShell: $env:GRAPH_KB_ENGINE_CLIENT="fake"
+pytest tests/test_graph_kb_*.py -q
+```
+
 ## 参与贡献
 
 1. Fork 本仓库并新建功能分支。  

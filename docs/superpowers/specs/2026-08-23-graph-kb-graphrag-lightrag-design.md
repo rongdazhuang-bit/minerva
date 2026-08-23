@@ -1,6 +1,6 @@
 # 知识图谱模块：集成 GraphRAG / LightRAG 可行性与设计
 
-**状态：** 部分实现（至 Task 8：Celery 索引/清理 + 投影回写）  
+**状态：** 已实现（首期；Worker 真实引擎可选，测试/无 SDK 可用 fake）  
 **日期：** 2026-08-23  
 **类型：** 可行性分析 + 模块设计（独立于 Dataset）  
 **Minerva 约定：** 无库级外键；删除在应用层；二次确认使用 Popconfirm；环境变量同步 `backend/.env.example` 与 `backend/.env.dev`；主内容区布局见 `frontend/docs/LAYOUT.md`
@@ -422,16 +422,23 @@ Worker 入参携带从 `sys_models` 解析出的 OpenAI-compatible `base_url`、
 
 | spec 条目 | 当前代码位置 | 备注 |
 |-----------|--------------|------|
-| 独立 GraphKB 模块 | `backend/app/graph_kb/` | CRUD / 文档 / 引擎客户端已落地 |
-| LightRAG / GraphRAG Worker | `workers/` | Task 10–11 待实现；主 API 走 `GraphEngineClient` |
-| `feature:graph_kb` 菜单与权限 | `permission_codes.py` + SQL seeds | 已落地 |
-| 本模块表 | `backend/sql/schema_postgresql.sql` | 无库级外键 |
-| 索引入队 / 冲突 409 | `graph_kb/service/index_service.py` | `assert_no_active_index_job`；`queue=graph_kb` |
-| 失败 job 不覆盖投影 | `run_index_job` 成功路径调 `replace_projections`；异常先 `rollback` 再只写 failed | 半截投影删除不可提交；`job.error` 经 `redact_secret` |
-| DELETE 文档卸盘顺序 | `delete_document`：删行 → 可选入队 → `commit` → 再 unlink | 模型 400 在 commit 前抛出，文件与行均保留 |
-| DELETE 图谱异步清理 | `delete_graph_sql` + `cleanup_service.enqueue_cleanup` | 提交后入队；需传入 `engine` |
-| 查询 / 投影只读 API | `query_service.py` + `view_service.py` + `api/router.py` | `not_ready` 409；分页默认 10；`graph-view` BFS hops 1\|2、最多 200 节点 |
-| POST index / GET job | `router` → `enqueue_index` / `get_job` | 冲突 409；供文档页轮询 |
+| 独立 GraphKB 模块 | `backend/app/graph_kb/`（`api/` `domain/` `engine/` `service/` `task/`） | CRUD / 文档 / 索引 / 查询 / 投影已落地 |
+| `GraphEngineClient` / Fake / HTTP | `engine/protocol.py`、`fake_client.py`、`http_client.py`、`factory.py` | `GRAPH_KB_ENGINE_CLIENT=fake` 用 Fake；默认 `http` |
+| Fake 隔离 key | `FakeGraphEngineClient._store[(workspace_id, graph_id)]` | 交叉 workspace 回归见 `tests/test_graph_kb_engine_client.py` |
+| LightRAG Worker | `workers/graph-kb-lightrag/`；脚本 `scripts/run-graph-kb-lightrag-worker.cmd`（`:8101`） | `GRAPH_KB_WORKER_FAKE=1` 可跳过 SDK；namespace 仅在 Worker 拼 |
+| GraphRAG Worker | `workers/graph-kb-graphrag/`；脚本 `scripts/run-graph-kb-graphrag-worker.cmd`（`:8102`） | 同上；禁止请求体带 `root` |
+| `feature:graph_kb` 菜单与权限 | `backend/app/core/security/permission_codes.py` + SQL seeds；前端 `frontend/src/features/graph-kb/`、`/app/graph-kb` | 独立菜单；与 Dataset 分离 |
+| ACL（only_me / partial / all_team；admin 本区；超管无限制） | `domain/acl.py`；列表过滤 service | `GraphAclActor` |
+| 本模块表（无库级外键） | `backend/sql/schema_postgresql.sql`；ORM `domain/db/models.py` | 删除在应用层 |
+| 文件 + 纯文本入库 | `service/document_service.py` + `api/router.py` | `GRAPH_KB_INLINE_TEXT_MAX_CHARS` |
+| `sys_models` Chat/Embeddings | 建库/索引 service 解析模型端点 | 不自建模型表 |
+| Celery `graph_kb` 队列 | `task/index_task.py`、`task/cleanup_task.py`；`MINERVA_CELERY_QUEUES` 含 `graph_kb` | 索引冲突 409；超时 `GRAPH_KB_JOB_TIMEOUT_SECONDS` |
+| 投影回写 / 失败保留旧投影 | `service/index_service.py`、`projection_service.py` | 成功才 `replace_projections`；失败 rollback |
+| query mode 映射、409/503 | `engine/modes.py`、`service/query_service.py` | GraphRAG 拒 `naive`；未就绪 409 |
+| 表格 + 子图画布 + 摘要 | `view_service.py`；前端 `graph/` `summaries/` `qa/` | `graph-view` hops 1\|2、最多 200 节点 |
+| 删除顺序 + 异步 cleanup | `deletion_service.py`、`cleanup_service.py` | 文档：commit 后再 unlink；删图谱后入队 cleanup |
+| 不复用 mem0 Neo4j | `GRAPH_KB_LIGHTRAG_DATABASE_URL` / `GRAPH_KB_DATA` | 禁止复用 `MEM0_*` |
+| 首期不做 | — | Agent 工具 / 开放 API / Dataset 导入 / GraphRAG 增量 |
 
 Dataset（`backend/app/dataset/`）与 mem0 Neo4j 不在本模块改动范围内。
 
@@ -445,3 +452,4 @@ Dataset（`backend/app/dataset/`）与 mem0 Neo4j 不在本模块改动范围内
 | 2026-08-23 | Task 8：Celery `graph_kb` 索引/清理、投影回写、`MINERVA_CELERY_QUEUES` 默认含 `graph_kb` |
 | 2026-08-23 | Task 8 评审修复：索引失败 rollback 保留旧投影；文档删除 commit 后再 unlink |
 | 2026-08-23 | Task 9：query / entities / relations / summaries / graph-view；补 POST index 与 GET job |
+| 2026-08-23 | Task 15：§11 回填真实路径；状态改为已实现（首期）；交叉 workspace 隔离回归；README 知识图谱节 |

@@ -61,6 +61,29 @@ async def test_fake_index_isolated_by_graph() -> None:
 
 
 @pytest.mark.asyncio
+async def test_cross_workspace_export_empty() -> None:
+    """Same graph_id in another workspace must not see indexed entities."""
+
+    client = FakeGraphEngineClient()
+    llm = ModelEndpoint("http://x", "k", "m")
+    w1, w2, g = uuid4(), uuid4(), uuid4()
+    await client.index(
+        WorkerIndexRequest(
+            workspace_id=w1,
+            graph_id=g,
+            engine=ENGINE_LIGHTRAG,
+            documents=[WorkerDocument(uuid4(), "a.txt", "secret-w1")],
+            llm=llm,
+            embedding=llm,
+        )
+    )
+    export = await client.export_graph(
+        engine=ENGINE_LIGHTRAG, workspace_id=w2, graph_id=g
+    )
+    assert export.entities == []
+
+
+@pytest.mark.asyncio
 async def test_http_index_payload_has_no_lightrag_workspace() -> None:
     """HTTP JSON must send workspace_id + graph_id only, never a pre-built workspace string."""
 

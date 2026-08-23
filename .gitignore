@@ -41,4 +41,5 @@ __pycache__/
 !/backend/tests/__init__.py
 !/backend/tests/sys/
 !/backend/tests/sys/**
+!/backend/tests/test_graph_kb_*.py
 .minerva/
