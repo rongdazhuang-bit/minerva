@@ -8,10 +8,11 @@ import './GraphKbSectionLayout.css'
 
 const TAB_KEYS = ['documents', 'graph', 'summaries', 'qa', 'settings'] as const
 
-/** Resolve the active tab from the current pathname. */
+/** Resolve the active tab from the last path segment after graphId. */
 function tabFromPath(pathname: string): (typeof TAB_KEYS)[number] {
-  for (const key of TAB_KEYS) {
-    if (pathname.includes(`/${key}`)) return key
+  const lastSegment = pathname.split('/').filter(Boolean).at(-1)
+  if (lastSegment && (TAB_KEYS as readonly string[]).includes(lastSegment)) {
+    return lastSegment as (typeof TAB_KEYS)[number]
   }
   return 'documents'
 }
