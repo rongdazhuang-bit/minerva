@@ -17,6 +17,16 @@ import {
 import { AgentMcpPage } from '@/features/agent/mcp/AgentMcpPage'
 import { TranslatePage } from '@/features/translate'
 import { DatasetListPage, DatasetSectionLayout, DocumentListPage, DatasetSettingsPage, HitTestingPage } from '@/features/dataset'
+import {
+  GraphKbListPage,
+  GraphKbCreatePage,
+  GraphKbSectionLayout,
+  GraphKbDocumentsPage,
+  GraphKbGraphPage,
+  GraphKbSummariesPage,
+  GraphKbQaPage,
+  GraphKbSettingsPage,
+} from '@/features/graph-kb'
 import { OverviewPage } from '@/features/workspace/OverviewPage'
 import { DrawingReviewPage, TextProofreadingPage, TextReviewByTextPage } from '@/features/smart-review'
 import {
@@ -101,6 +111,23 @@ const router = createBrowserRouter([
               { path: 'documents', element: <DocumentListPage /> },
               { path: 'hit-testing', element: <HitTestingPage /> },
               { path: 'settings', element: <DatasetSettingsPage /> },
+            ],
+          },
+          { path: 'graph-kb', element: <GraphKbListPage /> },
+          {
+            path: 'graph-kb/create',
+            element: <GraphKbCreatePage />,
+          },
+          {
+            path: 'graph-kb/:graphId',
+            element: <GraphKbSectionLayout />,
+            children: [
+              { index: true, element: <Navigate to="documents" replace /> },
+              { path: 'documents', element: <GraphKbDocumentsPage /> },
+              { path: 'graph', element: <GraphKbGraphPage /> },
+              { path: 'summaries', element: <GraphKbSummariesPage /> },
+              { path: 'qa', element: <GraphKbQaPage /> },
+              { path: 'settings', element: <GraphKbSettingsPage /> },
             ],
           },
           {

@@ -14,6 +14,8 @@ INSERT INTO public.sys_menu (
   ('bf81af51-cf7d-5567-b78e-506b9ff82c8a', '15a93c9c-85d7-5f2c-b87e-10a0a9c4cbbb', '翻译', 'nav.docTranslateTranslate', 'doc-translate-translate', 1, '/app/translate', 'C', 'FileTextOutlined', true, true),
   ('80cc9a4f-f39b-564e-b3ac-158afc9ab79e', NULL, '知识库', 'nav.knowledgeBase', 'sub-dataset', 4, NULL, 'M', 'ReadOutlined', true, true),
   ('db91f71f-90aa-5ccf-9ed3-a76c6790ba06', '80cc9a4f-f39b-564e-b3ac-158afc9ab79e', '数据集', 'nav.dataset', 'dataset-list', 1, '/app/dataset', 'C', 'UnorderedListOutlined', true, true),
+  ('89803e0d-3455-5602-9bdd-55e138974154', NULL, '知识图谱', 'nav.graphKb', 'sub-graph-kb', 5, NULL, 'M', 'ApartmentOutlined', true, true),
+  ('13c654eb-10eb-524e-9f00-ef1cfb08ac62', '89803e0d-3455-5602-9bdd-55e138974154', '图谱', 'nav.graphKbList', 'graph-kb-list', 1, '/app/graph-kb', 'C', 'ApartmentOutlined', true, true),
   ('bc61b69c-6442-51ae-a118-ec26ff90cc17', NULL, '智能审核', 'nav.smartReview', 'sub-smart-review', 5, NULL, 'M', 'FileSearchOutlined', true, true),
   ('4a6b39d1-9baf-5a1d-8c5b-f03ea4ca176e', 'bc61b69c-6442-51ae-a118-ec26ff90cc17', '文本校对', 'nav.smartReviewTextProofreading', 'smart-review-text-proofreading', 1, '/app/smart-review/text-proofreading', 'C', 'FileTextOutlined', true, true),
   ('41015668-38c7-5d37-a3d5-fd54764b6218', 'bc61b69c-6442-51ae-a118-ec26ff90cc17', '以文审文', 'nav.smartReviewTextToText', 'smart-review-text-to-text', 2, '/app/smart-review/review-by-text', 'C', 'AuditOutlined', true, true),

@@ -17,6 +17,8 @@ ROWS: list[tuple] = [
     ("doc-translate-translate", "sub-doc-translate", "翻译", "nav.docTranslateTranslate", 1, "/app/translate", "C", "FileTextOutlined"),
     ("sub-dataset", None, "知识库", "nav.knowledgeBase", 4, None, "M", "ReadOutlined"),
     ("dataset-list", "sub-dataset", "数据集", "nav.dataset", 1, "/app/dataset", "C", "UnorderedListOutlined"),
+    ("sub-graph-kb", None, "知识图谱", "nav.graphKb", 5, None, "M", "ApartmentOutlined"),
+    ("graph-kb-list", "sub-graph-kb", "图谱", "nav.graphKbList", 1, "/app/graph-kb", "C", "ApartmentOutlined"),
     ("sub-smart-review", None, "智能审核", "nav.smartReview", 5, None, "M", "FileSearchOutlined"),
     ("smart-review-text-proofreading", "sub-smart-review", "文本校对", "nav.smartReviewTextProofreading", 1, "/app/smart-review/text-proofreading", "C", "FileTextOutlined"),
     ("smart-review-text-to-text", "sub-smart-review", "以文审文", "nav.smartReviewTextToText", 2, "/app/smart-review/review-by-text", "C", "AuditOutlined"),
