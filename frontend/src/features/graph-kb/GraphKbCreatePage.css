@@ -1,0 +1,10 @@
+/* GraphKB create form: constrain width inside the page-fill frame. */
+.minerva-graph-kb-create-page {
+  max-width: 720px;
+}
+
+.minerva-graph-kb-create-page__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

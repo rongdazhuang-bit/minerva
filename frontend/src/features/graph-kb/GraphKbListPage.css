@@ -1,0 +1,48 @@
+/* GraphKB list: fill main content height; table scrolls inside the card. */
+.minerva-graph-kb-list-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  color: var(--minerva-ink, #e8f0f8);
+}
+
+.minerva-graph-kb-list-page__card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-graph-kb-list-page__card .ant-card-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-graph-kb-list-page__filter {
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.minerva-graph-kb-list-page__filter .ant-form-item {
+  margin-inline-end: 8px;
+}
+
+.minerva-graph-kb-list-page__table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.minerva-graph-kb-list-page__table {
+  width: 100%;
+}
+
+.minerva-graph-kb-list-page__table .ant-table {
+  width: 100% !important;
+}

@@ -102,6 +102,8 @@ html.minerva-tone-sunshine .minerva-app-main-frame {
 .minerva-app-main-frame > .minerva-menu-config-page,
 .minerva-app-main-frame > .minerva-dataset-list-page,
 .minerva-app-main-frame > .minerva-dataset-section-layout,
+.minerva-app-main-frame > .minerva-graph-kb-list-page,
+.minerva-app-main-frame > .minerva-graph-kb-section-layout,
 .minerva-app-main-frame > .translate-page--table,
 .minerva-app-main-frame > .minerva-file-ocr-tasks-page,
 .minerva-app-main-frame > .minerva-rules-page,

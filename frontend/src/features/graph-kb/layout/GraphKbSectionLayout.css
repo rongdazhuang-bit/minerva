@@ -1,0 +1,36 @@
+/* GraphKB detail shell: tabs fixed, tab body scrolls. */
+.minerva-graph-kb-section-layout {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.minerva-graph-kb-section-layout__tabs {
+  flex-shrink: 0;
+}
+
+.minerva-graph-kb-section-layout__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+}
+
+.minerva-graph-kb-section-layout__body:has(.minerva-graph-kb-documents-page) {
+  overflow: hidden;
+}
+
+.minerva-graph-kb-section-layout__body:has(.minerva-graph-kb-documents-page) > * {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.minerva-graph-kb-placeholder {
+  padding: 16px;
+}
