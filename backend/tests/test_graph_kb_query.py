@@ -53,6 +53,23 @@ def test_graph_view_max_nodes_constant() -> None:
     assert GRAPH_VIEW_MAX_NODES == 200
 
 
+def test_build_subgraph_community_seeds_capped_at_max_nodes() -> None:
+    """Community-only view must not exceed max_nodes when seeding members."""
+
+    count = GRAPH_VIEW_MAX_NODES + 50
+    entities = [{"id": f"e{i}", "name": f"n{i}"} for i in range(count)]
+    community_ids = {f"e{i}" for i in range(count)}
+    result = build_subgraph(
+        entities,
+        [],
+        seed_id=None,
+        hops=1,
+        max_nodes=GRAPH_VIEW_MAX_NODES,
+        community_entity_ids=community_ids,
+    )
+    assert len(result["nodes"]) == GRAPH_VIEW_MAX_NODES
+
+
 def test_query_and_projection_routes_registered() -> None:
     """Router must expose query, projections, graph-view, index, and job APIs."""
 

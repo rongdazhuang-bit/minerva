@@ -127,6 +127,8 @@ def build_subgraph(
     for start in starts:
         if start in selected:
             continue
+        if len(selected) >= max_nodes:
+            break
         selected[start] = 0
         queue.append((start, 0))
 
