@@ -65,3 +65,47 @@ class GraphKbListPageOut(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class GraphKbPlainTextIn(BaseModel):
+    """Import a plain-text document into a graph."""
+
+    name: str = Field(min_length=1, max_length=255)
+    text: str = Field(min_length=1)
+
+
+class GraphKbDocumentOut(BaseModel):
+    """One graph document list/detail row."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    graph_id: uuid.UUID
+    source_type: str
+    name: str
+    storage_key: str | None = None
+    text_content: str | None = None
+    mime_type: str | None = None
+    size_bytes: int | None = None
+    indexing_status: str
+    error: str | None = None
+    created_by: uuid.UUID
+    create_at: datetime | None = None
+
+
+class GraphKbDocumentListPageOut(BaseModel):
+    """Paginated document list response."""
+
+    items: list[GraphKbDocumentOut]
+    total: int
+    page: int
+    page_size: int
+
+
+class GraphKbDocumentDeleteOut(BaseModel):
+    """Delete-document response including optional reindex enqueue outcome."""
+
+    document_id: uuid.UUID
+    reindex_enqueued: bool
+    message: str | None = None
