@@ -430,6 +430,8 @@ Worker 入参携带从 `sys_models` 解析出的 OpenAI-compatible `base_url`、
 | 失败 job 不覆盖投影 | `run_index_job` 成功路径调 `replace_projections`；异常先 `rollback` 再只写 failed | 半截投影删除不可提交；`job.error` 经 `redact_secret` |
 | DELETE 文档卸盘顺序 | `delete_document`：删行 → 可选入队 → `commit` → 再 unlink | 模型 400 在 commit 前抛出，文件与行均保留 |
 | DELETE 图谱异步清理 | `delete_graph_sql` + `cleanup_service.enqueue_cleanup` | 提交后入队；需传入 `engine` |
+| 查询 / 投影只读 API | `query_service.py` + `view_service.py` + `api/router.py` | `not_ready` 409；分页默认 10；`graph-view` BFS hops 1\|2、最多 200 节点 |
+| POST index / GET job | `router` → `enqueue_index` / `get_job` | 冲突 409；供文档页轮询 |
 
 Dataset（`backend/app/dataset/`）与 mem0 Neo4j 不在本模块改动范围内。
 
@@ -442,3 +444,4 @@ Dataset（`backend/app/dataset/`）与 mem0 Neo4j 不在本模块改动范围内
 | 2026-08-23 | 初稿：可行性 + 方案 1 设计；独立菜单；ACL；admin 总览；超管无限制 |
 | 2026-08-23 | Task 8：Celery `graph_kb` 索引/清理、投影回写、`MINERVA_CELERY_QUEUES` 默认含 `graph_kb` |
 | 2026-08-23 | Task 8 评审修复：索引失败 rollback 保留旧投影；文档删除 commit 后再 unlink |
+| 2026-08-23 | Task 9：query / entities / relations / summaries / graph-view；补 POST index 与 GET job |

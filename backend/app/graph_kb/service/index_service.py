@@ -305,3 +305,24 @@ async def run_index_job(session: AsyncSession, *, job_id: uuid.UUID) -> dict[str
         await session.commit()
         log.exception("graph_kb.index failed job_id={}", job_id)
         return {"job_id": str(job.id), "status": STATUS_FAILED, "error": job.error}
+
+
+async def get_job(
+    session: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    graph_id: uuid.UUID,
+    job_id: uuid.UUID,
+) -> GraphKbJob:
+    """Load one job scoped to workspace + graph, or raise ``graph_kb.job_not_found``."""
+
+    job = await session.scalar(
+        select(GraphKbJob).where(
+            GraphKbJob.id == job_id,
+            GraphKbJob.workspace_id == workspace_id,
+            GraphKbJob.graph_id == graph_id,
+        )
+    )
+    if job is None:
+        raise AppError("graph_kb.job_not_found", "索引任务不存在。", 404)
+    return job

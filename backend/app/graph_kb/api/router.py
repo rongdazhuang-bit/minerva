@@ -16,16 +16,31 @@ from app.graph_kb.api.schemas import (
     GraphKbDocumentDeleteOut,
     GraphKbDocumentListPageOut,
     GraphKbDocumentOut,
+    GraphKbEntityListPageOut,
+    GraphKbEntityOut,
+    GraphKbGraphViewOut,
+    GraphKbJobOut,
     GraphKbListPageOut,
     GraphKbOut,
     GraphKbPatchIn,
     GraphKbPlainTextIn,
+    GraphKbQueryHistoryOut,
+    GraphKbQueryHistoryPageOut,
+    GraphKbQueryIn,
+    GraphKbQueryOut,
+    GraphKbRelationListPageOut,
+    GraphKbRelationOut,
+    GraphKbSummaryListPageOut,
+    GraphKbSummaryOut,
 )
 from app.graph_kb.domain.db.models import GraphKb
 from app.graph_kb.infrastructure import repository as repo
 from app.graph_kb.service import deletion_service
 from app.graph_kb.service import document_service as doc_svc
 from app.graph_kb.service import graph_service as graph_svc
+from app.graph_kb.service import index_service as index_svc
+from app.graph_kb.service import query_service as query_svc
+from app.graph_kb.service import view_service as view_svc
 from app.graph_kb.service.actor import actor_from_user
 from app.pagination import DEFAULT_PAGE_SIZE
 
@@ -284,3 +299,218 @@ async def delete_graph_document(
     )
     await session.commit()
     return GraphKbDocumentDeleteOut.model_validate(result)
+
+
+@router.post("/{graph_id}/index", response_model=GraphKbJobOut, status_code=201)
+async def enqueue_graph_index(
+    workspace_id: uuid.UUID,
+    graph_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    _member: uuid.UUID = Depends(require_graph_kb_workspace),
+    session: AsyncSession = Depends(get_db),
+) -> GraphKbJobOut:
+    """Enqueue index/reindex; 409 when another index job is already active."""
+
+    actor = await actor_from_user(session, user=user, workspace_id=workspace_id)
+    await graph_svc.get_graph_for_manage(
+        session, workspace_id=workspace_id, graph_id=graph_id, actor=actor
+    )
+    job = await index_svc.enqueue_index(
+        session,
+        workspace_id=workspace_id,
+        graph_id=graph_id,
+        user_id=user.id,
+    )
+    return GraphKbJobOut.model_validate(job)
+
+
+@router.get("/{graph_id}/jobs/{job_id}", response_model=GraphKbJobOut)
+async def get_graph_job(
+    workspace_id: uuid.UUID,
+    graph_id: uuid.UUID,
+    job_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    _member: uuid.UUID = Depends(require_graph_kb_workspace),
+    session: AsyncSession = Depends(get_db),
+) -> GraphKbJobOut:
+    """Return one job status for a graph the caller may view."""
+
+    actor = await actor_from_user(session, user=user, workspace_id=workspace_id)
+    await graph_svc.get_graph_for_view(
+        session, workspace_id=workspace_id, graph_id=graph_id, actor=actor
+    )
+    job = await index_svc.get_job(
+        session, workspace_id=workspace_id, graph_id=graph_id, job_id=job_id
+    )
+    return GraphKbJobOut.model_validate(job)
+
+
+@router.post("/{graph_id}/query", response_model=GraphKbQueryOut)
+async def query_graph_kb(
+    workspace_id: uuid.UUID,
+    graph_id: uuid.UUID,
+    body: GraphKbQueryIn,
+    user: User = Depends(get_current_user),
+    _member: uuid.UUID = Depends(require_graph_kb_workspace),
+    session: AsyncSession = Depends(get_db),
+) -> GraphKbQueryOut:
+    """Run a Worker query; Worker 503/502 propagate (not remapped to 200)."""
+
+    actor = await actor_from_user(session, user=user, workspace_id=workspace_id)
+    result = await query_svc.query_graph(
+        session,
+        workspace_id=workspace_id,
+        graph_id=graph_id,
+        actor=actor,
+        query=body.query,
+        mode=body.mode,
+        top_k=body.top_k,
+    )
+    await session.commit()
+    return GraphKbQueryOut(answer=result.answer, citations=list(result.citations))
+
+
+@router.get("/{graph_id}/queries", response_model=GraphKbQueryHistoryPageOut)
+async def list_graph_queries(
+    workspace_id: uuid.UUID,
+    graph_id: uuid.UUID,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
+    user: User = Depends(get_current_user),
+    _member: uuid.UUID = Depends(require_graph_kb_workspace),
+    session: AsyncSession = Depends(get_db),
+) -> GraphKbQueryHistoryPageOut:
+    """List persisted Q&A history for a viewable graph."""
+
+    actor = await actor_from_user(session, user=user, workspace_id=workspace_id)
+    rows, total = await query_svc.list_queries(
+        session,
+        workspace_id=workspace_id,
+        graph_id=graph_id,
+        actor=actor,
+        page=page,
+        page_size=page_size,
+    )
+    return GraphKbQueryHistoryPageOut(
+        items=[GraphKbQueryHistoryOut.model_validate(row) for row in rows],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.get("/{graph_id}/entities", response_model=GraphKbEntityListPageOut)
+async def list_graph_entities(
+    workspace_id: uuid.UUID,
+    graph_id: uuid.UUID,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
+    name: str | None = Query(default=None, description="实体名称关键词"),
+    entity_type: str | None = Query(default=None, description="实体类型"),
+    user: User = Depends(get_current_user),
+    _member: uuid.UUID = Depends(require_graph_kb_workspace),
+    session: AsyncSession = Depends(get_db),
+) -> GraphKbEntityListPageOut:
+    """Paginate entity projections (default page size 10)."""
+
+    actor = await actor_from_user(session, user=user, workspace_id=workspace_id)
+    rows, total = await query_svc.list_entities(
+        session,
+        workspace_id=workspace_id,
+        graph_id=graph_id,
+        actor=actor,
+        page=page,
+        page_size=page_size,
+        name=name,
+        entity_type=entity_type,
+    )
+    return GraphKbEntityListPageOut(
+        items=[GraphKbEntityOut.model_validate(row) for row in rows],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.get("/{graph_id}/relations", response_model=GraphKbRelationListPageOut)
+async def list_graph_relations(
+    workspace_id: uuid.UUID,
+    graph_id: uuid.UUID,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
+    user: User = Depends(get_current_user),
+    _member: uuid.UUID = Depends(require_graph_kb_workspace),
+    session: AsyncSession = Depends(get_db),
+) -> GraphKbRelationListPageOut:
+    """Paginate relation projections (default page size 10)."""
+
+    actor = await actor_from_user(session, user=user, workspace_id=workspace_id)
+    rows, total = await query_svc.list_relations(
+        session,
+        workspace_id=workspace_id,
+        graph_id=graph_id,
+        actor=actor,
+        page=page,
+        page_size=page_size,
+    )
+    return GraphKbRelationListPageOut(
+        items=[GraphKbRelationOut.model_validate(row) for row in rows],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.get("/{graph_id}/summaries", response_model=GraphKbSummaryListPageOut)
+async def list_graph_summaries(
+    workspace_id: uuid.UUID,
+    graph_id: uuid.UUID,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=100),
+    user: User = Depends(get_current_user),
+    _member: uuid.UUID = Depends(require_graph_kb_workspace),
+    session: AsyncSession = Depends(get_db),
+) -> GraphKbSummaryListPageOut:
+    """Paginate community / topic summary projections."""
+
+    actor = await actor_from_user(session, user=user, workspace_id=workspace_id)
+    rows, total = await query_svc.list_summaries(
+        session,
+        workspace_id=workspace_id,
+        graph_id=graph_id,
+        actor=actor,
+        page=page,
+        page_size=page_size,
+    )
+    return GraphKbSummaryListPageOut(
+        items=[GraphKbSummaryOut.model_validate(row) for row in rows],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.get("/{graph_id}/graph-view", response_model=GraphKbGraphViewOut)
+async def get_graph_view(
+    workspace_id: uuid.UUID,
+    graph_id: uuid.UUID,
+    seed_entity_id: str | None = Query(default=None),
+    hops: int = Query(default=1, ge=1, le=2),
+    community_id: uuid.UUID | None = Query(default=None),
+    user: User = Depends(get_current_user),
+    _member: uuid.UUID = Depends(require_graph_kb_workspace),
+    session: AsyncSession = Depends(get_db),
+) -> GraphKbGraphViewOut:
+    """Return a BFS subgraph (max 200 nodes) for canvas rendering."""
+
+    actor = await actor_from_user(session, user=user, workspace_id=workspace_id)
+    payload = await view_svc.graph_view(
+        session,
+        workspace_id=workspace_id,
+        graph_id=graph_id,
+        actor=actor,
+        seed_entity_id=seed_entity_id,
+        hops=hops,
+        community_id=community_id,
+    )
+    return GraphKbGraphViewOut(nodes=payload["nodes"], edges=payload["edges"])
