@@ -825,7 +825,7 @@ class Settings(BaseSettings):
     )
     graph_kb_data: str = Field(
         default="",
-        description="GraphRAG 数据根目录；空则使用 <cwd>/data/graph_kb。",
+        description="GraphRAG / GraphKB 文档落盘根目录；空则使用 backend/data/graph_kb。",
         validation_alias=AliasChoices("GRAPH_KB_DATA", "graph_kb_data"),
     )
     graph_kb_lightrag_database_url: str = Field(
@@ -925,10 +925,12 @@ class Settings(BaseSettings):
         return self
 
     def resolve_graph_kb_data(self) -> Path:
-        """Return GraphRAG data root; default ``<cwd>/data/graph_kb`` when unset."""
+        """Return GraphKB data root; default ``backend/data/graph_kb`` when unset."""
 
         raw = (self.graph_kb_data or "").strip()
-        return Path(raw) if raw else Path.cwd() / "data" / "graph_kb"
+        if raw:
+            return Path(raw).resolve()
+        return (_BACKEND_DIR / "data" / "graph_kb").resolve()
 
 
 def resolve_agent_files_root() -> Path:

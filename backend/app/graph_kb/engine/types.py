@@ -57,7 +57,11 @@ class SummaryItem:
 
 @dataclass(frozen=True)
 class WorkerQueryRequest:
-    """Query request scoped by workspace + graph UUIDs."""
+    """Query request scoped by workspace + graph UUIDs.
+
+    ``llm`` / ``embedding`` are optional so Fake clients keep working without
+    credentials; HTTP clients must send them when present (same as index).
+    """
 
     workspace_id: UUID
     graph_id: UUID
@@ -65,6 +69,8 @@ class WorkerQueryRequest:
     query: str
     mode: str
     top_k: int
+    llm: ModelEndpoint | None = None
+    embedding: ModelEndpoint | None = None
 
 
 @dataclass(frozen=True)

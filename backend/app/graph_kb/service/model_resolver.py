@@ -8,10 +8,21 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import AppError
+from app.graph_kb.engine.types import ModelEndpoint
 from app.llm.domain.resolved_model import ResolvedModel
 from app.llm.service.model_resolver import _normalize_tag_set, resolve_model
 from app.sys.model_provider.domain.constants import MODEL_TAG_CHAT, MODEL_TAG_EMBEDDINGS
 from app.sys.model_provider.domain.db.models import SysModel
+
+
+def endpoint_from_resolved(model: ResolvedModel) -> ModelEndpoint:
+    """Build a worker ``ModelEndpoint`` from a resolved Chat/Embedding model."""
+
+    return ModelEndpoint(
+        base_url=model.endpoint_url,
+        api_key=model.api_key,
+        model=model.model_name,
+    )
 
 
 async def _load_enabled_model(

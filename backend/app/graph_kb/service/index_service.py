@@ -25,10 +25,9 @@ from app.graph_kb.domain.constants import (
 )
 from app.graph_kb.domain.db.models import GraphKb, GraphKbDocument, GraphKbJob
 from app.graph_kb.engine.factory import create_engine_client
-from app.graph_kb.engine.types import ModelEndpoint, WorkerDocument, WorkerIndexRequest
-from app.graph_kb.service.model_resolver import resolve_graph_models
+from app.graph_kb.engine.types import WorkerDocument, WorkerIndexRequest
+from app.graph_kb.service.model_resolver import endpoint_from_resolved, resolve_graph_models
 from app.graph_kb.service.projection_service import replace_projections
-from app.llm.domain.resolved_model import ResolvedModel
 
 log = get_logger(__name__)
 
@@ -78,16 +77,6 @@ def redact_job_error(message: str, secrets: list[str | None]) -> str:
     return out
 
 
-def _endpoint_from_resolved(model: ResolvedModel) -> ModelEndpoint:
-    """Build a worker ``ModelEndpoint`` from a resolved Chat/Embedding model."""
-
-    return ModelEndpoint(
-        base_url=model.endpoint_url,
-        api_key=model.api_key,
-        model=model.model_name,
-    )
-
-
 def load_document_text(document: GraphKbDocument) -> str:
     """Load full document text from spilled storage or inline ``text_content``."""
 
@@ -101,13 +90,16 @@ def load_document_text(document: GraphKbDocument) -> str:
 
 
 def _send_index_task(job_id: uuid.UUID) -> None:
-    """Dispatch ``graph_kb.index`` onto the ``graph_kb`` queue when Celery is available."""
+    """Dispatch ``graph_kb.index`` onto the ``graph_kb`` queue.
+
+    Raises ``RuntimeError`` when Celery is unavailable so the caller can mark
+    the job failed instead of leaving it pending (which would 409 forever).
+    """
 
     from app.celery_app import celery_app
 
     if celery_app is None:
-        log.warning("graph_kb.index skipped: celery unavailable job_id={}", job_id)
-        return
+        raise RuntimeError("Celery is unavailable; cannot enqueue graph_kb.index")
     celery_app.send_task(
         GRAPH_KB_INDEX_TASK_NAME,
         args=[str(job_id)],
@@ -170,17 +162,34 @@ async def enqueue_index(
     await session.flush()
     await session.commit()
     await session.refresh(job)
-    _send_index_task(job.id)
+    try:
+        _send_index_task(job.id)
+    except Exception as exc:
+        # Persist failed so a stranded pending job cannot 409 later enqueues.
+        finished = datetime.now(tz=UTC)
+        job.status = STATUS_FAILED
+        job.finished_at = finished
+        job.error = redact_job_error(str(exc), [])
+        graph.indexing_status = STATUS_FAILED
+        await session.flush()
+        await session.commit()
+        log.exception("graph_kb.index enqueue failed job_id={}", job.id)
+        raise AppError(
+            "graph_kb.enqueue_failed",
+            "索引任务未能投递到队列。",
+            503,
+        ) from exc
     return job
 
 
 async def run_index_job(session: AsyncSession, *, job_id: uuid.UUID) -> dict[str, Any]:
     """Run one index job: Worker ``index``, then write projections only on success.
 
-    On any exception after projection work begins, roll back so a half-applied
+    Commits ``status=running`` and ``started_at`` before the Worker call. On any
+    exception after projection work begins, roll back so a half-applied
     ``replace_projections`` cannot wipe the last good snapshot; then re-fetch
-    and persist failed status only. ``api_key`` values from
-    ``resolve_graph_models`` are redacted in ``job.error``.
+    and persist ``started_at`` + failed + ``finished_at`` + error.
+    ``api_key`` values from ``resolve_graph_models`` are redacted in ``job.error``.
     """
 
     job = await session.get(GraphKbJob, job_id)
@@ -193,26 +202,28 @@ async def run_index_job(session: AsyncSession, *, job_id: uuid.UUID) -> dict[str
     if graph is None:
         raise AppError("graph_kb.not_found", "知识图谱不存在。", 404)
 
-    now = datetime.now(tz=UTC)
+    started_at = datetime.now(tz=UTC)
     job.status = STATUS_RUNNING
-    job.started_at = now
+    job.started_at = started_at
     job.error = None
     graph.indexing_status = STATUS_RUNNING
     await session.flush()
+    # Persist running before the Worker call so a crash still shows started_at.
+    await session.commit()
 
-    documents = list(
-        (
-            await session.scalars(
-                select(GraphKbDocument).where(
-                    GraphKbDocument.workspace_id == job.workspace_id,
-                    GraphKbDocument.graph_id == job.graph_id,
-                )
-            )
-        ).all()
-    )
     secrets: list[str | None] = []
 
     try:
+        documents = list(
+            (
+                await session.scalars(
+                    select(GraphKbDocument).where(
+                        GraphKbDocument.workspace_id == job.workspace_id,
+                        GraphKbDocument.graph_id == job.graph_id,
+                    )
+                )
+            ).all()
+        )
         llm, emb = await resolve_graph_models(
             session,
             workspace_id=job.workspace_id,
@@ -237,8 +248,8 @@ async def run_index_job(session: AsyncSession, *, job_id: uuid.UUID) -> dict[str
                 graph_id=job.graph_id,
                 engine=graph.engine,
                 documents=worker_docs,
-                llm=_endpoint_from_resolved(llm),
-                embedding=_endpoint_from_resolved(emb),
+                llm=endpoint_from_resolved(llm),
+                embedding=endpoint_from_resolved(emb),
             )
         )
         export = await client.export_graph(
@@ -294,6 +305,7 @@ async def run_index_job(session: AsyncSession, *, job_id: uuid.UUID) -> dict[str
             ).all()
         )
         job.status = STATUS_FAILED
+        job.started_at = started_at
         job.finished_at = finished
         job.error = error_msg
         if graph is not None:

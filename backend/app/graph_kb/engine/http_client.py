@@ -102,7 +102,7 @@ class HttpGraphEngineClient:
         )
 
     async def query(self, req: WorkerQueryRequest) -> WorkerQueryResult:
-        """POST ``/query`` with workspace_id, graph_id, mode, and top_k."""
+        """POST ``/query`` with workspace_id, graph_id, mode, top_k, and models."""
 
         payload = {
             "workspace_id": str(req.workspace_id),
@@ -112,6 +112,10 @@ class HttpGraphEngineClient:
             "mode": req.mode,
             "top_k": req.top_k,
         }
+        if req.llm is not None:
+            payload["llm"] = _endpoint_dict(req.llm)
+        if req.embedding is not None:
+            payload["embedding"] = _endpoint_dict(req.embedding)
         data = await self._post(req.engine, "query", payload)
         return WorkerQueryResult(
             answer=str(data.get("answer") or ""),

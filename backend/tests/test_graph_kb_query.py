@@ -2,8 +2,17 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+from uuid import uuid4
+
+import pytest
+
+from app.core.domain.identity.models import MembershipRole
 from app.exceptions import AppError
-from app.graph_kb.domain.constants import STATUS_COMPLETED, STATUS_PENDING
+from app.graph_kb.domain.acl import GraphAclActor
+from app.graph_kb.domain.constants import ENGINE_LIGHTRAG, STATUS_COMPLETED, STATUS_PENDING
+from app.graph_kb.engine.types import WorkerQueryResult
 from app.graph_kb.service.query_service import assert_ready_for_query
 from app.graph_kb.service.view_service import GRAPH_VIEW_MAX_NODES, build_subgraph
 
@@ -84,3 +93,54 @@ def test_query_and_projection_routes_registered() -> None:
     assert "/workspaces/{workspace_id}/graph-kbs/{graph_id}/graph-view" in paths
     assert "/workspaces/{workspace_id}/graph-kbs/{graph_id}/index" in paths
     assert "/workspaces/{workspace_id}/graph-kbs/{graph_id}/jobs/{job_id}" in paths
+
+
+@pytest.mark.asyncio
+async def test_query_graph_passes_resolved_models(monkeypatch: pytest.MonkeyPatch) -> None:
+    """query_graph must resolve Chat/Embeddings and attach them to the Worker request."""
+
+    from app.graph_kb.service import query_service as qs
+
+    graph = SimpleNamespace(
+        engine=ENGINE_LIGHTRAG,
+        indexing_status=STATUS_COMPLETED,
+        llm_model_provider="openai",
+        llm_model="gpt",
+        embedding_model_provider="openai",
+        embedding_model="emb",
+    )
+    llm = SimpleNamespace(endpoint_url="http://llm", api_key="llm-secret", model_name="gpt")
+    emb = SimpleNamespace(endpoint_url="http://emb", api_key="emb-secret", model_name="emb")
+    captured: dict = {}
+
+    class _Client:
+        """Capture the query request sent to the engine client."""
+
+        async def query(self, req):
+            captured["req"] = req
+            return WorkerQueryResult(answer="ok", citations=[])
+
+    monkeypatch.setattr(qs.graph_svc, "get_graph_for_view", AsyncMock(return_value=graph))
+    monkeypatch.setattr(qs, "resolve_graph_models", AsyncMock(return_value=(llm, emb)))
+    monkeypatch.setattr(qs, "create_engine_client", lambda: _Client())
+
+    session = AsyncMock()
+    session.add = lambda _row: None
+    actor = GraphAclActor(
+        user_id=uuid4(), is_super_admin=False, workspace_role=MembershipRole.member
+    )
+    result = await qs.query_graph(
+        session,
+        workspace_id=uuid4(),
+        graph_id=uuid4(),
+        actor=actor,
+        query="hello",
+        mode="hybrid",
+        top_k=5,
+    )
+    assert result.answer == "ok"
+    req = captured["req"]
+    assert req.llm is not None
+    assert req.embedding is not None
+    assert req.llm.api_key == "llm-secret"
+    assert req.embedding.model == "emb"

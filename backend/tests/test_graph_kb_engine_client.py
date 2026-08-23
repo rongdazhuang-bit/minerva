@@ -115,3 +115,54 @@ async def test_http_index_payload_has_no_lightrag_workspace() -> None:
     assert body["graph_id"] == str(g)
     assert "lightrag_workspace" not in body
     assert "workspace" not in body
+
+
+@pytest.mark.asyncio
+async def test_http_query_payload_includes_llm_embedding() -> None:
+    """Query JSON must send Chat/Embeddings credentials when present."""
+
+    import json
+
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content.decode())
+        return httpx.Response(200, json={"answer": "ok", "citations": []})
+
+    transport = httpx.MockTransport(handler)
+    client = HttpGraphEngineClient(transport=transport)
+    llm = ModelEndpoint("http://llm", "llm-key", "chat-m")
+    emb = ModelEndpoint("http://emb", "emb-key", "emb-m")
+    w = uuid4()
+    g = uuid4()
+    await client.query(
+        WorkerQueryRequest(
+            workspace_id=w,
+            graph_id=g,
+            engine=ENGINE_LIGHTRAG,
+            query="hello",
+            mode="hybrid",
+            top_k=5,
+            llm=llm,
+            embedding=emb,
+        )
+    )
+    body = captured["body"]
+    assert body["llm"] == {"base_url": "http://llm", "api_key": "llm-key", "model": "chat-m"}
+    assert body["embedding"] == {
+        "base_url": "http://emb",
+        "api_key": "emb-key",
+        "model": "emb-m",
+    }
+
+
+@pytest.mark.asyncio
+async def test_fake_query_works_without_model_endpoints() -> None:
+    """Fake client must accept query requests that omit llm/embedding."""
+
+    client = FakeGraphEngineClient()
+    w, g = uuid4(), uuid4()
+    result = await client.query(
+        WorkerQueryRequest(w, g, ENGINE_LIGHTRAG, "plain", "local", 5)
+    )
+    assert result.answer.startswith("fake:")

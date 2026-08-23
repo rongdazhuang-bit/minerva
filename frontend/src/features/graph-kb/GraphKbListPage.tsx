@@ -45,7 +45,7 @@ export function GraphKbListPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { workspaceId, isWorkspaceAdmin, isSuperAdmin } = useAuth()
+  const { workspaceId, isWorkspaceAdmin, isSuperAdmin, userId } = useAuth()
   const canFilterMine = isWorkspaceAdmin || isSuperAdmin
   const [filterForm] = Form.useForm<FilterFormValues>()
   const [page, setPage] = useState(1)
@@ -150,31 +150,36 @@ export function GraphKbListPage() {
         title: t('graphKb.list.column.actions'),
         key: 'actions',
         width: 72,
-        render: (_: unknown, row) => (
-          <Tooltip title={t('graphKb.list.delete')}>
-            <span>
-              <Popconfirm
-                title={t('graphKb.list.deleteConfirm')}
-                okText={t('common.yes')}
-                cancelText={t('common.cancel')}
-                okButtonProps={{ danger: true }}
-                onConfirm={() => deleteM.mutate(row.id)}
-              >
-                <Button
-                  type="text"
-                  size="small"
-                  danger
-                  icon={<DeleteOutlined />}
-                  loading={deleteM.isPending && deleteM.variables === row.id}
-                  aria-label={t('graphKb.list.delete')}
-                />
-              </Popconfirm>
-            </span>
-          </Tooltip>
-        ),
+        render: (_: unknown, row) => {
+          // Hide delete unless the viewer is admin/super-admin or the creator.
+          const canDelete = isWorkspaceAdmin || isSuperAdmin || row.created_by === userId
+          if (!canDelete) return null
+          return (
+            <Tooltip title={t('graphKb.list.delete')}>
+              <span>
+                <Popconfirm
+                  title={t('graphKb.list.deleteConfirm')}
+                  okText={t('common.yes')}
+                  cancelText={t('common.cancel')}
+                  okButtonProps={{ danger: true }}
+                  onConfirm={() => deleteM.mutate(row.id)}
+                >
+                  <Button
+                    type="text"
+                    size="small"
+                    danger
+                    icon={<DeleteOutlined />}
+                    loading={deleteM.isPending && deleteM.variables === row.id}
+                    aria-label={t('graphKb.list.delete')}
+                  />
+                </Popconfirm>
+              </span>
+            </Tooltip>
+          )
+        },
       },
     ],
-    [deleteM, navigate, t],
+    [deleteM, isSuperAdmin, isWorkspaceAdmin, navigate, t, userId],
   )
 
   if (!workspaceId) {

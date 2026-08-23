@@ -260,6 +260,8 @@ class LightRAGStore:
             llm=llm or {},
             embedding=embedding or {},
         )
+        # Rebuild from the current request list so deleted docs do not linger.
+        await self._wipe_storages(rag)
         for doc in documents:
             text = str(doc.get("text") or "")
             doc_id = str(doc.get("document_id") or "")
@@ -379,15 +381,9 @@ class LightRAGStore:
                 pass
         return summaries
 
-    async def delete_namespace(
-        self, *, workspace_id: UUID, graph_id: UUID
-    ) -> None:
-        """Drop cached instance and best-effort clear PG workspace rows."""
+    async def _wipe_storages(self, rag: Any) -> None:
+        """Best-effort drop LightRAG storage backends for one workspace instance."""
 
-        ws = lightrag_workspace(workspace_id, graph_id)
-        rag = self._cache.pop(ws, None)
-        if rag is None:
-            return
         for attr in (
             "full_docs",
             "text_chunks",
@@ -404,6 +400,32 @@ class LightRAGStore:
                     await storage.drop()
                 except Exception:
                     pass
+
+    async def delete_namespace(
+        self, *, workspace_id: UUID, graph_id: UUID
+    ) -> None:
+        """Open the workspace if uncached, then wipe PG rows and drop the cache.
+
+        Must not return early on a cache miss — leftover engine data would remain.
+        """
+
+        ws = lightrag_workspace(workspace_id, graph_id)
+        rag = self._cache.pop(ws, None)
+        if rag is None:
+            rag = await self._get_rag(
+                workspace_id=workspace_id,
+                graph_id=graph_id,
+                llm={},
+                embedding={},
+            )
+            self._cache.pop(ws, None)
+        await self._wipe_storages(rag)
+        finalize = getattr(rag, "finalize_storages", None)
+        if finalize is not None:
+            try:
+                await finalize()
+            except Exception:
+                pass
 
 
 def build_store() -> FakeStore | LightRAGStore:

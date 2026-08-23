@@ -406,7 +406,7 @@ Worker 入参携带从 `sys_models` 解析出的 OpenAI-compatible `base_url`、
 
 | 变量 | 说明 |
 |------|------|
-| `GRAPH_KB_DATA` | GraphRAG root 父目录 |
+| `GRAPH_KB_DATA` | GraphRAG / 文档落盘根；空则 `backend/data/graph_kb`。Worker 启动脚本可传入该可选环境变量 |
 | `GRAPH_KB_LIGHTRAG_DATABASE_URL` | LightRAG 独立 PG；禁止复用 `MEM0_DATABASE_URL` |
 | `GRAPH_KB_JOB_TIMEOUT_SECONDS` | 索引超时 |
 | `GRAPH_KB_INLINE_TEXT_MAX_CHARS` | 纯文本内联上限，默认 20000 |
@@ -425,19 +425,19 @@ Worker 入参携带从 `sys_models` 解析出的 OpenAI-compatible `base_url`、
 | 独立 GraphKB 模块 | `backend/app/graph_kb/`（`api/` `domain/` `engine/` `service/` `task/`） | CRUD / 文档 / 索引 / 查询 / 投影已落地 |
 | `GraphEngineClient` / Fake / HTTP | `engine/protocol.py`、`fake_client.py`、`http_client.py`、`factory.py` | `GRAPH_KB_ENGINE_CLIENT=fake` 用 Fake；默认 `http` |
 | Fake 隔离 key | `FakeGraphEngineClient._store[(workspace_id, graph_id)]` | 交叉 workspace 回归见 `tests/test_graph_kb_engine_client.py` |
-| LightRAG Worker | `workers/graph-kb-lightrag/`；脚本 `scripts/run-graph-kb-lightrag-worker.cmd`（`:8101`） | `GRAPH_KB_WORKER_FAKE=1` 可跳过 SDK；namespace 仅在 Worker 拼 |
-| GraphRAG Worker | `workers/graph-kb-graphrag/`；脚本 `scripts/run-graph-kb-graphrag-worker.cmd`（`:8102`） | 同上；禁止请求体带 `root` |
+| LightRAG Worker | `workers/graph-kb-lightrag/`；脚本 `scripts/run-graph-kb-lightrag-worker.cmd`（`:8101`） | `GRAPH_KB_WORKER_FAKE=1` 可跳过 SDK；`delete_namespace` 缓存未命中仍打开并清空；reindex 先 wipe 再写入当前文档 |
+| GraphRAG Worker | `workers/graph-kb-graphrag/`；脚本 `scripts/run-graph-kb-graphrag-worker.cmd`（`:8102`） | 禁止请求体带 `root`；reindex 先清空 `input/`/`output/`；真实 index 写入最小 `settings.yaml`（无完整 SDK 时用 `GRAPH_KB_WORKER_FAKE=1`） |
 | `feature:graph_kb` 菜单与权限 | `backend/app/core/security/permission_codes.py` + SQL seeds；前端 `frontend/src/features/graph-kb/`、`/app/graph-kb` | 独立菜单；与 Dataset 分离 |
-| ACL（only_me / partial / all_team；admin 本区；超管无限制） | `domain/acl.py`；列表过滤 service | `GraphAclActor` |
+| ACL（only_me / partial / all_team；admin 本区；超管无限制） | `domain/acl.py`；列表过滤 service | `GraphAclActor`；隔离回归见 `tests/test_graph_kb_isolation.py` |
 | 本模块表（无库级外键） | `backend/sql/schema_postgresql.sql`；ORM `domain/db/models.py` | 删除在应用层 |
 | 文件 + 纯文本入库 | `service/document_service.py` + `api/router.py` | `GRAPH_KB_INLINE_TEXT_MAX_CHARS` |
-| `sys_models` Chat/Embeddings | 建库/索引 service 解析模型端点 | 不自建模型表 |
-| Celery `graph_kb` 队列 | `task/index_task.py`、`task/cleanup_task.py`；`MINERVA_CELERY_QUEUES` 含 `graph_kb` | 索引冲突 409；超时 `GRAPH_KB_JOB_TIMEOUT_SECONDS` |
-| 投影回写 / 失败保留旧投影 | `service/index_service.py`、`projection_service.py` | 成功才 `replace_projections`；失败 rollback |
-| query mode 映射、409/503 | `engine/modes.py`、`service/query_service.py` | GraphRAG 拒 `naive`；未就绪 409 |
+| `sys_models` Chat/Embeddings | 建库/索引/查询 service 解析模型端点 | Query 与 index 一样把 `llm`/`embedding` 传给 Worker |
+| Celery `graph_kb` 队列 | `task/index_task.py`、`task/cleanup_task.py`；`MINERVA_CELERY_QUEUES` 含 `graph_kb` | 索引冲突 409；超时 `GRAPH_KB_JOB_TIMEOUT_SECONDS`；`send_task` 失败会把 job 标 failed（避免一直 409） |
+| 投影回写 / 失败保留旧投影 | `service/index_service.py`、`projection_service.py` | 先 commit `running`+`started_at` 再调 Worker；失败 rollback 后回写 started_at/failed/finished_at/error |
+| query mode 映射、409/503 | `engine/modes.py`、`service/query_service.py`、`engine/http_client.py` | GraphRAG 拒 `naive`；未就绪 409；query POST 带模型凭证 |
 | 表格 + 子图画布 + 摘要 | `view_service.py`；前端 `graph/` `summaries/` `qa/` | `graph-view` hops 1\|2、最多 200 节点 |
 | 删除顺序 + 异步 cleanup | `deletion_service.py`、`cleanup_service.py` | 文档：commit 后再 unlink；删图谱后入队 cleanup |
-| 不复用 mem0 Neo4j | `GRAPH_KB_LIGHTRAG_DATABASE_URL` / `GRAPH_KB_DATA` | 禁止复用 `MEM0_*` |
+| 不复用 mem0 Neo4j | `GRAPH_KB_LIGHTRAG_DATABASE_URL` / `GRAPH_KB_DATA` | 禁止复用 `MEM0_*`；`GRAPH_KB_DATA` 空则 `backend/data/graph_kb` |
 | 首期不做 | — | Agent 工具 / 开放 API / Dataset 导入 / GraphRAG 增量 |
 
 Dataset（`backend/app/dataset/`）与 mem0 Neo4j 不在本模块改动范围内。
@@ -453,3 +453,4 @@ Dataset（`backend/app/dataset/`）与 mem0 Neo4j 不在本模块改动范围内
 | 2026-08-23 | Task 8 评审修复：索引失败 rollback 保留旧投影；文档删除 commit 后再 unlink |
 | 2026-08-23 | Task 9：query / entities / relations / summaries / graph-view；补 POST index 与 GET job |
 | 2026-08-23 | Task 15：§11 回填真实路径；状态改为已实现（首期）；交叉 workspace 隔离回归；README 知识图谱节 |
+| 2026-08-23 | 全分支评审修复：query 传模型凭证；delete_namespace 不因缓存未命中提前返回；reindex 丢掉已删文档；GraphRAG 写 settings.yaml；index job 先 commit running；enqueue 失败标 failed；隔离测试；`GRAPH_KB_DATA` 默认 `backend/data/graph_kb` |

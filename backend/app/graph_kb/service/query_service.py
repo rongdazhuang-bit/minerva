@@ -20,6 +20,7 @@ from app.graph_kb.engine.factory import create_engine_client
 from app.graph_kb.engine.modes import map_query_mode
 from app.graph_kb.engine.types import WorkerQueryRequest, WorkerQueryResult
 from app.graph_kb.service import graph_service as graph_svc
+from app.graph_kb.service.model_resolver import endpoint_from_resolved, resolve_graph_models
 from app.pagination import DEFAULT_PAGE_SIZE
 
 
@@ -46,7 +47,8 @@ async def query_graph(
 ) -> WorkerQueryResult:
     """Run a Worker query when the graph is ready; persist a ``graph_kb_query`` row.
 
-    Propagates Worker ``AppError`` (including 503) without rewriting to 200.
+    Resolves Chat/Embedding credentials (same as index) and passes them to the
+    Worker. Propagates Worker ``AppError`` (including 503) without rewriting to 200.
     """
 
     graph = await graph_svc.get_graph_for_view(
@@ -58,6 +60,14 @@ async def query_graph(
     if not text:
         raise AppError("graph_kb.query_required", "查询内容不能为空。", 400)
 
+    llm, emb = await resolve_graph_models(
+        session,
+        workspace_id=workspace_id,
+        llm_provider=graph.llm_model_provider,
+        llm_name=graph.llm_model,
+        emb_provider=graph.embedding_model_provider,
+        emb_name=graph.embedding_model,
+    )
     client = create_engine_client()
     result = await client.query(
         WorkerQueryRequest(
@@ -67,6 +77,8 @@ async def query_graph(
             query=text,
             mode=resolved_mode,
             top_k=top_k,
+            llm=endpoint_from_resolved(llm),
+            embedding=endpoint_from_resolved(emb),
         )
     )
     row = GraphKbQuery(

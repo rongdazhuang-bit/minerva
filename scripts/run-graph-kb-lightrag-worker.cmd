@@ -5,6 +5,11 @@ REM Start GraphKB LightRAG worker on 127.0.0.1:8101
 REM Usage: run-graph-kb-lightrag-worker.cmd
 REM Env: GRAPH_KB_WORKER_FAKE=1 skips LightRAG SDK (in-memory fake)
 REM      GRAPH_KB_LIGHTRAG_DATABASE_URL for real PG-backed mode
+REM      GRAPH_KB_DATA (optional) silo parent; default backend\data\graph_kb
+
+if not defined GRAPH_KB_DATA (
+  set "GRAPH_KB_DATA=%~dp0..\backend\data\graph_kb"
+)
 
 set "WORKER_DIR=%~dp0..\workers\graph-kb-lightrag"
 if not defined MINERVA_PYTHON (

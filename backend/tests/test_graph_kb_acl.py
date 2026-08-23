@@ -11,6 +11,7 @@ from app.graph_kb.domain.acl import (
     GraphAclSubject,
     can_manage_graph,
     can_view_graph,
+    raise_if_cannot_manage,
     raise_if_cannot_view,
 )
 from app.graph_kb.domain.constants import (
@@ -113,6 +114,19 @@ def test_raise_if_cannot_view_is_404() -> None:
             actor=actor,
             graph=_subject(PERMISSION_ONLY_ME, uuid4()),
             member_ids=set(),
+        )
+    assert exc.value.status_code == 404
+    assert exc.value.code == "graph_kb.not_found"
+
+
+def test_raise_if_cannot_manage_is_404() -> None:
+    actor = GraphAclActor(
+        user_id=uuid4(), is_super_admin=False, workspace_role=MembershipRole.member
+    )
+    with pytest.raises(AppError) as exc:
+        raise_if_cannot_manage(
+            actor=actor,
+            graph=_subject(PERMISSION_ALL_TEAM_MEMBERS, uuid4()),
         )
     assert exc.value.status_code == 404
     assert exc.value.code == "graph_kb.not_found"
