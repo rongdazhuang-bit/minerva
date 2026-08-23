@@ -232,11 +232,11 @@ async def delete_document(
     document_id: uuid.UUID,
     actor: GraphAclActor,
 ) -> dict[str, Any]:
-    """Delete a document row (and local object); optionally enqueue reindex.
+    """Delete a document row; unlink storage only after a successful DB commit.
 
-    When the graph ``indexing_status`` is completed/failed, calls ``enqueue_index``.
-    Job conflicts still return 200 with ``reindex_enqueued=false`` and a message
-    to call ``POST /index`` manually.
+    Order: delete row → optional ``enqueue_index`` → commit → unlink file.
+    Model binding errors (400) re-raise before commit so the row and file both
+    remain. Job conflicts still return 200 with ``reindex_enqueued=false``.
     """
 
     graph = await graph_svc.get_graph_for_manage(
@@ -260,7 +260,6 @@ async def delete_document(
         )
     )
     await session.flush()
-    _unlink_storage_key(storage_key)
 
     reindex_enqueued = False
     message: str | None = None
@@ -280,7 +279,12 @@ async def delete_document(
             if exc.code == "graph_kb.job_conflict" or exc.status_code == 409:
                 message = "文档已删除；已有进行中的索引任务，请稍后手动 POST /index。"
             else:
+                # Model 400 (etc.): do not commit or unlink — row + file stay.
                 raise
+
+    # enqueue_index may already have committed; otherwise persist the delete now.
+    await session.commit()
+    _unlink_storage_key(storage_key)
 
     return {
         "document_id": document_id,

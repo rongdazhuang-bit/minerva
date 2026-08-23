@@ -177,9 +177,10 @@ async def enqueue_index(
 async def run_index_job(session: AsyncSession, *, job_id: uuid.UUID) -> dict[str, Any]:
     """Run one index job: Worker ``index``, then write projections only on success.
 
-    Failed jobs mark ``job`` / graph / documents as failed and **do not** call
-    ``replace_projections``, so the previous successful snapshot stays.
-    ``api_key`` values from ``resolve_graph_models`` are redacted in ``job.error``.
+    On any exception after projection work begins, roll back so a half-applied
+    ``replace_projections`` cannot wipe the last good snapshot; then re-fetch
+    and persist failed status only. ``api_key`` values from
+    ``resolve_graph_models`` are redacted in ``job.error``.
     """
 
     job = await session.get(GraphKbJob, job_id)
@@ -270,14 +271,36 @@ async def run_index_job(session: AsyncSession, *, job_id: uuid.UUID) -> dict[str
         log.info("graph_kb.index completed job_id={}", job_id)
         return {"job_id": str(job.id), "status": STATUS_COMPLETED}
     except Exception as exc:
+        # Mirror dataset indexing_runner: rollback undoes deleted/inserted
+        # projection rows so the previous successful snapshot remains.
+        await session.rollback()
+        error_msg = redact_job_error(str(exc), secrets)
         finished = datetime.now(tz=UTC)
+        job = await session.get(GraphKbJob, job_id)
+        if job is None:
+            log.exception("graph_kb.index failed job_id={} (job missing after rollback)", job_id)
+            return {"job_id": str(job_id), "status": STATUS_FAILED, "error": error_msg}
+        graph = await session.scalar(
+            select(GraphKb).where(GraphKb.id == job.graph_id, GraphKb.workspace_id == job.workspace_id)
+        )
+        documents = list(
+            (
+                await session.scalars(
+                    select(GraphKbDocument).where(
+                        GraphKbDocument.workspace_id == job.workspace_id,
+                        GraphKbDocument.graph_id == job.graph_id,
+                    )
+                )
+            ).all()
+        )
         job.status = STATUS_FAILED
         job.finished_at = finished
-        job.error = redact_job_error(str(exc), secrets)
-        graph.indexing_status = STATUS_FAILED
+        job.error = error_msg
+        if graph is not None:
+            graph.indexing_status = STATUS_FAILED
         for doc in documents:
             doc.indexing_status = STATUS_FAILED
-            doc.error = job.error
+            doc.error = error_msg
         await session.flush()
         await session.commit()
         log.exception("graph_kb.index failed job_id={}", job_id)
