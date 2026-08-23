@@ -166,7 +166,10 @@ if celery_app is not None:
     import app.translate.task.run_job  # noqa: F401
     import app.dataset.task.indexing_task  # noqa: F401
     import app.dataset.task.cleanup_task  # noqa: F401
+    import app.graph_kb.task.index_task  # noqa: F401
+    import app.graph_kb.task.cleanup_task  # noqa: F401
     import app.sys.celery.demo.default_job  # noqa: F401
+    celery_app.autodiscover_tasks(["app.graph_kb.task"])
 
     try:
         from celery.app import trace as _celery_trace

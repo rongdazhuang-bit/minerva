@@ -63,7 +63,7 @@ build_celery_cmd() {
   "${MINERVA_PYTHON}" -m app.sys.celery.service.broker_preflight
   export MINERVA_CELERY_POOL="${MINERVA_CELERY_POOL:-}"
   export MINERVA_CELERY_CONCURRENCY="${MINERVA_CELERY_CONCURRENCY:-4}"
-  export MINERVA_CELERY_QUEUES="${MINERVA_CELERY_QUEUES:-default,dataset}"
+  export MINERVA_CELERY_QUEUES="${MINERVA_CELERY_QUEUES:-default,dataset,graph_kb}"
   if [[ "${SUBCMD}" == "worker" ]]; then
     POOL="${MINERVA_CELERY_POOL}"
     if [[ -z "${POOL}" ]]; then

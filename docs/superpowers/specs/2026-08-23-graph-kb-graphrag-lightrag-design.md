@@ -1,6 +1,6 @@
 # 知识图谱模块：集成 GraphRAG / LightRAG 可行性与设计
 
-**状态：** 设计已确认，待实现  
+**状态：** 部分实现（至 Task 8：Celery 索引/清理 + 投影回写）  
 **日期：** 2026-08-23  
 **类型：** 可行性分析 + 模块设计（独立于 Dataset）  
 **Minerva 约定：** 无库级外键；删除在应用层；二次确认使用 Popconfirm；环境变量同步 `backend/.env.example` 与 `backend/.env.dev`；主内容区布局见 `frontend/docs/LAYOUT.md`
@@ -422,10 +422,13 @@ Worker 入参携带从 `sys_models` 解析出的 OpenAI-compatible `base_url`、
 
 | spec 条目 | 当前代码位置 | 备注 |
 |-----------|--------------|------|
-| 独立 GraphKB 模块 | 无 | 待实现 |
-| LightRAG / GraphRAG Worker | 无 | 待实现 |
-| `feature:graph_kb` 菜单与权限 | 无 | 待实现 |
-| 本模块表 | 无 | 待实现 |
+| 独立 GraphKB 模块 | `backend/app/graph_kb/` | CRUD / 文档 / 引擎客户端已落地 |
+| LightRAG / GraphRAG Worker | `workers/` | Task 10–11 待实现；主 API 走 `GraphEngineClient` |
+| `feature:graph_kb` 菜单与权限 | `permission_codes.py` + SQL seeds | 已落地 |
+| 本模块表 | `backend/sql/schema_postgresql.sql` | 无库级外键 |
+| 索引入队 / 冲突 409 | `graph_kb/service/index_service.py` | `assert_no_active_index_job`；`queue=graph_kb` |
+| 失败 job 不覆盖投影 | `run_index_job` 仅成功路径调用 `replace_projections` | `job.error` 经 `redact_secret` |
+| DELETE 图谱异步清理 | `delete_graph_sql` + `cleanup_service.enqueue_cleanup` | 提交后入队；需传入 `engine` |
 
 Dataset（`backend/app/dataset/`）与 mem0 Neo4j 不在本模块改动范围内。
 
@@ -436,3 +439,4 @@ Dataset（`backend/app/dataset/`）与 mem0 Neo4j 不在本模块改动范围内
 | 日期 | 说明 |
 |------|------|
 | 2026-08-23 | 初稿：可行性 + 方案 1 设计；独立菜单；ACL；admin 总览；超管无限制 |
+| 2026-08-23 | Task 8：Celery `graph_kb` 索引/清理、投影回写、`MINERVA_CELERY_QUEUES` 默认含 `graph_kb` |

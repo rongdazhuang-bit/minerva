@@ -27,7 +27,7 @@ if errorlevel 1 exit /b 1
 set "CELERY_APP=app.celery_app:celery_app"
 if not defined MINERVA_CELERY_POOL set "MINERVA_CELERY_POOL=threads"
 if not defined MINERVA_CELERY_CONCURRENCY set "MINERVA_CELERY_CONCURRENCY=4"
-if not defined MINERVA_CELERY_QUEUES set "MINERVA_CELERY_QUEUES=default,dataset"
+if not defined MINERVA_CELERY_QUEUES set "MINERVA_CELERY_QUEUES=default,dataset,graph_kb"
 echo [run-celery] dir: %MINERVA_BACKEND_DIR%  subcmd: %SUBCMD%
 "%MINERVA_PYTHON%" -m app.sys.celery.service.broker_preflight
 if errorlevel 1 exit /b 1

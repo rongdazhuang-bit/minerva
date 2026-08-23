@@ -169,17 +169,20 @@ async def delete_graph_kb(
     _member: uuid.UUID = Depends(require_graph_kb_workspace),
     session: AsyncSession = Depends(get_db),
 ) -> None:
-    """Delete graph SQL rows synchronously; enqueue async cleanup (stub)."""
+    """Delete graph SQL rows synchronously; enqueue async Worker/object cleanup."""
 
     actor = await actor_from_user(session, user=user, workspace_id=workspace_id)
-    await graph_svc.get_graph_for_manage(
+    graph = await graph_svc.get_graph_for_manage(
         session, workspace_id=workspace_id, graph_id=graph_id, actor=actor
     )
+    engine = graph.engine
     await deletion_service.delete_graph_sql(
         session, workspace_id=workspace_id, graph_id=graph_id
     )
     await session.commit()
-    await deletion_service.enqueue_cleanup(workspace_id=workspace_id, graph_id=graph_id)
+    await deletion_service.enqueue_cleanup(
+        workspace_id=workspace_id, graph_id=graph_id, engine=engine
+    )
 
 
 @router.post("/{graph_id}/documents/upload", response_model=GraphKbDocumentOut, status_code=201)

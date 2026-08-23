@@ -21,8 +21,9 @@ from app.graph_kb.domain.constants import (
     STATUS_PENDING,
 )
 from app.graph_kb.domain.acl import GraphAclActor
-from app.graph_kb.domain.db.models import GraphKbDocument, GraphKbJob
+from app.graph_kb.domain.db.models import GraphKbDocument
 from app.graph_kb.service import graph_service as graph_svc
+from app.graph_kb.service.index_service import enqueue_index
 
 # Preview length kept in ``text_content`` when the body is spilled to disk.
 _TEXT_PREVIEW_CHARS = 500
@@ -96,19 +97,6 @@ def _unlink_storage_key(storage_key: str | None) -> None:
             path.unlink()
     except OSError:
         pass
-
-
-async def enqueue_index(
-    session: AsyncSession,
-    *,
-    workspace_id: uuid.UUID,
-    graph_id: uuid.UUID,
-    user_id: uuid.UUID,
-) -> GraphKbJob | None:
-    """Stub until Task 8 wires Celery; returns None so callers set reindex_enqueued=false."""
-
-    _ = (session, workspace_id, graph_id, user_id)
-    return None
 
 
 async def add_plain_text(
@@ -244,11 +232,11 @@ async def delete_document(
     document_id: uuid.UUID,
     actor: GraphAclActor,
 ) -> dict[str, Any]:
-    """Delete a document row (and local object); optionally try reindex enqueue.
+    """Delete a document row (and local object); optionally enqueue reindex.
 
-    When the graph ``indexing_status`` is completed/failed, attempts ``enqueue_index``.
-    Job conflicts or a stub that cannot enqueue still return 200 with
-    ``reindex_enqueued=false`` and a message to call ``POST /index`` manually.
+    When the graph ``indexing_status`` is completed/failed, calls ``enqueue_index``.
+    Job conflicts still return 200 with ``reindex_enqueued=false`` and a message
+    to call ``POST /index`` manually.
     """
 
     graph = await graph_svc.get_graph_for_manage(
