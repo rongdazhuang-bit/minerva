@@ -872,6 +872,14 @@ class Settings(BaseSettings):
             "graph_kb_graphrag_worker_url",
         ),
     )
+    graph_kb_engine_client: Literal["http", "fake"] = Field(
+        default="http",
+        description="GraphKB 引擎客户端：http 调独立 Worker；fake 进程内假实现（测试）。",
+        validation_alias=AliasChoices(
+            "GRAPH_KB_ENGINE_CLIENT",
+            "graph_kb_engine_client",
+        ),
+    )
     amap_web_service_key: str = Field(
         default="",
         description="高德 Web 服务 API Key（IP 定位、行政区域、天气查询）。",
