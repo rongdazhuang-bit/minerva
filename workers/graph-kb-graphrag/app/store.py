@@ -1,0 +1,359 @@
+"""In-memory/file fake and GraphRAG-backed stores for the graph-kb worker."""
+
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import subprocess
+from pathlib import Path
+from typing import Any
+from uuid import UUID
+
+from fastapi import HTTPException
+
+from app.namespace import graphrag_root
+
+# Default index subprocess timeout when the request omits ``timeout_seconds``.
+_DEFAULT_INDEX_TIMEOUT_SECONDS = 7200
+
+
+def worker_fake_enabled() -> bool:
+    """Return True when ``GRAPH_KB_WORKER_FAKE=1`` (no GraphRAG SDK / CLI)."""
+
+    return os.environ.get("GRAPH_KB_WORKER_FAKE", "").strip() == "1"
+
+
+def resolve_data_root() -> Path:
+    """Return ``GRAPH_KB_DATA`` or ``<cwd>/data/graph_kb`` when unset."""
+
+    raw = (os.environ.get("GRAPH_KB_DATA") or "").strip()
+    return Path(raw) if raw else Path.cwd() / "data" / "graph_kb"
+
+
+def _reject_naive(mode: str) -> None:
+    """Raise HTTP 400 when GraphRAG receives unsupported ``naive`` mode."""
+
+    if (mode or "").strip().lower() == "naive":
+        raise HTTPException(status_code=400, detail="GraphRAG does not support naive mode.")
+
+
+class FakeStore:
+    """Fake engine that persists ``fake.json`` under the GraphRAG silo root."""
+
+    def _root(self, workspace_id: UUID, graph_id: UUID) -> Path:
+        """Resolve the on-disk silo for this workspace+graph pair."""
+
+        return graphrag_root(resolve_data_root(), workspace_id, graph_id)
+
+    def _fake_path(self, workspace_id: UUID, graph_id: UUID) -> Path:
+        """Path to the fake-mode state file ``{root}/fake.json``."""
+
+        return self._root(workspace_id, graph_id) / "fake.json"
+
+    def _load(self, workspace_id: UUID, graph_id: UUID) -> dict[str, Any]:
+        """Load fake state from disk, or empty projection when missing."""
+
+        path = self._fake_path(workspace_id, graph_id)
+        if not path.is_file():
+            return {
+                "texts": [],
+                "entities": [],
+                "relations": [],
+                "summaries": [],
+            }
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    def _save(self, workspace_id: UUID, graph_id: UUID, state: dict[str, Any]) -> None:
+        """Write fake state so ``delete_namespace`` can remove a non-empty root."""
+
+        root = self._root(workspace_id, graph_id)
+        root.mkdir(parents=True, exist_ok=True)
+        self._fake_path(workspace_id, graph_id).write_text(
+            json.dumps(state, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+    async def index(
+        self,
+        *,
+        workspace_id: UUID,
+        graph_id: UUID,
+        documents: list[dict[str, Any]],
+        llm: dict[str, str] | None = None,
+        embedding: dict[str, str] | None = None,
+        timeout_seconds: int | None = None,
+    ) -> dict[str, Any]:
+        """Index docs into one entity + relation + summary and write ``fake.json``."""
+
+        _ = llm, embedding, timeout_seconds
+        texts = [str(d.get("text") or "") for d in documents]
+        joined = "\n".join(texts)
+        entity_id = f"ent-{graph_id.hex[:8]}"
+        entity = {
+            "id": entity_id,
+            "name": joined
+            or (str(documents[0].get("name") or "empty") if documents else "empty"),
+            "type": "document",
+            "description": joined,
+        }
+        relation = {
+            "id": f"rel-{graph_id.hex[:8]}",
+            "from_id": entity_id,
+            "to_id": entity_id,
+            "type": "self",
+            "description": "fake index relation",
+        }
+        summary = {
+            "summary_id": f"sum-{graph_id.hex[:8]}",
+            "title": f"Summary {graph_id.hex[:8]}",
+            "content": joined,
+            "level": 0,
+            "parent_id": None,
+        }
+        state = {
+            "texts": texts,
+            "entities": [entity],
+            "relations": [relation],
+            "summaries": [summary],
+        }
+        self._save(workspace_id, graph_id, state)
+        return {"entities": list(state["entities"]), "relations": list(state["relations"])}
+
+    async def query(
+        self,
+        *,
+        workspace_id: UUID,
+        graph_id: UUID,
+        query: str,
+        mode: str = "global",
+        top_k: int = 10,
+        llm: dict[str, str] | None = None,
+        embedding: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        """Return ``fake:`` plus indexed document text; reject ``naive``."""
+
+        _reject_naive(mode)
+        _ = top_k, llm, embedding
+        state = self._load(workspace_id, graph_id)
+        texts = list(state.get("texts") or [])
+        joined = "\n".join(texts) if texts else query
+        return {"answer": f"fake:{joined}", "citations": []}
+
+    async def export_graph(
+        self, *, workspace_id: UUID, graph_id: UUID
+    ) -> dict[str, Any]:
+        """Return entities/relations stored in ``fake.json``."""
+
+        state = self._load(workspace_id, graph_id)
+        return {
+            "entities": list(state.get("entities") or []),
+            "relations": list(state.get("relations") or []),
+        }
+
+    async def list_summaries(
+        self, *, workspace_id: UUID, graph_id: UUID
+    ) -> list[dict[str, Any]]:
+        """Return fake summaries for this namespace."""
+
+        return list(self._load(workspace_id, graph_id).get("summaries") or [])
+
+    async def delete_namespace(
+        self, *, workspace_id: UUID, graph_id: UUID
+    ) -> None:
+        """Remove the entire silo directory for this workspace+graph pair."""
+
+        root = self._root(workspace_id, graph_id)
+        if root.exists():
+            shutil.rmtree(root)
+
+
+class GraphRAGStore:
+    """Real GraphRAG engine: CLI index + Python API query against disk roots."""
+
+    def _root(self, workspace_id: UUID, graph_id: UUID) -> Path:
+        """Resolve the on-disk silo for this workspace+graph pair."""
+
+        return graphrag_root(resolve_data_root(), workspace_id, graph_id)
+
+    async def index(
+        self,
+        *,
+        workspace_id: UUID,
+        graph_id: UUID,
+        documents: list[dict[str, Any]],
+        llm: dict[str, str] | None = None,
+        embedding: dict[str, str] | None = None,
+        timeout_seconds: int | None = None,
+    ) -> dict[str, Any]:
+        """Write ``input/*.txt`` and run ``graphrag index --root`` via subprocess."""
+
+        _ = llm, embedding  # credentials are applied via GraphRAG settings on disk
+        root = self._root(workspace_id, graph_id)
+        input_dir = root / "input"
+        input_dir.mkdir(parents=True, exist_ok=True)
+        for doc in documents:
+            doc_id = str(doc.get("document_id") or "doc")
+            text = str(doc.get("text") or "")
+            safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in doc_id)
+            (input_dir / f"{safe_name}.txt").write_text(text, encoding="utf-8")
+
+        timeout = (
+            int(timeout_seconds)
+            if timeout_seconds is not None
+            else _DEFAULT_INDEX_TIMEOUT_SECONDS
+        )
+        subprocess.run(
+            ["graphrag", "index", "--root", str(root)],
+            check=True,
+            timeout=timeout,
+        )
+        return await self.export_graph(workspace_id=workspace_id, graph_id=graph_id)
+
+    async def query(
+        self,
+        *,
+        workspace_id: UUID,
+        graph_id: UUID,
+        query: str,
+        mode: str = "global",
+        top_k: int = 10,
+        llm: dict[str, str] | None = None,
+        embedding: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        """Run GraphRAG ``global_search`` / ``local_search``; reject ``naive``."""
+
+        _reject_naive(mode)
+        _ = top_k, llm, embedding
+        # Lazy import: never pull GraphRAG SDK when fake mode is selected.
+        from graphrag.query.structured_search.global_search.search import (  # type: ignore
+            GlobalSearch,
+        )
+        from graphrag.query.structured_search.local_search.search import (  # type: ignore
+            LocalSearch,
+        )
+
+        root = self._root(workspace_id, graph_id)
+        normalized = (mode or "global").strip().lower()
+        # hybrid maps to global for GraphRAG (no native hybrid in first release).
+        if normalized in ("global", "hybrid"):
+            answer = await self._run_search(GlobalSearch, root, query)
+        elif normalized == "local":
+            answer = await self._run_search(LocalSearch, root, query)
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported GraphRAG query mode: {mode}",
+            )
+        return {"answer": str(answer or ""), "citations": []}
+
+    async def _run_search(self, search_cls: Any, root: Path, query: str) -> str:
+        """Best-effort invoke a GraphRAG search class against ``root``."""
+
+        # GraphRAG API shapes vary by version; construct with root when supported.
+        try:
+            searcher = search_cls(root=str(root))  # type: ignore[misc]
+        except TypeError:
+            searcher = search_cls()  # type: ignore[misc]
+        result = searcher.search(query)  # type: ignore[misc]
+        if hasattr(result, "__await__"):
+            result = await result
+        if isinstance(result, dict):
+            return str(result.get("response") or result.get("answer") or result)
+        return str(result or "")
+
+    async def export_graph(
+        self, *, workspace_id: UUID, graph_id: UUID
+    ) -> dict[str, Any]:
+        """Best-effort read entities/relations from GraphRAG output artifacts."""
+
+        root = self._root(workspace_id, graph_id)
+        entities: list[dict[str, Any]] = []
+        relations: list[dict[str, Any]] = []
+        entities.extend(self._read_table_rows(root, "entities"))
+        relations.extend(self._read_table_rows(root, "relationships"))
+        return {"entities": entities, "relations": relations}
+
+    def _read_table_rows(self, root: Path, stem: str) -> list[dict[str, Any]]:
+        """Load parquet/json rows from ``output`` or ``artifacts`` for ``stem``."""
+
+        candidates = [
+            root / "output" / f"{stem}.parquet",
+            root / "output" / f"{stem}.json",
+            root / "artifacts" / f"{stem}.parquet",
+            root / "artifacts" / f"{stem}.json",
+        ]
+        for path in candidates:
+            if not path.is_file():
+                continue
+            if path.suffix == ".json":
+                raw = json.loads(path.read_text(encoding="utf-8"))
+                if isinstance(raw, list):
+                    return [r for r in raw if isinstance(r, dict)]
+                if isinstance(raw, dict):
+                    rows = raw.get("data") or raw.get(stem) or []
+                    return [r for r in rows if isinstance(r, dict)]
+            if path.suffix == ".parquet":
+                try:
+                    import pandas as pd  # type: ignore
+
+                    frame = pd.read_parquet(path)
+                    return frame.to_dict(orient="records")
+                except Exception:
+                    continue
+        return []
+
+    async def list_summaries(
+        self, *, workspace_id: UUID, graph_id: UUID
+    ) -> list[dict[str, Any]]:
+        """Map community reports from output parquet/json to summary rows."""
+
+        root = self._root(workspace_id, graph_id)
+        rows = self._read_table_rows(root, "community_reports")
+        if not rows:
+            rows = self._read_table_rows(root, "communities")
+        summaries: list[dict[str, Any]] = []
+        for idx, row in enumerate(rows):
+            summary_id = str(
+                row.get("id")
+                or row.get("community")
+                or row.get("community_id")
+                or f"community-{idx}"
+            )
+            title = str(row.get("title") or row.get("community") or summary_id)
+            content = str(
+                row.get("summary")
+                or row.get("full_content")
+                or row.get("content")
+                or row.get("report")
+                or ""
+            )
+            level = int(row.get("level") or row.get("community_level") or 0)
+            parent = row.get("parent") or row.get("parent_id")
+            summaries.append(
+                {
+                    "summary_id": summary_id,
+                    "title": title,
+                    "content": content,
+                    "level": level,
+                    "parent_id": str(parent) if parent is not None else None,
+                }
+            )
+        return summaries
+
+    async def delete_namespace(
+        self, *, workspace_id: UUID, graph_id: UUID
+    ) -> None:
+        """Remove the entire GraphRAG silo directory for this pair."""
+
+        root = self._root(workspace_id, graph_id)
+        if root.exists():
+            shutil.rmtree(root)
+
+
+def build_store() -> FakeStore | GraphRAGStore:
+    """Return FakeStore when ``GRAPH_KB_WORKER_FAKE=1``, else GraphRAGStore."""
+
+    if worker_fake_enabled():
+        return FakeStore()
+    return GraphRAGStore()

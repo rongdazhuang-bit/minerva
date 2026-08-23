@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "minerva-graph-kb-graphrag-worker"
+version = "0.1.0"
+description = "Isolated GraphRAG HTTP worker for Minerva GraphKB"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "pydantic>=2.10",
+  "httpx>=0.28",
+]
+
+[project.optional-dependencies]
+engine = [
+  "graphrag",
+]
+dev = [
+  "pytest>=8.0",
+  "pytest-asyncio>=0.24",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_mode = "auto"
