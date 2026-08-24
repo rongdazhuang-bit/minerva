@@ -1,7 +1,7 @@
 # 专业领域文档校审系统（LLM + 多格式 + 批注）设计说明
 
 **日期**：2026-08-24  
-**状态**：设计已确认（待实现计划）  
+**状态**：设计已确认；实现计划见 `docs/superpowers/plans/2026-08-24-domain-document-review.md`（P0–P3）  
 **范围**：独立产品方案——多场景智能校审（合同 / 错别字 / 法律文书 / 规则 / 以文审文 / 全文一致性）；多格式解析；doc/docx/pdf 批注写回；审核内容条款入库与初始化；校审可观察性。  
 **非绑定**：本 spec 描述目标架构与契约，不要求复用某一既有业务模块路径；实现时可参考同类「解析 → 异步任务 → 产物下载」模式，但以本文为准。
 
@@ -18,27 +18,40 @@
 - **审核内容条款可入库、可种子初始化、发布版本锁定进任务**，保证可复现。
 - **校审全过程可观察**：事件时间线、指标、追踪、任务详情面板。
 
+
+
 ### 1.2 成功标准
 
 - 用户按产品线上传文件（以文审文需主文 + 依据文），任务异步完成；可查看 Finding 列表与阶段时间线。
-- doc/docx/pdf 成功任务可下载带批注文件；批注可追溯到 `finding_id` / 规则或清单项。
-- md/txt/excel 成功任务可下载结构化报告；excel 含「校审结果」sheet 或等价列。
-- 任务创建时锁定 `pack_release_id`；历史任务按锁定版本复盘，不受后续条款编辑影响。
-- 任务详情可见：当前 Stage、事件时间线、LLM 次数/token/耗时、finding 按 severity 汇总、批注 written/unanchored/failed 计数、内容包版本。
+
+doc/docx/pdf 成功任务可下载带批注文件；批注可追溯到 `finding_id` / 规则或清单项。
+
+md/txt/excel 成功任务可下载结构化报告；excel 含「校审结果」sheet 或等价列。
+
+任务创建时锁定 `pack_release_id`；历史任务按锁定版本复盘，不受后续条款编辑影响。
+
+任务详情可见：当前 Stage、事件时间线、LLM 次数/token/耗时、finding 按 severity 汇总、批注 written/unanchored/failed 计数、内容包版本。
+
 - 数据表 **无库级外键、无 ON DELETE 级联**；删除在业务层显式清理子表与对象存储。
+
+
 
 ### 1.3 已确认决策
 
-| 项 | 决策 |
-|----|------|
-| 「批准」含义 | **批注**（Word Comment / PDF Annotation），非审批流 |
-| 产品形态 | **分场景独立产品线**（B） |
-| 总体架构 | **插件化校审引擎**（统一底座 + Profile 组装 Stage） |
-| 合同 vs 法律 | 同一 L3 领域引擎 + 不同 `domain_pack` |
-| doc 批注 | **先转 docx** 再写 Comment；交付 docx（再转回 doc 为可选） |
-| 正文改写 | **首期不做**自动改稿，只批注/报告 |
-| 内容包 | 种子初始化 + 发布版本锁定；**在线编辑 draft 为二期** |
-| 可观察性 | 事件时间线 + 指标 + 追踪 + 任务详情四块面板为 **首期必做** |
+
+| 项        | 决策                                          |
+| -------- | ------------------------------------------- |
+| 「批准」含义   | **批注**（Word Comment / PDF Annotation），非审批流  |
+| 产品形态     | **分场景独立产品线**（B）                             |
+| 总体架构     | **插件化校审引擎**（统一底座 + Profile 组装 Stage）        |
+| 合同 vs 法律 | 同一 L3 领域引擎 + 不同 `domain_pack`               |
+| doc 批注   | **先转 docx** 再写 Comment；交付 docx（再转回 doc 为可选） |
+| 正文改写     | **首期不做**自动改稿，只批注/报告                         |
+| 内容包      | 种子初始化 + 发布版本锁定；**在线编辑 draft 为二期**           |
+| 可观察性     | 事件时间线 + 指标 + 追踪 + 任务详情四块面板为 **首期必做**        |
+
+
+
 
 ### 1.4 非目标（首期）
 
@@ -51,38 +64,52 @@
 
 ---
 
+
+
 ## 2. 能力分类（L1–L5）与产品线映射
 
-| 层级 | 归类 | 覆盖场景 | 本质 |
-|------|------|----------|------|
-| L1 | 语言层 | 错别字校审 | 字词、标点、基础语病 |
-| L2 | 规则层 | 规则校审 | 可配置硬/软规则 |
-| L3 | 领域语义 | 合同、法律文书 | 要素抽取 + 领域清单 + LLM 研判 |
-| L4 | 对照 | 以文审文 | 主文 vs 依据文双文档对齐比对 |
-| L5 | 一致性 | 全文一致性 | 文内实体/数值/称谓/条款引用自洽 |
 
-| 产品线 Profile | 默认 Stage 装配 |
-|----------------|-----------------|
-| `typo` | `typo_l1` |
-| `rule` | `rule_l2` |
-| `contract` | `domain_l3(contract)` → 可选 `consistency_l5` |
-| `legal` | `domain_l3(legal)` → 可选 `consistency_l5` |
-| `text2text` | `compare_l4` |
-| `consistency` | `consistency_l5` |
+| 层级  | 归类   | 覆盖场景    | 本质                   |
+| --- | ---- | ------- | -------------------- |
+| L1  | 语言层  | 错别字校审   | 字词、标点、基础语病           |
+| L2  | 规则层  | 规则校审    | 可配置硬/软规则             |
+| L3  | 领域语义 | 合同、法律文书 | 要素抽取 + 领域清单 + LLM 研判 |
+| L4  | 对照   | 以文审文    | 主文 vs 依据文双文档对齐比对     |
+| L5  | 一致性  | 全文一致性   | 文内实体/数值/称谓/条款引用自洽    |
+
+
+
+| 产品线 Profile   | 默认 Stage 装配                                 |
+| ------------- | ------------------------------------------- |
+| `typo`        | `typo_l1`                                   |
+| `rule`        | `rule_l2`                                   |
+| `contract`    | `domain_l3(contract)` → 可选 `consistency_l5` |
+| `legal`       | `domain_l3(legal)` → 可选 `consistency_l5`    |
+| `text2text`   | `compare_l4`                                |
+| `consistency` | `consistency_l5`                            |
+
 
 共享底座：多格式解析 → `DocumentIR` → Review Engine → Finding 合并 → 批注写回 / 报告导出 → 可观察性贯穿。
 
 ---
 
+
+
 ## 3. 总体架构（方案 B：插件化校审引擎）
+
+
 
 ### 3.1 方案对比与选择
 
-| 方案 | 思路 | 结论 |
-|------|------|------|
-| A. 六条独立流水线 | 每场景一套解析→LLM→写回 | 重复多，不采纳 |
-| **B. 插件化引擎** | 统一底座 + Profile 组装 L1–L5 | **采纳** |
-| C. 多智能体编排 | 每检查点一 Agent | 成本高、难控，首期不采纳 |
+
+| 方案           | 思路                      | 结论           |
+| ------------ | ----------------------- | ------------ |
+| A. 六条独立流水线   | 每场景一套解析→LLM→写回          | 重复多，不采纳      |
+| **B. 插件化引擎** | 统一底座 + Profile 组装 L1–L5 | **采纳**       |
+| C. 多智能体编排    | 每检查点一 Agent             | 成本高、难控，首期不采纳 |
+
+
+
 
 ### 3.2 系统上下文
 
@@ -102,6 +129,8 @@
         └───────────────┴──────────────────────────────┘
               Object Store + DB + Observability Fabric
 ```
+
+
 
 ### 3.3 逻辑模块目录（实现时命名可微调）
 
@@ -123,7 +152,11 @@ review-system/
 
 ---
 
+
+
 ## 4. 核心中间模型
+
+
 
 ### 4.1 `DocumentIR`
 
@@ -150,6 +183,8 @@ Anchor (discriminated by format) {
 }
 ```
 
+
+
 ### 4.2 `Finding`
 
 ```text
@@ -167,6 +202,8 @@ Finding {
   confidence: 0..1
 }
 ```
+
+
 
 ### 4.3 `ReviewProfile`
 
@@ -186,6 +223,8 @@ ReviewProfile {
 }
 ```
 
+
+
 ### 4.4 Stage 契约
 
 ```text
@@ -202,13 +241,19 @@ ReviewContext {
 
 ---
 
+
+
 ## 5. Stage 详细设计
+
+
 
 ### 5.1 L1 `typo_l1`
 
 - 分块 → 可选词典/正则预检 → LLM 纠错 JSON → 映射 `block_id`。
 - 专有名词误报通过 `TermWhitelist`（内容包）降低。
 - 小模型优先；严格 schema：`wrong_span, suggest, reason`。
+
+
 
 ### 5.2 L2 `rule_l2`
 
@@ -217,12 +262,16 @@ ReviewContext {
 - Finding 必须带 `rule_id`；uncertain 默认 `warn`。
 - 规则包为空时创建任务 **422**，禁止空跑。
 
+
+
 ### 5.3 L3 `domain_l3`（合同 / 法律共用）
 
 - Phase A：按 pack 的 `extract_schema` 抽取 `DocumentProfile`。
 - Phase B：checklist 逐项选相关块 + profile 片段研判。
 - Phase C（可选）：调用 L5 子例程。
 - 包内容：`extract_schema`、`checklist`、`system_prompt`、few-shot、关联条款引用。
+
+
 
 ### 5.4 L4 `compare_l4`
 
@@ -232,10 +281,14 @@ ReviewContext {
 - 批注只写主文；`related` 指向依据文摘录与位置。
 - 长文：章节 Map → Reduce。
 
+
+
 ### 5.5 L5 `consistency_l5`
 
 - 抽 `FactIndex`；同 key 多值确定性冲突；跨段语义矛盾走 LLM。
 - Finding 至少两个锚点；批注挂后出现位置并引用前证。
+
+
 
 ### 5.6 Finding 合并
 
@@ -243,15 +296,19 @@ ReviewContext {
 
 ---
 
+
+
 ## 6. 文件格式与交付物
 
-| 格式 | 解析 | 校审 | 交付物 |
-|------|------|------|--------|
-| md / txt | 行/段块 | ✓ | JSON/CSV/HTML 问题报告；可选另存批注版 docx（非必须） |
-| xls / xlsx | 单元格块 | ✓ | 结果 sheet 或批注列；首期不做 Excel 原生批注 |
-| doc | 转 docx 后解析 | ✓ | docx + Comments（再转回 doc 可选） |
-| docx | 段落/run 锚点 | ✓ | Word Comment |
-| pdf | 文本层；扫描件可先 OCR | ✓ | Annotation / 高亮 + Popup |
+
+| 格式         | 解析            | 校审  | 交付物                                  |
+| ---------- | ------------- | --- | ------------------------------------ |
+| md / txt   | 行/段块          | ✓   | JSON/CSV/HTML 问题报告；可选另存批注版 docx（非必须） |
+| xls / xlsx | 单元格块          | ✓   | 结果 sheet 或批注列；首期不做 Excel 原生批注        |
+| doc        | 转 docx 后解析    | ✓   | docx + Comments（再转回 doc 可选）          |
+| docx       | 段落/run 锚点     | ✓   | Word Comment                         |
+| pdf        | 文本层；扫描件可先 OCR | ✓   | Annotation / 高亮 + Popup              |
+
 
 **批注定位策略**
 
@@ -260,6 +317,8 @@ ReviewContext {
 3. 单条定位失败不导致整单失败：`annotate_status=unanchored`，仍进报告。
 
 ---
+
+
 
 ## 7. 任务流水线与状态机
 
@@ -282,29 +341,39 @@ PENDING → PARSING → REVIEWING → ANNOTATING → SUCCESS
 
 **错误策略**
 
-| 场景 | 策略 |
-|------|------|
-| 不支持格式 | 创建时 400 |
-| 解析失败 | FAILED |
+
+| 场景        | 策略                                        |
+| --------- | ----------------------------------------- |
+| 不支持格式     | 创建时 400                                   |
+| 解析失败      | FAILED                                    |
 | 单块 LLM 失败 | 跳过 + warning；失败块比例 > 阈值（建议 30%）则整单 FAILED |
-| 批注写回失败 | findings 保留；可单独重试 ANNOTATING，不重跑校审 |
-| LLM 预算耗尽 | 首期 FAILED + 明确原因 |
+| 批注写回失败    | findings 保留；可单独重试 ANNOTATING，不重跑校审        |
+| LLM 预算耗尽  | 首期 FAILED + 明确原因                          |
+
 
 ---
 
+
+
 ## 8. 审核内容条款入库与初始化
+
+
 
 ### 8.1 资产类型
 
-| 资产 | 用途 | 消费方 |
-|------|------|--------|
-| ClauseTemplate | 标准条款/要点/风险提示 | L3 |
-| ChecklistItem | 审核清单项 | L3 |
-| RuleItem | 硬/软规则 | L2 |
-| DomainPack | 聚合抽取 schema + 清单 + 条款引用 | L3 Profile |
-| TermWhitelist | 专名/术语 | L1 |
-| CompareDimension | 对照维度 | L4 |
-| ConsistencyFactType | 一致性事实类型 | L5 |
+
+| 资产                  | 用途                      | 消费方        |
+| ------------------- | ----------------------- | ---------- |
+| ClauseTemplate      | 标准条款/要点/风险提示            | L3         |
+| ChecklistItem       | 审核清单项                   | L3         |
+| RuleItem            | 硬/软规则                   | L2         |
+| DomainPack          | 聚合抽取 schema + 清单 + 条款引用 | L3 Profile |
+| TermWhitelist       | 专名/术语                   | L1         |
+| CompareDimension    | 对照维度                    | L4         |
+| ConsistencyFactType | 一致性事实类型                 | L5         |
+
+
+
 
 ### 8.2 逻辑表（无库级 FK）
 
@@ -358,12 +427,14 @@ content_seeds/          # 仓库内版本化种子 YAML/JSON
    4. Profile 默认绑定当前已发布 version
 ```
 
-| 策略 | 行为 |
-|------|------|
-| `skip_if_exists`（默认） | 已有同 code 包则不覆盖 |
-| `merge_additive` | 只追加缺失 code |
-| `replace_draft` | 覆盖 draft，不动已发布版 |
+
+| 策略                    | 行为                 |
+| --------------------- | ------------------ |
+| `skip_if_exists`（默认）  | 已有同 code 包则不覆盖     |
+| `merge_additive`      | 只追加缺失 code         |
+| `replace_draft`       | 覆盖 draft，不动已发布版    |
 | `publish_new_version` | 打新 version 并切换默认绑定 |
+
 
 租户可将全局包克隆后本地化修改，不影响全局。
 
@@ -373,6 +444,8 @@ content_seeds/          # 仓库内版本化种子 YAML/JSON
 - Stage **只读**该 release 快照，不读可变 draft。
 - 历史任务按锁定版本复盘。
 
+
+
 ### 8.5 管理能力（首期）
 
 - 列表/查看已发布包与版本。
@@ -381,7 +454,11 @@ content_seeds/          # 仓库内版本化种子 YAML/JSON
 
 ---
 
+
+
 ## 9. 校审可观察性
+
+
 
 ### 9.1 关联 ID（强制贯穿）
 
@@ -412,6 +489,8 @@ event_type:
 - `review_annotate_total{format,result}`、`review_unanchored_ratio{profile,format}`
 - `review_pack_bind_total{pack_code,version}`、`content_seed_apply_total{pack,result}`
 
+
+
 ### 9.4 追踪 Span 树
 
 ```text
@@ -424,24 +503,32 @@ review.job
  └─ review.annotate
 ```
 
+
+
 ### 9.5 日志与隐私
 
 - JSON 结构化日志。
 - `observability.payload_mode = hash | truncated | full`；生产默认 `truncated`。
 - Prompt 存 template version + hash；完整 prompt 仅 debug 采样入对象存储。
 
+
+
 ### 9.6 任务详情面板（首期必做）
 
-1. 进度条 + 当前 Stage  
-2. 事件时间线  
-3. 资源账单：LLM 次数、token、耗时、可选费用估算  
-4. 产出摘要：finding 按 severity、批注 written/unanchored/failed、内容包版本号  
+1. 进度条 + 当前 Stage
+2. 事件时间线
+3. 资源账单：LLM 次数、token、耗时、可选费用估算
+4. 产出摘要：finding 按 severity、批注 written/unanchored/failed、内容包版本号
+
+
 
 ### 9.7 告警（建议）
 
 - 某 profile 失败率超阈值；LLM schema_fail 突增；任务 P95 耗时超阈值；种子初始化失败。
 
 ---
+
+
 
 ## 10. 持久化（逻辑模型）
 
@@ -472,25 +559,31 @@ content_* / content_pack_release
 
 ---
 
+
+
 ## 11. API 草图
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| `POST` | `/review/jobs` | profile_id + 文件 + 选项；锁定 pack_release |
-| `GET` | `/review/jobs` | 分页；可按 profile 筛 |
-| `GET` | `/review/jobs/{id}` | 状态、进度、产物、pack 版本、账单摘要 |
-| `GET` | `/review/jobs/{id}/findings` | 分页/severity 过滤 |
-| `GET` | `/review/jobs/{id}/events` | 可观察时间线 |
-| `GET` | `/review/jobs/{id}/download` | artifact=annotated\|report\|source |
-| `POST` | `/review/jobs/{id}/cancel` | 取消 |
-| `POST` | `/review/jobs/{id}/retry-annotate` | 仅重试写回 |
-| `DELETE` | `/review/jobs/{id}` | 业务层级联清理 |
-| `GET` | `/review/content-packs` | 已发布包列表 |
-| `POST` | `/review/content-packs/seed` | 受控重新初始化（管理端） |
+
+| 方法       | 路径                                 | 说明                                   |
+| -------- | ---------------------------------- | ------------------------------------ |
+| `POST`   | `/review/jobs`                     | profile_id + 文件 + 选项；锁定 pack_release |
+| `GET`    | `/review/jobs`                     | 分页；可按 profile 筛                      |
+| `GET`    | `/review/jobs/{id}`                | 状态、进度、产物、pack 版本、账单摘要                |
+| `GET`    | `/review/jobs/{id}/findings`       | 分页/severity 过滤                       |
+| `GET`    | `/review/jobs/{id}/events`         | 可观察时间线                               |
+| `GET`    | `/review/jobs/{id}/download`       | artifact=annotated|report|source     |
+| `POST`   | `/review/jobs/{id}/cancel`         | 取消                                   |
+| `POST`   | `/review/jobs/{id}/retry-annotate` | 仅重试写回                                |
+| `DELETE` | `/review/jobs/{id}`                | 业务层级联清理                              |
+| `GET`    | `/review/content-packs`            | 已发布包列表                               |
+| `POST`   | `/review/content-packs/seed`       | 受控重新初始化（管理端）                         |
+
 
 六产品线共用 API，差异仅 `profile_id` 与前端入口；或以 `/review/{profile}/jobs` 薄封装。
 
 ---
+
+
 
 ## 12. 前端信息架构
 
@@ -508,6 +601,8 @@ content_* / content_pack_release
 
 ---
 
+
+
 ## 13. LLM 网关
 
 - `complete(messages, response_schema, model_policy)`。
@@ -516,6 +611,8 @@ content_* / content_pack_release
 - 审计：prompt 版本 hash、model_id、usage。
 
 ---
+
+
 
 ## 14. 测试策略
 
@@ -528,18 +625,24 @@ content_* / content_pack_release
 
 ---
 
+
+
 ## 15. 实现分期建议（写入计划时可拆）
 
-| 期次 | 内容 |
-|------|------|
-| P0 | 底座：IR、Job、Parse（优先 docx/pdf/txt/md）、LLM 网关、事件时间线、指标骨架、种子加载 |
-| P1 | typo + rule 两条产品线 + docx/pdf 批注 + 报告导出 |
-| P2 | domain_l3（contract/legal 包）+ consistency |
-| P3 | text2text + excel/xls + doc 转换 + 告警看板 |
+
+| 期次  | 内容                                                         |
+| --- | ---------------------------------------------------------- |
+| P0  | 底座：IR、Job、Parse（优先 docx/pdf/txt/md）、LLM 网关、事件时间线、指标骨架、种子加载 |
+| P1  | typo + rule 两条产品线 + docx/pdf 批注 + 报告导出                     |
+| P2  | domain_l3（contract/legal 包）+ consistency                   |
+| P3  | text2text + excel/xls + doc 转换 + 告警看板                      |
+
 
 具体排期以实现计划为准。
 
 ---
+
+
 
 ## 16. 自检摘要（spec 评审）
 
@@ -547,3 +650,4 @@ content_* / content_pack_release
 - 合同/法律不拆双引擎，与 Profile 表一致。
 - 内容包与可观察性已纳入首期必做边界；在线编辑明确二期。
 - 单任务实现计划可覆盖 P0–P1；P2–P3 可同 spec 下分 plan 或同 plan 分里程碑。
+
