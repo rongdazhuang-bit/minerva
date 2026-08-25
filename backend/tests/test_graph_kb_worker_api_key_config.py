@@ -14,8 +14,8 @@ def test_settings_requires_worker_keys_when_engine_client_is_http(
     """HTTP engine client mode must require both worker API keys."""
 
     monkeypatch.setenv("GRAPH_KB_ENGINE_CLIENT", "http")
-    monkeypatch.delenv("GRAPH_KB_LIGHTRAG_WORKER_API_KEY", raising=False)
-    monkeypatch.delenv("GRAPH_KB_GRAPHRAG_WORKER_API_KEY", raising=False)
+    monkeypatch.setenv("GRAPH_KB_LIGHTRAG_WORKER_API_KEY", "")
+    monkeypatch.setenv("GRAPH_KB_GRAPHRAG_WORKER_API_KEY", "")
     with pytest.raises(ValidationError) as exc:
         Settings()
     msg = str(exc.value)
