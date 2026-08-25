@@ -880,6 +880,22 @@ class Settings(BaseSettings):
             "graph_kb_engine_client",
         ),
     )
+    graph_kb_lightrag_worker_api_key: str = Field(
+        default="",
+        description="LightRAG Worker HTTP API Key（Authorization: Bearer）。",
+        validation_alias=AliasChoices(
+            "GRAPH_KB_LIGHTRAG_WORKER_API_KEY",
+            "graph_kb_lightrag_worker_api_key",
+        ),
+    )
+    graph_kb_graphrag_worker_api_key: str = Field(
+        default="",
+        description="GraphRAG Worker HTTP API Key（Authorization: Bearer）。",
+        validation_alias=AliasChoices(
+            "GRAPH_KB_GRAPHRAG_WORKER_API_KEY",
+            "graph_kb_graphrag_worker_api_key",
+        ),
+    )
     amap_web_service_key: str = Field(
         default="",
         description="高德 Web 服务 API Key（IP 定位、行政区域、天气查询）。",
@@ -922,6 +938,22 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "MEM0_GRAPH_ENABLED=true requires MEM0_NEO4J_PASSWORD"
                 )
+        return self
+
+    @model_validator(mode="after")
+    def validate_graph_kb_worker_api_keys(self) -> Self:
+        """When using HTTP engine client, require both worker API keys."""
+
+        if self.graph_kb_engine_client != "http":
+            return self
+        if not self.graph_kb_lightrag_worker_api_key.strip():
+            raise ValueError(
+                "GRAPH_KB_ENGINE_CLIENT=http requires GRAPH_KB_LIGHTRAG_WORKER_API_KEY"
+            )
+        if not self.graph_kb_graphrag_worker_api_key.strip():
+            raise ValueError(
+                "GRAPH_KB_ENGINE_CLIENT=http requires GRAPH_KB_GRAPHRAG_WORKER_API_KEY"
+            )
         return self
 
     def resolve_graph_kb_data(self) -> Path:
