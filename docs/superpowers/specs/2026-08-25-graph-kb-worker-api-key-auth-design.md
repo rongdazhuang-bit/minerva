@@ -1,6 +1,6 @@
 # GraphKB Worker API Key 认证
 
-**状态：** 待实现  
+**状态：** 已实现  
 **日期：** 2026-08-25  
 **类型：** 安全增强（GraphKB 引擎 Worker 内网调用）  
 **Minerva 约定：** 环境变量同步 `backend/.env.example` 与 `backend/.env.dev`；修行为后回填本 spec
