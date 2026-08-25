@@ -166,3 +166,58 @@ async def test_fake_query_works_without_model_endpoints() -> None:
         WorkerQueryRequest(w, g, ENGINE_LIGHTRAG, "plain", "local", 5)
     )
     assert result.answer.startswith("fake:")
+
+
+@pytest.mark.asyncio
+async def test_http_post_includes_authorization_bearer_header(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Outbound worker calls must send Authorization: Bearer with engine-specific key."""
+
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "graph_kb_lightrag_worker_api_key", "lightrag-secret")
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["authorization"] = request.headers.get("Authorization")
+        return httpx.Response(200, json={"entities": [], "relations": []})
+
+    transport = httpx.MockTransport(handler)
+    client = HttpGraphEngineClient(transport=transport)
+    llm = ModelEndpoint("http://llm", "key", "model")
+    w, g = uuid4(), uuid4()
+    await client.index(
+        WorkerIndexRequest(
+            workspace_id=w,
+            graph_id=g,
+            engine=ENGINE_LIGHTRAG,
+            documents=[WorkerDocument(uuid4(), "d.txt", "hello")],
+            llm=llm,
+            embedding=llm,
+        )
+    )
+    assert captured["authorization"] == "Bearer lightrag-secret"
+
+
+@pytest.mark.asyncio
+async def test_http_worker_401_maps_to_unauthorized_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Worker HTTP 401 must map to graph_kb.worker_unauthorized."""
+
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "graph_kb_lightrag_worker_api_key", "k")
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(401, json={"detail": "Unauthorized"})
+
+    transport = httpx.MockTransport(handler)
+    client = HttpGraphEngineClient(transport=transport)
+    with pytest.raises(AppError) as exc:
+        await client.export_graph(
+            engine=ENGINE_LIGHTRAG, workspace_id=uuid4(), graph_id=uuid4()
+        )
+    assert exc.value.code == "graph_kb.worker_unauthorized"
+    assert exc.value.status_code == 502

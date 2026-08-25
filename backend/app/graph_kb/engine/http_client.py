@@ -26,6 +26,18 @@ def _endpoint_dict(ep: ModelEndpoint) -> dict[str, str]:
     return {"base_url": ep.base_url, "api_key": ep.api_key, "model": ep.model}
 
 
+def _auth_headers(engine: str) -> dict[str, str]:
+    """Build Authorization header for the given engine worker."""
+
+    if engine == ENGINE_LIGHTRAG:
+        key = settings.graph_kb_lightrag_worker_api_key.strip()
+    elif engine == ENGINE_GRAPHRAG:
+        key = settings.graph_kb_graphrag_worker_api_key.strip()
+    else:
+        raise AppError("graph_kb.invalid_engine", f"未知引擎: {engine}", 400)
+    return {"Authorization": f"Bearer {key}"}
+
+
 class HttpGraphEngineClient:
     """Call LightRAG / GraphRAG workers over HTTP; never send pre-built namespaces."""
 
@@ -59,7 +71,7 @@ class HttpGraphEngineClient:
             async with httpx.AsyncClient(
                 timeout=timeout, transport=self._transport
             ) as client:
-                response = await client.post(url, json=payload)
+                response = await client.post(url, json=payload, headers=_auth_headers(engine))
                 response.raise_for_status()
                 if response.status_code == 204 or not response.content:
                     return None
@@ -71,6 +83,12 @@ class HttpGraphEngineClient:
                 503,
             ) from exc
         except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 401:
+                raise AppError(
+                    "graph_kb.worker_unauthorized",
+                    "图谱引擎 Worker 认证失败。",
+                    502,
+                ) from exc
             raise AppError(
                 "graph_kb.worker_error",
                 f"图谱引擎 Worker 返回错误: HTTP {exc.response.status_code}",
