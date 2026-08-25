@@ -16,8 +16,9 @@ from app.core.infrastructure.db.base import Base
 class GraphKb(Base):
     """Graph knowledge base container.
 
-    Logically references ``sys_workspace`` (workspace_id), ``sys_user``
-    (created_by / updated_by), and ``sys_models`` (llm / embedding bindings); no FK.
+    Logically references ``sys_workspace`` (workspace_id) and ``sys_user``
+    (created_by / updated_by); no FK. Chat / Embedding models are configured
+    in each engine Worker process env, not on this row.
     """
 
     __tablename__ = "graph_kb"
@@ -32,10 +33,6 @@ class GraphKb(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     engine: Mapped[str] = mapped_column(String(32), nullable=False)
     permission: Mapped[str] = mapped_column(String(64), nullable=False)
-    llm_model: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    llm_model_provider: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    embedding_model: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    embedding_model_provider: Mapped[str | None] = mapped_column(String(255), nullable=True)
     indexing_status: Mapped[str] = mapped_column(
         String(32), nullable=False, server_default="empty"
     )

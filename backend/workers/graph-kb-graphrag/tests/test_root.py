@@ -9,11 +9,28 @@ from uuid import UUID
 
 import pytest
 
-# Fake mode before importing app.main so the worker picks FakeStore.
-os.environ["GRAPH_KB_WORKER_FAKE"] = "1"
+# Load worker test profile before importing app (see backend/workers/graph-kb-graphrag/.env.test).
+os.environ["WORKER_ENV"] = "test"
 _TEST_KEY = "test-graphrag-worker-key"
 os.environ["GRAPH_KB_GRAPHRAG_WORKER_API_KEY"] = _TEST_KEY
 _AUTH = {"Authorization": f"Bearer {_TEST_KEY}"}
+
+
+def _reload_app_modules() -> None:
+    """Reload worker modules so ``Settings`` picks up patched environment variables."""
+
+    import importlib
+
+    import app.auth as auth_mod
+    import app.config as config_mod
+    import app.main as main_mod
+    import app.store as store_mod
+
+    importlib.reload(config_mod)
+    importlib.reload(store_mod)
+    importlib.reload(auth_mod)
+    importlib.reload(main_mod)
+    return main_mod
 
 
 def test_graphrag_root_nests_workspace_then_graph(tmp_path: Path) -> None:
@@ -31,11 +48,7 @@ def test_request_with_root_field_is_rejected(tmp_path: Path, monkeypatch: pytest
     """POST bodies must not carry a client-supplied ``root`` path."""
 
     monkeypatch.setenv("GRAPH_KB_DATA", str(tmp_path))
-    # Re-import after env so data root resolves to tmp_path.
-    import importlib
-
-    import app.main as main_mod
-    importlib.reload(main_mod)
+    main_mod = _reload_app_modules()
     from fastapi.testclient import TestClient
 
     client = TestClient(main_mod.app)
@@ -65,11 +78,7 @@ def test_fake_index_writes_fake_json_and_delete_removes_root(
     """Fake mode creates ``{root}/fake.json``; delete_namespace removes the silo."""
 
     monkeypatch.setenv("GRAPH_KB_DATA", str(tmp_path))
-    monkeypatch.setenv("GRAPH_KB_WORKER_FAKE", "1")
-    import importlib
-
-    import app.main as main_mod
-    importlib.reload(main_mod)
+    main_mod = _reload_app_modules()
     from fastapi.testclient import TestClient
 
     client = TestClient(main_mod.app)
@@ -86,8 +95,6 @@ def test_fake_index_writes_fake_json_and_delete_removes_root(
                 "text": "alpha",
             }
         ],
-        "llm": {"base_url": "http://x", "api_key": "k", "model": "m"},
-        "embedding": {"base_url": "http://x", "api_key": "k", "model": "e"},
     }
     indexed = client.post("/index", json=payload, headers=_AUTH)
     assert indexed.status_code == 200
@@ -115,6 +122,21 @@ def test_fake_index_writes_fake_json_and_delete_removes_root(
     )
     assert queried.status_code == 200
     assert queried.json()["answer"] == "fake:alpha"
+
+    basic = client.post(
+        "/query",
+        json={
+            "workspace_id": str(wid),
+            "graph_id": str(gid),
+            "engine": "graphrag",
+            "query": "q",
+            "mode": "basic",
+            "top_k": 5,
+        },
+        headers=_AUTH,
+    )
+    assert basic.status_code == 200
+    assert basic.json()["answer"].startswith("fake:")
 
     naive = client.post(
         "/query",
@@ -162,7 +184,13 @@ async def test_fake_index_wipes_input_and_output(
     """Fake reindex must drop leftover input/output before writing current files."""
 
     monkeypatch.setenv("GRAPH_KB_DATA", str(tmp_path))
-    monkeypatch.setenv("GRAPH_KB_WORKER_FAKE", "1")
+    import importlib
+
+    import app.config as config_mod
+    import app.store as store_mod
+
+    importlib.reload(config_mod)
+    importlib.reload(store_mod)
     from app.namespace import graphrag_root
     from app.store import FakeStore
 
@@ -195,11 +223,24 @@ async def test_fake_index_wipes_input_and_output(
 async def test_real_index_wipes_and_writes_settings_yaml(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Real GraphRAG index writes settings.yaml from llm/embedding after wiping silos."""
+    """Real GraphRAG index writes settings.yaml from worker env after wiping silos."""
 
     import subprocess
 
     monkeypatch.setenv("GRAPH_KB_DATA", str(tmp_path))
+    monkeypatch.setenv("GRAPH_KB_LLM_BASE_URL", "http://llm")
+    monkeypatch.setenv("GRAPH_KB_LLM_API_KEY", "sk-llm")
+    monkeypatch.setenv("GRAPH_KB_LLM_MODEL", "gpt-test")
+    monkeypatch.setenv("GRAPH_KB_EMBEDDING_BASE_URL", "http://emb")
+    monkeypatch.setenv("GRAPH_KB_EMBEDDING_API_KEY", "sk-emb")
+    monkeypatch.setenv("GRAPH_KB_EMBEDDING_MODEL", "emb-test")
+    import importlib
+
+    import app.config as config_mod
+    import app.store as store_mod
+
+    importlib.reload(config_mod)
+    importlib.reload(store_mod)
     from app.namespace import graphrag_root
     from app.store import GraphRAGStore
 
@@ -230,8 +271,6 @@ async def test_real_index_wipes_and_writes_settings_yaml(
                 "text": "hello",
             }
         ],
-        llm={"base_url": "http://llm", "api_key": "sk-llm", "model": "gpt-test"},
-        embedding={"base_url": "http://emb", "api_key": "sk-emb", "model": "emb-test"},
     )
 
     assert not (root / "input" / "old.txt").exists()

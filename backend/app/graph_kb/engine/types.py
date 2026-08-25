@@ -7,15 +7,6 @@ from uuid import UUID
 
 
 @dataclass(frozen=True)
-class ModelEndpoint:
-    """LLM or embedding endpoint credentials passed to a worker."""
-
-    base_url: str
-    api_key: str
-    model: str
-
-
-@dataclass(frozen=True)
 class WorkerDocument:
     """One document payload for worker ``index``."""
 
@@ -32,8 +23,6 @@ class WorkerIndexRequest:
     graph_id: UUID
     engine: str
     documents: list[WorkerDocument]
-    llm: ModelEndpoint
-    embedding: ModelEndpoint
 
 
 @dataclass(frozen=True)
@@ -57,11 +46,7 @@ class SummaryItem:
 
 @dataclass(frozen=True)
 class WorkerQueryRequest:
-    """Query request scoped by workspace + graph UUIDs.
-
-    ``llm`` / ``embedding`` are optional so Fake clients keep working without
-    credentials; HTTP clients must send them when present (same as index).
-    """
+    """Query request scoped by workspace + graph UUIDs."""
 
     workspace_id: UUID
     graph_id: UUID
@@ -69,8 +54,6 @@ class WorkerQueryRequest:
     query: str
     mode: str
     top_k: int
-    llm: ModelEndpoint | None = None
-    embedding: ModelEndpoint | None = None
 
 
 @dataclass(frozen=True)

@@ -44,7 +44,7 @@
 | 超管 | **不受权限限制**，可见并管理全部图谱（与 Gateway「全平台数据」一致；UI 仍跟当前 workspace） |
 | 消费方 | 仅新菜单（建图、浏览、问答）；首期不接 Agent、不开对外 API |
 | 数据来源 | 独立文件上传 + 纯文本粘贴/导入 |
-| 模型 | 复用工作区 `sys_models` 的 Chat 与 Embeddings |
+| 模型 | Chat / Embedding 在 **Worker 进程环境变量** 配置（`GRAPH_KB_LLM_*` / `GRAPH_KB_EMBEDDING_*`）；图谱行与 API 不传模型凭证 |
 | 浏览 | 表格 + 交互画布 + 社区/主题摘要 |
 | 架构 | **方案 1**：Minerva GraphKB + 独立 LightRAG Worker + 独立 GraphRAG Worker |
 | Token | 不计消耗；不因费用裁剪 GraphRAG |
@@ -102,7 +102,6 @@
 Minerva API  app/graph_kb
   · PermissionGateway + 图谱 ACL
   · 元数据 / 成员 / 文档 / 任务
-  · 从 sys_models 解析 Chat + Embeddings
         │
         ├─ Celery queue=graph_kb   （编排：投递、超时、状态、异步清理）
         │
@@ -148,9 +147,22 @@ kg_{workspace_id}_{graph_id}
 
 `GRAPH_KB_DATA` 必须落在 Minerva 数据目录内，禁止用户指定任意路径。
 
-### 3.3 模型凭证传递
+### 3.3 模型配置（Worker 环境变量）
 
-Worker 入参携带从 `sys_models` 解析出的 OpenAI-compatible `base_url`、`api_key`、`model`（Chat 与 Embeddings 各一份）。只经本机队列或本机 HTTP 传递；日志与 `graph_kb_job` 错误字段禁止写明文 key（脱敏为后四位或完全省略）。
+Chat 与 Embeddings 的 OpenAI-compatible `base_url`、`api_key`、`model` **不在** `graph_kb` 表、REST 请求体或 Worker HTTP 入参中传递。各 Worker 在启动时从本目录 `.env.<WORKER_ENV>` 读取：
+
+| 变量 | 说明 |
+|------|------|
+| `GRAPH_KB_LLM_BASE_URL` | Chat API 基址 |
+| `GRAPH_KB_LLM_API_KEY` | Chat API Key |
+| `GRAPH_KB_LLM_MODEL` | Chat 模型名 |
+| `GRAPH_KB_EMBEDDING_BASE_URL` | Embeddings API 基址 |
+| `GRAPH_KB_EMBEDDING_API_KEY` | Embeddings API Key |
+| `GRAPH_KB_EMBEDDING_MODEL` | Embeddings 模型名 |
+
+`GRAPH_KB_WORKER_FAKE=1` 时可不填上述变量。日志与 `graph_kb_job.error` 禁止写明文 key（脱敏为后四位或省略）。
+
+主 API 仅通过 Bearer Key 调用 Worker；**不**解析 `sys_models` 为 GraphKB 索引/查询传凭证。
 
 ---
 
@@ -198,8 +210,6 @@ Worker 入参携带从 `sys_models` 解析出的 OpenAI-compatible `base_url`、
 | `description` | text NULL |
 | `engine` | `graphrag` \| `lightrag`，创建后不可改 |
 | `permission` | `only_me` \| `partial_members` \| `all_team_members` |
-| `llm_model` / `llm_model_provider` | 绑定 `sys_models` Chat |
-| `embedding_model` / `embedding_model_provider` | 绑定 `sys_models` Embeddings |
 | `indexing_status` | `empty` \| `pending` \| `running` \| `completed` \| `failed` |
 | `created_by` / `updated_by` | uuid |
 | `create_at` / `update_at` | timestamptz |
@@ -261,14 +271,14 @@ Worker 入参携带从 `sys_models` 解析出的 OpenAI-compatible `base_url`、
 
 ### 6.1 流程
 
-1. 创建 `graph_kb`（引擎、权限、模型）。
+1. 创建 `graph_kb`（引擎、权限）。
 2. 写入 `graph_kb_document`（文件和/或纯文本）。
 3. 入队 `graph_kb_job(kind=index|reindex, status=pending)`。
-4. Celery `queue=graph_kb`：校验模型仍可用 → 调用对应 Worker。
+4. Celery `queue=graph_kb`：调用对应 Worker（Worker 使用进程内已配置的 Chat/Embeddings）。
 5. 成功：`export_graph` + `list_summaries` 写入投影；`indexing_status=completed`。
 6. 失败：`job=failed`，保留上一份投影；文档标 error。
 
-入队前 `sys_models` 缺失或停用 → 400，不建 job。
+Worker 未配置模型且非 fake 模式时，索引/查询在 Worker 侧失败；主 API 映射为 502/503，不建「模型缺失」类 400。
 
 ### 6.2 统一 Worker 接口
 
@@ -311,11 +321,12 @@ Worker 入参携带从 `sys_models` 解析出的 OpenAI-compatible `base_url`、
 | `global` | global search（社区报告） | global |
 | `hybrid` | 本地+全局；引擎无组合则降级为 `global` | hybrid |
 | `naive` | 引擎无此模式则 **400** | naive |
+| `basic` | Basic Search（text units 向量 RAG） | **400** |
 
 | HTTP | 条件 |
 |------|------|
 | 404 | 无 ACL（超管除外） |
-| 400 | `naive` 用于 GraphRAG；引擎字段与 Worker 不匹配 |
+| 400 | `naive` 用于 GraphRAG；`basic` 用于 LightRAG；引擎字段与 Worker 不匹配 |
 | 409 | `indexing_status` 不是 `completed` |
 | 503 | Worker 不可达；投影与列表仍可读 |
 | 200 | 无命中时仍 200，答案可空，引用为空数组 |
@@ -335,7 +346,7 @@ Worker 入参携带从 `sys_models` 解析出的 OpenAI-compatible `base_url`、
 | 路径 | 页面 |
 |------|------|
 | `/app/graph-kb` | 列表 |
-| `/app/graph-kb/create` | 新建：引擎、权限、模型、首批文件/文本 |
+| `/app/graph-kb/create` | 新建：引擎、权限、首批文件/文本 |
 | `/app/graph-kb/:id/documents` | 文档、上传/粘贴、索引进度 |
 | `/app/graph-kb/:id/graph` | 表格 + 画布 |
 | `/app/graph-kb/:id/summaries` | 社区/主题摘要 |
@@ -412,7 +423,12 @@ Worker 入参携带从 `sys_models` 解析出的 OpenAI-compatible `base_url`、
 | `GRAPH_KB_INLINE_TEXT_MAX_CHARS` | 纯文本内联上限，默认 20000 |
 | `GRAPH_KB_LIGHTRAG_WORKER_URL` | LightRAG Worker 本机地址 |
 | `GRAPH_KB_GRAPHRAG_WORKER_URL` | GraphRAG Worker 本机地址 |
+| `GRAPH_KB_LIGHTRAG_WORKER_API_KEY` / `GRAPH_KB_GRAPHRAG_WORKER_API_KEY` | 主 API 调用 Worker 的 Bearer Key（`http` 模式必填） |
 | `MINERVA_CELERY_QUEUES` | Worker 须包含 `graph_kb`（实现时回填脚本说明） |
+
+**Worker 进程（`backend/workers/graph-kb-*/.env.<WORKER_ENV>`，非 fake 时必填）：**  
+`GRAPH_KB_LLM_BASE_URL`、`GRAPH_KB_LLM_API_KEY`、`GRAPH_KB_LLM_MODEL`、  
+`GRAPH_KB_EMBEDDING_BASE_URL`、`GRAPH_KB_EMBEDDING_API_KEY`、`GRAPH_KB_EMBEDDING_MODEL`。
 
 密钥类值不写入 `.env.example` 明文生产密钥。
 
@@ -425,16 +441,16 @@ Worker 入参携带从 `sys_models` 解析出的 OpenAI-compatible `base_url`、
 | 独立 GraphKB 模块 | `backend/app/graph_kb/`（`api/` `domain/` `engine/` `service/` `task/`） | CRUD / 文档 / 索引 / 查询 / 投影已落地 |
 | `GraphEngineClient` / Fake / HTTP | `engine/protocol.py`、`fake_client.py`、`http_client.py`、`factory.py` | `GRAPH_KB_ENGINE_CLIENT=fake` 用 Fake；默认 `http` |
 | Fake 隔离 key | `FakeGraphEngineClient._store[(workspace_id, graph_id)]` | 交叉 workspace 回归见 `tests/test_graph_kb_engine_client.py` |
-| LightRAG Worker | `workers/graph-kb-lightrag/`；脚本 `scripts/run-graph-kb-lightrag-worker.cmd`（`:8101`） | `GRAPH_KB_WORKER_FAKE=1` 可跳过 SDK；`delete_namespace` 缓存未命中仍打开并清空；reindex 先 wipe 再写入当前文档 |
-| GraphRAG Worker | `workers/graph-kb-graphrag/`；脚本 `scripts/run-graph-kb-graphrag-worker.cmd`（`:8102`） | 禁止请求体带 `root`；reindex 先清空 `input/`/`output/`；真实 index 写入最小 `settings.yaml`（无完整 SDK 时用 `GRAPH_KB_WORKER_FAKE=1`） |
+| LightRAG Worker | `backend/workers/graph-kb-lightrag/`；脚本 `scripts/run-graph-kb-lightrag-worker.cmd`（`:8101`） | `GRAPH_KB_WORKER_FAKE=1` 可跳过 SDK；`delete_namespace` 缓存未命中仍打开并清空；reindex 先 wipe 再写入当前文档 |
+| GraphRAG Worker | `backend/workers/graph-kb-graphrag/`；脚本 `scripts/run-graph-kb-graphrag-worker.cmd`（`:8102`） | 禁止请求体带 `root`；reindex 先清空 `input/`/`output/`；真实 index 从 Worker env 写 `settings.yaml` |
 | `feature:graph_kb` 菜单与权限 | `backend/app/core/security/permission_codes.py` + SQL seeds；前端 `frontend/src/features/graph-kb/`、`/app/graph-kb` | 独立菜单；与 Dataset 分离 |
 | ACL（only_me / partial / all_team；admin 本区；超管无限制） | `domain/acl.py`；列表过滤 service | `GraphAclActor`；隔离回归见 `tests/test_graph_kb_isolation.py` |
 | 本模块表（无库级外键） | `backend/sql/schema_postgresql.sql`；ORM `domain/db/models.py` | 删除在应用层 |
 | 文件 + 纯文本入库 | `service/document_service.py` + `api/router.py` | `GRAPH_KB_INLINE_TEXT_MAX_CHARS` |
-| `sys_models` Chat/Embeddings | 建库/索引/查询 service 解析模型端点 | Query 与 index 一样把 `llm`/`embedding` 传给 Worker |
+| Worker 侧 Chat/Embeddings | `backend/workers/graph-kb-*/app/config.py`；`GRAPH_KB_LLM_*` / `GRAPH_KB_EMBEDDING_*` | 已删除 `model_resolver.py`；HTTP index/query **不传** `llm`/`embedding` |
 | Celery `graph_kb` 队列 | `task/index_task.py`、`task/cleanup_task.py`；`MINERVA_CELERY_QUEUES` 含 `graph_kb` | 索引冲突 409；超时 `GRAPH_KB_JOB_TIMEOUT_SECONDS`；`send_task` 失败会把 job 标 failed（避免一直 409） |
 | 投影回写 / 失败保留旧投影 | `service/index_service.py`、`projection_service.py` | 先 commit `running`+`started_at` 再调 Worker；失败 rollback 后回写 started_at/failed/finished_at/error |
-| query mode 映射、409/503 | `engine/modes.py`、`service/query_service.py`、`engine/http_client.py` | GraphRAG 拒 `naive`；未就绪 409；query POST 带模型凭证 |
+| query mode 映射、409/503 | `engine/modes.py`、`service/query_service.py`、`engine/http_client.py` | GraphRAG 拒 `naive`、接受 `basic`；LightRAG 拒 `basic`；未就绪 409；query POST **不含**模型凭证 |
 | 表格 + 子图画布 + 摘要 | `view_service.py`；前端 `graph/` `summaries/` `qa/` | `graph-view` hops 1\|2、最多 200 节点 |
 | 删除顺序 + 异步 cleanup | `deletion_service.py`、`cleanup_service.py` | 文档：commit 后再 unlink；删图谱后入队 cleanup |
 | 不复用 mem0 Neo4j | `GRAPH_KB_LIGHTRAG_DATABASE_URL` / `GRAPH_KB_DATA` | 禁止复用 `MEM0_*`；`GRAPH_KB_DATA` 空则 `backend/data/graph_kb` |
@@ -454,3 +470,5 @@ Dataset（`backend/app/dataset/`）与 mem0 Neo4j 不在本模块改动范围内
 | 2026-08-23 | Task 9：query / entities / relations / summaries / graph-view；补 POST index 与 GET job |
 | 2026-08-23 | Task 15：§11 回填真实路径；状态改为已实现（首期）；交叉 workspace 隔离回归；README 知识图谱节 |
 | 2026-08-23 | 全分支评审修复：query 传模型凭证；delete_namespace 不因缓存未命中提前返回；reindex 丢掉已删文档；GraphRAG 写 settings.yaml；index job 先 commit running；enqueue 失败标 failed；隔离测试；`GRAPH_KB_DATA` 默认 `backend/data/graph_kb` |
+| 2026-08-25 | **废止** 图谱级 `llm_model*` / `embedding_model*` 与 `model_resolver`；模型改 Worker env；SQL patch `2026-08-25-graph-kb-drop-model-columns.sql`；API/前端不再选模型 |
+| 2026-08-25 | GraphRAG 统一 mode `basic` → Basic Search；`naive` 仍仅 LightRAG；见 `2026-08-25-graph-kb-graphrag-basic-search-design.md` |

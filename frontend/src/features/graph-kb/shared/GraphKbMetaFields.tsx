@@ -1,4 +1,4 @@
-/** Shared create/settings fields: engine, permission, members, and models. */
+/** Shared create/settings fields: engine, permission, and members. */
 
 import { Form, Input, Select } from 'antd'
 import { useTranslation } from 'react-i18next'
@@ -14,22 +14,16 @@ import {
 type GraphKbMetaFieldsProps = {
   /** When true, engine Select is locked (settings page). */
   engineDisabled?: boolean
-  modelsLoading?: boolean
   usersLoading?: boolean
-  chatOptions: SelectOption[]
-  embeddingOptions: SelectOption[]
   userOptions: SelectOption[]
   /** Current permission value; members Select shows only for ``partial_members``. */
   permission?: string
 }
 
-/** Name, description, engine, ACL, and model Selects shared by create and settings. */
+/** Name, description, engine, and ACL fields shared by create and settings. */
 export function GraphKbMetaFields({
   engineDisabled = false,
-  modelsLoading = false,
   usersLoading = false,
-  chatOptions,
-  embeddingOptions,
   userOptions,
   permission,
 }: GraphKbMetaFieldsProps) {
@@ -89,26 +83,6 @@ export function GraphKbMetaFields({
           />
         </Form.Item>
       ) : null}
-      <Form.Item name="llm_model_key" label={t('graphKb.field.llm')}>
-        <Select
-          allowClear
-          showSearch
-          optionFilterProp="label"
-          loading={modelsLoading}
-          placeholder={t('graphKb.field.llmPh')}
-          options={chatOptions}
-        />
-      </Form.Item>
-      <Form.Item name="embedding_model_key" label={t('graphKb.field.embedding')}>
-        <Select
-          allowClear
-          showSearch
-          optionFilterProp="label"
-          loading={modelsLoading}
-          placeholder={t('graphKb.field.embeddingPh')}
-          options={embeddingOptions}
-        />
-      </Form.Item>
     </>
   )
 }

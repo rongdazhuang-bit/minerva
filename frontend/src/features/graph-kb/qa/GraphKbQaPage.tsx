@@ -1,4 +1,4 @@
-/** In-menu Q&A: mode select (naive hidden for GraphRAG) plus history. */
+/** In-menu Q&A: mode select differs by engine (basic vs naive). */
 
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Button, Card, Empty, Form, Input, InputNumber, Select, Spin, Typography, message } from 'antd'
@@ -17,8 +17,8 @@ import {
 import { ENGINE_GRAPHRAG } from '@/features/graph-kb/shared/graphKbForm'
 import './GraphKbQaPage.css'
 
-/** Unified query modes; GraphRAG rejects naive on the API. */
-const ALL_QA_MODES = ['local', 'global', 'hybrid', 'naive'] as const
+/** Unified query modes; engines expose a subset via ``qaModesForEngine``. */
+const ALL_QA_MODES = ['local', 'global', 'hybrid', 'naive', 'basic'] as const
 
 type QaFormValues = {
   query: string
@@ -26,12 +26,12 @@ type QaFormValues = {
   top_k?: number
 }
 
-/** Modes allowed for an engine; GraphRAG hides naive. */
+/** Modes allowed for an engine: GraphRAG gets basic; LightRAG gets naive. */
 export function qaModesForEngine(engine: string | undefined): readonly string[] {
   if (engine === ENGINE_GRAPHRAG) {
     return ALL_QA_MODES.filter((mode) => mode !== 'naive')
   }
-  return ALL_QA_MODES
+  return ALL_QA_MODES.filter((mode) => mode !== 'basic')
 }
 
 /** Q&A tab at `/app/graph-kb/:graphId/qa`. */

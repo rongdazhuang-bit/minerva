@@ -1,30 +1,17 @@
-"""Bearer API key authentication for the GraphRAG graph-kb worker."""
+"""Bearer API key authentication for the LightRAG graph-kb worker."""
 
 from __future__ import annotations
 
-import os
 import secrets
-import sys
 from collections.abc import Awaitable, Callable
 
 from fastapi import Request, Response
 from starlette.responses import JSONResponse
 
-_ENV_NAME = "GRAPH_KB_GRAPHRAG_WORKER_API_KEY"
+from app.config import settings
+
 _PUBLIC_PATHS = frozenset({"/health", "/docs", "/openapi.json", "/redoc"})
-
-
-def load_expected_api_key(env_name: str) -> str:
-    """Load and validate the worker API key from the environment."""
-
-    key = (os.environ.get(env_name) or "").strip()
-    if not key:
-        print(f"[error] {env_name} is required", file=sys.stderr)
-        sys.exit(1)
-    return key
-
-
-EXPECTED_API_KEY: str = load_expected_api_key(_ENV_NAME)
+EXPECTED_API_KEY: str = settings.graph_kb_lightrag_worker_api_key.strip()
 
 
 def _keys_match(provided: str, expected: str) -> bool:

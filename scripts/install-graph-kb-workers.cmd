@@ -18,7 +18,7 @@ exit /b 0
 
 :install_one
 set "WORKER_NAME=%~1"
-set "WORKER_DIR=%REPO_ROOT%\workers\graph-kb-%WORKER_NAME%"
+set "WORKER_DIR=%REPO_ROOT%\backend\workers\graph-kb-%WORKER_NAME%"
 if not exist "%WORKER_DIR%\pyproject.toml" (
   echo [error] missing %WORKER_DIR%\pyproject.toml
   exit /b 1

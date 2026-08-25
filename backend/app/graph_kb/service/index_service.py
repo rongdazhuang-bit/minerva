@@ -26,7 +26,6 @@ from app.graph_kb.domain.constants import (
 from app.graph_kb.domain.db.models import GraphKb, GraphKbDocument, GraphKbJob
 from app.graph_kb.engine.factory import create_engine_client
 from app.graph_kb.engine.types import WorkerDocument, WorkerIndexRequest
-from app.graph_kb.service.model_resolver import endpoint_from_resolved, resolve_graph_models
 from app.graph_kb.service.projection_service import replace_projections
 
 log = get_logger(__name__)
@@ -118,7 +117,6 @@ async def enqueue_index(
     """Create a pending index/reindex job and enqueue Celery ``graph_kb.index``.
 
     Raises ``graph_kb.job_conflict`` (409) when another index/reindex is pending or running.
-    Raises 400 from ``resolve_graph_models`` when Chat/Embedding bindings are unusable.
     """
 
     graph = await session.scalar(
@@ -126,15 +124,6 @@ async def enqueue_index(
     )
     if graph is None:
         raise AppError("graph_kb.not_found", "知识图谱不存在。", 404)
-
-    await resolve_graph_models(
-        session,
-        workspace_id=workspace_id,
-        llm_provider=graph.llm_model_provider,
-        llm_name=graph.llm_model,
-        emb_provider=graph.embedding_model_provider,
-        emb_name=graph.embedding_model,
-    )
 
     existing = list(
         (
@@ -189,7 +178,6 @@ async def run_index_job(session: AsyncSession, *, job_id: uuid.UUID) -> dict[str
     exception after projection work begins, roll back so a half-applied
     ``replace_projections`` cannot wipe the last good snapshot; then re-fetch
     and persist ``started_at`` + failed + ``finished_at`` + error.
-    ``api_key`` values from ``resolve_graph_models`` are redacted in ``job.error``.
     """
 
     job = await session.get(GraphKbJob, job_id)
@@ -211,8 +199,6 @@ async def run_index_job(session: AsyncSession, *, job_id: uuid.UUID) -> dict[str
     # Persist running before the Worker call so a crash still shows started_at.
     await session.commit()
 
-    secrets: list[str | None] = []
-
     try:
         documents = list(
             (
@@ -224,15 +210,6 @@ async def run_index_job(session: AsyncSession, *, job_id: uuid.UUID) -> dict[str
                 )
             ).all()
         )
-        llm, emb = await resolve_graph_models(
-            session,
-            workspace_id=job.workspace_id,
-            llm_provider=graph.llm_model_provider,
-            llm_name=graph.llm_model,
-            emb_provider=graph.embedding_model_provider,
-            emb_name=graph.embedding_model,
-        )
-        secrets.extend([llm.api_key, emb.api_key])
         worker_docs = [
             WorkerDocument(
                 document_id=doc.id,
@@ -248,8 +225,6 @@ async def run_index_job(session: AsyncSession, *, job_id: uuid.UUID) -> dict[str
                 graph_id=job.graph_id,
                 engine=graph.engine,
                 documents=worker_docs,
-                llm=endpoint_from_resolved(llm),
-                embedding=endpoint_from_resolved(emb),
             )
         )
         export = await client.export_graph(
@@ -285,7 +260,7 @@ async def run_index_job(session: AsyncSession, *, job_id: uuid.UUID) -> dict[str
         # Mirror dataset indexing_runner: rollback undoes deleted/inserted
         # projection rows so the previous successful snapshot remains.
         await session.rollback()
-        error_msg = redact_job_error(str(exc), secrets)
+        error_msg = redact_job_error(str(exc), [])
         finished = datetime.now(tz=UTC)
         job = await session.get(GraphKbJob, job_id)
         if job is None:

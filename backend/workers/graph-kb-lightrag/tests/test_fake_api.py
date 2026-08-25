@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from uuid import UUID
 
-os.environ["GRAPH_KB_WORKER_FAKE"] = "1"
+os.environ["WORKER_ENV"] = "test"
 os.environ["GRAPH_KB_LIGHTRAG_WORKER_API_KEY"] = "test-lightrag-worker-key"
 
 from fastapi.testclient import TestClient
@@ -34,8 +34,6 @@ def test_fake_index_query_export_and_delete_ignore_workspace_field() -> None:
                 "text": "alpha",
             }
         ],
-        "llm": {"base_url": "http://x", "api_key": "k", "model": "m"},
-        "embedding": {"base_url": "http://x", "api_key": "k", "model": "e"},
     }
     indexed = client.post("/index", json=payload, headers=_AUTH)
     assert indexed.status_code == 200

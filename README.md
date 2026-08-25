@@ -279,22 +279,46 @@ set MINERVA_GRAPH_KB_WORKERS=lightrag && scripts\install-graph-kb-workers.cmd
 | LightRAG | `lightrag-hku==1.5.6` + `asyncpg` / `pgvector` | PG 存储后端（KV / 向量 / 图 / doc status） |
 | GraphRAG | `graphrag==3.1.2` + `pandas` / `pyarrow` | 含 CLI `graphrag index` 与 parquet 导出读取 |
 
-Worker 侧可用 `GRAPH_KB_WORKER_FAKE=1` 跳过真实引擎 SDK（内存假实现，便于无 GPU/无 SDK 的本地与 CI）。**未设置 fake 时**，启动脚本要求已执行上述 install（使用 `workers/graph-kb-*/.venv`）。存储隔离按 `(workspace_id, graph_id)`；LightRAG workspace 字符串 / GraphRAG 根目录**只在 Worker 内拼接**。
+Worker 位于 `backend/workers/graph-kb-*`，**各自独立** `.env.<WORKER_ENV>` 配置（默认 `WORKER_ENV=dev` → `backend/workers/graph-kb-*/.env.dev`），不读取 `backend/.env.*`。启动脚本 `run-graph-kb-*-worker.cmd` 会自动设置 `WORKER_ENV=dev`。
+
+Worker 侧可用 `GRAPH_KB_WORKER_FAKE=1`（写在 worker `.env.dev`）跳过真实引擎 SDK。**未设置 fake 时**，启动脚本要求已执行上述 install（使用 `backend/workers/graph-kb-*/.venv`）。存储隔离按 `(workspace_id, graph_id)`；LightRAG workspace 字符串 / GraphRAG 根目录**只在 Worker 内拼接**。
 
 ### 环境变量（节选）
+
+**主 API / Celery（`backend/.env.<APP_ENV>`）**
 
 | 变量 | 说明 |
 |------|------|
 | `GRAPH_KB_ENGINE_CLIENT` | `http`（默认，调独立 Worker）/ `fake`（进程内 Fake，**单元测试推荐**） |
 | `GRAPH_KB_LIGHTRAG_WORKER_URL` | LightRAG Worker 基址（默认 `http://127.0.0.1:8101`） |
 | `GRAPH_KB_GRAPHRAG_WORKER_URL` | GraphRAG Worker 基址（默认 `http://127.0.0.1:8102`） |
-| `GRAPH_KB_LIGHTRAG_WORKER_API_KEY` | LightRAG Worker Bearer 认证（`http` 模式必填） |
-| `GRAPH_KB_GRAPHRAG_WORKER_API_KEY` | GraphRAG Worker Bearer 认证（`http` 模式必填） |
-| `GRAPH_KB_LIGHTRAG_DATABASE_URL` | LightRAG 专用库；**禁止**复用 `MEM0_*` |
-| `GRAPH_KB_DATA` | GraphRAG 数据根目录；空则 `<cwd>/data/graph_kb` |
+| `GRAPH_KB_LIGHTRAG_WORKER_API_KEY` | 调用 LightRAG Worker 的 Bearer Key（`http` 模式必填） |
+| `GRAPH_KB_GRAPHRAG_WORKER_API_KEY` | 调用 GraphRAG Worker 的 Bearer Key（`http` 模式必填） |
 | `GRAPH_KB_JOB_TIMEOUT_SECONDS` | 索引/清理 Celery 超时（默认 7200） |
 
-本地开发时，Worker 进程须 export 与 `backend/.env.dev` 相同的 `GRAPH_KB_*_WORKER_API_KEY`。
+**LightRAG Worker（`backend/workers/graph-kb-lightrag/.env.<WORKER_ENV>`）**
+
+| 变量 | 说明 |
+|------|------|
+| `WORKER_ENV` | 配置 profile（`dev` / `local` / `test`） |
+| `GRAPH_KB_LIGHTRAG_WORKER_API_KEY` | Worker 入站 Bearer Key（须与主 API 侧一致） |
+| `GRAPH_KB_WORKER_FAKE` | `1` = 假实现 |
+| `GRAPH_KB_LIGHTRAG_DATABASE_URL` | LightRAG 专用库；**禁止**复用 `MEM0_*` |
+| `GRAPH_KB_EMBEDDING_DIM` | 向量维度（默认 1536） |
+| `GRAPH_KB_LLM_BASE_URL` / `GRAPH_KB_LLM_API_KEY` / `GRAPH_KB_LLM_MODEL` | Chat（`GRAPH_KB_WORKER_FAKE=0` 时必填） |
+| `GRAPH_KB_EMBEDDING_BASE_URL` / `GRAPH_KB_EMBEDDING_API_KEY` / `GRAPH_KB_EMBEDDING_MODEL` | Embeddings（非 fake 时必填） |
+
+**GraphRAG Worker（`backend/workers/graph-kb-graphrag/.env.<WORKER_ENV>`）**
+
+| 变量 | 说明 |
+|------|------|
+| `WORKER_ENV` | 配置 profile |
+| `GRAPH_KB_GRAPHRAG_WORKER_API_KEY` | Worker 入站 Bearer Key（须与主 API 侧一致） |
+| `GRAPH_KB_WORKER_FAKE` | `1` = 假实现 |
+| `GRAPH_KB_DATA` | GraphRAG silo 父目录；空则 `backend/data/graph_kb` |
+| `GRAPH_KB_LLM_*` / `GRAPH_KB_EMBEDDING_*` | 同上（非 fake 时必填） |
+
+索引/查询 **不在** REST 或 Worker HTTP 请求体中传递模型凭证；由 Worker 进程环境变量统一配置。
 
 ### 测试
 

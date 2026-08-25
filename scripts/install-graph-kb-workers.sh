@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install isolated GraphKB engine workers (LightRAG + GraphRAG) into workers/*/.venv.
+# Install isolated GraphKB engine workers into backend/workers/*/.venv.
 # Usage: bash scripts/install-graph-kb-workers.sh
 # Env: MINERVA_SKIP_VENV_BOOTSTRAP=1 to fail instead of creating missing venvs
 #      MINERVA_GRAPH_KB_WORKERS=lightrag,graphrag  (default: both)
@@ -57,7 +57,7 @@ minerva_create_worker_venv_if_missing() {
 
 minerva_install_worker() {
   local name=$1
-  local worker_dir="${REPO_ROOT}/workers/graph-kb-${name}"
+  local worker_dir="${REPO_ROOT}/backend/workers/graph-kb-${name}"
   local pip_py
 
   if [[ ! -f "${worker_dir}/pyproject.toml" ]]; then

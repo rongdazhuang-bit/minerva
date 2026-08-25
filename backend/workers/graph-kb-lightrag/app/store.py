@@ -10,6 +10,7 @@ from typing import Any
 from urllib.parse import urlparse
 from uuid import UUID
 
+from app.config import settings
 from app.namespace import lightrag_workspace
 
 # Max cached LightRAG instances per worker process (LRU eviction).
@@ -17,9 +18,9 @@ _MAX_LIGHTRAG_INSTANCES = 16
 
 
 def worker_fake_enabled() -> bool:
-    """Return True when ``GRAPH_KB_WORKER_FAKE=1`` (no LightRAG SDK import)."""
+    """Return True when fake-engine mode is enabled in worker settings."""
 
-    return os.environ.get("GRAPH_KB_WORKER_FAKE", "").strip() == "1"
+    return settings.graph_kb_worker_fake
 
 
 @dataclass
@@ -54,12 +55,9 @@ class FakeStore:
         workspace_id: UUID,
         graph_id: UUID,
         documents: list[dict[str, Any]],
-        llm: dict[str, str] | None = None,
-        embedding: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """Index docs into one entity + relation + summary (fake projection)."""
 
-        _ = llm, embedding  # credentials unused in fake mode
         ns = self._ns(workspace_id, graph_id)
         texts = [str(d.get("text") or "") for d in documents]
         joined = "\n".join(texts)
@@ -99,12 +97,10 @@ class FakeStore:
         query: str,
         mode: str = "hybrid",
         top_k: int = 10,
-        llm: dict[str, str] | None = None,
-        embedding: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """Return ``fake:`` plus indexed document text for the target graph."""
 
-        _ = mode, top_k, llm, embedding
+        _ = mode, top_k
         ns = self._ns(workspace_id, graph_id)
         joined = "\n".join(ns.texts) if ns.texts else query
         return {"answer": f"fake:{joined}", "citations": []}
@@ -133,9 +129,9 @@ class FakeStore:
 
 
 def _apply_postgres_env_from_database_url() -> None:
-    """Map ``GRAPH_KB_LIGHTRAG_DATABASE_URL`` into LightRAG ``POSTGRES_*`` vars."""
+    """Map worker database URL into LightRAG ``POSTGRES_*`` vars."""
 
-    raw = (os.environ.get("GRAPH_KB_LIGHTRAG_DATABASE_URL") or "").strip()
+    raw = (settings.graph_kb_lightrag_database_url or "").strip()
     if not raw:
         return
     parsed = urlparse(raw)
@@ -171,8 +167,6 @@ class LightRAGStore:
         *,
         workspace_id: UUID,
         graph_id: UUID,
-        llm: dict[str, str],
-        embedding: dict[str, str],
     ) -> Any:
         """Return a cached or newly constructed LightRAG for the namespace."""
 
@@ -188,6 +182,8 @@ class LightRAGStore:
 
         _apply_postgres_env_from_database_url()
 
+        llm = settings.llm_credentials()
+        embedding = settings.embedding_credentials()
         llm_base = llm.get("base_url") or None
         llm_key = llm.get("api_key") or ""
         llm_model = llm.get("model") or "gpt-4o-mini"
@@ -201,7 +197,7 @@ class LightRAGStore:
             history_messages: list | None = None,
             **kwargs: Any,
         ) -> str:
-            """Complete via OpenAI-compatible endpoint from the index/query request."""
+            """Complete via OpenAI-compatible endpoint from worker settings."""
 
             return await openai_complete_if_cache(
                 llm_model,
@@ -214,7 +210,7 @@ class LightRAGStore:
             )
 
         async def embedding_func(texts: list[str]) -> Any:
-            """Embed texts via OpenAI-compatible endpoint from the request."""
+            """Embed texts via OpenAI-compatible endpoint from worker settings."""
 
             return await openai_embed(
                 texts,
@@ -229,7 +225,7 @@ class LightRAGStore:
             workspace=ws,
             llm_model_func=llm_model_func,
             embedding_func=EmbeddingFunc(
-                embedding_dim=int(os.environ.get("GRAPH_KB_EMBEDDING_DIM", "1536")),
+                embedding_dim=settings.graph_kb_embedding_dim,
                 max_token_size=8192,
                 func=embedding_func,
             ),
@@ -249,17 +245,10 @@ class LightRAGStore:
         workspace_id: UUID,
         graph_id: UUID,
         documents: list[dict[str, Any]],
-        llm: dict[str, str] | None = None,
-        embedding: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """Insert documents into LightRAG and return an entity/relation export."""
 
-        rag = await self._get_rag(
-            workspace_id=workspace_id,
-            graph_id=graph_id,
-            llm=llm or {},
-            embedding=embedding or {},
-        )
+        rag = await self._get_rag(workspace_id=workspace_id, graph_id=graph_id)
         # Rebuild from the current request list so deleted docs do not linger.
         await self._wipe_storages(rag)
         for doc in documents:
@@ -279,19 +268,12 @@ class LightRAGStore:
         query: str,
         mode: str = "hybrid",
         top_k: int = 10,
-        llm: dict[str, str] | None = None,
-        embedding: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """Run a LightRAG query and normalize answer/citations for Minerva."""
 
         from lightrag import QueryParam
 
-        rag = await self._get_rag(
-            workspace_id=workspace_id,
-            graph_id=graph_id,
-            llm=llm or {},
-            embedding=embedding or {},
-        )
+        rag = await self._get_rag(workspace_id=workspace_id, graph_id=graph_id)
         result = await rag.aquery(
             query, param=QueryParam(mode=mode, top_k=top_k)
         )
@@ -311,13 +293,7 @@ class LightRAGStore:
         ws = lightrag_workspace(workspace_id, graph_id)
         rag = self._cache.get(ws)
         if rag is None:
-            # Cold export: construct with empty credentials (storage read only).
-            rag = await self._get_rag(
-                workspace_id=workspace_id,
-                graph_id=graph_id,
-                llm={},
-                embedding={},
-            )
+            rag = await self._get_rag(workspace_id=workspace_id, graph_id=graph_id)
         entities: list[dict] = []
         relations: list[dict] = []
         graph = getattr(rag, "chunk_entity_relation_graph", None)
@@ -351,12 +327,7 @@ class LightRAGStore:
         ws = lightrag_workspace(workspace_id, graph_id)
         rag = self._cache.get(ws)
         if rag is None:
-            rag = await self._get_rag(
-                workspace_id=workspace_id,
-                graph_id=graph_id,
-                llm={},
-                embedding={},
-            )
+            rag = await self._get_rag(workspace_id=workspace_id, graph_id=graph_id)
         summaries: list[dict[str, Any]] = []
         # Best-effort: entities_vdb or llm_response_cache may hold summary-like rows.
         entities_vdb = getattr(rag, "entities_vdb", None)
@@ -412,12 +383,7 @@ class LightRAGStore:
         ws = lightrag_workspace(workspace_id, graph_id)
         rag = self._cache.pop(ws, None)
         if rag is None:
-            rag = await self._get_rag(
-                workspace_id=workspace_id,
-                graph_id=graph_id,
-                llm={},
-                embedding={},
-            )
+            rag = await self._get_rag(workspace_id=workspace_id, graph_id=graph_id)
             self._cache.pop(ws, None)
         await self._wipe_storages(rag)
         finalize = getattr(rag, "finalize_storages", None)

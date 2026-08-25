@@ -65,8 +65,6 @@ async def test_index_wipes_before_insert_so_deleted_docs_drop() -> None:
         workspace_id=uuid4(),
         graph_id=uuid4(),
         documents=[{"document_id": str(uuid4()), "name": "kept.txt", "text": "keep-me"}],
-        llm={"base_url": "http://x", "api_key": "k", "model": "m"},
-        embedding={"base_url": "http://x", "api_key": "k", "model": "e"},
     )
 
     rag.full_docs.drop.assert_awaited()

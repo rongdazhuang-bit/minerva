@@ -1456,6 +1456,7 @@ COMMENT ON COLUMN public.dataset_query.create_at IS '创建时间';
 
 -- GraphKB tables (无外键)
 -- patch: 2026-08-23-graph-kb-tables.sql
+-- patch: 2026-08-25-graph-kb-drop-model-columns.sql
 -- 约定：不声明 FOREIGN KEY / REFERENCES / ON DELETE CASCADE；关联由应用层维护。
 
 CREATE TABLE IF NOT EXISTS public.graph_kb (
@@ -1465,10 +1466,6 @@ CREATE TABLE IF NOT EXISTS public.graph_kb (
   description                 TEXT         NULL,
   engine                      VARCHAR(32)  NOT NULL,
   permission                  VARCHAR(64)  NOT NULL,
-  llm_model                   VARCHAR(255) NULL,
-  llm_model_provider          VARCHAR(255) NULL,
-  embedding_model             VARCHAR(255) NULL,
-  embedding_model_provider    VARCHAR(255) NULL,
   indexing_status             VARCHAR(32)  NOT NULL DEFAULT 'empty',
   created_by                  UUID         NOT NULL,
   updated_by                  UUID         NULL,
@@ -1481,8 +1478,6 @@ COMMENT ON TABLE public.graph_kb IS '图谱知识库主表（无外键；workspa
 COMMENT ON COLUMN public.graph_kb.engine IS 'graphrag | lightrag；创建后不可改';
 COMMENT ON COLUMN public.graph_kb.permission IS 'only_me | partial_members | all_team_members';
 COMMENT ON COLUMN public.graph_kb.indexing_status IS 'empty | pending | running | completed | failed';
-COMMENT ON COLUMN public.graph_kb.llm_model IS '逻辑绑定 sys_models Chat';
-COMMENT ON COLUMN public.graph_kb.embedding_model IS '逻辑绑定 sys_models Embeddings';
 
 CREATE TABLE IF NOT EXISTS public.graph_kb_member (
   id            UUID        NOT NULL DEFAULT gen_random_uuid(),

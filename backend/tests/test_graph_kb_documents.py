@@ -41,32 +41,3 @@ def test_reject_empty_plain_text() -> None:
         assert exc.code == "graph_kb.text_required"
     else:
         raise AssertionError("expected AppError")
-
-
-@pytest.mark.asyncio
-async def test_resolve_graph_models_missing_llm(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Missing Chat model yields graph_kb.llm_model_not_found (400)."""
-
-    from uuid import uuid4
-
-    from app.graph_kb.service import model_resolver as mr
-
-    async def _no_row(*_args, **_kwargs):
-        return None
-
-    monkeypatch.setattr(mr, "_load_enabled_model", _no_row)
-
-    try:
-        await mr.resolve_graph_models(
-            session=object(),  # type: ignore[arg-type]
-            workspace_id=uuid4(),
-            llm_provider="openai",
-            llm_name="gpt",
-            emb_provider="openai",
-            emb_name="emb",
-        )
-    except AppError as exc:
-        assert exc.status_code == 400
-        assert exc.code == "graph_kb.llm_model_not_found"
-    else:
-        raise AssertionError("expected AppError")

@@ -1305,3 +1305,14 @@ git commit -m "docs(graph-kb): backfill implementation map and isolation tests"
 | 首期不做 Agent / 开放 API / Dataset 导入 / GraphRAG 增量 | 未列入任务 |
 
 无 TBD。类型名全程：`GraphEngineClient`、`WorkerIndexRequest`、`GraphAclActor`、`FEATURE_GRAPH_KB`。
+
+---
+
+## 附录：2026-08-25 模型配置修订（以 design spec §3.3 / §11 为准）
+
+以下 Task 6 等段落中关于 `model_resolver.py`、`graph_kb.llm_model*`、`Worker HTTP 传 llm/embedding` 的描述 **已废止**：
+
+- 删除 `backend/app/graph_kb/service/model_resolver.py`
+- SQL：`backend/sql/patches/2026-08-25-graph-kb-drop-model-columns.sql`
+- Chat/Embeddings 仅在 `backend/workers/graph-kb-*/.env.<WORKER_ENV>` 配置
+- `GraphKbCreateIn` / `GraphKbPatchIn` / `GraphKbOut` 不含模型字段；前端创建/设置页不选模型

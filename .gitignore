@@ -34,6 +34,7 @@ __pycache__/
 /backend/.venv/
 /backend/alembic/
 /backend/.env.local
+/backend/workers/**/.env.local
 /backend/data/
 /backend/logs/
 # Track user-scope unit tests only; ignore other local backend test files

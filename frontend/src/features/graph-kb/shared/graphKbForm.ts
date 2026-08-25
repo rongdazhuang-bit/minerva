@@ -1,4 +1,4 @@
-/** Shared GraphKB form helpers: engines, ACL, model keys, and member options. */
+/** Shared GraphKB form helpers: engines, ACL, and member options. */
 
 import { listUsers } from '@/api/users'
 
@@ -26,34 +26,11 @@ export type GraphKbFormValues = {
   engine: string
   permission: string
   member_user_ids?: string[]
-  llm_model_key?: string
-  embedding_model_key?: string
 }
 
 export type SelectOption = {
   value: string
   label: string
-}
-
-/** Build Ant Select value ``provider::model``. */
-export function toModelKey(
-  provider: string | null | undefined,
-  model: string | null | undefined,
-): string | undefined {
-  if (!provider?.trim() || !model?.trim()) return undefined
-  return `${provider}::${model}`
-}
-
-/** Split a composite model Select value into provider and model name. */
-export function parseModelKey(key?: string | null): {
-  provider: string | null
-  model: string | null
-} {
-  if (!key?.includes('::')) {
-    return { provider: null, model: null }
-  }
-  const [provider, model] = key.split('::', 2)
-  return { provider: provider || null, model: model || null }
 }
 
 /** Map indexing / job status to an Ant Design Tag color. */

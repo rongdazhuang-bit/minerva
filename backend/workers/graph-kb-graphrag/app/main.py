@@ -34,16 +34,6 @@ async def request_validation_handler(
     return JSONResponse(status_code=422, content={"detail": errors})
 
 
-class ModelEndpointIn(BaseModel):
-    """OpenAI-compatible LLM or embedding endpoint from Minerva."""
-
-    model_config = ConfigDict(extra="ignore")
-
-    base_url: str = ""
-    api_key: str = ""
-    model: str = ""
-
-
 class DocumentIn(BaseModel):
     """One document payload for ``/index``."""
 
@@ -83,8 +73,6 @@ class IndexBody(NamespaceBody):
     """Index request matching ``HttpGraphEngineClient.index`` JSON."""
 
     documents: list[DocumentIn] = Field(default_factory=list)
-    llm: ModelEndpointIn = Field(default_factory=ModelEndpointIn)
-    embedding: ModelEndpointIn = Field(default_factory=ModelEndpointIn)
     # Optional override for ``graphrag index`` subprocess timeout (seconds).
     timeout_seconds: int | None = None
 
@@ -95,14 +83,6 @@ class QueryBody(NamespaceBody):
     query: str
     mode: str = "global"
     top_k: int = 10
-    llm: ModelEndpointIn = Field(default_factory=ModelEndpointIn)
-    embedding: ModelEndpointIn = Field(default_factory=ModelEndpointIn)
-
-
-def _endpoint_dict(ep: ModelEndpointIn) -> dict[str, str]:
-    """Serialize a model endpoint for the store layer."""
-
-    return {"base_url": ep.base_url, "api_key": ep.api_key, "model": ep.model}
 
 
 @app.get("/health")
@@ -128,8 +108,6 @@ async def index(body: IndexBody) -> dict[str, Any]:
         workspace_id=body.workspace_id,
         graph_id=body.graph_id,
         documents=documents,
-        llm=_endpoint_dict(body.llm),
-        embedding=_endpoint_dict(body.embedding),
         timeout_seconds=body.timeout_seconds,
     )
 
@@ -144,8 +122,6 @@ async def query(body: QueryBody) -> dict[str, Any]:
         query=body.query,
         mode=body.mode,
         top_k=body.top_k,
-        llm=_endpoint_dict(body.llm),
-        embedding=_endpoint_dict(body.embedding),
     )
 
 

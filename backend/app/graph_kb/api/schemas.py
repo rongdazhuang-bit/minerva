@@ -15,10 +15,6 @@ class GraphKbCreateIn(BaseModel):
     description: str | None = None
     engine: str
     permission: str
-    llm_model: str | None = None
-    llm_model_provider: str | None = None
-    embedding_model: str | None = None
-    embedding_model_provider: str | None = None
     member_user_ids: list[uuid.UUID] = Field(default_factory=list)
 
 
@@ -28,10 +24,6 @@ class GraphKbPatchIn(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
     permission: str | None = None
-    llm_model: str | None = None
-    llm_model_provider: str | None = None
-    embedding_model: str | None = None
-    embedding_model_provider: str | None = None
     member_user_ids: list[uuid.UUID] | None = None
 
 
@@ -46,10 +38,6 @@ class GraphKbOut(BaseModel):
     description: str | None = None
     engine: str
     permission: str
-    llm_model: str | None = None
-    llm_model_provider: str | None = None
-    embedding_model: str | None = None
-    embedding_model_provider: str | None = None
     indexing_status: str
     created_by: uuid.UUID
     updated_by: uuid.UUID | None = None

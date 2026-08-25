@@ -11,10 +11,6 @@ export type GraphKbOut = {
   description: string | null
   engine: string
   permission: string
-  llm_model: string | null
-  llm_model_provider: string | null
-  embedding_model: string | null
-  embedding_model_provider: string | null
   indexing_status: string
   created_by: string
   updated_by: string | null
@@ -42,10 +38,6 @@ export type GraphKbCreateBody = {
   description?: string | null
   engine: string
   permission: string
-  llm_model?: string | null
-  llm_model_provider?: string | null
-  embedding_model?: string | null
-  embedding_model_provider?: string | null
   member_user_ids?: string[]
 }
 
@@ -53,10 +45,6 @@ export type GraphKbPatchBody = {
   name?: string
   description?: string | null
   permission?: string
-  llm_model?: string | null
-  llm_model_provider?: string | null
-  embedding_model?: string | null
-  embedding_model_provider?: string | null
   member_user_ids?: string[]
 }
 

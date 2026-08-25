@@ -118,10 +118,6 @@ async def test_enqueue_index_marks_failed_when_send_task_fails(
         id=uuid4(),
         workspace_id=uuid4(),
         indexing_status="empty",
-        llm_model_provider="p",
-        llm_model="m",
-        embedding_model_provider="p",
-        embedding_model="e",
     )
     job_box: dict = {}
 
@@ -152,7 +148,6 @@ async def test_enqueue_index_marks_failed_when_send_task_fails(
         async def refresh(self, _obj) -> None:
             return None
 
-    monkeypatch.setattr(idx, "resolve_graph_models", AsyncMock(return_value=(object(), object())))
     monkeypatch.setattr(
         idx,
         "_send_index_task",
@@ -201,10 +196,6 @@ async def test_run_index_job_persists_started_at_on_failure(
         workspace_id=workspace_id,
         engine="lightrag",
         indexing_status=STATUS_PENDING,
-        llm_model_provider="p",
-        llm_model="m",
-        embedding_model_provider="p",
-        embedding_model="e",
     )
     commits: list[str] = []
 
@@ -241,10 +232,6 @@ async def test_run_index_job_persists_started_at_on_failure(
         async def index(self, _req):
             raise RuntimeError("worker down")
 
-    monkeypatch.setattr(idx, "resolve_graph_models", AsyncMock(return_value=(
-        SimpleNamespace(endpoint_url="http://x", api_key="sk-aaaa", model_name="m"),
-        SimpleNamespace(endpoint_url="http://x", api_key="sk-bbbb", model_name="e"),
-    )))
     monkeypatch.setattr(idx, "create_engine_client", lambda: _BoomClient())
 
     class _Dt:

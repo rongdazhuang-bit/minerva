@@ -78,10 +78,6 @@ async def create_graph(
     name: str,
     engine: str,
     permission: str,
-    llm_model: str | None = None,
-    llm_model_provider: str | None = None,
-    embedding_model: str | None = None,
-    embedding_model_provider: str | None = None,
     description: str | None = None,
 ) -> GraphKb:
     """Create a graph with ``indexing_status=empty``; reject unknown engine/permission."""
@@ -101,10 +97,6 @@ async def create_graph(
         description=description,
         engine=engine,
         permission=permission,
-        llm_model=llm_model,
-        llm_model_provider=llm_model_provider,
-        embedding_model=embedding_model,
-        embedding_model_provider=embedding_model_provider,
         indexing_status=STATUS_EMPTY,
         created_by=user_id,
         updated_by=user_id,
@@ -207,14 +199,6 @@ async def patch_graph(
         if permission not in PERMISSIONS:
             raise AppError("graph_kb.permission_invalid", "不支持的图谱权限。", 400)
         fields["permission"] = permission
-    for key in (
-        "llm_model",
-        "llm_model_provider",
-        "embedding_model",
-        "embedding_model_provider",
-    ):
-        if key in patch:
-            fields[key] = patch[key]
 
     if not fields:
         return row

@@ -12,18 +12,11 @@ from app.exceptions import AppError
 from app.graph_kb.domain.constants import ENGINE_GRAPHRAG, ENGINE_LIGHTRAG
 from app.graph_kb.engine.types import (
     GraphExport,
-    ModelEndpoint,
     SummaryItem,
     WorkerIndexRequest,
     WorkerQueryRequest,
     WorkerQueryResult,
 )
-
-
-def _endpoint_dict(ep: ModelEndpoint) -> dict[str, str]:
-    """Serialize a model endpoint for worker JSON."""
-
-    return {"base_url": ep.base_url, "api_key": ep.api_key, "model": ep.model}
 
 
 def _auth_headers(engine: str) -> dict[str, str]:
@@ -96,7 +89,7 @@ class HttpGraphEngineClient:
             ) from exc
 
     async def index(self, req: WorkerIndexRequest) -> GraphExport:
-        """POST ``/index`` with UUID fields and document/model payloads."""
+        """POST ``/index`` with UUID fields and document payloads."""
 
         payload = {
             "workspace_id": str(req.workspace_id),
@@ -110,8 +103,6 @@ class HttpGraphEngineClient:
                 }
                 for d in req.documents
             ],
-            "llm": _endpoint_dict(req.llm),
-            "embedding": _endpoint_dict(req.embedding),
         }
         data = await self._post(req.engine, "index", payload)
         return GraphExport(
@@ -120,7 +111,7 @@ class HttpGraphEngineClient:
         )
 
     async def query(self, req: WorkerQueryRequest) -> WorkerQueryResult:
-        """POST ``/query`` with workspace_id, graph_id, mode, top_k, and models."""
+        """POST ``/query`` with workspace_id, graph_id, mode, and top_k."""
 
         payload = {
             "workspace_id": str(req.workspace_id),
@@ -130,10 +121,6 @@ class HttpGraphEngineClient:
             "mode": req.mode,
             "top_k": req.top_k,
         }
-        if req.llm is not None:
-            payload["llm"] = _endpoint_dict(req.llm)
-        if req.embedding is not None:
-            payload["embedding"] = _endpoint_dict(req.embedding)
         data = await self._post(req.engine, "query", payload)
         return WorkerQueryResult(
             answer=str(data.get("answer") or ""),

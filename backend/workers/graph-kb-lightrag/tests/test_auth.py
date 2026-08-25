@@ -1,4 +1,4 @@
-"""API key middleware tests for the GraphRAG worker."""
+"""API key middleware tests for the LightRAG worker."""
 
 from __future__ import annotations
 
@@ -8,9 +8,9 @@ import os
 import pytest
 from fastapi.testclient import TestClient
 
-_TEST_KEY = "test-graphrag-worker-key"
-os.environ["GRAPH_KB_WORKER_FAKE"] = "1"
-os.environ["GRAPH_KB_GRAPHRAG_WORKER_API_KEY"] = _TEST_KEY
+_TEST_KEY = "test-lightrag-worker-key"
+os.environ["WORKER_ENV"] = "test"
+os.environ["GRAPH_KB_LIGHTRAG_WORKER_API_KEY"] = _TEST_KEY
 
 import app.main as main_mod
 
@@ -40,7 +40,7 @@ def test_post_without_authorization_returns_401(client: TestClient) -> None:
     gid = "22222222-2222-2222-2222-222222222222"
     resp = client.post(
         "/export_graph",
-        json={"workspace_id": wid, "graph_id": gid, "engine": "graphrag"},
+        json={"workspace_id": wid, "graph_id": gid, "engine": "lightrag"},
     )
     assert resp.status_code == 401
     assert resp.json() == {"detail": "Unauthorized"}
@@ -53,7 +53,7 @@ def test_post_with_wrong_api_key_returns_401(client: TestClient) -> None:
     gid = "22222222-2222-2222-2222-222222222222"
     resp = client.post(
         "/export_graph",
-        json={"workspace_id": wid, "graph_id": gid, "engine": "graphrag"},
+        json={"workspace_id": wid, "graph_id": gid, "engine": "lightrag"},
         headers={"Authorization": "Bearer wrong-key"},
     )
     assert resp.status_code == 401
@@ -66,7 +66,7 @@ def test_post_with_valid_api_key_succeeds(client: TestClient) -> None:
     gid = "22222222-2222-2222-2222-222222222222"
     resp = client.post(
         "/export_graph",
-        json={"workspace_id": wid, "graph_id": gid, "engine": "graphrag"},
+        json={"workspace_id": wid, "graph_id": gid, "engine": "lightrag"},
         headers=_AUTH,
     )
     assert resp.status_code == 200

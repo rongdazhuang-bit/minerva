@@ -90,10 +90,6 @@ async def create_graph_kb(
         name=body.name,
         engine=body.engine,
         permission=body.permission,
-        llm_model=body.llm_model,
-        llm_model_provider=body.llm_model_provider,
-        embedding_model=body.embedding_model,
-        embedding_model_provider=body.embedding_model_provider,
         description=body.description,
     )
     if body.member_user_ids:
