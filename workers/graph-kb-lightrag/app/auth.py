@@ -27,6 +27,14 @@ def load_expected_api_key(env_name: str) -> str:
 EXPECTED_API_KEY: str = load_expected_api_key(_ENV_NAME)
 
 
+def _keys_match(provided: str, expected: str) -> bool:
+    """Compare API keys without raising on length mismatch (Python 3.11+)."""
+
+    if len(provided) != len(expected):
+        return False
+    return secrets.compare_digest(provided, expected)
+
+
 def _extract_bearer_token(authorization: str | None) -> str | None:
     """Parse ``Authorization: Bearer <token>``; return token or None."""
 
@@ -47,6 +55,6 @@ async def api_key_middleware(
     if request.url.path in _PUBLIC_PATHS:
         return await call_next(request)
     token = _extract_bearer_token(request.headers.get("Authorization"))
-    if token is None or not secrets.compare_digest(token, EXPECTED_API_KEY):
+    if token is None or not _keys_match(token, EXPECTED_API_KEY):
         return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
     return await call_next(request)
