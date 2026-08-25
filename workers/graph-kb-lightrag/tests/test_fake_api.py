@@ -5,12 +5,14 @@ from __future__ import annotations
 import os
 from uuid import UUID
 
-# Must set before importing app.main so build_store() picks FakeStore.
 os.environ["GRAPH_KB_WORKER_FAKE"] = "1"
+os.environ["GRAPH_KB_LIGHTRAG_WORKER_API_KEY"] = "test-lightrag-worker-key"
 
 from fastapi.testclient import TestClient
 
 from app.main import app
+
+_AUTH = {"Authorization": "Bearer test-lightrag-worker-key"}
 
 
 def test_fake_index_query_export_and_delete_ignore_workspace_field() -> None:
@@ -35,7 +37,7 @@ def test_fake_index_query_export_and_delete_ignore_workspace_field() -> None:
         "llm": {"base_url": "http://x", "api_key": "k", "model": "m"},
         "embedding": {"base_url": "http://x", "api_key": "k", "model": "e"},
     }
-    indexed = client.post("/index", json=payload)
+    indexed = client.post("/index", json=payload, headers=_AUTH)
     assert indexed.status_code == 200
     body = indexed.json()
     assert len(body["entities"]) == 1
@@ -52,6 +54,7 @@ def test_fake_index_query_export_and_delete_ignore_workspace_field() -> None:
             "top_k": 5,
             "workspace": "ignored",
         },
+        headers=_AUTH,
     )
     assert queried.status_code == 200
     assert queried.json()["answer"] == "fake:alpha"
@@ -59,6 +62,7 @@ def test_fake_index_query_export_and_delete_ignore_workspace_field() -> None:
     exported = client.post(
         "/export_graph",
         json={"workspace_id": wid, "graph_id": gid, "engine": "lightrag"},
+        headers=_AUTH,
     )
     assert exported.status_code == 200
     assert exported.json()["entities"][0]["id"].startswith("ent-")
@@ -66,6 +70,7 @@ def test_fake_index_query_export_and_delete_ignore_workspace_field() -> None:
     summaries = client.post(
         "/list_summaries",
         json={"workspace_id": wid, "graph_id": gid, "engine": "lightrag"},
+        headers=_AUTH,
     )
     assert summaries.status_code == 200
     assert len(summaries.json()["summaries"]) == 1
@@ -73,11 +78,13 @@ def test_fake_index_query_export_and_delete_ignore_workspace_field() -> None:
     deleted = client.post(
         "/delete_namespace",
         json={"workspace_id": wid, "graph_id": gid, "engine": "lightrag"},
+        headers=_AUTH,
     )
     assert deleted.status_code == 204
 
     after = client.post(
         "/export_graph",
         json={"workspace_id": wid, "graph_id": gid, "engine": "lightrag"},
+        headers=_AUTH,
     )
     assert after.json() == {"entities": [], "relations": []}
