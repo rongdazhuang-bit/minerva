@@ -10,9 +10,11 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.auth import api_key_middleware
 from app.store import build_store
 
 app = FastAPI(title="Minerva GraphKB GraphRAG Worker", version="0.1.0")
+app.middleware("http")(api_key_middleware)
 # Shared store for the process lifetime (fake or real based on env at import).
 _store = build_store()
 
