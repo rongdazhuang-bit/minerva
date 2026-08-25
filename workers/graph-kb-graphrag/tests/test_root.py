@@ -11,6 +11,9 @@ import pytest
 
 # Fake mode before importing app.main so the worker picks FakeStore.
 os.environ["GRAPH_KB_WORKER_FAKE"] = "1"
+_TEST_KEY = "test-graphrag-worker-key"
+os.environ["GRAPH_KB_GRAPHRAG_WORKER_API_KEY"] = _TEST_KEY
+_AUTH = {"Authorization": f"Bearer {_TEST_KEY}"}
 
 
 def test_graphrag_root_nests_workspace_then_graph(tmp_path: Path) -> None:
@@ -51,7 +54,7 @@ def test_request_with_root_field_is_rejected(tmp_path: Path, monkeypatch: pytest
             }
         ],
     }
-    resp = client.post("/index", json=payload)
+    resp = client.post("/index", json=payload, headers=_AUTH)
     assert resp.status_code == 400
     assert "root" in resp.text.lower() or "root" in str(resp.json()).lower()
 
@@ -86,7 +89,7 @@ def test_fake_index_writes_fake_json_and_delete_removes_root(
         "llm": {"base_url": "http://x", "api_key": "k", "model": "m"},
         "embedding": {"base_url": "http://x", "api_key": "k", "model": "e"},
     }
-    indexed = client.post("/index", json=payload)
+    indexed = client.post("/index", json=payload, headers=_AUTH)
     assert indexed.status_code == 200
     body = indexed.json()
     assert len(body["entities"]) == 1
@@ -108,6 +111,7 @@ def test_fake_index_writes_fake_json_and_delete_removes_root(
             "mode": "global",
             "top_k": 5,
         },
+        headers=_AUTH,
     )
     assert queried.status_code == 200
     assert queried.json()["answer"] == "fake:alpha"
@@ -122,12 +126,14 @@ def test_fake_index_writes_fake_json_and_delete_removes_root(
             "mode": "naive",
             "top_k": 5,
         },
+        headers=_AUTH,
     )
     assert naive.status_code == 400
 
     exported = client.post(
         "/export_graph",
         json={"workspace_id": str(wid), "graph_id": str(gid), "engine": "graphrag"},
+        headers=_AUTH,
     )
     assert exported.status_code == 200
     assert exported.json()["entities"][0]["id"].startswith("ent-")
@@ -135,6 +141,7 @@ def test_fake_index_writes_fake_json_and_delete_removes_root(
     summaries = client.post(
         "/list_summaries",
         json={"workspace_id": str(wid), "graph_id": str(gid), "engine": "graphrag"},
+        headers=_AUTH,
     )
     assert summaries.status_code == 200
     assert len(summaries.json()["summaries"]) == 1
@@ -142,6 +149,7 @@ def test_fake_index_writes_fake_json_and_delete_removes_root(
     deleted = client.post(
         "/delete_namespace",
         json={"workspace_id": str(wid), "graph_id": str(gid), "engine": "graphrag"},
+        headers=_AUTH,
     )
     assert deleted.status_code == 204
     assert not root.exists()
