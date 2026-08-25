@@ -8,9 +8,11 @@ from uuid import UUID
 from fastapi import FastAPI, Response
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.auth import api_key_middleware
 from app.store import build_store
 
 app = FastAPI(title="Minerva GraphKB LightRAG Worker", version="0.1.0")
+app.middleware("http")(api_key_middleware)
 # Shared store for the process lifetime (fake or real based on env at import).
 _store = build_store()
 
