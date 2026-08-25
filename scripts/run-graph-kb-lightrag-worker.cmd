@@ -4,7 +4,8 @@ chcp 65001 >nul 2>&1
 REM Start GraphKB LightRAG worker on 127.0.0.1:8101
 REM Usage: run-graph-kb-lightrag-worker.cmd
 REM Prereq (real engine): scripts\install-graph-kb-workers.cmd  (or only lightrag via MINERVA_GRAPH_KB_WORKERS=lightrag)
-REM Env: GRAPH_KB_WORKER_FAKE=1 skips LightRAG SDK (in-memory fake)
+REM Env: GRAPH_KB_LIGHTRAG_WORKER_API_KEY (required) must match backend/.env.dev
+REM      GRAPH_KB_WORKER_FAKE=1 skips LightRAG SDK (in-memory fake)
 REM      GRAPH_KB_LIGHTRAG_DATABASE_URL for real PG-backed mode
 REM      GRAPH_KB_DATA (optional) silo parent; default backend\data\graph_kb
 

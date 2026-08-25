@@ -288,9 +288,13 @@ Worker 侧可用 `GRAPH_KB_WORKER_FAKE=1` 跳过真实引擎 SDK（内存假实�
 | `GRAPH_KB_ENGINE_CLIENT` | `http`（默认，调独立 Worker）/ `fake`（进程内 Fake，**单元测试推荐**） |
 | `GRAPH_KB_LIGHTRAG_WORKER_URL` | LightRAG Worker 基址（默认 `http://127.0.0.1:8101`） |
 | `GRAPH_KB_GRAPHRAG_WORKER_URL` | GraphRAG Worker 基址（默认 `http://127.0.0.1:8102`） |
+| `GRAPH_KB_LIGHTRAG_WORKER_API_KEY` | LightRAG Worker Bearer 认证（`http` 模式必填） |
+| `GRAPH_KB_GRAPHRAG_WORKER_API_KEY` | GraphRAG Worker Bearer 认证（`http` 模式必填） |
 | `GRAPH_KB_LIGHTRAG_DATABASE_URL` | LightRAG 专用库；**禁止**复用 `MEM0_*` |
 | `GRAPH_KB_DATA` | GraphRAG 数据根目录；空则 `<cwd>/data/graph_kb` |
 | `GRAPH_KB_JOB_TIMEOUT_SECONDS` | 索引/清理 Celery 超时（默认 7200） |
+
+本地开发时，Worker 进程须 export 与 `backend/.env.dev` 相同的 `GRAPH_KB_*_WORKER_API_KEY`。
 
 ### 测试
 
